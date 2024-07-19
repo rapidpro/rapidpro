@@ -138,7 +138,8 @@ class ScheduledTriggerType(TriggerType):
             self.set_org(org)
 
         def clean_contacts(self):
-            return omnibox_deserialize(self.org, self.cleaned_data["contacts"])["contacts"]
+            groups, contacts = omnibox_deserialize(self.org, self.cleaned_data["contacts"])
+            return contacts
 
         def clean(self):
             cleaned_data = super().clean()

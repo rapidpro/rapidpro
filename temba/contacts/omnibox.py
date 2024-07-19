@@ -10,38 +10,42 @@ from .models import Contact, ContactGroup, ContactGroupCount
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
 SEARCH_CONTACTS = "c"
+PER_TYPE_LIMIT = 25
 
 
-def omnibox_query(org, **kwargs):
+def omnibox_query(org, **kwargs) -> tuple:
     """
-    Performs a omnibox query based on the given arguments
+    Performs a omnibox query returning a tuple of groups and contacts.
     """
 
-    # determine what type of group/contact/URN lookup is being requested
     contact_uuids = kwargs.get("c", None)  # contacts with ids
     group_uuids = kwargs.get("g", None)  # groups with ids
     search = kwargs.get("search", "")  # search of groups, contacts
     types = list(kwargs.get("types", ""))  # limit search to types (g | s | c)
+    groups, contacts = (), ()
 
     if contact_uuids:
-        return org.contacts.filter(
+        contacts = org.contacts.filter(
             uuid__in=contact_uuids.split(","), status=Contact.STATUS_ACTIVE, is_active=True
         ).order_by(Lower("name"))
     elif group_uuids:
-        return ContactGroup.get_groups(org).filter(uuid__in=group_uuids.split(",")).order_by(Lower("name"))
+        groups = ContactGroup.get_groups(org).filter(uuid__in=group_uuids.split(",")).order_by(Lower("name"))
+    else:
+        groups, contacts = _mixed_search(org, search.strip(), types)
 
-    # searching returns something which acts enough like a queryset to be paged
-    return _omnibox_mixed_search(org, search.strip(), types)
+    Contact.bulk_urn_cache_initialize(contacts)
+
+    return groups, contacts
 
 
-def _omnibox_mixed_search(org, search: str, types: str):
+def _mixed_search(org, search: str, types: str) -> tuple:
     """
-    Performs a mixed group and contact search, returning the first N matches of each type.
+    Performs a mixed group and contact search, returning the first 25 matches of each.
     """
 
     search_types = types or (SEARCH_ALL_GROUPS, SEARCH_CONTACTS)
-    per_type_limit = 25
-    results = []
+    groups = []
+    contacts = []
 
     if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
         groups = ContactGroup.get_groups(org, ready_only=True)
@@ -53,7 +57,7 @@ def _omnibox_mixed_search(org, search: str, types: str):
         if search:
             groups = groups.filter(name__icontains=search)
 
-        results += list(groups.order_by(Lower("name"))[:per_type_limit])
+        groups = list(groups.order_by(Lower("name"))[:PER_TYPE_LIMIT])
 
     # listing contacts without any filtering isn't very useful for a typical workspaces and contactql requires name
     # terms be at least 2 chars and URN terms 3 chars
@@ -64,71 +68,59 @@ def _omnibox_mixed_search(org, search: str, types: str):
 
         try:
             search_results = mailroom.get_client().contact_search(
-                org, org.active_contacts_group, query, sort="name", limit=per_type_limit
+                org, org.active_contacts_group, query, sort="name", limit=PER_TYPE_LIMIT
+            )
+            contacts = list(
+                IDSliceQuerySet(
+                    Contact,
+                    search_results.contact_ids,
+                    offset=0,
+                    total=len(search_results.contact_ids),
+                    only=("id", "uuid", "name", "org_id"),
+                ).prefetch_related("org")
             )
         except mailroom.QueryValidationException:
-            return results
+            pass
 
-        contacts = list(
-            IDSliceQuerySet(
-                Contact,
-                search_results.contact_ids,
-                offset=0,
-                total=len(search_results.contact_ids),
-                only=("id", "uuid", "name", "org_id"),
-            ).prefetch_related("org")
-        )
-        Contact.bulk_urn_cache_initialize(contacts)
-        results += contacts
+    return groups, contacts
+
+
+def omnibox_serialize(org, groups, contacts, *, encode=False):
+    """
+    Serializes lists of groups and contacts into the combined list format expected by the omnibox.
+    """
+
+    group_counts = ContactGroupCount.get_totals(groups) if groups else {}
+    results = []
+
+    for group in groups:
+        results.append({"id": str(group.uuid), "name": group.name, "type": "group", "count": group_counts[group]})
+
+    for contact in contacts:
+        result = {"id": str(contact.uuid), "name": contact.get_display(org), "type": "contact"}
+
+        if not org.is_anon:
+            result["urn"] = contact.get_urn_display()
+
+        results.append(result)
+
+    # omniboxes submit as a repeating parameter for each item, so each item needs to be encoded as JSON but not the list
+    # itself, e.g. recipients=%7B%22id%22%3A1%7D&recipients=%7B%22id%22%3A2%7D
+    if encode:
+        return [json.dumps(r) for r in results]
 
     return results
 
 
-def omnibox_serialize(org, groups, contacts, *, json_encode=False):
+def omnibox_deserialize(org, results: list) -> tuple:
     """
-    Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
+    Deserializes the combined list format used by the omnibox into a tuple of groups and contacts.
     """
-    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts))
 
-    if json_encode:
-        return [json.dumps(_) for _ in serialized]
+    group_uuids = [item["id"] for item in results if item["type"] == "group"]
+    contact_uuids = [item["id"] for item in results if item["type"] == "contact"]
 
-    return serialized
-
-
-def omnibox_deserialize(org, omnibox):
-    group_ids = [item["id"] for item in omnibox if item["type"] == "group"]
-    contact_ids = [item["id"] for item in omnibox if item["type"] == "contact"]
-
-    return {
-        "groups": org.groups.filter(uuid__in=group_ids, is_active=True),
-        "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
-    }
-
-
-def omnibox_results_to_dict(org, results):
-    """
-    Converts the result of a omnibox query (queryset of contacts, groups or URNs, or a list) into a dict {id, text}
-    """
-    formatted = []
-
-    groups = [r for r in results if isinstance(r, ContactGroup)]
-    group_counts = ContactGroupCount.get_totals(groups) if groups else {}
-
-    for obj in results:
-        if isinstance(obj, ContactGroup):
-            result = {"id": str(obj.uuid), "name": obj.name, "type": "group", "count": group_counts[obj]}
-        elif isinstance(obj, Contact):
-            if org.is_anon:
-                result = {"id": str(obj.uuid), "name": obj.get_display(org), "type": "contact"}
-            else:
-                result = {
-                    "id": str(obj.uuid),
-                    "name": obj.get_display(org),
-                    "type": "contact",
-                    "urn": obj.get_urn_display(),
-                }
-
-        formatted.append(result)
-
-    return formatted
+    return (
+        org.groups.filter(uuid__in=group_uuids, is_active=True),
+        org.contacts.filter(uuid__in=contact_uuids, is_active=True),
+    )
