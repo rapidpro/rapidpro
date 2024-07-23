@@ -1,3 +1,7 @@
+v9.2.3 (2024-07-23)
+-------------------------
+ * More updates to WhatsApp claiming
+
 v9.2.2 (2024-07-23)
 -------------------------
  * Fix WhatsApp embedded signup
