@@ -357,7 +357,30 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
 
                 response = requests.get(url, params=params)
                 if response.status_code != 200:  # pragma: no cover
-                    raise Exception("Failed to debug user token")
+                    auth_code = auth_token
+
+                    token_request_data = {
+                        "client_id": app_id,
+                        "client_secret": app_secret,
+                        "code": auth_code,
+                        "grant_type": "authorization_code",
+                        "redirect_uri": "https://"
+                        + self.derive_org().get_brand_domain()
+                        + reverse("channels.types.whatsapp.connect"),
+                    }
+                    token_url = "https://graph.facebook.com/v18.0/oauth/access_token"
+                    response = requests.post(token_url, json=token_request_data)
+                    response_json = response.json()
+
+                    auth_token = response_json["access_token"]
+
+                    params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
+
+                    response = requests.get(url, params=params)
+                    if response.status_code == 200:
+                        self.cleaned_data["user_access_token"] = auth_token
+                    else:
+                        raise Exception("Failed to debug user token")
 
                 response_json = response.json()
 
