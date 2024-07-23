@@ -49,7 +49,7 @@
       {% if facebook_login_whatsapp_config_id %}
       connectFB.addEventListener('click', function(evt) {
         fetchAjax("{{clear_session_token_url}}");
-        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=token&override_default_response_type=true");
+        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=code&override_default_response_type=true");
       });
       {% else %}
       connectFB.addEventListener('click', function(evt) {
