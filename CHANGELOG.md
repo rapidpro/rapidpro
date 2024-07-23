@@ -1,3 +1,7 @@
+v9.2.2 (2024-07-23)
+-------------------------
+ * Fix WhatsApp embedded signup
+
 v9.2.1 (2024-07-18)
 -------------------------
  * Catch errors from xlrd reading import rows and return errors with row numbers
