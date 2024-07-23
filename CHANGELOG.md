@@ -1,3 +1,7 @@
+v9.2.4 (2024-07-23)
+-------------------------
+ * Simplify FCM config setting names
+
 v9.2.3 (2024-07-23)
 -------------------------
  * More updates to WhatsApp claiming
