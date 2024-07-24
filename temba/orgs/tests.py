@@ -2445,6 +2445,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     )
     def test_signup(self):
         signup_url = reverse("orgs.org_signup")
+        edit_url = reverse("orgs.user_edit")
 
         response = self.client.get(signup_url + "?%s" % urlencode({"email": "address@example.com"}))
         self.assertEqual(response.status_code, 200)
@@ -2590,22 +2591,29 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
 
         # try changing our username, wrong password
-        post_data = dict(email="myal@wr.org", current_password="HelloWorld")
-        response = self.client.post(reverse("orgs.user_edit"), post_data)
+        response = self.client.post(edit_url, {"email": "myal@wr.org", "current_password": "HelloWorld"})
         self.assertEqual(200, response.status_code)
-        self.assertIn("current_password", response.context["form"].errors)
+        self.assertFormError(
+            response.context["form"],
+            "current_password",
+            "Please enter your password to save changes.",
+        )
 
         # bad new password
-        post_data = dict(email="myal@wr.org", current_password="HelloWorld1", new_password="passwor")
-        response = self.client.post(reverse("orgs.user_edit"), post_data)
+        response = self.client.post(
+            edit_url, {"email": "myal@wr.org", "current_password": "HelloWorld1", "new_password": "passwor"}
+        )
         self.assertEqual(200, response.status_code)
-        self.assertIn("new_password", response.context["form"].errors)
+        self.assertFormError(
+            response.context["form"],
+            "new_password",
+            "This password is too short. It must contain at least 8 characters.",
+        )
 
         User.objects.create(username="bill@msn.com", email="bill@msn.com")
 
         # dupe user
-        post_data = dict(email="bill@msn.com", current_password="HelloWorld1")
-        response = self.client.post(reverse("orgs.user_edit"), post_data)
+        response = self.client.post(edit_url, {"email": "bill@MSN.com", "current_password": "HelloWorld1"})
         self.assertEqual(200, response.status_code)
         self.assertFormError(response.context["form"], "email", "Sorry, that email address is already taken.")
 
@@ -2616,7 +2624,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             language="en-us",
             current_password="HelloWorld1",
         )
-        response = self.client.post(reverse("orgs.user_edit"), post_data, HTTP_X_FORMAX=True)
+        response = self.client.post(edit_url, post_data, HTTP_X_FORMAX=True)
         self.assertEqual(200, response.status_code)
 
         self.assertTrue(User.objects.get(username="myal@wr.org"))

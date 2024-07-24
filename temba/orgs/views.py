@@ -860,7 +860,7 @@ class UserCRUDL(SmartCRUDL):
                 user = self.instance
                 email = self.cleaned_data["email"].lower()
 
-                if User.objects.filter(username=email).exclude(pk=user.pk):
+                if User.objects.filter(username__iexact=email).exclude(id=user.id).exists():
                     raise forms.ValidationError(_("Sorry, that email address is already taken."))
 
                 return email
@@ -2378,7 +2378,7 @@ class OrgCRUDL(SmartCRUDL):
             secret = self.kwargs["secret"]
 
             # if user exists and is logged in then they just need to accept
-            user_exists = User.objects.filter(username=self.invitation.email).exists()
+            user_exists = User.objects.filter(username__iexact=self.invitation.email).exists()
             if user_exists and self.invitation.email == request.user.username:
                 return HttpResponseRedirect(reverse("orgs.org_join_accept", args=[secret]))
 
@@ -2404,7 +2404,7 @@ class OrgCRUDL(SmartCRUDL):
                 return resp
 
             # if user already exists, we shouldn't be here
-            if User.objects.filter(username=self.invitation.email).exists():
+            if User.objects.filter(username__iexact=self.invitation.email).exists():
                 return HttpResponseRedirect(reverse("orgs.org_join", args=[self.kwargs["secret"]]))
 
             return None
@@ -2450,7 +2450,7 @@ class OrgCRUDL(SmartCRUDL):
                 return resp
 
             # if user doesn't already exist or we're logged in as a different user, we shouldn't be here
-            user_exists = User.objects.filter(username=self.invitation.email).exists()
+            user_exists = User.objects.filter(username__iexact=self.invitation.email).exists()
             if not user_exists or self.invitation.email != request.user.username:
                 return HttpResponseRedirect(reverse("orgs.org_join", args=[self.kwargs["secret"]]))
 
