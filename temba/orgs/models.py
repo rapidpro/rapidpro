@@ -148,6 +148,8 @@ class User(AuthUser):
 
     @classmethod
     def create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
+        assert not cls.get_by_email(email), "user with this email already exists"
+
         obj = cls.objects.create_user(
             username=email, email=email, first_name=first_name, last_name=last_name, password=password
         )
@@ -158,7 +160,7 @@ class User(AuthUser):
 
     @classmethod
     def get_or_create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
-        obj = cls.objects.filter(username__iexact=email).first()
+        obj = cls.get_by_email(email)
         if obj:
             obj.first_name = first_name
             obj.last_name = last_name
@@ -166,6 +168,10 @@ class User(AuthUser):
             return obj
 
         return cls.create(email, first_name, last_name, password=password, language=language)
+
+    @classmethod
+    def get_by_email(cls, email: str):
+        return cls.objects.filter(username__iexact=email).first()
 
     @classmethod
     def get_orgs_for_request(cls, request):
