@@ -58,7 +58,7 @@ def _get_access_token():  # pragma: no cover
     Retrieve a valid access token that can be used to authorize requests.
     """
     credentials = service_account.Credentials.from_service_account_file(
-        settings.ANDROID_FCM_SERVICE_ACCOUNT_FILE, scopes=["https://www.googleapis.com/auth/firebase.messaging"]
+        settings.ANDROID_CREDENTIALS_FILE, scopes=["https://www.googleapis.com/auth/firebase.messaging"]
     )
     request = google.auth.transport.requests.Request()
     credentials.refresh(request)

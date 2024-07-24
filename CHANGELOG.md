@@ -1,3 +1,19 @@
+v9.2.5 (2024-07-24)
+-------------------------
+ * Ensure that emails are consistently treated as case insensitive
+
+v9.2.4 (2024-07-23)
+-------------------------
+ * Simplify FCM config setting names
+
+v9.2.3 (2024-07-23)
+-------------------------
+ * More updates to WhatsApp claiming
+
+v9.2.2 (2024-07-23)
+-------------------------
+ * Fix WhatsApp embedded signup
+
 v9.2.1 (2024-07-18)
 -------------------------
  * Catch errors from xlrd reading import rows and return errors with row numbers

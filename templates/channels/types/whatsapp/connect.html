@@ -41,7 +41,9 @@
         return res;
       }, {});
 
-      var accessToken = result.long_lived_token || result.access_token;
+      const urlParams = new URLSearchParams(window.location.search)
+
+      var accessToken = urlParams.get("code") || result.long_lived_token || result.access_token;
       if (accessToken) {
         var userAccessToken = document.getElementById("user-access-token");
         var claimForm = document.getElementById("claim-form");
@@ -95,14 +97,14 @@
       {% if facebook_login_whatsapp_config_id %}
       FB.login(function(response) {
         if (response.authResponse) {
-          submitClaimForm(response.authResponse.accessToken);
+          submitClaimForm(response.authResponse.code);
         } else {
           console.log('User cancelled login or did not fully authorize, redirect to the dialog auth');
-          location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=token&override_default_response_type=true")
+          location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=code&override_default_response_type=true")
         }
       }, {
         config_id: '{{ facebook_login_whatsapp_config_id }}',
-        response_type: 'token',
+        response_type: 'code',
         override_default_response_type: true
       });
       {% else %}
