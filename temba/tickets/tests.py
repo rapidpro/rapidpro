@@ -291,6 +291,8 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         # we should have been redirected to the system topic
         self.assertEqual(f"/ticket/{system_topic.uuid}/open/", response.url)
 
+        # system topics can't be deleted
+
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
@@ -399,7 +401,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
         self.create_contact("Mary No tickets", phone="126", last_seen_on=timezone.now())
         self.create_contact("Mr Other Org", phone="126", last_seen_on=timezone.now(), org=self.org2)
-        topic = Topic.objects.filter(org=self.org).first()
+        topic = Topic.objects.filter(org=self.org, is_system=True).first()
 
         open_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "open"})
         closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "closed"})
@@ -418,7 +420,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(system_topic_url, self.admin, ["Export"])
 
         # user topic gets edit too
-        self.assertContentMenu(user_topic_url, self.admin, ["Edit", "-", "Export"])
+        self.assertContentMenu(user_topic_url, self.admin, ["Edit", "Delete", "-", "Export"])
 
         # no tickets yet so no contacts returned
         response = self.client.get(open_url)
