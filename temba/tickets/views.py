@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from smartmin.views import SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView, SmartDeleteView
+from smartmin.views import SmartCRUDL, SmartDeleteView, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
