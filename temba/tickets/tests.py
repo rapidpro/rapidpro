@@ -275,6 +275,22 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         user_topic.refresh_from_db()
         self.assertEqual(user_topic.name, "Boring Tickets")
 
+    def test_delete(self):
+        system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
+        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
+
+        delete_url = reverse("tickets.topic_delete", args=[user_topic.uuid])
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
+        self.assertContains(response, "You are about to delete")
+
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=user_topic, success_status=302)
+
+        # we should have been redirected to the system topic
+        self.assertEqual(f"/ticket/{system_topic.uuid}/open/", response.url)
+
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
@@ -1160,6 +1176,15 @@ class TopicTest(TembaTest):
         # can't release default topic
         with self.assertRaises(AssertionError):
             self.org.default_ticket_topic.release(self.admin)
+
+        # can't release a topic with tickets
+        ticket = self.create_ticket(self.create_contact("Bob"), "Test 1", topic=topic1)
+        with self.assertRaises(AssertionError):
+            topic1.release(self.admin)
+
+        # can delete a topic with no tickets
+        ticket.delete()
+        topic1.release(self.admin)
 
 
 class TeamTest(TembaTest):

@@ -3457,6 +3457,9 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     write_serializer_class = TopicWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
+    def get_queryset(self):
+        return super().get_queryset().filter(is_active=True)
+
     def prepare_for_serialization(self, object_list, using: str):
         open_counts = TicketCount.get_by_topics(self.request.org, object_list, Ticket.STATUS_OPEN)
         closed_counts = TicketCount.get_by_topics(self.request.org, object_list, Ticket.STATUS_CLOSED)
