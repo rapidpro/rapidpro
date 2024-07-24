@@ -1,3 +1,7 @@
+v9.2.5 (2024-07-24)
+-------------------------
+ * Ensure that emails are consistently treated as case insensitive
+
 v9.2.4 (2024-07-23)
 -------------------------
  * Simplify FCM config setting names
