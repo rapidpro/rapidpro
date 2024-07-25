@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactURN
-from temba.contacts.search.omnibox import omnibox_deserialize
+from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows.models import Flow
 from temba.schedules.views import ScheduleFormMixin
 from temba.utils.fields import JSONField, OmniboxChoice, SelectWidget, TembaChoiceField
@@ -138,7 +138,8 @@ class ScheduledTriggerType(TriggerType):
             self.set_org(org)
 
         def clean_contacts(self):
-            return omnibox_deserialize(self.org, self.cleaned_data["contacts"])["contacts"]
+            groups, contacts = omnibox_deserialize(self.org, self.cleaned_data["contacts"])
+            return contacts
 
         def clean(self):
             cleaned_data = super().clean()

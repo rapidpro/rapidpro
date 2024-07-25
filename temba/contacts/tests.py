@@ -2102,6 +2102,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_omnibox(self, mr_mocks):
+        omnibox_url = reverse("contacts.contact_omnibox")
+
         # add a group with members and an empty group
         self.create_field("gender", "Gender")
         open_tickets = self.org.groups.get(name="Open Tickets")
@@ -2125,36 +2127,44 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        def omnibox_request(query):
-            path = reverse("contacts.contact_omnibox")
-            response = self.client.get(f"{path}?{query}")
+        def omnibox_request(query: str):
+            response = self.client.get(omnibox_url + query)
             return response.json()["results"]
 
         # mock mailroom to return an error
         mr_mocks.exception(mailroom.QueryValidationException("ooh that doesn't look right", "syntax"))
 
         # error is swallowed and we show no results
-        self.assertEqual([], omnibox_request("search=-123`213"))
+        self.assertEqual([], omnibox_request("?search=-123`213"))
 
-        with self.assertNumQueries(14):
-            mr_mocks.contact_search(
-                query="name ~ null OR urn ~ null", total=4, contacts=[self.billy, self.frank, self.joe, self.voldemort]
-            )
+        # lookup specific contacts
+        self.assertEqual(
+            [
+                {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
+                {"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "blow80"},
+            ],
+            omnibox_request(f"?c={self.joe.uuid},{self.billy.uuid}"),
+        )
 
+        # lookup specific groups
+        self.assertEqual(
+            [
+                {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
+                {"id": str(men.uuid), "name": "Men", "type": "group", "count": 0},
+            ],
+            omnibox_request(f"?g={joe_and_frank.uuid},{men.uuid}"),
+        )
+
+        # empty query just returns up to 25 groups A-Z
+        with self.assertNumQueries(10):
             self.assertEqual(
                 [
-                    # all 4 groups A-Z
                     {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
                     {"id": str(men.uuid), "name": "Men", "type": "group", "count": 0},
                     {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
                     {"id": str(open_tickets.uuid), "name": "Open Tickets", "type": "group", "count": 0},
-                    # all 4 contacts A-Z
-                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
-                    {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
-                    {"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "blow80"},
-                    {"id": str(self.voldemort.uuid), "name": "250768383383", "type": "contact", "urn": "250768383383"},
                 ],
-                omnibox_request(query=""),
+                omnibox_request(""),
             )
 
         with self.assertNumQueries(13):
@@ -2162,33 +2172,24 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
             self.assertEqual(
                 [
-                    # 2 contacts A-Z
                     {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
                     {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
                 ],
-                omnibox_request(query="search=250"),
+                omnibox_request("?search=250"),
             )
 
         with self.assertNumQueries(14):
-            mr_mocks.contact_search(query="name ~ null OR urn ~ null", total=2, contacts=[self.billy, self.frank])
+            mr_mocks.contact_search(query='name ~ "FRA" OR urn ~ "FRA"', total=1, contacts=[self.frank])
 
             self.assertEqual(
                 [
-                    # all 4 groups A-Z
                     {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
-                    {"id": str(men.uuid), "name": "Men", "type": "group", "count": 0},
-                    {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
-                    {"id": str(open_tickets.uuid), "name": "Open Tickets", "type": "group", "count": 0},
-                    # 2 contacts A-Z
-                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
                     {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
                 ],
-                omnibox_request(query=""),
+                omnibox_request("?search=FRA"),
             )
 
-        # apply type filters...
-
-        # g = just the 4 groups
+        # specify type filter g (all groups)
         self.assertEqual(
             [
                 {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
@@ -2196,36 +2197,25 @@ class ContactTest(TembaTest, CRUDLTestMixin):
                 {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
                 {"id": str(open_tickets.uuid), "name": "Open Tickets", "type": "group", "count": 0},
             ],
-            omnibox_request("types=g"),
+            omnibox_request("?types=g"),
         )
 
-        # s = just the 2 non-query manual groups
+        # specify type filter s (non-query groups)
         self.assertEqual(
             [
                 {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
                 {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
             ],
-            omnibox_request("types=s"),
-        )
-
-        # lookup by group id
-        self.assertEqual(
-            [{"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2}],
-            omnibox_request(f"g={joe_and_frank.uuid}"),
+            omnibox_request("?types=s"),
         )
 
         with self.anonymous(self.org):
-            mr_mocks.contact_search(query="name ~ null", total=1, contacts=[self.billy])
-
             self.assertEqual(
                 [
-                    # all 4 groups A-Z
                     {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
                     {"id": str(men.uuid), "name": "Men", "type": "group", "count": 0},
                     {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
                     {"id": str(open_tickets.uuid), "name": "Open Tickets", "type": "group", "count": 0},
-                    # 1 contact
-                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact"},
                 ],
                 omnibox_request(""),
             )
@@ -2234,10 +2224,9 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
             self.assertEqual(
                 [
-                    # 1 contact
                     {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact"},
                 ],
-                omnibox_request("search=Billy"),
+                omnibox_request("?search=Billy"),
             )
 
         # exclude blocked and stopped contacts
@@ -2245,7 +2234,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.frank.stop(self.admin)
 
         # lookup by contact uuids
-        self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
+        self.assertEqual(omnibox_request("?c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
 
     def test_history(self):
         url = reverse("contacts.contact_history", args=[self.joe.uuid])

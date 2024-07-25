@@ -860,7 +860,8 @@ class UserCRUDL(SmartCRUDL):
                 user = self.instance
                 email = self.cleaned_data["email"].lower()
 
-                if User.objects.filter(username=email).exclude(pk=user.pk):
+                existing = User.get_by_email(email)
+                if existing and existing != user:
                     raise forms.ValidationError(_("Sorry, that email address is already taken."))
 
                 return email
@@ -2378,13 +2379,13 @@ class OrgCRUDL(SmartCRUDL):
             secret = self.kwargs["secret"]
 
             # if user exists and is logged in then they just need to accept
-            user_exists = User.objects.filter(username=self.invitation.email).exists()
-            if user_exists and self.invitation.email == request.user.username:
+            user = User.get_by_email(self.invitation.email)
+            if user and self.invitation.email == request.user.username:
                 return HttpResponseRedirect(reverse("orgs.org_join_accept", args=[secret]))
 
             logout(request)
 
-            if not user_exists:
+            if not user:
                 return HttpResponseRedirect(reverse("orgs.org_join_signup", args=[secret]))
 
     class JoinSignup(NoNavMixin, InvitationMixin, SmartUpdateView):
@@ -2404,7 +2405,7 @@ class OrgCRUDL(SmartCRUDL):
                 return resp
 
             # if user already exists, we shouldn't be here
-            if User.objects.filter(username=self.invitation.email).exists():
+            if User.get_by_email(self.invitation.email):
                 return HttpResponseRedirect(reverse("orgs.org_join", args=[self.kwargs["secret"]]))
 
             return None
@@ -2450,8 +2451,8 @@ class OrgCRUDL(SmartCRUDL):
                 return resp
 
             # if user doesn't already exist or we're logged in as a different user, we shouldn't be here
-            user_exists = User.objects.filter(username=self.invitation.email).exists()
-            if not user_exists or self.invitation.email != request.user.username:
+            user = User.get_by_email(self.invitation.email)
+            if not user or self.invitation.email != request.user.username:
                 return HttpResponseRedirect(reverse("orgs.org_join", args=[self.kwargs["secret"]]))
 
             return None
@@ -2493,8 +2494,7 @@ class OrgCRUDL(SmartCRUDL):
                 # for granting new accounts, either the email maps to an existing user (and their existing password is used)
                 # or both email and password must be included
                 if email:
-                    user = User.objects.filter(username__iexact=email).first()
-                    if user:
+                    if User.get_by_email(email):
                         if password:
                             raise ValidationError(_("Login already exists, please do not include password."))
                     else:

@@ -684,7 +684,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         # androids sync via FCM
         fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
-        if fcm_id and settings.ANDROID_FCM_PROJECT_ID and settings.ANDROID_FCM_SERVICE_ACCOUNT_FILE:
+        if fcm_id and settings.ANDROID_FCM_PROJECT_ID and settings.ANDROID_CREDENTIALS_FILE:
             on_transaction_commit(lambda: sync_channel_fcm_task.delay(fcm_id, channel_id=self.id))
 
     @classmethod

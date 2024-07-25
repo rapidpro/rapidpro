@@ -53,7 +53,7 @@ from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMi
 
 from .forms import ContactGroupForm, UpdateContactForm
 from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
-from .search.omnibox import omnibox_query, omnibox_results_to_dict
+from .omnibox import omnibox_query, omnibox_serialize
 
 logger = logging.getLogger(__name__)
 
@@ -317,23 +317,15 @@ class ContactCRUDL(SmartCRUDL):
             return ContactExport.create(org, user, group=self.group, search=search, with_groups=with_groups)
 
     class Omnibox(OrgPermsMixin, SmartListView):
-        paginate_by = 75
-        fields = ("id", "text")
-
         def get_queryset(self, **kwargs):
-            org = self.derive_org()
-            return omnibox_query(org, **{k: v for k, v in self.request.GET.items()})
+            return Contact.objects.none()
 
         def render_to_response(self, context, **response_kwargs):
-            org = self.derive_org()
-            page = context["page_obj"]
-            object_list = context["object_list"]
+            org = self.request.org
+            groups, contacts = omnibox_query(org, **{k: v for k, v in self.request.GET.items()})
+            results = omnibox_serialize(org, groups, contacts)
 
-            results = omnibox_results_to_dict(org, object_list)
-
-            json_result = {"results": results, "more": page.has_next(), "total": len(results), "err": "nil"}
-
-            return HttpResponse(json.dumps(json_result), content_type="application/json")
+            return JsonResponse({"results": results, "more": False, "total": len(results), "err": "nil"})
 
     class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"

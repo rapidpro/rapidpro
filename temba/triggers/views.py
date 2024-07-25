@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.models import Channel
 from temba.channels.types.android import AndroidType
 from temba.contacts.models import ContactGroup, ContactURN
-from temba.contacts.search.omnibox import omnibox_serialize
+from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
