@@ -275,6 +275,22 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         user_topic.refresh_from_db()
         self.assertEqual(user_topic.name, "Boring Tickets")
 
+    def test_delete(self):
+        system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
+        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
+
+        delete_url = reverse("tickets.topic_delete", args=[user_topic.uuid])
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
+        self.assertContains(response, "You are about to delete")
+
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=user_topic, success_status=302)
+
+        # we should have been redirected to the system topic
+        self.assertEqual(f"/ticket/{system_topic.uuid}/open/", response.url)
+
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
@@ -383,7 +399,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
         self.create_contact("Mary No tickets", phone="126", last_seen_on=timezone.now())
         self.create_contact("Mr Other Org", phone="126", last_seen_on=timezone.now(), org=self.org2)
-        topic = Topic.objects.filter(org=self.org).first()
+        topic = Topic.objects.filter(org=self.org, is_system=True).first()
 
         open_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "open"})
         closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "closed"})
@@ -402,7 +418,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(system_topic_url, self.admin, ["Export"])
 
         # user topic gets edit too
-        self.assertContentMenu(user_topic_url, self.admin, ["Edit", "-", "Export"])
+        self.assertContentMenu(user_topic_url, self.admin, ["Edit", "Delete", "-", "Export"])
 
         # no tickets yet so no contacts returned
         response = self.client.get(open_url)
@@ -1160,6 +1176,15 @@ class TopicTest(TembaTest):
         # can't release default topic
         with self.assertRaises(AssertionError):
             self.org.default_ticket_topic.release(self.admin)
+
+        # can't release a topic with tickets
+        ticket = self.create_ticket(self.create_contact("Bob"), "Test 1", topic=topic1)
+        with self.assertRaises(AssertionError):
+            topic1.release(self.admin)
+
+        # can delete a topic with no tickets
+        ticket.delete()
+        topic1.release(self.admin)
 
 
 class TeamTest(TembaTest):

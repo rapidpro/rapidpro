@@ -1,10 +1,10 @@
 from datetime import timedelta
 
-from smartmin.views import SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
+from smartmin.views import SmartCRUDL, SmartDeleteView, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -48,7 +48,7 @@ class NoteForm(forms.ModelForm):
 
 class TopicCRUDL(SmartCRUDL):
     model = Topic
-    actions = ("update",)
+    actions = ("update", "delete")
     slug_field = "uuid"
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
@@ -75,6 +75,28 @@ class TopicCRUDL(SmartCRUDL):
         fields = ("name",)
         form_class = Form
 
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        default_template = "smartmin/delete_confirm.html"
+        submit_button_name = _("Delete")
+        slug_url_kwarg = "uuid"
+        fields = ("uuid",)
+        cancel_url = "@tickets.ticket_list"
+        redirect_url = "@tickets.ticket_list"
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["has_tickets"] = self.object.tickets.exists()
+            return context
+
+        def post(self, request, *args, **kwargs):
+            self.get_object().release(self.request.user)
+            redirect_url = self.get_redirect_url()
+            return HttpResponseRedirect(redirect_url)
+
+        def get_redirect_url(self, **kwargs):
+            default_topic = self.get_object().org.topics.filter(is_default=True).first()
+            return f"/ticket/{str(default_topic.uuid)}/open/"
+
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
@@ -85,7 +107,9 @@ class TicketCRUDL(SmartCRUDL):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
 
-                self.fields["topic"].queryset = self.instance.org.topics.order_by("name")
+                self.fields["topic"].queryset = self.instance.org.topics.filter(is_active=True).order_by(
+                    "-is_system", "name"
+                )
 
             class Meta:
                 fields = ("topic", "body")
@@ -238,7 +262,7 @@ class TicketCRUDL(SmartCRUDL):
 
             menu.append(self.create_divider())
 
-            topics = list(org.topics.filter(is_active=True).order_by("name"))
+            topics = list(org.topics.filter(is_active=True).order_by("-is_system", "name"))
             counts = TicketCount.get_by_topics(org, topics, Ticket.STATUS_OPEN)
 
             for topic in topics:
@@ -279,12 +303,20 @@ class TicketCRUDL(SmartCRUDL):
                 and isinstance(self.folder, TopicFolder)
                 and not self.folder.is_system
             ):
+
                 menu.add_modax(
                     _("Edit"),
                     "edit-topic",
                     f"{reverse('tickets.topic_update', args=[self.folder.id])}",
                     title=_("Edit Topic"),
                     on_submit="handleTopicUpdated()",
+                )
+
+                menu.add_modax(
+                    _("Delete"),
+                    "delete-topic",
+                    f"{reverse('tickets.topic_delete', args=[self.folder.id])}",
+                    title=_("Delete"),
                 )
 
             if self.has_org_perm("tickets.ticket_export"):

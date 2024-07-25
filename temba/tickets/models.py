@@ -60,7 +60,7 @@ class Topic(TembaModel, DependencyMixin):
 
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system topics"
-
+        assert not self.tickets.exists(), "can't release topic with tickets"
         super().release(user)
 
         self.is_active = False
