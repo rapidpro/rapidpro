@@ -1,3 +1,8 @@
+v9.3.0 (2024-07-25)
+-------------------------
+ * Add User.get_by_email to ensure consistent behaviour where we look up a user by their email
+ * Omnibox fixes and cleanup
+
 v9.2.5 (2024-07-24)
 -------------------------
  * Ensure that emails are consistently treated as case insensitive
