@@ -287,7 +287,6 @@ class MailroomClientTest(TembaTest):
                 "query": 'name ~ "frank"',
                 "contact_ids": [1, 2],
                 "total": 2,
-                "offset": 0,
                 "metadata": {"attributes": ["name"]},
             },
         )
@@ -303,8 +302,9 @@ class MailroomClientTest(TembaTest):
                 "org_id": self.org.id,
                 "group_id": group.id,
                 "exclude_ids": (),
-                "offset": 0,
                 "sort": "-created_on",
+                "offset": 0,
+                "limit": 50,
             },
         )
 
