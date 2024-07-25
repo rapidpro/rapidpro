@@ -291,8 +291,6 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         # we should have been redirected to the system topic
         self.assertEqual(f"/ticket/{system_topic.uuid}/open/", response.url)
 
-        # system topics can't be deleted
-
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
