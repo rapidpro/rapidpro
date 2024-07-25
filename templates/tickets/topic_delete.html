@@ -4,13 +4,13 @@
 {% block fields %}
   {% if has_tickets %}
     {% blocktrans with topic=object.name%}
-        Sorry, the topic <b>{{ topic }}</b> can't be deleted while it still has tickets. Move the tickets to another topic first and then try again.
-        {% endblocktrans %}
+      Sorry, the topic <b>{{ topic }}</b> can't be deleted while it still has tickets. Move the tickets to another topic first and then try again.
+    {% endblocktrans %}
   {% else %}
     {% blocktrans with topic=object.name%}
-        You are about to delete the topic <b>{{ topic }}</b>.
-        There is no way to undo this. Are you sure?
-        {% endblocktrans %}
+      You are about to delete the topic <b>{{ topic }}</b>.
+      There is no way to undo this. Are you sure?
+    {% endblocktrans %}
   {% endif %}
 {% endblock fields %}
 {% block form-buttons %}
