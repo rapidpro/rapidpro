@@ -483,7 +483,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     submit_button_name = "Save"
     success_message = "Vonage Account successfully connected."
     template_name = "channels/types/vonage/connect.html"
-    menu_path = "/settings/workspace"
+    menu_path = "/settings/channels/new-channel"
     title = "Connect Vonage"
 
     def get_success_url(self):

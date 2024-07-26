@@ -1389,10 +1389,23 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(name=_("Incidents"), icon="incidents", href="notifications.incident_list")
                     )
 
+                menu.append(self.create_divider())
+                if self.has_org_perm("orgs.org_export"):
+                    menu.append(self.create_menu_item(name=_("Export"), icon="export", href="orgs.org_export"))
+
+                if self.has_org_perm("orgs.orgimport_create"):
+                    menu.append(self.create_menu_item(name=_("Import"), icon="import", href="orgs.orgimport_create"))
+
                 if self.has_org_perm("channels.channel_read"):
                     from temba.channels.views import get_channel_read_url
 
                     items = []
+
+                    if self.has_org_perm("channels.channel_claim"):
+                        items.append(
+                            self.create_menu_item(name=_("New Channel"), href="channels.channel_claim", icon="add")
+                        )
+
                     channels = org.channels.filter(is_active=True).order_by(Lower("name"))
                     for channel in channels:
                         items.append(
@@ -1409,6 +1422,14 @@ class OrgCRUDL(SmartCRUDL):
 
                 if self.has_org_perm("classifiers.classifier_read"):
                     items = []
+
+                    if self.has_org_perm("classifiers.classifier_connect"):
+                        items.append(
+                            self.create_menu_item(
+                                name=_("New Classifier"), href="classifiers.classifier_connect", icon="add"
+                            )
+                        )
+
                     classifiers = org.classifiers.filter(is_active=True).order_by(Lower("name"))
                     for classifier in classifiers:
                         items.append(
@@ -1614,7 +1635,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Export(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         title = _("Create Export")
-        menu_path = "/settings/workspace"
+        menu_path = "/settings/export"
         submit_button_name = _("Export")
         success_message = _("We are preparing your export and you will get a notification when it is complete.")
 
@@ -2667,20 +2688,6 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Workspace")
         menu_path = "/settings/workspace"
 
-        def build_content_menu(self, menu):
-            menu.add_link(_("New Channel"), reverse("channels.channel_claim"), as_button=True)
-
-            if self.has_org_perm("classifiers.classifier_connect"):
-                menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
-
-            menu.new_group()
-
-            if self.has_org_perm("orgs.org_export"):
-                menu.add_link(_("Export"), reverse("orgs.org_export"))
-
-            if self.has_org_perm("orgs.orgimport_create"):
-                menu.add_link(_("Import"), reverse("orgs.orgimport_create"))
-
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="settings")
@@ -2940,7 +2947,7 @@ class OrgImportCRUDL(SmartCRUDL):
     actions = ("create", "read")
 
     class Create(SpaMixin, OrgPermsMixin, SmartCreateView):
-        menu_path = "/settings/workspace"
+        menu_path = "/settings/import"
 
         class Form(forms.ModelForm):
             file = forms.FileField(help_text=_("The import file"))
@@ -2988,7 +2995,7 @@ class OrgImportCRUDL(SmartCRUDL):
             return obj
 
     class Read(SpaMixin, OrgPermsMixin, SmartReadView):
-        menu_path = "/settings/workspace"
+        menu_path = "/settings/import"
 
         def derive_title(self):
             return _("Import Flows and Campaigns")

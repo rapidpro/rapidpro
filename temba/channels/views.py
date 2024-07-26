@@ -68,7 +68,7 @@ class ChannelTypeMixin(SpaMixin):
 
 class ClaimViewMixin(ChannelTypeMixin, OrgPermsMixin, ComponentFormMixin):
     permission = "channels.channel_claim"
-    menu_path = "/settings/workspace"
+    menu_path = "/settings/channels/new-channel"
 
     class Form(forms.Form):
         def __init__(self, **kwargs):
@@ -759,7 +759,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Claim(SpaMixin, OrgPermsMixin, SmartTemplateView):
         title = _("New Channel")
-        menu_path = "/settings/workspace"
+        menu_path = "/settings/channels/new-channel"
 
         def channel_types_groups(self):
             org = self.request.org

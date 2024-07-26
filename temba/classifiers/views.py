@@ -14,7 +14,7 @@ from .models import Classifier
 class BaseConnectView(SpaMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
     permission = "classifiers.classifier_connect"
     classifier_type = None
-    menu_path = "/settings/workspace"
+    menu_path = "/settings/classifiers/new-classifier"
 
     def __init__(self, classifier_type):
         self.classifier_type = classifier_type
@@ -90,7 +90,7 @@ class ClassifierCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
     class Connect(SpaMixin, OrgPermsMixin, SmartTemplateView):
-        menu_path = "/settings/workspace"
+        menu_path = "/settings/classifiers/new-classifier"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
