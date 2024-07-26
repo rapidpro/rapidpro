@@ -241,6 +241,27 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
+    def test_create(self):
+        create_url = reverse("tickets.topic_create")
+
+        self.assertRequestDisallowed(create_url, [None, self.agent, self.user])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name",))
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": ""},
+            form_errors={"name": "This field is required."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Hot Topic"},
+            new_obj_query=Topic.objects.filter(name="Hot Topic", is_system=False),
+            success_status=302,
+        )
+
     def test_update(self):
         system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
         user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
