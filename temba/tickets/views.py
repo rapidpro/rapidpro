@@ -1,8 +1,8 @@
 from datetime import timedelta
 
 from smartmin.views import (
-    SmartCRUDL,
     SmartCreateView,
+    SmartCRUDL,
     SmartDeleteView,
     SmartListView,
     SmartTemplateView,
