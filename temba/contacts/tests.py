@@ -3459,6 +3459,8 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertListFetch(
             list_url, [self.user, self.editor, self.admin], context_objects=[self.age, self.gender, self.state]
         )
+        self.assertContentMenu(list_url, self.user, [])
+        self.assertContentMenu(list_url, self.admin, ["New Field"])
 
     def test_create_warnings(self):
         self.login(self.admin)

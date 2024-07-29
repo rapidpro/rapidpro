@@ -1136,12 +1136,14 @@ class ContactFieldCRUDL(SmartCRUDL):
         default_order = "name"
 
         def build_content_menu(self, menu):
-            menu.add_modax(
-                _("New Field"),
-                "new-field",
-                f"{reverse('contacts.contactfield_create')}",
-                on_submit="handleFieldUpdated()",
-            )
+            if self.has_org_perm("contacts.contactfield_create"):
+                menu.add_modax(
+                    _("New Field"),
+                    "new-field",
+                    f"{reverse('contacts.contactfield_create')}",
+                    on_submit="handleFieldUpdated()",
+                    as_button=True,
+                )
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True, is_system=False)
