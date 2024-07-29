@@ -50,7 +50,7 @@
               {% endif %}
               <td class="whitespace-nowrap">{{ object.contact|name_or_urn:user_org|truncatechars:20 }}</td>
               <td class="w-full">
-                <div class="flex flex-wrap flex-end items-center justify-end">
+                <div class="flex flex-row flex-end items-center justify-end">
                   {% if object.msg_type == "O" %}
                     <div class="flex-grow optin flex">
                       <temba-icon name="optin_requested" class="mr-2">
@@ -62,9 +62,14 @@
                       </div>
                     </div>
                   {% else %}
-                    <div class="flex-grow inline">{% get_value object 'text' %}</div>
+                    <div style="display: -webkit-box;
+                                -webkit-line-clamp: 1;
+                                -webkit-box-orient: vertical;
+                                overflow: hidden;
+                                word-break: break-all"
+                         class="flex-grow">{{ object.text }}</div>
                   {% endif %}
-                  <div class="labels flex items-center flex-wrap">
+                  <div class="flex items-center flex-row">
                     {% if 'label' in actions %}
                       {% for label in object.labels.all %}
                         <a href="{% url 'msgs.msg_filter' label.uuid %}" onclick="goto(event, this)">
