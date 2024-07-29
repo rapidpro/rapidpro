@@ -427,7 +427,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
     success_message = "Twilio Account successfully connected."
     template_name = "channels/types/twilio/connect.html"
-    menu_path = "/settings/workspace"
+    menu_path = "/settings/channels/new-channel"
     title = "Connect Twilio"
 
     def pre_process(self, *args, **kwargs):

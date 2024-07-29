@@ -105,10 +105,12 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_views(self):
         # fetch workspace menu
         self.login(self.admin)
+
+        # no menu on main settings
         self.assertContentMenu(
             reverse("orgs.org_workspace"),
             self.admin,
-            ["New Channel", "New Classifier", "-", "Export", "Import"],
+            [],
         )
 
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
