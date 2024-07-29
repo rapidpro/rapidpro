@@ -1,3 +1,8 @@
+v9.3.2 (2024-07-29)
+-------------------------
+ * Allow deleting of empty ticket topics
+ * Add support for buttons in side menu and use where appropriate
+
 v9.3.0 (2024-07-25)
 -------------------------
  * Add User.get_by_email to ensure consistent behaviour where we look up a user by their email
