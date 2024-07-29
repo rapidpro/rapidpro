@@ -1,6 +1,13 @@
 from datetime import timedelta
 
-from smartmin.views import SmartCRUDL, SmartDeleteView, SmartListView, SmartTemplateView, SmartUpdateView
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartDeleteView,
+    SmartListView,
+    SmartTemplateView,
+    SmartUpdateView,
+)
 
 from django import forms
 from django.db.models.aggregates import Max
@@ -48,8 +55,22 @@ class NoteForm(forms.ModelForm):
 
 class TopicCRUDL(SmartCRUDL):
     model = Topic
-    actions = ("update", "delete")
+    actions = ("create", "update", "delete")
     slug_field = "uuid"
+
+    class Create(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartCreateView):
+        class TopicForm(forms.ModelForm):
+            class Meta:
+                model = Topic
+                fields = ("name",)
+
+        form_class = TopicForm
+        success_url = "hide"
+
+        def pre_save(self, obj):
+            obj = super().pre_save(obj)
+            obj.org = self.request.org
+            return obj
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
         class Form(forms.ModelForm):
@@ -261,10 +282,15 @@ class TicketCRUDL(SmartCRUDL):
                 )
 
             menu.append(self.create_divider())
+            menu.append(self.create_modax_button(_("Export"), "tickets.ticket_export", icon="export"))
+            menu.append(
+                self.create_modax_button(_("New Topic"), "tickets.topic_create", icon="add", on_submit="refreshMenu()")
+            )
+
+            menu.append(self.create_divider())
 
             topics = list(org.topics.filter(is_active=True).order_by("-is_system", "name"))
             counts = TicketCount.get_by_topics(org, topics, Ticket.STATUS_OPEN)
-
             for topic in topics:
                 menu.append(
                     {
@@ -317,12 +343,6 @@ class TicketCRUDL(SmartCRUDL):
                     "delete-topic",
                     f"{reverse('tickets.topic_delete', args=[self.folder.id])}",
                     title=_("Delete"),
-                )
-
-            if self.has_org_perm("tickets.ticket_export"):
-                menu.new_group()
-                menu.add_modax(
-                    _("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets")
                 )
 
         def get_queryset(self, **kwargs):

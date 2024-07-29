@@ -1176,7 +1176,6 @@ class MenuMixin(OrgPermsMixin):
     def create_list(self, name, href, type):
         return {"id": name, "href": href, "type": type}
 
-    # TODO: Decide whether we want to keep this at all
     def create_modax_button(self, name, href, icon=None, on_submit=None):  # pragma: no cover
         menu_item = {"id": slugify(name), "name": name, "type": "modax-button"}
         if href:

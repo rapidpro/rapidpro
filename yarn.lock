@@ -103,6 +103,25 @@
     serialize-javascript "^6.0.2"
     tiny-lru "^11.2.5"
 
+"@nyaruka/temba-components@0.102.0":
+  version "0.102.0"
+  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.102.0.tgz#ba824909e828ed94234fc4531aed7546b06a721c"
+  integrity sha512-u+QxLCBDIw3x9PvMgWlo6cI/Gy3ON3UIaOCqO3eG7wm2Zn3D9EnOnZzPrkOsmS183gRApkZJO2xo7d3TQc72YA==
+  dependencies:
+    "@lit/localize" "^0.12.1"
+    color-hash "^2.0.2"
+    croppie "^2.6.5"
+    geojson "^0.5.0"
+    image-size "^1.1.1"
+    leaflet "1.5.1"
+    lit "3.1.2"
+    lit-element "^4.0.4"
+    lit-html "^3.1.2"
+    luxon "^2.4.0"
+    remarkable "^2.0.1"
+    serialize-javascript "^6.0.2"
+    tiny-lru "^11.2.5"
+
 "@sindresorhus/merge-streams@^2.1.0":
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/@sindresorhus/merge-streams/-/merge-streams-2.3.0.tgz#719df7fb41766bc143369eaa0dd56d8dc87c9958"

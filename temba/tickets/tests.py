@@ -241,6 +241,27 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
+    def test_create(self):
+        create_url = reverse("tickets.topic_create")
+
+        self.assertRequestDisallowed(create_url, [None, self.agent, self.user])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name",))
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": ""},
+            form_errors={"name": "This field is required."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Hot Topic"},
+            new_obj_query=Topic.objects.filter(name="Hot Topic", is_system=False),
+            success_status=302,
+        )
+
     def test_update(self):
         system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
         user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
@@ -385,7 +406,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(self.contact, "Test 4", closed_on=timezone.now())
 
         self.assertRequestDisallowed(menu_url, [None])
-        self.assertPageMenu(menu_url, self.admin, ["My Tickets (2)", "Unassigned (1)", "All (3)", "General (3)"])
+        self.assertPageMenu(
+            menu_url, self.admin, ["My Tickets (2)", "Unassigned (1)", "All (3)", "Export", "New Topic", "General (3)"]
+        )
         self.assertPageMenu(menu_url, self.agent, ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (3)"])
 
     @mock_mailroom
@@ -414,11 +437,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             expected_tickets = [str(t.uuid) for t in tickets]
             self.assertEqual(expected_tickets, actual_tickets)
 
-        # general topic gets export
-        self.assertContentMenu(system_topic_url, self.admin, ["Export"])
+        # system topic has no menu options
+        self.assertContentMenu(system_topic_url, self.admin, [])
 
         # user topic gets edit too
-        self.assertContentMenu(user_topic_url, self.admin, ["Edit", "Delete", "-", "Export"])
+        self.assertContentMenu(user_topic_url, self.admin, ["Edit", "Delete"])
 
         # no tickets yet so no contacts returned
         response = self.client.get(open_url)

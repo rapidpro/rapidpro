@@ -168,32 +168,6 @@ function stopEvent(event) {
   event.preventDefault();
 }
 
-function showModax(header, endpoint, modaxOptions) {
-  var modax = document.querySelector('temba-modax#shared-modax');
-  modax.className = modaxOptions.id || '';
-  modax['-temba-loaded'] = undefined;
-
-  modax.disabled = modaxOptions.disabled == 'True';
-  var itemOnSubmit;
-  if (modaxOptions.onSubmit == 'None') {
-    onSubmit = undefined;
-  }
-
-  if (modaxOptions.onSubmit) {
-    modax['-temba-submitted'] = Function(modaxOptions.onSubmit);
-  } else {
-    modax['-temba-submitted'] = undefined;
-  }
-
-  if (!modaxOptions.legacy) {
-    modax.headers = { 'TEMBA-SPA': 1 };
-  }
-  modax['-temba-redirected'] = refreshMenu;
-
-  modax.header = header;
-  modax.endpoint = endpoint;
-  modax.open = true;
-}
 
 document.addEventListener('temba-refresh-complete', function () {
   wireTableListeners();
