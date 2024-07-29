@@ -1,3 +1,9 @@
+v9.3.3 (2024-07-29)
+-------------------------
+ * Clamp messages on message views to one line
+ * Adjust max length for AT API key
+ * Make 'New Field' a button
+
 v9.3.2 (2024-07-29)
 -------------------------
  * Allow deleting of empty ticket topics
