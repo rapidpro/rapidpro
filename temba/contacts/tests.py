@@ -1688,6 +1688,21 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             message="Sent 7 days after planting date",
         )
 
+    def test_contact_notes(self):
+        note_text = "This is note"
+
+        # create 10 notes
+        for i in range(10):
+            self.joe.add_note(self.user, f"{note_text} {i+1}")
+
+        notes = self.joe.notes.all().order_by("pk")
+
+        # we should only have five notes after pruning
+        self.assertEqual(5, notes.count())
+
+        # check that the oldest notes are the ones that were pruned
+        self.assertEqual("This is note 6", notes.first().text)
+
     @mock_mailroom
     def test_block_and_stop(self, mr_mocks):
         self.joe.block(self.admin)
