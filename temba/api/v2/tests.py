@@ -1840,7 +1840,7 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor, self.admin, self.agent],
             results=[contact4, self.joe, contact2, contact1, self.frank],
-            num_queries=NUM_BASE_SESSION_QUERIES + 6,
+            num_queries=NUM_BASE_SESSION_QUERIES + 7,
         )
         self.assertEqual(
             {
@@ -1850,6 +1850,7 @@ class EndpointsTest(APITest):
                 "language": "fra",
                 "urns": ["tel:+250788000004"],
                 "groups": [{"uuid": group.uuid, "name": group.name}],
+                "notes": [],
                 "fields": {"nickname": "Donnie", "gender": "male"},
                 "flow": {"uuid": str(survey.uuid), "name": "Survey"},
                 "created_on": format_datetime(contact4.created_on),
@@ -1867,7 +1868,7 @@ class EndpointsTest(APITest):
             [self.admin],
             results=[contact4, self.joe, contact2, contact1, self.frank],
             by_token=True,
-            num_queries=NUM_BASE_TOKEN_QUERIES + 6,
+            num_queries=NUM_BASE_TOKEN_QUERIES + 7,
         )
 
         # with expanded URNs
@@ -1891,6 +1892,7 @@ class EndpointsTest(APITest):
                     }
                 ],
                 "groups": [{"uuid": group.uuid, "name": group.name}],
+                "notes": [],
                 "fields": {"nickname": "Donnie", "gender": "male"},
                 "flow": {"uuid": str(survey.uuid), "name": "Survey"},
                 "created_on": format_datetime(contact4.created_on),
@@ -1914,7 +1916,7 @@ class EndpointsTest(APITest):
                 endpoint_url,
                 [self.user, self.editor, self.admin, self.agent],
                 results=[contact4, self.joe, contact2, contact1, self.frank],
-                num_queries=NUM_BASE_SESSION_QUERIES + 6,
+                num_queries=NUM_BASE_SESSION_QUERIES + 7,
             )
             self.assertEqual(
                 {
@@ -1925,6 +1927,7 @@ class EndpointsTest(APITest):
                     "language": "fra",
                     "urns": ["tel:********"],
                     "groups": [{"uuid": group.uuid, "name": group.name}],
+                    "notes": [],
                     "fields": {"nickname": "Donnie", "gender": "male"},
                     "flow": {"uuid": str(survey.uuid), "name": "Survey"},
                     "created_on": format_datetime(contact4.created_on),
@@ -1958,6 +1961,7 @@ class EndpointsTest(APITest):
                         }
                     ],
                     "groups": [{"uuid": group.uuid, "name": group.name}],
+                    "notes": [],
                     "fields": {"nickname": "Donnie", "gender": "male"},
                     "flow": {"uuid": str(survey.uuid), "name": "Survey"},
                     "created_on": format_datetime(contact4.created_on),
@@ -2009,6 +2013,7 @@ class EndpointsTest(APITest):
                     "language": None,
                     "urns": [],
                     "groups": [],
+                    "notes": [],
                     "fields": {},
                     "flow": None,
                     "created_on": format_datetime(contact3.created_on),
@@ -2037,6 +2042,7 @@ class EndpointsTest(APITest):
                 "language": None,
                 "urns": [],
                 "groups": [],
+                "notes": [],
                 "fields": {"nickname": None, "gender": None},
                 "flow": None,
                 "created_on": format_datetime(empty.created_on),
@@ -2330,6 +2336,40 @@ class EndpointsTest(APITest):
         # try to delete a contact in another org
         self.assertDelete(endpoint_url + f"?uuid={hans.uuid}", self.editor, status=404)
 
+        # add some notes for frank
+        frank_url = endpoint_url + f"?uuid={self.frank.uuid}"
+        for i in range(1, 6):
+            self.assertPost(
+                frank_url,
+                self.admin,
+                {"note": f"Frank is a good guy ({i})"},
+            )
+
+        # four more notes by another user to make sure prefetch works
+        for i in range(6, 10):
+            self.assertPost(
+                frank_url,
+                self.editor,
+                {"note": f"Frank is an okay guy ({i})"},
+            )
+
+        self.frank.refresh_from_db()
+        response = self.assertGet(
+            frank_url, [self.editor], results=[self.frank], num_queries=NUM_BASE_SESSION_QUERIES + 7
+        )
+
+        # our oldest note should be number 5
+        self.assertEqual(
+            "Frank is a good guy (5)",
+            response.json()["results"][0]["notes"][0]["text"],
+        )
+
+        # our newest note should be number 6
+        self.assertEqual(
+            "Frank is an okay guy (9)",
+            response.json()["results"][0]["notes"][-1]["text"],
+        )
+
     @mock_mailroom
     def test_contacts_as_agent(self, mr_mocks):
         endpoint_url = reverse("api.v2.contacts") + ".json"
@@ -2354,6 +2394,7 @@ class EndpointsTest(APITest):
                     "language": None,
                     "urns": ["telegram:12345"],
                     "groups": [],
+                    "notes": [],
                     "fields": {"age": "40", "height": "180"},
                     "flow": None,
                     "created_on": format_datetime(contact.created_on),

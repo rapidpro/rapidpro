@@ -26,7 +26,7 @@ from temba import mailroom
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
-from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole
+from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole, User
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import MultiSheetExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
@@ -995,6 +995,16 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
 
+    def add_note(self, user, text):
+        """
+        Adds a note to this contact, prunes old ones if necessary
+        """
+        self.notes.create(text=text, created_by=user)
+
+        # remove all notes except the last 5
+        notes = self.notes.order_by("-id").values_list("id", flat=True)[5:]
+        self.notes.filter(id__in=notes).delete()
+
     def open_ticket(self, user, topic, body: str, assignee=None):
         """
         Opens a new ticket for this contact.
@@ -1676,6 +1686,14 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         verbose_name_plural = _("Groups")
 
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_contact_group_names")]
+
+
+class ContactNote(models.Model):
+    MAX_LENGTH = 10000
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="notes")
+    text = models.TextField()
+    created_on = models.DateTimeField(default=timezone.now)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="contact_notes")
 
 
 class ContactGroupCount(SquashableModel):

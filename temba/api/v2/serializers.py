@@ -16,7 +16,7 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactNote, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -518,6 +518,7 @@ class ContactReadSerializer(ReadSerializer):
     urns = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     fields = serializers.SerializerMethodField("get_contact_fields")
+    notes = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=tzone.utc)
     modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
     last_seen_on = serializers.DateTimeField(default_timezone=tzone.utc)
@@ -556,6 +557,18 @@ class ContactReadSerializer(ReadSerializer):
         groups = obj.prefetched_groups if hasattr(obj, "prefetched_groups") else obj.get_groups()
         return [{"uuid": g.uuid, "name": g.name} for g in groups]
 
+    def get_notes(self, obj):
+        if not obj.is_active:
+            return []
+        return [
+            {
+                "text": note.text,
+                "created_on": note.created_on,
+                "created_by": {"email": note.created_by.email, "name": note.created_by.name},
+            }
+            for note in obj.notes.all()
+        ]
+
     def get_contact_fields(self, obj):
         if not obj.is_active:
             return {}
@@ -581,6 +594,7 @@ class ContactReadSerializer(ReadSerializer):
             "language",
             "urns",
             "groups",
+            "notes",
             "fields",
             "flow",
             "created_on",
@@ -594,6 +608,7 @@ class ContactReadSerializer(ReadSerializer):
 class ContactWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
+    note = serializers.CharField(required=False, max_length=ContactNote.MAX_LENGTH)
     urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
     fields = fields.LimitedDictField(
@@ -668,6 +683,7 @@ class ContactWriteSerializer(WriteSerializer):
         urns = self.validated_data.get("urns")
         groups = self.validated_data.get("groups")
         custom_fields = self.validated_data.get("fields")
+        note = self.validated_data.get("note")
 
         mods = []
 
@@ -692,6 +708,9 @@ class ContactWriteSerializer(WriteSerializer):
 
             if mods:
                 self.instance.modify(self.context["user"], mods)
+
+            if note:
+                self.instance.add_note(self.context["user"], note)
 
         # create new contact
         else:

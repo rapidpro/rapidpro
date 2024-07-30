@@ -16,7 +16,7 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactNote, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -1339,6 +1339,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
                 to_attr="prefetched_groups",
             ),
             Prefetch("current_flow"),
+            Prefetch("notes", queryset=ContactNote.objects.order_by("id")),
+            Prefetch("notes__created_by"),
         )
 
         return self.filter_before_after(queryset, "modified_on")
