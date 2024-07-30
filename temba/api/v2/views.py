@@ -1340,7 +1340,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
             ),
             Prefetch("current_flow"),
             Prefetch("notes", queryset=ContactNote.objects.order_by("id")),
-            Prefetch("notes__created_by")
+            Prefetch("notes__created_by"),
         )
 
         return self.filter_before_after(queryset, "modified_on")
