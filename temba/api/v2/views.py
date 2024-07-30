@@ -1339,7 +1339,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
                 to_attr="prefetched_groups",
             ),
             Prefetch("current_flow"),
-            Prefetch("notes")
+            Prefetch("notes", queryset=ContactNote.objects.order_by("id")),
         )
 
         return self.filter_before_after(queryset, "modified_on")

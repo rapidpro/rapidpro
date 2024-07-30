@@ -560,11 +560,14 @@ class ContactReadSerializer(ReadSerializer):
     def get_notes(self, obj):
         if not obj.is_active:
             return []
-        return [{
-            "text": note.text,
-            "created_on": note.created_on,
-            "created_by": note.created_by.username,
-        } for note in obj.notes.all().order_by("-pk")]
+        return [
+            {
+                "text": note.text,
+                "created_on": note.created_on,
+                "created_by": note.created_by.username,
+            }
+            for note in obj.notes.all()
+        ]
 
     def get_contact_fields(self, obj):
         if not obj.is_active:
