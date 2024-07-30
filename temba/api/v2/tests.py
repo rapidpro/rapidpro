@@ -2338,20 +2338,36 @@ class EndpointsTest(APITest):
 
         # add some notes for frank
         frank_url = endpoint_url + f"?uuid={self.frank.uuid}"
-        for i in range(1, 11):
+        for i in range(1, 6):
             self.assertPost(
                 frank_url,
                 self.admin,
                 {"note": f"Frank is a good guy ({i})"},
             )
 
-        self.frank.refresh_from_db()
-        response = self.assertGet(frank_url, [self.editor], results=[self.frank])
+        # four more notes by another user to make sure prefetch works
+        for i in range(6, 10):
+            self.assertPost(
+                frank_url,
+                self.editor,
+                {"note": f"Frank is an okay guy ({i})"},
+            )
 
-        # our oldest note should be number 6
+        self.frank.refresh_from_db()
+        response = self.assertGet(
+            frank_url, [self.editor], results=[self.frank], num_queries=NUM_BASE_SESSION_QUERIES + 7
+        )
+
+        # our oldest note should be number 5
         self.assertEqual(
-            "Frank is a good guy (6)",
+            "Frank is a good guy (5)",
             response.json()["results"][0]["notes"][0]["text"],
+        )
+
+        # our newest note should be number 6
+        self.assertEqual(
+            "Frank is an okay guy (9)",
+            response.json()["results"][0]["notes"][-1]["text"],
         )
 
     @mock_mailroom

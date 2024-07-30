@@ -1695,7 +1695,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         for i in range(10):
             self.joe.add_note(self.user, f"{note_text} {i+1}")
 
-        notes = self.joe.notes.all().order_by("pk")
+        notes = self.joe.notes.all().order_by("id")
 
         # we should only have five notes after pruning
         self.assertEqual(5, notes.count())
