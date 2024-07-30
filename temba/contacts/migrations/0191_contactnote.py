@@ -16,8 +16,8 @@ class Migration(migrations.Migration):
             name="ContactNote",
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("text", models.TextField()),
-                ("created_on", models.DateTimeField(auto_now_add=True)),
+                ("text", models.TextField(max_length=10000)),
+                ("created_on", models.DateTimeField(default=django.utils.timezone.now)),
                 (
                     "contact",
                     models.ForeignKey(
