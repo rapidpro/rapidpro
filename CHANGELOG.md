@@ -1,3 +1,7 @@
+v9.3.4 (2024-07-30)
+-------------------------
+ * Add contact notes and expose over contacts API endpoint
+
 v9.3.3 (2024-07-29)
 -------------------------
  * Clamp messages on message views to one line
