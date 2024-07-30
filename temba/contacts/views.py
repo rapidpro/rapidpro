@@ -51,7 +51,7 @@ from temba.utils.models import patch_queryset_count
 from temba.utils.models.es import IDSliceQuerySet
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, NonAtomicMixin, SpaMixin
 
-from .forms import ContactGroupForm, UpdateContactForm
+from .forms import ContactGroupForm, CreateContactForm, UpdateContactForm
 from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
 from .omnibox import omnibox_query, omnibox_serialize
 
@@ -681,16 +681,13 @@ class ContactCRUDL(SmartCRUDL):
                 raise Http404("Group not found")
 
     class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
-        class Form(forms.ModelForm):
-            phone = forms.CharField(required=False, max_length=255, label=_("Phone Number"), widget=InputWidget())
-
-            class Meta:
-                model = Contact
-                fields = ("name", "phone")
-                widgets = {"name": InputWidget(attrs={"widget_only": False})}
-
-        form_class = Form
+        form_class = CreateContactForm
         submit_button_name = _("Create")
+
+        def get_form_kwargs(self, *args, **kwargs):
+            kwargs = super().get_form_kwargs(*args, **kwargs)
+            kwargs["org"] = self.request.org
+            return kwargs
 
         def form_valid(self, form):
             name = self.form.cleaned_data.get("name")
@@ -708,7 +705,7 @@ class ContactCRUDL(SmartCRUDL):
                     fields={},
                     groups=[],
                 )
-            except mailroom.URNValidationException as e:
+            except mailroom.URNValidationException as e:  # pragma: needs cover
                 error = _("In use by another contact.") if e.code == "taken" else _("Not a valid phone number.")
                 self.form.add_error("phone", error)
                 return self.form_invalid(form)
@@ -730,9 +727,9 @@ class ContactCRUDL(SmartCRUDL):
             return exclude
 
         def get_form_kwargs(self, *args, **kwargs):
-            form_kwargs = super().get_form_kwargs(*args, **kwargs)
-            form_kwargs["org"] = self.request.org
-            return form_kwargs
+            kwargs = super().get_form_kwargs(*args, **kwargs)
+            kwargs["org"] = self.request.org
+            return kwargs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

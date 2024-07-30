@@ -92,18 +92,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertRequestDisallowed(create_url, [None, self.agent, self.user])
         self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name", "phone"))
 
-        # simulate mailroom rejecting the number because it's invalid
-        mr_mocks.exception(mailroom.URNValidationException("URN 0 invalid", "invalid", 0))
-
-        self.assertCreateSubmit(
-            create_url,
-            self.admin,
-            {"name": "Joe", "phone": "+250781111111"},
-            form_errors={"phone": "Not a valid phone number."},
-        )
-
-        # simulate mailroom rejecting the number because it's taken
-        mr_mocks.exception(mailroom.URNValidationException("URN 0 in use", "taken", 0))
+        # simulate validation failing because phone number taken
+        mr_mocks.contact_urns({"tel:+250781111111": 12345678})
 
         self.assertCreateSubmit(
             create_url,
@@ -112,7 +102,27 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             form_errors={"phone": "In use by another contact."},
         )
 
-        # try when mailroom call succeeds
+        # simulate validation failing because phone number isn't E164
+        mr_mocks.contact_urns({"tel:+250781111111": False})
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Joe", "phone": "+250781111111"},
+            form_errors={"phone": "Ensure number includes country code."},
+        )
+
+        # simulate validation failing because phone number isn't valid
+        mr_mocks.contact_urns({"tel:xx": "URN 0 invalid"})
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Joe", "phone": "xx"},
+            form_errors={"phone": "Invalid phone number."},
+        )
+
+        # try valid number
         self.assertCreateSubmit(
             create_url,
             self.admin,
@@ -566,6 +576,25 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # try to add a new invalid phone URN
         mr_mocks.contact_urns({"tel:123": "not a valid phone number"})
+
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "groups": [testers.id],
+                "urn__tel__0": "+593979111111",
+                "new_scheme": "tel",
+                "new_path": "123",
+            },
+            form_errors={"new_path": "Invalid format."},
+            object_unchanged=contact,
+        )
+
+        # try to add a new phone URN that isn't E164
+        mr_mocks.contact_urns({"tel:123": False})
 
         self.assertUpdateSubmit(
             update_url,

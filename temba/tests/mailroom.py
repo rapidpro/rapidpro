@@ -274,16 +274,18 @@ class TestClient(MailroomClient):
 
     @_client_method
     def contact_urns(self, org, urns: list[str]):
-        results = [mailroom.URNResult(normalized=urn) for urn in urns]
+        results = [mailroom.URNResult(normalized=urn, e164=True) for urn in urns]
 
         if self.mocks._contact_urns:
-            urn_by_id_or_err = self.mocks._contact_urns.pop(0)
+            result_by_urn = self.mocks._contact_urns.pop(0)
             for i, urn in enumerate(urns):
-                id_or_err = urn_by_id_or_err.get(urn)
-                if isinstance(id_or_err, int):
-                    results[i].contact_id = id_or_err
-                elif isinstance(id_or_err, str):
-                    results[i].error = id_or_err
+                result = result_by_urn.get(urn)
+                if isinstance(result, str):
+                    results[i].error = result
+                elif isinstance(result, bool):
+                    results[i].e164 = result
+                elif isinstance(result, int):
+                    results[i].contact_id = result
 
         return results
 
