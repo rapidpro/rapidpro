@@ -1002,7 +1002,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         self.notes.create(text=text, created_by=user)
 
         # remove all notes except the last 5
-        notes = self.notes.order_by("-pk").values_list("id", flat=True)[5:]
+        notes = self.notes.order_by("-id").values_list("id", flat=True)[5:]
         self.notes.filter(id__in=notes).delete()
 
     def open_ticket(self, user, topic, body: str, assignee=None):
