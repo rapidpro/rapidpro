@@ -20,7 +20,7 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
             address="87654",
             role="SR",
             schemes=["fcm"],
-            config={"FCM_TITLE": "Title", "FCM_KEY": "87654"},
+            config={"FCM_TITLE": "Title", "FCM_CREDENTIALS_JSON": {"foo": "bar", "private_key_id": "87654"}},
         )
 
     @patch("requests.get")
@@ -34,14 +34,38 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
         self.assertContains(response, url)
 
         response = self.client.post(
-            url, {"title": "FCM Channel", "address": "abcde12345", "send_notification": "True"}, follow=True
+            url,
+            {
+                "title": "FCM Channel",
+                "authentication_json": '"foo" "bar", "baz": "abc", "private_key_id": "abcde12345"}',
+                "send_notification": "True",
+            },
+            follow=True,
+        )
+        self.assertFormError(
+            response.context["form"], None, "Invalid authentication JSON, missing private_key_id field"
+        )
+
+        response = self.client.post(
+            url,
+            {
+                "title": "FCM Channel",
+                "authentication_json": '{"foo": "bar", "baz": "abc", "private_key_id": "abcde12345"}',
+                "send_notification": "True",
+            },
+            follow=True,
         )
 
         channel = Channel.objects.get(address="abcde12345")
         self.assertRedirects(response, reverse("channels.channel_configuration", args=[channel.uuid]))
         self.assertEqual(channel.channel_type, "FCM")
         self.assertEqual(
-            channel.config, {"FCM_KEY": "abcde12345", "FCM_TITLE": "FCM Channel", "FCM_NOTIFICATION": True}
+            channel.config,
+            {
+                "FCM_CREDENTIALS_JSON": {"foo": "bar", "baz": "abc", "private_key_id": "abcde12345"},
+                "FCM_TITLE": "FCM Channel",
+                "FCM_NOTIFICATION": True,
+            },
         )
 
         response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))

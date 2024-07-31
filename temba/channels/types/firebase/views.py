@@ -3,6 +3,8 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+from temba.utils.fields import InputWidget
+
 from ...models import Channel
 from ...views import ClaimViewMixin
 
@@ -10,8 +12,11 @@ from ...views import ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         title = forms.CharField(label=_("Notification Title"))
-        address = forms.CharField(
-            label=_("FCM Key"), help_text=_("The key provided on the the Firebase Console when you created your app.")
+
+        authentication_json = forms.JSONField(
+            widget=InputWidget({"textarea": True}),
+            help_text=_("Copy the FCM authentication JSON file content to this field"),
+            initial={},
         )
         send_notification = forms.CharField(
             label=_("Send notification"),
@@ -20,12 +25,23 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             widget=forms.CheckboxInput(),
         )
 
+        def clean(self):
+            authentication_json = self.cleaned_data.get("authentication_json", {})
+
+            self.cleaned_data["address"] = authentication_json.get("private_key_id", "")
+
+            if not authentication_json or not self.cleaned_data["address"]:
+                raise forms.ValidationError(_("Invalid authentication JSON, missing private_key_id field"))
+
+            return super().clean()
+
     form_class = Form
 
     def form_valid(self, form):
         title = form.cleaned_data.get("title")
+        authentication_json = form.cleaned_data.get("authentication_json")
         address = form.cleaned_data.get("address")
-        config = {"FCM_TITLE": title, "FCM_KEY": address}
+        config = {"FCM_TITLE": title, "FCM_CREDENTIALS_JSON": authentication_json}
 
         if form.cleaned_data.get("send_notification") == "True":
             config["FCM_NOTIFICATION"] = True
