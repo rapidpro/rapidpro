@@ -11,6 +11,34 @@ from temba.utils.fields import InputWidget, SelectMultipleWidget, SelectWidget, 
 from .models import URN, Contact, ContactGroup, ContactURN
 
 
+class CreateContactForm(forms.ModelForm):
+    phone = forms.CharField(required=False, max_length=64, label=_("Phone Number"), widget=InputWidget())
+
+    def __init__(self, org, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.org = org
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get("phone")
+        if phone:
+            resolved = mailroom.get_client().contact_urns(self.org, ["tel:" + phone])[0]
+
+            if resolved.contact_id:
+                raise forms.ValidationError(_("In use by another contact."))
+            if resolved.error:
+                raise forms.ValidationError(_("Invalid phone number."))
+            if not resolved.e164:
+                raise forms.ValidationError(_("Ensure number includes country code."))
+
+        return phone
+
+    class Meta:
+        model = Contact
+        fields = ("name", "phone")
+        widgets = {"name": InputWidget(attrs={"widget_only": False})}
+
+
 class UpdateContactForm(forms.ModelForm):
     language = forms.ChoiceField(required=False, label=_("Language"), choices=(), widget=SelectWidget())
     groups = TembaMultipleChoiceField(
@@ -103,11 +131,10 @@ class UpdateContactForm(forms.ModelForm):
                 if resolved.contact_id and resolved.contact_id != self.instance.id:
                     self.add_error(field, _("In use by another contact."))
                 elif resolved.error:
+                    self.add_error(field, _("Invalid format."))
+                elif scheme == URN.TEL_SCHEME and field == "new_path" and not resolved.e164:
                     # if a new phone numer is being added, it must have country code
-                    if scheme == URN.TEL_SCHEME and field == "new_path" and not resolved.e164:
-                        self.add_error(field, _("Invalid phone number. Ensure number includes country code."))
-                    else:
-                        self.add_error(field, _("Invalid format."))
+                    self.add_error(field, _("Invalid phone number. Ensure number includes country code."))
 
                 self.cleaned_data[field] = path
 
