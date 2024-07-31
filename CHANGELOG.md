@@ -1,3 +1,8 @@
+v9.3.5 (2024-07-31)
+-------------------------
+ * Support FCM changes
+ * Require E164 phone numbers for contacts created from UI
+
 v9.3.4 (2024-07-30)
 -------------------------
  * Add contact notes and expose over contacts API endpoint
