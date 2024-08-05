@@ -38,7 +38,7 @@ from temba.utils.compose import compose_deserialize_attachments, compose_seriali
 from temba.utils.fields import ContactSearchWidget
 from temba.utils.views import TEMBA_MENU_SELECTION
 
-from .tasks import fail_old_messages, squash_msg_counts
+from .tasks import fail_old_android_messages, squash_msg_counts
 
 
 class AttachmentTest(TembaTest):
@@ -421,7 +421,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_ARCHIVED, None, SystemLabel.TYPE_ARCHIVED)
         assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, flow, SystemLabel.TYPE_FLOWS)
 
-    def test_fail_old_messages(self):
+    def test_fail_old_android_messages(self):
         msg1 = self.create_outgoing_msg(self.joe, "Hello", status=Msg.STATUS_QUEUED)
         msg2 = self.create_outgoing_msg(
             self.joe, "Hello", status=Msg.STATUS_QUEUED, created_on=timezone.now() - timedelta(days=8)
@@ -433,7 +433,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             self.joe, "Hello", status=Msg.STATUS_SENT, created_on=timezone.now() - timedelta(days=8)
         )
 
-        fail_old_messages()
+        fail_old_android_messages()
 
         def assert_status(msg, status):
             msg.refresh_from_db()
