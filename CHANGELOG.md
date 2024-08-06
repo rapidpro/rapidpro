@@ -1,3 +1,7 @@
+v9.3.8 (2024-08-06)
+-------------------------
+ * Show tabs on tickets when contact is set
+
 v9.3.7 (2024-08-06)
 -------------------------
  * Add contact notes ui
