@@ -2484,7 +2484,7 @@ class OrgCRUDL(SmartCRUDL):
 
             switch_to_org(self.request, obj)
 
-    class Grant(NonAtomicMixin, SmartCreateView):
+    class Grant(SpaMixin, ComponentFormMixin, NonAtomicMixin, SmartCreateView):
         class Form(forms.ModelForm):
             first_name = forms.CharField(
                 help_text=_("The first name of the workspace administrator"),
@@ -2534,6 +2534,7 @@ class OrgCRUDL(SmartCRUDL):
         success_message = "Workspace successfully created."
         submit_button_name = _("Create")
         success_url = "@orgs.org_grant"
+        menu_path = "/settings"
 
         def save(self, obj):
             self.object = Org.create(
