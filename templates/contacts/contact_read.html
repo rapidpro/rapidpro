@@ -36,16 +36,14 @@
         </temba-contact-fields>
       </div>
     </temba-tab>
-    <temba-tab icon="campaign" name="{{ _("Next Up") |escapejs }}" hidden="true">
+    <temba-tab icon="campaign" name="{{ _("Next Up") |escapejs }}" hideEmpty hidden>
       <div style="border-top-right-radius: var(--curvature)"
            class="flex flex-grow flex-col p-4 overflow-y-auto">
-        <temba-contact-pending contact="{{ object.uuid }}"
-                               -temba-refreshed="handlePendingRefreshed"
-                               -temba-selection="handlePendingClicked">
+        <temba-contact-pending contact="{{ object.uuid }}" -temba-selection="handlePendingClicked">
         </temba-contact-pending>
       </div>
     </temba-tab>
-    <temba-tab icon="tickets" name="{{ _("Tickets") |escapejs }}" hidden="true">
+    <temba-tab icon="tickets" name="{{ _("Tickets") |escapejs }}" hideEmpty hidden>
       <div style="border-top-right-radius: var(--curvature);" class="flex flex-grow flex-col overflow-y-auto">
         <temba-contact-tickets agent="{{ user.email }}"
                                contact="{{ object.uuid }}"
@@ -55,6 +53,15 @@
                                class="m-4">
         </temba-contact-tickets>
       </div>
+    </temba-tab>
+    <temba-tab icon="notes"
+               name="{{ _("Notepad") }}"
+               activity
+               activityColor="#ffbd00"
+               selectionBackground="#fff9c2"
+               borderColor="#ebdf6f">
+      <temba-contact-notepad contact="{{ object.uuid }}">
+      </temba-contact-notepad>
     </temba-tab>
   </temba-tabs>
 {% endblock content %}
@@ -73,12 +80,6 @@
 {% endblock extra-style %}
 {% block extra-script %}
   <script type="text/javascript">
-    var idxChat = 0;
-    var idxInfo = 1;
-    var idxFields = 2;
-    var idxPending = 3;
-    var idxTickets = 4;
-
     function contactUpdated(evt) {
       const details = document.querySelector("temba-contact-details");
       details.refresh();
@@ -86,38 +87,8 @@
       contentMenu.refresh();
     }
 
-    function handlePendingRefreshed(evt) {
-      var pendingEvents = evt.detail.data;
-      var tabs = document.querySelector("temba-tabs");
-      tabs.setTabDetails(idxPending, {
-        count: pendingEvents.length,
-        hidden: pendingEvents.length == 0
-      });
-    }
-
     function handleContactRefreshed(evt) {
       var contact = evt.detail.data;
-      var tabs = document.querySelector("temba-tabs");
-
-      // update our set field count
-      var fields = Object.keys(contact.fields).filter(function(key) {
-        return !!contact.fields[key]
-      });
-
-      tabs.setTabDetails(idxFields, {
-        count: fields.length
-      });
-
-      var store = document.querySelector("temba-store");
-      var featured = document.querySelector(".featured-fields");
-      var all = document.querySelector(".all-fields");
-
-      var featuredCount = store.getFeaturedFields().length;
-      var fieldCount = Object.keys(contact.fields).length;
-
-      if (all) {
-        all.classList.toggle("hidden", featuredCount > 0 && fieldCount - featuredCount == 0);
-      }
 
       // if our contact refreshes, refresh our pendingEvents
       var pending = document.querySelector("temba-contact-pending");
@@ -131,17 +102,7 @@
       }
     }
 
-    function handleTicketsRefreshed(evt) {
-      var openTickets = evt.detail.data.filter(function(ticket) {
-        return ticket.status == "open"
-      });
-
-      var tabs = document.querySelector("temba-tabs");
-      tabs.setTabDetails(idxTickets, {
-        count: openTickets.length,
-        hidden: evt.detail.data == 0
-      });
-    }
+    function handleTicketsRefreshed(evt) {}
 
     function handleTabChanged() {
       var tab = document.querySelector("temba-tabs").index;

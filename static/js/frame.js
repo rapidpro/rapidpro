@@ -186,6 +186,10 @@ function spaPost(url, options) {
 }
 
 function spaRequest(url, options) {
+  if (!checkForUnsavedChanges()) {
+    return;
+  }
+
   showLoading();
 
   var refererPath = window.location.pathname;
@@ -379,6 +383,17 @@ function handleMenuClicked(event) {
   if (item.href && item.posterize) {
     posterize(item.href);
   }
+}
+
+function checkForUnsavedChanges() {
+  var store = document.querySelector('temba-store');
+  if (store) {
+    const unsavedChanges = store.getDirtyMessage();
+    if (unsavedChanges) {
+      return confirm(unsavedChanges);
+    }
+  }
+  return true;
 }
 
 function handleMenuChanged(event) {

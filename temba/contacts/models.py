@@ -995,7 +995,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
 
-    def add_note(self, user, text):
+    def set_note(self, user, text):
         """
         Adds a note to this contact, prunes old ones if necessary
         """
@@ -1696,7 +1696,7 @@ class ContactNote(models.Model):
     MAX_LENGTH = 10_000
 
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="notes")
-    text = models.TextField(max_length=MAX_LENGTH)
+    text = models.TextField(max_length=MAX_LENGTH, blank=True)
     created_on = models.DateTimeField(default=timezone.now)
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="contact_notes")
 

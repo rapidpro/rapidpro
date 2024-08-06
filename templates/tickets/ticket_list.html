@@ -295,27 +295,35 @@
     }
 
     function handleContactChanged(contact) {
+      if (!checkForUnsavedChanges()) {
+        return;
+      }
+
       messageSent = false;
       const ticketUI = document.querySelector('.ticket-ui');
 
       var contactHeader = document.querySelector("temba-contact-name-fetch");
       var contactTickets = document.querySelector("temba-contact-tickets");
+      var notepad = document.querySelector("temba-contact-notepad");
       var chat = document.querySelector("temba-contact-chat");
       var empty = document.querySelector(".chat-pane .empty");
 
       var fields = document.querySelectorAll("temba-contact-fields");
       var tabs = document.querySelector("temba-tabs");
 
+      // should we force initial tab on contact change?
+      // this also forces tab selection on hard reload
+      // tabs.index = 0;
+
       if (contact) {
         ticketUI.classList.add('has-selection');
         chat.contact = contact.uuid;
         chat.currentTicket = contact.ticket;
+        notepad.contact = contact.uuid;
 
         contactTickets.ticket = contact.ticket.uuid;
         contactTickets.contact = contact.uuid;
         contactHeader.contact = contact.uuid;
-        tabs.classList.remove("hidden");
-
         fields.forEach(function(contactFields) {
           contactFields.contact = contact.uuid;
         });
@@ -348,6 +356,7 @@
         contactTickets.contact = null;
         contactTickets.ticket = null;
         contactHeader.contact = null;
+        notepad.contact = null;
       }
 
       updateTicketList();
@@ -395,16 +404,6 @@
 
     function handleContactRefreshed(evt) {
       var contact = evt.detail.data;
-      var tabs = document.querySelector("temba-tabs");
-
-      // update our set field count
-      var fields = Object.keys(contact.fields).filter(function(key) {
-        return !!contact.fields[key]
-      });
-
-      tabs.setTabDetails(1, {
-        count: fields.length
-      });
     }
 
     function handleTicketsRefreshed(event) {
@@ -637,6 +636,15 @@
                 </div>
               </temba-contact-fields>
             </div>
+          </temba-tab>
+          <temba-tab icon="notes"
+                     name="{{ _("Notepad") }}"
+                     activity
+                     activityColor="#ffbd00"
+                     selectionBackground="#fff9c2"
+                     borderColor="#ebdf6f">
+            <temba-contact-notepad contact="{{ object.uuid }}">
+            </temba-contact-notepad>
           </temba-tab>
         </temba-tabs>
       </div>

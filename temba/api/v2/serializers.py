@@ -608,7 +608,7 @@ class ContactReadSerializer(ReadSerializer):
 class ContactWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
-    note = serializers.CharField(required=False, max_length=ContactNote.MAX_LENGTH)
+    note = serializers.CharField(required=False, max_length=ContactNote.MAX_LENGTH, allow_blank=True)
     urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
     fields = fields.LimitedDictField(
@@ -709,8 +709,8 @@ class ContactWriteSerializer(WriteSerializer):
             if mods:
                 self.instance.modify(self.context["user"], mods)
 
-            if note:
-                self.instance.add_note(self.context["user"], note)
+            if note is not None:
+                self.instance.set_note(self.context["user"], note)
 
         # create new contact
         else:
