@@ -28,6 +28,27 @@ class ChannelDisconnectedIncidentType(IncidentType):
         return reverse("channels.channel_read", args=[str(incident.channel.uuid)])
 
 
+class ChannelOutdatedIncidentType(IncidentType):
+    """
+    Android channel client app using outdated version.
+    """
+
+    slug = "channel:outdated"
+    title = _("Channel Android app Outdated")
+
+    @classmethod
+    def get_or_create(cls, channel):
+        """
+        Creates a channel outdated incident if one is not already ongoing
+        """
+        return Incident.get_or_create(
+            channel.org, ChannelOutdatedIncidentType.slug, scope=str(channel.id), channel=channel
+        )
+
+    def get_notification_scope(self, incident) -> str:
+        return str(incident.channel.id)
+
+
 class OrgFlaggedIncidentType(IncidentType):
     """
     Org has been flagged due to suspicious activity.

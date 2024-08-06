@@ -18,9 +18,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 
+from temba.apks.models import Apk
 from temba.contacts.models import URN, Contact
 from temba.msgs.models import Msg
-from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
+from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType, ChannelOutdatedIncidentType
+from temba.notifications.models import Incident
 from temba.notifications.tasks import send_notification_emails
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
@@ -693,6 +695,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         date = timezone.now()
         date = int(time.mktime(date.timetuple())) * 1000
 
+        Apk.objects.create(apk_type=Apk.TYPE_RELAYER, version="1.0.0")
+
         contact1 = self.create_contact("Ann", phone="+250788382382")
         contact2 = self.create_contact("Bob", phone="+250788383383")
 
@@ -767,6 +771,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
                 p_src="BAT",
                 p_lvl="60",
                 net="UMTS",
+                app_version="0.9.9",
                 org_id=8,
                 retry=[msg6.pk],
                 pending=[],
@@ -827,6 +832,14 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # We should have 3 channel event
         self.assertEqual(3, ChannelEvent.objects.filter(channel=self.tel_channel).count())
 
+        # We should have an incident for the app version
+        self.assertEqual(
+            1,
+            Incident.objects.filter(
+                incident_type=ChannelOutdatedIncidentType.slug, ended_on=None, channel=self.tel_channel
+            ).count(),
+        )
+
         # check our channel fcm and uuid were updated
         self.tel_channel = Channel.objects.get(pk=self.tel_channel.pk)
         self.assertEqual("12345", self.tel_channel.config["FCM_ID"])
@@ -849,11 +862,31 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.tel_channel,
             cmds=[
                 # device details status
-                dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
+                dict(
+                    cmd="status",
+                    p_sts="DIS",
+                    p_src="BAT",
+                    p_lvl="15",
+                    net="UMTS",
+                    app_version="1.0.0",
+                    pending=[],
+                    retry=[],
+                )
             ],
         )
 
         self.assertEqual(2, SyncEvent.objects.all().count())
+
+        # We should have all incident for the app version ended
+        self.assertEqual(
+            1, Incident.objects.filter(incident_type=ChannelOutdatedIncidentType.slug, channel=self.tel_channel).count()
+        )
+        self.assertEqual(
+            0,
+            Incident.objects.filter(
+                incident_type=ChannelOutdatedIncidentType.slug, ended_on=None, channel=self.tel_channel
+            ).count(),
+        )
 
         # make our events old so we can test trimming them
         SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))

@@ -12,8 +12,11 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba import mailroom
+from temba.apks.models import Apk
 from temba.channels.models import ChannelEvent
 from temba.msgs.models import Msg
+from temba.notifications.incidents.builtin import ChannelOutdatedIncidentType
+from temba.notifications.models import Incident
 from temba.utils import analytics, json
 
 from ..models import Channel, SyncEvent
@@ -56,6 +59,11 @@ def sync(request, channel_id):
     channel = Channel.objects.filter(id=channel_id, is_active=True).first()
     if not channel:
         return JsonResponse(dict(cmds=[dict(cmd="rel", relayer_id=channel_id)]))
+
+    latest_client_app_version = ""
+    latest_client_app = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
+    if latest_client_app:
+        latest_client_app_version = latest_client_app.version
 
     request_time = request.GET.get("ts", "")
     request_signature = force_bytes(request.GET.get("signature", ""))
@@ -201,6 +209,18 @@ def sync(request, channel_id):
                 # tell the channel to update its org if this channel got moved
                 if channel.org and "org_id" in cmd and channel.org.pk != cmd["org_id"]:
                     commands.append(dict(cmd="claim", org_id=channel.org.pk))
+
+                if latest_client_app_version and cmd.get("app_version"):
+                    if latest_client_app_version != cmd["app_version"]:
+                        ChannelOutdatedIncidentType.get_or_create(channel)
+                    else:
+                        ongoing = Incident.objects.filter(
+                            incident_type=ChannelOutdatedIncidentType.slug, ended_on=None, channel=channel
+                        ).select_related("channel")
+                        for incident in ongoing:
+                            # if we've seen the channel with the correct version recently, end the incident
+                            if timezone.now() - incident.channel.last_seen < timedelta(minutes=5):
+                                incident.end()
 
                 # we don't ack status messages since they are always included
                 handled = False

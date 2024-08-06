@@ -1,0 +1,9 @@
+{% extends "notifications/email/base.txt" %}
+{% load i18n %}
+
+{% block notification-body %}
+{% blocktrans trimmed with url=target_url %}
+Your workspace has a channel that appears to be still running an old version of the client app.
+View incidents ({{ url }})
+{% endblocktrans %}
+{% endblock notification-body %}
