@@ -1722,7 +1722,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # create 10 notes
         for i in range(10):
-            self.joe.add_note(self.user, f"{note_text} {i+1}")
+            self.joe.set_note(self.user, f"{note_text} {i+1}")
 
         notes = self.joe.notes.all().order_by("id")
 

@@ -710,7 +710,7 @@ class ContactWriteSerializer(WriteSerializer):
                 self.instance.modify(self.context["user"], mods)
 
             if note is not None:
-                self.instance.add_note(self.context["user"], note)
+                self.instance.set_note(self.context["user"], note)
 
         # create new contact
         else:
