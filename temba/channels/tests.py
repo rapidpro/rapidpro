@@ -21,7 +21,7 @@ from django.utils.encoding import force_bytes
 from temba.apks.models import Apk
 from temba.contacts.models import URN, Contact
 from temba.msgs.models import Msg
-from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType, ChannelOutdatedIncidentType
+from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType, ChannelOutdatedAppIncidentType
 from temba.notifications.models import Incident
 from temba.notifications.tasks import send_notification_emails
 from temba.orgs.models import Org
@@ -836,7 +836,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             1,
             Incident.objects.filter(
-                incident_type=ChannelOutdatedIncidentType.slug, ended_on=None, channel=self.tel_channel
+                incident_type=ChannelOutdatedAppIncidentType.slug, ended_on=None, channel=self.tel_channel
             ).count(),
         )
 
@@ -879,12 +879,15 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # We should have all incident for the app version ended
         self.assertEqual(
-            1, Incident.objects.filter(incident_type=ChannelOutdatedIncidentType.slug, channel=self.tel_channel).count()
+            1,
+            Incident.objects.filter(
+                incident_type=ChannelOutdatedAppIncidentType.slug, channel=self.tel_channel
+            ).count(),
         )
         self.assertEqual(
             0,
             Incident.objects.filter(
-                incident_type=ChannelOutdatedIncidentType.slug, ended_on=None, channel=self.tel_channel
+                incident_type=ChannelOutdatedAppIncidentType.slug, ended_on=None, channel=self.tel_channel
             ).count(),
         )
 
