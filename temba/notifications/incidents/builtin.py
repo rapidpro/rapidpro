@@ -17,9 +17,7 @@ class ChannelDisconnectedIncidentType(IncidentType):
         """
         Creates a channel disconnected incident if one is not already ongoing
         """
-        return Incident.get_or_create(
-            channel.org, ChannelDisconnectedIncidentType.slug, scope=str(channel.id), channel=channel
-        )
+        return Incident.get_or_create(channel.org, cls.slug, scope=str(channel.id), channel=channel)
 
     def get_notification_scope(self, incident) -> str:
         return str(incident.channel.id)
@@ -28,22 +26,20 @@ class ChannelDisconnectedIncidentType(IncidentType):
         return reverse("channels.channel_read", args=[str(incident.channel.uuid)])
 
 
-class ChannelOutdatedIncidentType(IncidentType):
+class ChannelOutdatedAppIncidentType(IncidentType):
     """
-    Android channel client app using outdated version.
+    Android channel using outdated version of the client app.
     """
 
-    slug = "channel:outdated"
-    title = _("Channel Android app Outdated")
+    slug = "channel:outdated_app"
+    title = _("Channel Android App Outdated")
 
     @classmethod
     def get_or_create(cls, channel):
         """
-        Creates a channel outdated incident if one is not already ongoing
+        Creates a channel outdated app incident if one is not already ongoing
         """
-        return Incident.get_or_create(
-            channel.org, ChannelOutdatedIncidentType.slug, scope=str(channel.id), channel=channel
-        )
+        return Incident.get_or_create(channel.org, cls.slug, scope=str(channel.id), channel=channel)
 
     def get_notification_scope(self, incident) -> str:
         return str(incident.channel.id)
@@ -62,7 +58,7 @@ class OrgFlaggedIncidentType(IncidentType):
         """
         Creates a flagged incident if one is not already ongoing
         """
-        return Incident.get_or_create(org, OrgFlaggedIncidentType.slug, scope="")
+        return Incident.get_or_create(org, cls.slug, scope="")
 
 
 class OrgSuspendedIncidentType(IncidentType):
@@ -78,7 +74,7 @@ class OrgSuspendedIncidentType(IncidentType):
         """
         Creates a suspended incident if one is not already ongoing
         """
-        return Incident.get_or_create(org, OrgSuspendedIncidentType.slug, scope="")
+        return Incident.get_or_create(org, cls.slug, scope="")
 
 
 class WebhooksUnhealthyIncidentType(IncidentType):
@@ -103,9 +99,7 @@ class ChannelTemplatesFailedIncidentType(IncidentType):
         """
         Creates a channel disconnected incident if one is not already ongoing
         """
-        return Incident.get_or_create(
-            channel.org, ChannelTemplatesFailedIncidentType.slug, scope=str(channel.id), channel=channel
-        )
+        return Incident.get_or_create(channel.org, cls.slug, scope=str(channel.id), channel=channel)
 
     def get_notification_scope(self, incident) -> str:
         return str(incident.channel.id)

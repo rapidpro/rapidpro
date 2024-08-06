@@ -2,41 +2,36 @@
 {% load i18n temba smartmin %}
 
 {% block title-text %}
-  {% trans "Connect your Android phone" %}
+  {% trans "Connect an Android phone" %}
 {% endblock title-text %}
 {% block content %}
   <div class="flex flex-row">
-    <div class="form">
+    <div>
       <div class="card w-96">
         <form method="post" action="{% url 'channels.types.android.claim' %}">
           {% csrf_token %}
           {% render_field 'claim_code' %}
           {% render_field 'phone_number' %}
-          <input type="submit" value="{% trans "Add Android Channel" %}" class="mt-4 button-primary">
-          <errors></errors>
+          <input type="submit" value="{% trans "Connect" %}" class="mt-4 button-primary">
         </form>
       </div>
     </div>
     <div class="p-12">
-      {% blocktrans trimmed with branding.name as brand %}
-        {{ brand }} can use your Android phone to send and receive messages on your behalf.
+      {% blocktrans trimmed with brand=branding.name %}
+        {{ brand }} can use an Android phone to send and receive messages on your behalf. However due to restrictions
+        that Google places on applications that send SMS messages, we cannot distribute the application through the
+        Google Play Store. You will need to download the application manually and install it using the steps below.
       {% endblocktrans %}
-      <div class="mt-4">
-        {% blocktrans trimmed with branding.name as brand %}
-          Due to restrictions Android has on applications that send SMS messages, we cannot distribute
-          the {{ brand }} application through the Play Store. You will need to download the application manually
-          and install it using the steps below.
-        {% endblocktrans %}
-      </div>
     </div>
   </div>
-  <div class="mt-4 card">
+  <div class="mt-4 card overflow-y-scroll">
     {% if relayer_app %}
       <div class="release-header">
-        {% trans "Version" %} {{ relayer_app.version }} {% trans "was released on" %}
-        {{ relayer_app.created_on|day }}
+        {% blocktrans trimmed with version=relayer_app.version date=relayer_app.created_on|day %}
+          Version {{ version }} was released on {{ date }}.
+        {% endblocktrans %}
       </div>
-      {% if relayer_app.description %}<div class="release-description">{{ relayer_app.markdown_description }}</div>{% endif %}
+      {% if relayer_app.description %}<div class="release-description">{{ relayer_app.get_description_html }}</div>{% endif %}
     {% endif %}
     <table>
       <tr>
