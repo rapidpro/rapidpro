@@ -698,6 +698,12 @@ class Msg(models.Model):
                 fields=["next_attempt", "created_on", "id"],
                 condition=Q(direction="O", status__in=("I", "E"), next_attempt__isnull=False),
             ),
+            # used for finding old Android messages to fail
+            models.Index(
+                name="msgs_outgoing_android_to_fail",
+                fields=["created_on"],
+                condition=Q(direction="O", is_android=True, status__in=("I", "Q", "E")),
+            ),
             # used by courier to lookup messages by external id
             models.Index(
                 name="msgs_by_external_id",
