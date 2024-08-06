@@ -1,3 +1,7 @@
+v9.3.7 (2024-08-06)
+-------------------------
+ * Add contact notes ui
+
 v9.3.6 (2024-08-06)
 -------------------------
  * Adjust the grant view for new UI
