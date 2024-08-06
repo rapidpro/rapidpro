@@ -1,3 +1,10 @@
+v9.3.6 (2024-08-06)
+-------------------------
+ * Adjust the grant view for new UI
+ * Fix Android claim page
+ * Add incident for Android client app version out of date
+ * Tweak fail_old_messages to only fail Android messages and add an index
+
 v9.3.5 (2024-07-31)
 -------------------------
  * Support FCM changes
