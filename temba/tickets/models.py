@@ -84,15 +84,12 @@ class Ticket(models.Model):
     # permission that users need to have a ticket assigned to them
     ASSIGNEE_PERMISSION = "tickets.ticket_assignee"
 
-    MAX_NOTE_LEN = 4096
+    MAX_NOTE_LENGTH = 10_000
 
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets", db_index=False)  # indexed below
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets", db_index=False)
-
-    # ticket content
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="tickets")
-    body = models.TextField()
 
     # the status of this ticket and who it's currently assigned to
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
@@ -109,6 +106,9 @@ class Ticket(models.Model):
 
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
+
+    # deprecated
+    body = models.TextField(null=True)
 
     def assign(self, user: User, *, assignee: User):
         self.bulk_assign(self.org, user, [self], assignee=assignee)
@@ -189,7 +189,7 @@ class TicketEvent(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.PROTECT, related_name="events")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="ticket_events")
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-    note = models.TextField(null=True, max_length=Ticket.MAX_NOTE_LEN)
+    note = models.TextField(null=True, max_length=Ticket.MAX_NOTE_LENGTH)
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, null=True, related_name="ticket_events")
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events")
 
