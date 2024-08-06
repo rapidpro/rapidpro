@@ -1,0 +1,6 @@
+{% load i18n %}
+
+{% url 'channels.channel_read' incident.channel.uuid as read_url %}
+{% blocktrans trimmed with read_url=read_url %}
+  Your <a href="{{ read_url }}">Android channel</a> appears to be still running an old version of the client app.
+{% endblocktrans %}
