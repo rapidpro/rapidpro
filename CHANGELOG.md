@@ -1,3 +1,9 @@
+v9.3.11 (2024-08-07)
+-------------------------
+ * Remove Org.surveyor_password and always disable creating surveyor flows
+ * Remove non-modal response support from export translation view
+ * Remove surveyor user role and test user
+
 v9.3.10 (2024-08-07)
 -------------------------
  * Remove surveyor users from workspaces
