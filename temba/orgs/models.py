@@ -463,12 +463,10 @@ class Org(SmartModel):
     CURRENT_EXPORT_VERSION = "13"
 
     FEATURE_USERS = "users"  # can invite users to this org
-    FEATURE_VIEWERS = "viewers"  # users with read-only Viewer role
     FEATURE_NEW_ORGS = "new_orgs"  # can create new workspace with same login
     FEATURE_CHILD_ORGS = "child_orgs"  # can create child workspaces of this org
     FEATURES_CHOICES = (
         (FEATURE_USERS, _("Users")),
-        (FEATURE_VIEWERS, _("Viewers")),
         (FEATURE_NEW_ORGS, _("New Orgs")),
         (FEATURE_CHILD_ORGS, _("Child Orgs")),
     )
@@ -998,18 +996,6 @@ class Org(SmartModel):
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
 
-    def get_allowed_user_roles(self) -> list[OrgRole]:
-        """
-        Gets the allowed user roles which always includes any roles in use (can't take away roles).
-        """
-        roles = [r for r in OrgRole]
-        codes_in_use = set(OrgMembership.objects.filter(org=self).values_list("role_code", flat=True).distinct())
-
-        if Org.FEATURE_VIEWERS not in self.features and OrgRole.VIEWER.code not in codes_in_use:
-            roles.remove(OrgRole.VIEWER)
-
-        return roles
-
     def get_users(self, *, roles: list = None, with_perm: str = None):
         """
         Gets users in this org, filtered by role or permission.
@@ -1043,6 +1029,9 @@ class Org(SmartModel):
         """
         Adds the given user to this org with the given role
         """
+
+        assert role in OrgRole, f"invalid role: {role}"
+
         if self.has_user(user):  # remove user from any existing roles
             self.remove_user(user)
 
