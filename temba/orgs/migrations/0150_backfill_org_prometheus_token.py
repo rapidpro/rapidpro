@@ -6,7 +6,7 @@ from django.db import migrations
 def backfill_prometheus_token(apps, schema_editor):
     APIToken = apps.get_model("api", "APIToken")
 
-    for token in APIToken.objects.filter(role__name="Prometheus"):
+    for token in APIToken.objects.filter(is_active=True, role__name="Prometheus"):
         token.org.prometheus_token = token.key
         token.org.save(update_fields=("prometheus_token",))
 

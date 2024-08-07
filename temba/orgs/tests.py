@@ -4713,6 +4713,8 @@ class BackfillPrometheusTokenTest(MigrationTest):
     migrate_to = "0150_backfill_org_prometheus_token"
 
     def setUpBeforeMigration(self, apps):
+        APIToken.get_or_create(self.org, self.admin, prometheus=True).release()
+
         self.org1_token = APIToken.get_or_create(self.org, self.admin, prometheus=True).key
 
     def test_migration(self):
