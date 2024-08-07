@@ -1,3 +1,7 @@
+v9.3.10 (2024-08-07)
+-------------------------
+ * Remove surveyor users from workspaces
+
 v9.3.9 (2024-08-07)
 -------------------------
  * Fix incidents templates name
