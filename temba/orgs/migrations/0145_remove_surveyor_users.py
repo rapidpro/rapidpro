@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def remove_surveyor_users(apps, schema_editor):
+def remove_surveyor_users(apps, schema_editor):  # pragma: no cover
     OrgMembership = apps.get_model("orgs", "OrgMembership")
 
     num_deleted, _ = OrgMembership.objects.filter(role_code="S").delete()

@@ -1707,7 +1707,6 @@ class UserReadSerializer(ReadSerializer):
         OrgRole.EDITOR: "editor",
         OrgRole.VIEWER: "viewer",
         OrgRole.AGENT: "agent",
-        OrgRole.SURVEYOR: "surveyor",
     }
 
     avatar = serializers.SerializerMethodField()
