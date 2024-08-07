@@ -1,3 +1,10 @@
+v9.3.12 (2024-08-07)
+-------------------------
+ * Don't create surveyor user in mailroom test db
+ * Add warning to manage accounts page if org has viewers
+ * Remove viewers as an org feature, only allow existing viewer users to remain as viewers
+ * Update to latest Django
+
 v9.3.11 (2024-08-07)
 -------------------------
  * Remove Org.surveyor_password and always disable creating surveyor flows
