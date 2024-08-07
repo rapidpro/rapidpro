@@ -42,7 +42,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -4715,3 +4715,22 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
+
+
+class RemoveSurveyorUsersTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0144_alter_usersettings_email_verification_secret"
+    migrate_to = "0145_remove_surveyor_users"
+
+    def test_migration(self):
+        self.assertTrue(User.objects.filter(id=self.agent.id).exists())
+        self.assertTrue(User.objects.filter(id=self.user.id).exists())
+        self.assertTrue(User.objects.filter(id=self.editor.id).exists())
+        self.assertTrue(User.objects.filter(id=self.admin.id).exists())
+        self.assertTrue(User.objects.filter(id=self.surveyor.id).exists())
+
+        self.assertEqual(1, self.agent.orgs.count())
+        self.assertEqual(1, self.user.orgs.count())
+        self.assertEqual(1, self.editor.orgs.count())
+        self.assertEqual(1, self.admin.orgs.count())
+        self.assertEqual(0, self.surveyor.orgs.count())
