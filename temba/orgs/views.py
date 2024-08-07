@@ -2146,6 +2146,7 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             context["org"] = org
             context["has_invites"] = org.invitations.filter(is_active=True).exists()
+            context["has_viewers"] = org.get_users(roles=[OrgRole.VIEWER]).exists()
             return context
 
         def get_success_url(self):
