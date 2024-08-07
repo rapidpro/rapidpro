@@ -1005,14 +1005,14 @@ class Contact(LegacyUUIDMixin, SmartModel):
         notes = self.notes.order_by("-id").values_list("id", flat=True)[5:]
         self.notes.filter(id__in=notes).delete()
 
-    def open_ticket(self, user, topic, body: str, assignee=None):
+    def open_ticket(self, user, *, topic, assignee, note: str):
         """
         Opens a new ticket for this contact.
         """
         mod = modifiers.Ticket(
             topic=modifiers.TopicRef(uuid=str(topic.uuid), name=topic.name),
-            body=body or "",
             assignee=modifiers.UserRef(email=assignee.email, name=assignee.name) if assignee else None,
+            note=note,
         )
         self.modify(user, [mod], refresh=False)
         return self.tickets.order_by("id").last()

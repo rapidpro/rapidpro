@@ -528,12 +528,14 @@ def apply_modifiers(org, user, contacts, modifiers: list):
             topic = org.topics.get(uuid=mod.topic.uuid, is_active=True)
             assignee = org.users.get(email=mod.assignee.email, is_active=True) if mod.assignee else None
             for contact in contacts:
-                contact.tickets.create(
+                ticket = contact.tickets.create(
                     org=org,
                     topic=topic,
                     status=Ticket.STATUS_OPEN,
-                    body=mod.body,
                     assignee=assignee,
+                )
+                ticket.events.create(
+                    org=org, contact=contact, event_type=TicketEvent.TYPE_OPENED, note=mod.note, created_by=user
                 )
 
         elif mod.type == "urns":
