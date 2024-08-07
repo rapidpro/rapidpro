@@ -1514,23 +1514,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.context["form"].fields["flow_type"].choices,
         )
 
-        # if surveyor feature is enabled, that becomes a flow type option
-        with self.settings(FEATURES={"surveyor"}):
-            response = self.assertCreateFetch(
-                create_url,
-                [self.admin],
-                form_fields=["name", "keyword_triggers", "flow_type", "base_language"],
-            )
-            self.assertEqual(
-                [
-                    (Flow.TYPE_MESSAGE, "Messaging"),
-                    (Flow.TYPE_VOICE, "Phone Call"),
-                    (Flow.TYPE_BACKGROUND, "Background"),
-                    (Flow.TYPE_SURVEY, "Surveyor"),
-                ],
-                response.context["form"].fields["flow_type"].choices,
-            )
-
         # try to submit without name or language
         self.assertCreateSubmit(
             create_url,
@@ -1645,7 +1628,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow2 = Flow.objects.get(name="Flow 2")
         self.assertEqual([["test"]], list(flow2.triggers.order_by("id").values_list("keywords", flat=True)))
 
-    @override_settings(FEATURES={"surveyor"})
     def test_views(self):
         create_url = reverse("flows.flow_create")
 
@@ -1710,30 +1692,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             flow1,
             keywords=["unique"],
             match_type=Trigger.MATCH_FIRST_WORD,
-        )
-
-        # create a new surveyor flow
-        self.client.post(create_url, {"name": "Surveyor Flow", "flow_type": Flow.TYPE_SURVEY, "base_language": "eng"})
-        flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
-        self.assertEqual(flow2.flow_type, "S")
-        self.assertEqual(flow2.expires_after_minutes, 0)
-
-        # make sure we don't get a start flow button for Android Surveys
-        response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))
-        self.assertContentMenu(
-            reverse("flows.flow_editor", args=[flow2.uuid]),
-            self.admin,
-            [
-                "Results",
-                "-",
-                "Edit",
-                "Copy",
-                "Delete",
-                "-",
-                "Export Definition",
-                "Export Translation",
-                "Import Translation",
-            ],
         )
 
         # create a new voice flow
@@ -1809,7 +1767,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check flow listing
         response = self.client.get(reverse("flows.flow_list"))
-        self.assertEqual(list(response.context["object_list"]), [flow3, voice_flow, flow2, flow1, flow])  # by saved_on
+        self.assertEqual(list(response.context["object_list"]), [flow3, voice_flow, flow1, flow])  # by saved_on
 
         # test update view
         response = self.client.post(reverse("flows.flow_update", args=[flow.id]))

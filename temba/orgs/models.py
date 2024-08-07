@@ -540,10 +540,6 @@ class Org(SmartModel):
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
 
-    surveyor_password = models.CharField(
-        null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
-    )
-
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
@@ -1380,7 +1376,6 @@ class Org(SmartModel):
         self.modified_on = timezone.now()
         self.deleted_on = timezone.now()
         self.config = {}
-        self.surveyor_password = None
         self.save()
 
         return counts

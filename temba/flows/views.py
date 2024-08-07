@@ -425,7 +425,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["flow_type"] = forms.ChoiceField(
                     label=_("Type"),
                     help_text=_("Choose the method for your flow"),
-                    choices=Flow.TYPE_CHOICES if "surveyor" in settings.FEATURES else Flow.TYPE_CHOICES[:3],
+                    choices=Flow.TYPE_CHOICES[:3],  # exclude SURVEY from options
                     widget=SelectWidget(
                         attrs={"widget_only": False},
                         option_attrs={
