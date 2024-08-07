@@ -42,7 +42,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -4699,3 +4699,19 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
+
+
+class RemoveViewersTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0147_remove_org_surveyor_password"
+    migrate_to = "0148_remove_viewers_feature"
+
+    def setUpBeforeMigration(self, apps):
+        self.org.features = [Org.FEATURE_CHILD_ORGS, "viewers", Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+    def test_migration(self):
+        self.org.refresh_from_db()
+        self.assertEqual([Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS], self.org.features)
+        self.org2.refresh_from_db()
+        self.assertEqual([], self.org2.features)
