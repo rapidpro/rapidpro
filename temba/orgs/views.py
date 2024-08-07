@@ -2005,20 +2005,23 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                role_choices = [(r.code, r.display) for r in org.get_allowed_user_roles()]
-
                 self.org = org
                 self.user_rows = []
                 self.invite_rows = []
-                self.add_per_user_fields(org, role_choices)
+                self.add_per_user_fields(org)
                 self.add_per_invite_fields(org)
 
-            def add_per_user_fields(self, org: Org, role_choices: list):
+            def add_per_user_fields(self, org: Org):
+                role_choices = [(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)]
+                role_choices_inc_viewer = role_choices + [(OrgRole.VIEWER.code, OrgRole.VIEWER.display)]
+
                 for user in org.users.order_by("email"):
+                    role = org.get_user_role(user)
+
                     role_field = forms.ChoiceField(
-                        choices=role_choices,
+                        choices=role_choices_inc_viewer if role == OrgRole.VIEWER else role_choices,
                         required=True,
-                        initial=org.get_user_role(user).code,
+                        initial=role.code,
                         label=" ",
                         widget=SelectWidget(),
                     )
@@ -2036,7 +2039,7 @@ class OrgCRUDL(SmartCRUDL):
             def add_per_invite_fields(self, org: Org):
                 for invite in org.invitations.filter(is_active=True).order_by("email"):
                     role_field = forms.ChoiceField(
-                        choices=[(r.code, r.display) for r in OrgRole],
+                        choices=[(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)],
                         required=True,
                         initial=invite.role.code,
                         label=" ",
@@ -2118,9 +2121,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super().post_save(obj)
-
             org = self.get_object()
-            allowed_roles = org.get_allowed_user_roles()
 
             # delete any invitations which have been checked for removal
             for invite in self.form.get_submitted_invite_removals():
@@ -2130,7 +2131,7 @@ class OrgCRUDL(SmartCRUDL):
             for user, new_role in self.form.get_submitted_roles().items():
                 if not new_role:
                     org.remove_user(user)
-                elif org.get_user_role(user) != new_role and new_role in allowed_roles:
+                elif org.get_user_role(user) != new_role:
                     org.add_user(user, new_role)
 
                 # when a user's role changes, delete any API tokens they're no longer allowed to have

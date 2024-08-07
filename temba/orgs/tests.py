@@ -737,24 +737,6 @@ class OrgTest(TembaTest):
         self.assertEqual([self.admin, admin3], list(self.org.get_admins().order_by("id")))
         self.assertEqual([self.admin, self.admin2], list(self.org2.get_admins().order_by("id")))
 
-    def test_get_allowed_user_roles(self):
-        # show viewer because org already has users with that role
-        self.assertEqual(
-            [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.VIEWER, OrgRole.AGENT],
-            self.org.get_allowed_user_roles(),
-        )
-
-        self.user.release(self.customer_support)
-
-        # should lose viewer because org doesn't have those features
-        self.assertEqual(
-            [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT],
-            self.org.get_allowed_user_roles(),
-        )
-
-        self.org.features = [Org.FEATURE_VIEWERS]
-        self.org.save(update_fields=("features",))
-
     def test_get_owner(self):
         self.org.created_by = self.user
         self.org.save(update_fields=("created_by",))
@@ -1625,7 +1607,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
         self.assertRedirect(self.client.get(accounts_url), settings_url)
 
-        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_VIEWERS]
+        self.org.features = [Org.FEATURE_USERS]
         self.org.save(update_fields=("features",))
 
         # create invitations
@@ -1654,7 +1636,18 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual("A", response.context["form"].fields[f"user_{self.admin.id}_role"].initial)
         self.assertEqual("E", response.context["form"].fields[f"user_{self.editor.id}_role"].initial)
+        self.assertEqual("V", response.context["form"].fields[f"user_{self.user.id}_role"].initial)
         self.assertEqual("T", response.context["form"].fields[f"user_{self.agent.id}_role"].initial)
+
+        # only a user which is already a viewer has the option to stay a viewer
+        self.assertEqual(
+            [("A", "Administrator"), ("E", "Editor"), ("T", "Agent")],
+            response.context["form"].fields[f"user_{self.admin.id}_role"].choices,
+        )
+        self.assertEqual(
+            [("A", "Administrator"), ("E", "Editor"), ("T", "Agent"), ("V", "Viewer")],
+            response.context["form"].fields[f"user_{self.user.id}_role"].choices,
+        )
 
         self.assertContains(response, "norkans7@gmail.com")
 
@@ -1704,7 +1697,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 f"user_{self.admin.id}_role": "A",
                 f"user_{self.admin.id}_remove": "1",
                 f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "V",
+                f"user_{self.user.id}_role": "E",
                 f"user_{self.agent.id}_role": "T",
             },
             form_errors={"__all__": "A workspace must have at least one administrator."},
@@ -1718,7 +1711,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 f"user_{self.admin.id}_role": "E",
                 f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "V",
+                f"user_{self.user.id}_role": "E",
                 f"user_{self.agent.id}_role": "T",
             },
             form_errors={"__all__": "A workspace must have at least one administrator."},
