@@ -3168,36 +3168,34 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateFetch(export_url, [self.user, self.editor, self.admin], form_fields=["language"])
 
         # submit with no language
-        response = self.assertUpdateSubmit(export_url, self.admin, {})
+        response = self.assertUpdateSubmit(export_url, self.admin, {}, success_status=200)
 
-        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", response.url)
+        download_url = response["Temba-Success"]
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", download_url)
 
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.client.MailroomClient.po_export") as mock_po_export:
             mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
-            self.assertRequestDisallowed(response.url, [None, self.agent, self.admin2])
-            response = self.assertReadFetch(response.url, [self.user, self.editor, self.admin])
+            self.assertRequestDisallowed(download_url, [None, self.agent, self.admin2])
+            response = self.assertReadFetch(download_url, [self.user, self.editor, self.admin])
 
             self.assertEqual(b'msgid "Red"\nmsgstr "Roja"\n\n', response.content)
             self.assertEqual('attachment; filename="favorites.po"', response["Content-Disposition"])
             self.assertEqual("text/x-gettext-translation", response["Content-Type"])
 
         # submit with a language
-        response = self.assertUpdateSubmit(export_url, self.admin, {"language": "spa"})
+        response = self.assertUpdateSubmit(export_url, self.admin, {"language": "spa"}, success_status=200)
 
-        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa", response.url)
+        download_url = response["Temba-Success"]
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa", download_url)
 
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.client.MailroomClient.po_export") as mock_po_export:
             mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
-            response = self.requestView(response.url, self.admin)
+            response = self.requestView(download_url, self.admin)
 
             # filename includes language now
             self.assertEqual('attachment; filename="favorites.spa.po"', response["Content-Disposition"])
-
-        # check submitting the form from a modal
-        response = self.client.post(export_url, data={}, HTTP_X_PJAX=True)
-        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", response["Temba-Success"])
 
     def test_import_translation(self):
         self.org.set_flow_languages(self.admin, ["eng", "spa"])
