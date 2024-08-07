@@ -364,7 +364,6 @@ class OrgRole(Enum):
     EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "msgs.msg_inbox")
     VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "msgs.msg_inbox")
     AGENT = ("T", _("Agent"), _("Agents"), "Agents", "tickets.ticket_list")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "users.login")
 
     def __init__(self, code: str, display: str, display_plural: str, group_name: str, start_view: str):
         self.code = code
@@ -1010,8 +1009,6 @@ class Org(SmartModel):
         roles = [r for r in OrgRole]
         codes_in_use = set(OrgMembership.objects.filter(org=self).values_list("role_code", flat=True).distinct())
 
-        if "surveyor" not in settings.FEATURES and OrgRole.SURVEYOR.code not in codes_in_use:
-            roles.remove(OrgRole.SURVEYOR)
         if Org.FEATURE_VIEWERS not in self.features and OrgRole.VIEWER.code not in codes_in_use:
             roles.remove(OrgRole.VIEWER)
 

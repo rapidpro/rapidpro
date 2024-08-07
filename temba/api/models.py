@@ -210,7 +210,6 @@ class APIToken(models.Model):
     GROUP_GRANTED_TO = {
         "Administrators": (OrgRole.ADMINISTRATOR,),
         "Editors": (OrgRole.ADMINISTRATOR, OrgRole.EDITOR),
-        "Surveyors": (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.SURVEYOR),
         "Prometheus": (OrgRole.ADMINISTRATOR,),
     }
 
