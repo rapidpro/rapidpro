@@ -1,3 +1,8 @@
+v9.3.9 (2024-08-07)
+-------------------------
+ * Fix incidents templates name
+ * Let Ticket.body be null and make note length match contact note length
+
 v9.3.8 (2024-08-06)
 -------------------------
  * Show tabs on tickets when contact is set
