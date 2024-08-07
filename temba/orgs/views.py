@@ -2671,8 +2671,14 @@ class OrgCRUDL(SmartCRUDL):
             existing = self.get_token(org)
             if existing:
                 existing.release()
+
+                org.prometheus_token = None
+                org.save(update_fields=("prometheus_token",))
             else:
-                APIToken.get_or_create(self.request.org, self.request.user, prometheus=True)
+                token = APIToken.get_or_create(self.request.org, self.request.user, prometheus=True)
+
+                org.prometheus_token = token.key
+                org.save(update_fields=("prometheus_token",))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
