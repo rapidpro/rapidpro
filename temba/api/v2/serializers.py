@@ -1596,9 +1596,13 @@ class TicketReadSerializer(ReadSerializer):
     opened_in = fields.FlowField()
     modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
     closed_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    body = serializers.SerializerMethodField()  # deprecated
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
+
+    def get_body(self, obj):
+        return None
 
     class Meta:
         model = Ticket

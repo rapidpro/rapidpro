@@ -219,7 +219,7 @@ class Event:
                 "closed_on": ticket.closed_on.isoformat() if ticket.closed_on else None,
                 "topic": _topic(ticket.topic) if ticket.topic else None,
                 "status": ticket.status,
-                "body": ticket.body,
+                "body": None,
             },
             "created_on": get_event_time(obj).isoformat(),
             "created_by": _user(obj.created_by) if obj.created_by else None,
