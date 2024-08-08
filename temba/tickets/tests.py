@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom, MigrationTest
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -1413,3 +1413,17 @@ class TicketDailyTimingTest(TembaTest):
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
         )
+
+
+class MoveBodyToOpenNoteTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0061_alter_ticket_body_alter_ticketevent_note"
+    migrate_to = "0062_move_body_to_open_note"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
+
+        ticket = self.create_ticket(contact, "Test 1", assignee=self.admin)
+
+    def test_migration(self):
+        pass
