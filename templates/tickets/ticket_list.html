@@ -608,10 +608,7 @@
             <div class="flex-grow"></div>
             {% include "spa_page_menu.html" %}
           </div>
-          <temba-contact-tickets agent="{{ request.user.email }}"
-                                 -temba-refreshed="handleTicketUpdated"
-                                 expandable="true"
-                                 class="mb-1">
+          <temba-contact-tickets agent="{{ request.user.email }}" -temba-refreshed="handleTicketUpdated" class="mb-1">
           </temba-contact-tickets>
         </div>
         <temba-tabs -temba-context-changed="handleTabChanged"

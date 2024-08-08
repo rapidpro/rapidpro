@@ -384,18 +384,15 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("tickets.ticket_update", args=[ticket.uuid])
 
         self.assertRequestDisallowed(update_url, [None, self.user, self.admin2])
-        self.assertUpdateFetch(update_url, [self.agent, self.editor, self.admin], form_fields=["topic", "body"])
+        self.assertUpdateFetch(update_url, [self.agent, self.editor, self.admin], form_fields=["topic"])
 
         user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
 
         # edit successfully
-        self.assertUpdateSubmit(
-            update_url, self.admin, {"topic": user_topic.id, "body": "This is silly"}, success_status=302
-        )
+        self.assertUpdateSubmit(update_url, self.admin, {"topic": user_topic.id}, success_status=302)
 
         ticket.refresh_from_db()
         self.assertEqual(user_topic, ticket.topic)
-        self.assertEqual("This is silly", ticket.body)
 
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")
