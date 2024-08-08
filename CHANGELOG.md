@@ -1,3 +1,8 @@
+v9.3.16 (2024-08-08)
+-------------------------
+ * Stop generating prometheus API tokens
+ * Drop Ticket.body
+
 v9.3.15 (2024-08-08)
 -------------------------
  * Add Org.prometheus_token and backill from API tokens
