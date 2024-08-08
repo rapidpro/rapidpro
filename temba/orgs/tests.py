@@ -42,7 +42,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -676,7 +676,6 @@ class UserTest(TembaTest):
         self.assertEqual(0, len(self.admin.get_owned_orgs()))
 
         # release all but our admin
-        self.surveyor.release(self.customer_support)
         self.editor.release(self.customer_support)
         self.user.release(self.customer_support)
         self.agent.release(self.customer_support)
@@ -738,31 +737,6 @@ class OrgTest(TembaTest):
         self.assertEqual([self.admin, admin3], list(self.org.get_admins().order_by("id")))
         self.assertEqual([self.admin, self.admin2], list(self.org2.get_admins().order_by("id")))
 
-    def test_get_allowed_user_roles(self):
-        # show viewer and surveyor because org already has users with those roles
-        self.assertEqual(
-            [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.VIEWER, OrgRole.AGENT, OrgRole.SURVEYOR],
-            self.org.get_allowed_user_roles(),
-        )
-
-        self.user.release(self.customer_support)
-        self.surveyor.release(self.customer_support)
-
-        # should lose viewer and surveyor because org doesn't have those features
-        self.assertEqual(
-            [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT],
-            self.org.get_allowed_user_roles(),
-        )
-
-        self.org.features = [Org.FEATURE_VIEWERS]
-        self.org.save(update_fields=("features",))
-
-        with self.settings(FEATURES=["surveyor"]):
-            self.assertEqual(
-                [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.VIEWER, OrgRole.AGENT, OrgRole.SURVEYOR],
-                self.org.get_allowed_user_roles(),
-            )
-
     def test_get_owner(self):
         self.org.created_by = self.user
         self.org.save(update_fields=("created_by",))
@@ -778,7 +752,6 @@ class OrgTest(TembaTest):
         OrgMembership.objects.filter(org=self.org, role_code=OrgRole.EDITOR.code).delete()
         OrgMembership.objects.filter(org=self.org, role_code=OrgRole.VIEWER.code).delete()
         OrgMembership.objects.filter(org=self.org, role_code=OrgRole.AGENT.code).delete()
-        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.SURVEYOR.code).delete()
 
         # finally defaulting to org creator
         self.assertEqual(self.user, self.org.get_owner())
@@ -1634,7 +1607,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
         self.assertRedirect(self.client.get(accounts_url), settings_url)
 
-        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_VIEWERS]
+        self.org.features = [Org.FEATURE_USERS]
         self.org.save(update_fields=("features",))
 
         # create invitations
@@ -1644,6 +1617,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         invitation2 = Invitation.objects.create(
             org=self.org, email="bob@tickets.com", user_group="T", created_by=self.admin, modified_by=self.admin
         )
+
+        # add a second editor to the org
+        editor2 = self.create_user("editor2@nyaruka.com", first_name="Edwina")
+        self.org.add_user(editor2, OrgRole.EDITOR)
 
         # only admins can access
         self.assertRequestDisallowed(accounts_url, [None, self.user, self.editor])
@@ -1659,17 +1636,27 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual("A", response.context["form"].fields[f"user_{self.admin.id}_role"].initial)
         self.assertEqual("E", response.context["form"].fields[f"user_{self.editor.id}_role"].initial)
+        self.assertEqual("V", response.context["form"].fields[f"user_{self.user.id}_role"].initial)
+        self.assertEqual("T", response.context["form"].fields[f"user_{self.agent.id}_role"].initial)
+
+        # only a user which is already a viewer has the option to stay a viewer
+        self.assertEqual(
+            [("A", "Administrator"), ("E", "Editor"), ("T", "Agent")],
+            response.context["form"].fields[f"user_{self.admin.id}_role"].choices,
+        )
+        self.assertEqual(
+            [("A", "Administrator"), ("E", "Editor"), ("T", "Agent"), ("V", "Viewer")],
+            response.context["form"].fields[f"user_{self.user.id}_role"].choices,
+        )
 
         self.assertContains(response, "norkans7@gmail.com")
 
-        # give users an API token and give admin and editor an additional surveyor-role token
+        # give users an API token
         APIToken.get_or_create(self.org, self.admin)
         APIToken.get_or_create(self.org, self.editor)
-        APIToken.get_or_create(self.org, self.surveyor)
-        APIToken.get_or_create(self.org, self.admin, role=OrgRole.SURVEYOR)
-        APIToken.get_or_create(self.org, self.editor, role=OrgRole.SURVEYOR)
+        APIToken.get_or_create(self.org, editor2)
 
-        # leave admin, editor and agent as is, but change user to an editor too, and remove the surveyor user
+        # leave admin, editor and agent as is, but change user to an editor too, and remove the second editor
         response = self.assertUpdateSubmit(
             accounts_url,
             self.admin,
@@ -1677,8 +1664,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 f"user_{self.admin.id}_role": "A",
                 f"user_{self.editor.id}_role": "E",
                 f"user_{self.user.id}_role": "E",
-                f"user_{self.surveyor.id}_role": "S",
-                f"user_{self.surveyor.id}_remove": "1",
+                f"user_{editor2.id}_role": "E",
+                f"user_{editor2.id}_remove": "1",
                 f"user_{self.agent.id}_role": "T",
             },
         )
@@ -1688,13 +1675,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
         self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
         self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
         self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
 
-        # our surveyor's API token will have been deleted
-        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 2)
-        self.assertEqual(self.editor.api_tokens.filter(is_active=True).count(), 2)
-        self.assertEqual(self.surveyor.api_tokens.filter(is_active=True).count(), 0)
+        # our second editors API token should be deleted
+        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 1)
+        self.assertEqual(self.editor.api_tokens.filter(is_active=True).count(), 1)
+        self.assertEqual(editor2.api_tokens.filter(is_active=True).count(), 0)
 
         # pretend our first invite was acted on
         invitation1.release()
@@ -1711,7 +1697,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 f"user_{self.admin.id}_role": "A",
                 f"user_{self.admin.id}_remove": "1",
                 f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "V",
+                f"user_{self.user.id}_role": "E",
                 f"user_{self.agent.id}_role": "T",
             },
             form_errors={"__all__": "A workspace must have at least one administrator."},
@@ -1725,7 +1711,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 f"user_{self.admin.id}_role": "E",
                 f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "V",
+                f"user_{self.user.id}_role": "E",
                 f"user_{self.agent.id}_role": "T",
             },
             form_errors={"__all__": "A workspace must have at least one administrator."},
@@ -1757,7 +1743,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
         self.assertEqual({self.user}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
         self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
         self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.AGENT])))
 
         # editor will have lost their API tokens
@@ -1977,7 +1962,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "Workspaces (1)",
                 "Dashboard",
                 "Account",
-                "Users (5)",
+                "Users (4)",
                 "Resthooks",
                 "Incidents",
                 "Export",
@@ -3319,7 +3304,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertStaffOnly(list_url)
 
         response = self.requestView(list_url, self.customer_support)
-        self.assertEqual(9, len(response.context["object_list"]))
+        self.assertEqual(8, len(response.context["object_list"]))
         self.assertEqual("/staff/users/all", response.headers[TEMBA_MENU_SELECTION])
 
         response = self.requestView(list_url + "?filter=beta", self.customer_support)
@@ -3416,7 +3401,6 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         OrgMembership.objects.filter(org=self.org, role_code=OrgRole.ADMINISTRATOR.code).delete()
         OrgMembership.objects.filter(org=self.org, role_code=OrgRole.VIEWER.code).delete()
         OrgMembership.objects.filter(org=self.org, role_code=OrgRole.AGENT.code).delete()
-        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.SURVEYOR.code).delete()
 
         response = self.requestView(delete_url, self.customer_support)
         self.assertEqual(200, response.status_code)
@@ -4715,3 +4699,19 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
+
+
+class RemoveViewersTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0147_remove_org_surveyor_password"
+    migrate_to = "0148_remove_viewers_feature"
+
+    def setUpBeforeMigration(self, apps):
+        self.org.features = [Org.FEATURE_CHILD_ORGS, "viewers", Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+    def test_migration(self):
+        self.org.refresh_from_db()
+        self.assertEqual([Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS], self.org.features)
+        self.org2.refresh_from_db()
+        self.assertEqual([], self.org2.features)

@@ -364,7 +364,6 @@ class OrgRole(Enum):
     EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "msgs.msg_inbox")
     VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "msgs.msg_inbox")
     AGENT = ("T", _("Agent"), _("Agents"), "Agents", "tickets.ticket_list")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "users.login")
 
     def __init__(self, code: str, display: str, display_plural: str, group_name: str, start_view: str):
         self.code = code
@@ -464,12 +463,10 @@ class Org(SmartModel):
     CURRENT_EXPORT_VERSION = "13"
 
     FEATURE_USERS = "users"  # can invite users to this org
-    FEATURE_VIEWERS = "viewers"  # users with read-only Viewer role
     FEATURE_NEW_ORGS = "new_orgs"  # can create new workspace with same login
     FEATURE_CHILD_ORGS = "child_orgs"  # can create child workspaces of this org
     FEATURES_CHOICES = (
         (FEATURE_USERS, _("Users")),
-        (FEATURE_VIEWERS, _("Viewers")),
         (FEATURE_NEW_ORGS, _("New Orgs")),
         (FEATURE_CHILD_ORGS, _("Child Orgs")),
     )
@@ -540,10 +537,6 @@ class Org(SmartModel):
     )
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
-
-    surveyor_password = models.CharField(
-        null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
-    )
 
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
@@ -1003,20 +996,6 @@ class Org(SmartModel):
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
 
-    def get_allowed_user_roles(self) -> list[OrgRole]:
-        """
-        Gets the allowed user roles which always includes any roles in use (can't take away roles).
-        """
-        roles = [r for r in OrgRole]
-        codes_in_use = set(OrgMembership.objects.filter(org=self).values_list("role_code", flat=True).distinct())
-
-        if "surveyor" not in settings.FEATURES and OrgRole.SURVEYOR.code not in codes_in_use:
-            roles.remove(OrgRole.SURVEYOR)
-        if Org.FEATURE_VIEWERS not in self.features and OrgRole.VIEWER.code not in codes_in_use:
-            roles.remove(OrgRole.VIEWER)
-
-        return roles
-
     def get_users(self, *, roles: list = None, with_perm: str = None):
         """
         Gets users in this org, filtered by role or permission.
@@ -1050,6 +1029,9 @@ class Org(SmartModel):
         """
         Adds the given user to this org with the given role
         """
+
+        assert role in OrgRole, f"invalid role: {role}"
+
         if self.has_user(user):  # remove user from any existing roles
             self.remove_user(user)
 
@@ -1383,7 +1365,6 @@ class Org(SmartModel):
         self.modified_on = timezone.now()
         self.deleted_on = timezone.now()
         self.config = {}
-        self.surveyor_password = None
         self.save()
 
         return counts

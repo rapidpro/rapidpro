@@ -425,7 +425,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["flow_type"] = forms.ChoiceField(
                     label=_("Type"),
                     help_text=_("Choose the method for your flow"),
-                    choices=Flow.TYPE_CHOICES if "surveyor" in settings.FEATURES else Flow.TYPE_CHOICES[:3],
+                    choices=Flow.TYPE_CHOICES[:3],  # exclude SURVEY from options
                     widget=SelectWidget(
                         attrs={"widget_only": False},
                         option_attrs={
@@ -1026,17 +1026,12 @@ class FlowCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
+        def get_success_url(self):
+            params = {"flow": self.object.id, "language": self.form.cleaned_data["language"]}
+            return reverse("flows.flow_download_translation") + "?" + urlencode(params, doseq=True)
+
         def form_valid(self, form):
-            params = {"flow": self.object.id, "language": form.cleaned_data["language"]}
-            download_url = reverse("flows.flow_download_translation") + "?" + urlencode(params, doseq=True)
-
-            # if this is an XHR request, we need to return a structured response that it can parse
-            if "HTTP_X_PJAX" in self.request.META:
-                response = self.render_modal_response(form)
-                response["Temba-Success"] = download_url
-                return response
-
-            return HttpResponseRedirect(download_url)
+            return self.render_modal_response(form)
 
     class DownloadTranslation(OrgPermsMixin, SmartListView):
         """

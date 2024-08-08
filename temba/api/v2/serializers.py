@@ -1629,7 +1629,7 @@ class TicketBulkActionSerializer(WriteSerializer):
     action = serializers.ChoiceField(required=True, choices=ACTION_CHOICES)
     assignee = fields.UserField(required=False, allow_null=True, assignable_only=True)
     topic = fields.TopicField(required=False)
-    note = serializers.CharField(required=False, max_length=Ticket.MAX_NOTE_LEN)
+    note = serializers.CharField(required=False, max_length=Ticket.MAX_NOTE_LENGTH)
 
     def validate(self, data):
         action = data["action"]
@@ -1707,7 +1707,6 @@ class UserReadSerializer(ReadSerializer):
         OrgRole.EDITOR: "editor",
         OrgRole.VIEWER: "viewer",
         OrgRole.AGENT: "agent",
-        OrgRole.SURVEYOR: "surveyor",
     }
 
     avatar = serializers.SerializerMethodField()

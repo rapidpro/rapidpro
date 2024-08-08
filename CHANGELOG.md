@@ -1,3 +1,25 @@
+v9.3.12 (2024-08-07)
+-------------------------
+ * Don't create surveyor user in mailroom test db
+ * Add warning to manage accounts page if org has viewers
+ * Remove viewers as an org feature, only allow existing viewer users to remain as viewers
+ * Update to latest Django
+
+v9.3.11 (2024-08-07)
+-------------------------
+ * Remove Org.surveyor_password and always disable creating surveyor flows
+ * Remove non-modal response support from export translation view
+ * Remove surveyor user role and test user
+
+v9.3.10 (2024-08-07)
+-------------------------
+ * Remove surveyor users from workspaces
+
+v9.3.9 (2024-08-07)
+-------------------------
+ * Fix incidents templates name
+ * Let Ticket.body be null and make note length match contact note length
+
 v9.3.8 (2024-08-06)
 -------------------------
  * Show tabs on tickets when contact is set

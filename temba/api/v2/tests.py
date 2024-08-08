@@ -537,7 +537,7 @@ class EndpointsTest(APITest):
         self.assertEqual(response.status_code, 429)
 
         # if user loses access to the token's role, don't allow the request
-        self.org.add_user(self.admin, OrgRole.SURVEYOR)
+        self.org.add_user(self.admin, OrgRole.EDITOR)
 
         self.assertEqual(request_by_token(campaigns_url, token1.key).status_code, 403)
         self.assertEqual(request_by_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
@@ -5212,22 +5212,10 @@ class EndpointsTest(APITest):
         self.assertPostNotAllowed(endpoint_url)
         self.assertDeleteNotAllowed(endpoint_url)
 
-        self.surveyor.first_name = "Stu"
-        self.surveyor.last_name = "McSurveys"
-        self.surveyor.save()
-
         self.assertGet(
             endpoint_url,
             [self.agent, self.user, self.editor, self.admin],
             results=[
-                {
-                    "avatar": None,
-                    "email": "surveyor@nyaruka.com",
-                    "first_name": "Stu",
-                    "last_name": "McSurveys",
-                    "role": "surveyor",
-                    "created_on": format_datetime(self.surveyor.date_joined),
-                },
                 {
                     "avatar": None,
                     "email": "agent@nyaruka.com",

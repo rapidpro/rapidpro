@@ -40,19 +40,6 @@ from .models import (
 )
 
 
-class NoteForm(forms.ModelForm):
-    note = forms.CharField(
-        max_length=2048,
-        required=True,
-        widget=InputWidget({"hide_label": True, "textarea": True}),
-        help_text=_("Notes can only be seen by the support team"),
-    )
-
-    class Meta:
-        model = Ticket
-        fields = ("note",)
-
-
 class TopicCRUDL(SmartCRUDL):
     model = Topic
     actions = ("create", "update", "delete")
@@ -458,7 +445,19 @@ class TicketCRUDL(SmartCRUDL):
         Creates a note for this contact
         """
 
-        form_class = NoteForm
+        class Form(forms.ModelForm):
+            note = forms.CharField(
+                max_length=Ticket.MAX_NOTE_LENGTH,
+                required=True,
+                widget=InputWidget({"hide_label": True, "textarea": True}),
+                help_text=_("Notes can only be seen by the support team"),
+            )
+
+            class Meta:
+                model = Ticket
+                fields = ("note",)
+
+        form_class = Form
         fields = ("note",)
         success_url = "hide"
         slug_url_kwarg = "uuid"

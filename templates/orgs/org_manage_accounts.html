@@ -14,6 +14,14 @@
   </style>
 {% endblock extra-style %}
 {% block fields %}
+  {% if has_viewers %}
+    <temba-alert level="warning" class="mb-4">
+      {% blocktrans trimmed with cutoff="2024-12-31"|day %}
+        The <i>Viewer</i> role for users is being removed. Please update any users with that role or remove from your
+        workspace. After <b>{{ cutoff }}</b> these users will no longer be able to access the workspace.
+      {% endblocktrans %}
+    </temba-alert>
+  {% endif %}
   <table class="list mb-0">
     <thead>
       <tr>

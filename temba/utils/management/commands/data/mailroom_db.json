@@ -35,12 +35,6 @@
           "first_name": "Ann",
           "last_name": "D'Agent",
           "team": "Partners"
-        },
-        {
-          "email": "surveyor1@nyaruka.com",
-          "role": "S",
-          "first_name": "Steve",
-          "last_name": "Surveys"
         }
       ],
       "classifiers": [
