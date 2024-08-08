@@ -1,3 +1,11 @@
+v9.3.13 (2024-08-08)
+-------------------------
+ * Show notes on ticket open events in contact history
+ * Remove body from ticket endpoint documentation
+ * Update floweditor which now also refers to ticket body as note
+ * Update open ticket modal to use note instead of body
+ * Add cutoff date for using viewer role
+
 v9.3.12 (2024-08-07)
 -------------------------
  * Don't create surveyor user in mailroom test db
