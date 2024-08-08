@@ -31,14 +31,12 @@ class APITokenTest(TembaTest):
         # tokens for different roles with same user should differ
         token2 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
         token3 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.EDITOR)
-        token4 = APIToken.get_or_create(self.org, self.admin, prometheus=True)
 
         self.assertEqual(token1, token2)
         self.assertNotEqual(token1, token3)
         self.assertNotEqual(token1.key, token3.key)
 
         self.assertEqual(self.editors_group, token3.role)
-        self.assertEqual(Group.objects.get(name="Prometheus"), token4.role)
 
         # tokens with same role for different users should differ
         token5 = APIToken.get_or_create(self.org, self.editor)
@@ -52,7 +50,6 @@ class APITokenTest(TembaTest):
     def test_is_valid(self):
         token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
         token2 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.EDITOR)
-        token3 = APIToken.get_or_create(self.org, self.admin, prometheus=True)
 
         # demote admin to an editor
         self.org.add_user(self.admin, OrgRole.EDITOR)
@@ -60,7 +57,6 @@ class APITokenTest(TembaTest):
 
         self.assertFalse(token1.is_valid())
         self.assertTrue(token2.is_valid())
-        self.assertFalse(token3.is_valid())
 
     def test_get_default_role(self):
         self.assertEqual(APIToken.get_default_role(self.org, self.admin), OrgRole.ADMINISTRATOR)

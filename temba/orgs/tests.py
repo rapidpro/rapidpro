@@ -42,7 +42,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -978,17 +978,14 @@ class OrgTest(TembaTest):
 
         response = self.client.get(settings_url)
         self.assertContains(response, "Prometheus")
-        self.assertContains(response, "Enable Prometheus")
+        self.assertContains(response, "Enable")
 
         # enable it
         prometheus_url = reverse("orgs.org_prometheus")
         response = self.client.post(prometheus_url, {}, follow=True)
-        self.assertContains(response, "Disable Prometheus")
+        self.assertContains(response, "Disable")
 
-        # make sure our API token exists
-        prometheus_group = Group.objects.get(name="Prometheus")
-        self.assertTrue(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
-
+        # make sure our token is set
         self.org.refresh_from_db()
         self.assertIsNotNone(self.org.prometheus_token)
 
@@ -999,12 +996,11 @@ class OrgTest(TembaTest):
 
         response = self.client.get(settings_url)
         self.assertContains(response, "Prometheus")
-        self.assertContains(response, "Disable Prometheus")
+        self.assertContains(response, "Disable")
 
         # now disable it
         response = self.client.post(prometheus_url, {}, follow=True)
-        self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
-        self.assertContains(response, "Enable Prometheus")
+        self.assertContains(response, "Enable")
 
         self.org.refresh_from_db()
         self.assertIsNone(self.org.prometheus_token)
@@ -1956,7 +1952,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(9):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users
@@ -4705,18 +4701,3 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
-
-
-class BackfillPrometheusTokenTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0149_org_prometheus_token"
-    migrate_to = "0150_backfill_org_prometheus_token"
-
-    def setUpBeforeMigration(self, apps):
-        APIToken.get_or_create(self.org, self.admin, prometheus=True).release()
-
-        self.org1_token = APIToken.get_or_create(self.org, self.admin, prometheus=True).key
-
-    def test_migration(self):
-        self.org.refresh_from_db()
-        self.assertEqual(self.org1_token, self.org.prometheus_token)
