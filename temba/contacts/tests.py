@@ -892,7 +892,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         open_url = reverse("contacts.contact_open_ticket", args=[contact.id])
 
         self.assertRequestDisallowed(open_url, [None, self.user, self.agent, self.admin2])
-        self.assertUpdateFetch(open_url, [self.editor, self.admin], form_fields=("topic", "body", "assignee"))
+        self.assertUpdateFetch(open_url, [self.editor, self.admin], form_fields=("topic", "assignee", "note"))
 
         # can submit with no assignee
         response = self.assertUpdateSubmit(open_url, self.admin, {"topic": general.id, "body": "Help", "assignee": ""})
@@ -900,7 +900,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # should have new ticket
         ticket = contact.tickets.get()
         self.assertEqual(general, ticket.topic)
-        self.assertEqual("Help", ticket.body)
         self.assertIsNone(ticket.assignee)
 
         # and we're redirected to that ticket
@@ -1751,10 +1750,12 @@ class ContactTest(TembaTest, CRUDLTestMixin):
     def test_open_ticket(self, mock_contact_modify):
         mock_contact_modify.return_value = {self.joe.id: {"contact": {}, "events": []}}
 
-        ticket = self.joe.open_ticket(self.admin, self.org.default_ticket_topic, "Looks sus", assignee=self.agent)
+        ticket = self.joe.open_ticket(
+            self.admin, topic=self.org.default_ticket_topic, assignee=self.agent, note="Looks sus"
+        )
 
         self.assertEqual(self.org.default_ticket_topic, ticket.topic)
-        self.assertEqual("Looks sus", ticket.body)
+        self.assertEqual("Looks sus", ticket.events.get(event_type="O").note)
 
     @mock_mailroom
     def test_interrupt(self, mr_mocks):

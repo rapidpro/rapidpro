@@ -3275,7 +3275,6 @@ class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
      * **status** - the status of the ticket, either `open` or `closed`.
      * **topic** - the topic of the ticket (object).
      * **assignee** - the user assigned to the ticket (object).
-     * **body** - the body of the ticket (string).
      * **opened_on** - when this ticket was opened (datetime).
      * **opened_by** - the user who opened the ticket (object).
      * **opened_in** - the flow which opened the ticket (object).
@@ -3298,7 +3297,6 @@ class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
                 "status": "open",
                 "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
                 "assignee": {"email": "bob@flow.com", "name": "Bob McFlow"},
-                "body": "Where did I leave my shorts?",
                 "opened_on": "2013-02-27T09:06:15.456",
                 "opened_by": null,
                 "opened_in": {"uuid": "54cd8e2c-6334-49a4-abf9-f0fa8d0971da", "name": "Support Flow"},
