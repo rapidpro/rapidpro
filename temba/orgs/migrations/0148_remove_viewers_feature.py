@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def remove_viewers_feature(apps, schema_editor):
+def remove_viewers_feature(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     num_removed = 0

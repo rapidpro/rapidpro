@@ -989,6 +989,9 @@ class OrgTest(TembaTest):
         prometheus_group = Group.objects.get(name="Prometheus")
         self.assertTrue(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
 
+        self.org.refresh_from_db()
+        self.assertIsNotNone(self.org.prometheus_token)
+
         # other admin sees it enabled too
         self.other_admin = self.create_user("other_admin@nyaruka.com")
         self.org.add_user(self.other_admin, OrgRole.ADMINISTRATOR)
@@ -1002,6 +1005,9 @@ class OrgTest(TembaTest):
         response = self.client.post(prometheus_url, {}, follow=True)
         self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
         self.assertContains(response, "Enable Prometheus")
+
+        self.org.refresh_from_db()
+        self.assertIsNone(self.org.prometheus_token)
 
     def test_resthooks(self):
         resthook_url = reverse("orgs.org_resthooks")
@@ -4701,17 +4707,16 @@ class ExportCRUDLTest(TembaTest):
         )
 
 
-class RemoveViewersTest(MigrationTest):
+class BackfillPrometheusTokenTest(MigrationTest):
     app = "orgs"
-    migrate_from = "0147_remove_org_surveyor_password"
-    migrate_to = "0148_remove_viewers_feature"
+    migrate_from = "0149_org_prometheus_token"
+    migrate_to = "0150_backfill_org_prometheus_token"
 
     def setUpBeforeMigration(self, apps):
-        self.org.features = [Org.FEATURE_CHILD_ORGS, "viewers", Org.FEATURE_USERS]
-        self.org.save(update_fields=("features",))
+        APIToken.get_or_create(self.org, self.admin, prometheus=True).release()
+
+        self.org1_token = APIToken.get_or_create(self.org, self.admin, prometheus=True).key
 
     def test_migration(self):
         self.org.refresh_from_db()
-        self.assertEqual([Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS], self.org.features)
-        self.org2.refresh_from_db()
-        self.assertEqual([], self.org2.features)
+        self.assertEqual(self.org1_token, self.org.prometheus_token)
