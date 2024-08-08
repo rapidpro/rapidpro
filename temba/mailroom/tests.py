@@ -529,7 +529,6 @@ class EventTest(TembaTest):
                     "closed_on": None,
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "body": None,
                 },
                 "created_on": matchers.ISODate(),
                 "created_by": {
@@ -559,7 +558,6 @@ class EventTest(TembaTest):
                     "closed_on": None,
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "body": None,
                 },
                 "created_on": matchers.ISODate(),
                 "created_by": None,
