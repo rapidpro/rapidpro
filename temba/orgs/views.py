@@ -2657,41 +2657,30 @@ class OrgCRUDL(SmartCRUDL):
             return super().pre_save(obj)
 
     class Prometheus(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class ToggleForm(forms.ModelForm):
+        class Form(forms.ModelForm):
             class Meta:
                 model = Org
                 fields = ("id",)
 
-        form_class = ToggleForm
+        form_class = Form
         success_url = "@orgs.org_workspace"
 
-        def post_save(self, obj):
-            # if org has an existing Prometheus token, disable it, otherwise create one
+        def save(self, obj):
             org = self.request.org
-            existing = self.get_token(org)
-            if existing:
-                existing.release()
 
+            # if org has an existing Prometheus token, disable it, otherwise create one
+            if org.prometheus_token:
                 org.prometheus_token = None
                 org.save(update_fields=("prometheus_token",))
             else:
-                token = APIToken.get_or_create(self.request.org, self.request.user, prometheus=True)
-
-                org.prometheus_token = token.key
+                org.prometheus_token = generate_secret(40)
                 org.save(update_fields=("prometheus_token",))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.request.org
-            token = self.get_token(org)
-            if token:
-                context["prometheus_token"] = token.key
-                context["prometheus_url"] = f"https://{org.branding['domain']}/mr/org/{org.uuid}/metrics"
-
+            context["prometheus_url"] = f"https://{org.branding['domain']}/mr/org/{org.uuid}/metrics"
             return context
-
-        def get_token(self, org):
-            return APIToken.objects.filter(is_active=True, org=org, role=Group.objects.get(name="Prometheus")).first()
 
     class Workspace(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")

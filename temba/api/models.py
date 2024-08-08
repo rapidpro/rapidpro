@@ -210,7 +210,6 @@ class APIToken(models.Model):
     GROUP_GRANTED_TO = {
         "Administrators": (OrgRole.ADMINISTRATOR,),
         "Editors": (OrgRole.ADMINISTRATOR, OrgRole.EDITOR),
-        "Prometheus": (OrgRole.ADMINISTRATOR,),
     }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="api_tokens")
@@ -221,18 +220,13 @@ class APIToken(models.Model):
     is_active = models.BooleanField(default=True)
 
     @classmethod
-    def get_or_create(cls, org, user, *, role: OrgRole = None, prometheus: bool = False, refresh: bool = False):
+    def get_or_create(cls, org, user, *, role: OrgRole = None, refresh: bool = False):
         """
         Gets or creates an API token for this user
         """
 
-        assert not (role and prometheus), "can't specify both org role and prometheus = true"
-
-        if prometheus:
-            role_group = Group.objects.get(name="Prometheus")
-        else:
-            role = role or cls.get_default_role(org, user)
-            role_group = role.group if role else None
+        role = role or cls.get_default_role(org, user)
+        role_group = role.group if role else None
 
         if not role_group:
             raise ValueError("User '%s' has no suitable role for API usage" % str(user))

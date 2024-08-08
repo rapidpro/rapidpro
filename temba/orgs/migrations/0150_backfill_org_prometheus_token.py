@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def backfill_prometheus_token(apps, schema_editor):
+def backfill_prometheus_token(apps, schema_editor):  # pragma: no cover
     APIToken = apps.get_model("api", "APIToken")
 
     for token in APIToken.objects.filter(is_active=True, role__name="Prometheus"):

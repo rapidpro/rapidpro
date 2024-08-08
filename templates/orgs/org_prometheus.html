@@ -7,7 +7,7 @@
     You can monitor contact group counts and channel message counts on your workspace using your {{ prometheus }} endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as {{ grafana }}.
   {% endblocktrans %}
 </div>
-{% if prometheus_url %}
+{% if object.prometheus_token %}
   <table style="margin-bottom:15px;">
     <tr class="bottom-pad">
       <td align="right">{% trans "Endpoint" %}</td>
@@ -24,7 +24,7 @@
     <tr class="bottom-pad">
       <td align="right">{% trans "Password" %}</td>
       <td>
-        <div class="code whitespace-normal">{{ prometheus_token }}</div>
+        <div class="code whitespace-normal">{{ object.prometheus_token }}</div>
       </td>
     </tr>
   </table>
@@ -32,23 +32,23 @@
 {% endblock fields %}
 {% block form-buttons %}
   <div class="form-actions">
-    {% if prometheus_url %}
-      <input type="submit" value="{% trans "Disable Prometheus" %}" class="button-primary">
+    {% if object.prometheus_token %}
+      <input type="submit" value="{% trans "Disable" %}" class="button-primary">
     {% else %}
-      <input type="submit" value="{% trans "Enable Prometheus" %}" class="button-primary">
+      <input type="submit" value="{% trans "Enable" %}" class="button-primary">
     {% endif %}
   </div>
 {% endblock form-buttons %}
 {% block summary %}
-  {% if prometheus_url %}
-    {% blocktrans trimmed with prometheus='<b>Prometheus</b>' %}
-    You are monitoring your workspace using {{ prometheus }}.
-  {% endblocktrans %}
-{% else %}
-  {% blocktrans trimmed with prometheus='<b>Prometheus</b>' %}
-  You have not enabled {{ prometheus }} monitoring on your workspace.
-{% endblocktrans %}
-{% endif %}
+  {% if object.prometheus_token %}
+    {% blocktrans trimmed %}
+      You are monitoring your workspace using <b>Prometheus</b>.
+    {% endblocktrans %}
+  {% else %}
+    {% blocktrans trimmed %}
+      You have not enabled <b>Prometheus</b> monitoring on your workspace.
+    {% endblocktrans %}
+  {% endif %}
 {% endblock summary %}
 {% block extra-style %}
   {{ block.super }}
