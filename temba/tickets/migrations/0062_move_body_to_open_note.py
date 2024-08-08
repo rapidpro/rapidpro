@@ -13,7 +13,7 @@ def move_body_to_open_note(apps, schema_editor):
 
         num_updated += 1
 
-        if num_updated % 1000 == 0:
+        if num_updated % 1000 == 0:  # pragma: no cover
             print(f" > updated {num_updated} tickets")
 
     if num_updated:
