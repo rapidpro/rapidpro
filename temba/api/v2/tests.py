@@ -4884,13 +4884,13 @@ class EndpointsTest(APITest):
         flow = self.create_flow("Support")
 
         ticket1 = self.create_ticket(
-            ann, "Help", opened_by=self.admin, closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, tzone.utc)
+            ann, opened_by=self.admin, closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, tzone.utc)
         )
-        ticket2 = self.create_ticket(bob, "Really", opened_in=flow)
-        ticket3 = self.create_ticket(bob, "Pleeeease help", assignee=self.agent)
+        ticket2 = self.create_ticket(bob, opened_in=flow)
+        ticket3 = self.create_ticket(bob, assignee=self.agent)
 
         # on another org
-        self.create_ticket(self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Stuff")
+        self.create_ticket(self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2))
 
         # no filtering
         self.assertGet(
@@ -4903,7 +4903,7 @@ class EndpointsTest(APITest):
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "body": "Pleeeease help",
+                    "body": None,
                     "opened_on": format_datetime(ticket3.opened_on),
                     "opened_by": None,
                     "opened_in": None,
@@ -4916,7 +4916,7 @@ class EndpointsTest(APITest):
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "body": "Really",
+                    "body": None,
                     "opened_on": format_datetime(ticket2.opened_on),
                     "opened_by": None,
                     "opened_in": {"uuid": str(flow.uuid), "name": "Support"},
@@ -4929,7 +4929,7 @@ class EndpointsTest(APITest):
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "body": "Help",
+                    "body": None,
                     "opened_on": format_datetime(ticket1.opened_on),
                     "opened_by": {"email": "admin@nyaruka.com", "name": "Andy"},
                     "opened_in": None,
@@ -4959,12 +4959,12 @@ class EndpointsTest(APITest):
 
         # create some tickets
         sales = Topic.create(self.org, self.admin, "Sales")
-        ticket1 = self.create_ticket(self.joe, "Help", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, tzone.utc))
-        ticket2 = self.create_ticket(self.joe, "Help")
-        self.create_ticket(self.frank, "Pleeeease help")
+        ticket1 = self.create_ticket(self.joe, closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, tzone.utc))
+        ticket2 = self.create_ticket(self.joe)
+        self.create_ticket(self.frank)
 
         # on another org
-        ticket4 = self.create_ticket(self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Hi")
+        ticket4 = self.create_ticket(self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2))
 
         # try actioning more tickets than this endpoint is allowed to operate on at one time
         self.assertPost(
@@ -5101,7 +5101,7 @@ class EndpointsTest(APITest):
         other_org = Topic.create(self.org2, self.admin, "Bugs")
 
         contact = self.create_contact("Ann", phone="+1234567890")
-        self.create_ticket(contact, "Help", topic=support)
+        self.create_ticket(contact, topic=support)
 
         # no filtering
         self.assertGet(

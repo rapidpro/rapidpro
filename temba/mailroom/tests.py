@@ -505,7 +505,7 @@ class EventTest(TembaTest):
 
     def test_from_ticket_event(self):
         contact = self.create_contact("Jim", phone="0979111111")
-        ticket = self.create_ticket(contact, "Where my shoes?")
+        ticket = self.create_ticket(contact)
 
         # event with a user
         event1 = TicketEvent.objects.create(
@@ -529,7 +529,7 @@ class EventTest(TembaTest):
                     "closed_on": None,
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "body": "Where my shoes?",
+                    "body": None,
                 },
                 "created_on": matchers.ISODate(),
                 "created_by": {
@@ -559,7 +559,7 @@ class EventTest(TembaTest):
                     "closed_on": None,
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "body": "Where my shoes?",
+                    "body": None,
                 },
                 "created_on": matchers.ISODate(),
                 "created_by": None,

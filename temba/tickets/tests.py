@@ -93,12 +93,12 @@ class TicketTest(TembaTest):
         org2_general = self.org2.default_ticket_topic
         org2_contact = self.create_contact("Bob", urns=["twitter:bobby"], org=self.org2)
 
-        t1 = self.create_ticket(contact1, "Test 1", topic=general)
-        t2 = self.create_ticket(contact2, "Test 2", topic=general)
-        t3 = self.create_ticket(contact1, "Test 3", topic=general)
-        t4 = self.create_ticket(contact2, "Test 4", topic=cats)
-        t5 = self.create_ticket(contact1, "Test 5", topic=cats)
-        t6 = self.create_ticket(org2_contact, "Test 6", topic=org2_general)
+        t1 = self.create_ticket(contact1, topic=general)
+        t2 = self.create_ticket(contact2, topic=general)
+        t3 = self.create_ticket(contact1, topic=general)
+        t4 = self.create_ticket(contact2, topic=cats)
+        t5 = self.create_ticket(contact1, topic=cats)
+        t6 = self.create_ticket(org2_contact, topic=org2_general)
 
         def assert_counts(
             org, *, assignee_open: dict, assignee_closed: dict, topic_open: dict, topic_closed: dict, contacts: dict
@@ -321,7 +321,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_list(self):
         list_url = reverse("tickets.ticket_list")
-        ticket = self.create_ticket(self.contact, "Test 1", assignee=self.admin)
+        ticket = self.create_ticket(self.contact, assignee=self.admin)
 
         # just a placeholder view for frontend components
         self.assertRequestDisallowed(list_url, [None])
@@ -379,7 +379,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(deep_link, self.admin, [])
 
     def test_update(self):
-        ticket = self.create_ticket(self.contact, "Test 1", assignee=self.admin)
+        ticket = self.create_ticket(self.contact, assignee=self.admin)
 
         update_url = reverse("tickets.ticket_update", args=[ticket.uuid])
 
@@ -397,10 +397,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")
 
-        self.create_ticket(self.contact, "Test 1", assignee=self.admin)
-        self.create_ticket(self.contact, "Test 2", assignee=self.admin)
-        self.create_ticket(self.contact, "Test 3", assignee=None)
-        self.create_ticket(self.contact, "Test 4", closed_on=timezone.now())
+        self.create_ticket(self.contact, assignee=self.admin)
+        self.create_ticket(self.contact, assignee=self.admin)
+        self.create_ticket(self.contact, assignee=None)
+        self.create_ticket(self.contact, closed_on=timezone.now())
 
         self.assertRequestDisallowed(menu_url, [None])
         self.assertPageMenu(
@@ -445,23 +445,23 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         assert_tickets(response, [])
 
         # contact 1 has two open tickets and some messages
-        c1_t1 = self.create_ticket(contact1, "Question 1")
+        c1_t1 = self.create_ticket(contact1)
         # assign it
         c1_t1.assign(self.admin, assignee=self.admin)
-        c1_t2 = self.create_ticket(contact1, "Question 2")
+        c1_t2 = self.create_ticket(contact1)
         self.create_incoming_msg(contact1, "I have an issue")
         self.create_outgoing_msg(contact1, "We can help", created_by=self.admin)
 
         # contact 2 has an open ticket and a closed ticket
-        c2_t1 = self.create_ticket(contact2, "Question 3")
-        c2_t2 = self.create_ticket(contact2, "Question 4", closed_on=timezone.now())
+        c2_t1 = self.create_ticket(contact2)
+        c2_t2 = self.create_ticket(contact2, closed_on=timezone.now())
 
         self.create_incoming_msg(contact2, "Anyone there?")
         self.create_incoming_msg(contact2, "Hello?")
 
         # contact 3 has two closed tickets
-        c3_t1 = self.create_ticket(contact3, "Question 5", closed_on=timezone.now())
-        c3_t2 = self.create_ticket(contact3, "Question 6", closed_on=timezone.now())
+        c3_t1 = self.create_ticket(contact3, closed_on=timezone.now())
+        c3_t2 = self.create_ticket(contact3, closed_on=timezone.now())
 
         self.create_outgoing_msg(contact3, "Yes", created_by=self.agent)
 
@@ -489,7 +489,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "uuid": str(contact2.tickets.filter(status="O").first().uuid),
                         "assignee": None,
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
-                        "body": "Question 3",
+                        "body": None,
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -510,7 +510,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "uuid": str(joes_open_tickets[0].uuid),
                         "assignee": None,
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
-                        "body": "Question 2",
+                        "body": None,
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -536,7 +536,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                             "email": "admin@nyaruka.com",
                         },
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
-                        "body": "Question 1",
+                        "body": None,
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -588,7 +588,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "uuid": str(c3_t2.uuid),
                     "assignee": None,
                     "topic": {"uuid": matchers.UUID4String(), "name": "General"},
-                    "body": "Question 6",
+                    "body": None,
                     "last_activity_on": matchers.ISODate(),
                     "closed_on": matchers.ISODate(),
                 },
@@ -607,7 +607,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_note(self, mr_mocks):
-        ticket = self.create_ticket(self.contact, "Ticket 1")
+        ticket = self.create_ticket(self.contact)
 
         update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
 
@@ -819,38 +819,24 @@ class TicketExportTest(TembaTest):
 
         # create an open ticket for nate, opened 30 days ago
         ticket1 = self.create_ticket(
-            nate,
-            body="Y'ello",
-            topic=topic,
-            assignee=assignee,
-            opened_on=timezone.now() - timedelta(days=30),
+            nate, topic=topic, assignee=assignee, opened_on=timezone.now() - timedelta(days=30)
         )
         # create an open ticket for jamie, opened 25 days ago
         ticket2 = self.create_ticket(
-            jamie, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now() - timedelta(days=25)
+            jamie, topic=topic, assignee=assignee, opened_on=timezone.now() - timedelta(days=25)
         )
 
         # create a closed ticket for roy, opened yesterday
         ticket3 = self.create_ticket(
-            roy,
-            body="Hello",
-            topic=topic,
-            assignee=assignee,
-            opened_on=timezone.now() - timedelta(days=1),
-            closed_on=timezone.now(),
+            roy, topic=topic, assignee=assignee, opened_on=timezone.now() - timedelta(days=1), closed_on=timezone.now()
         )
         # create a closed ticket for sam, opened today
         ticket4 = self.create_ticket(
-            sam,
-            body="Yo",
-            topic=topic,
-            assignee=assignee,
-            opened_on=timezone.now(),
-            closed_on=timezone.now(),
+            sam, topic=topic, assignee=assignee, opened_on=timezone.now(), closed_on=timezone.now()
         )
 
         # create a ticket on another org for rebecca
-        self.create_ticket(self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff")
+        self.create_ticket(self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2))
 
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
@@ -1198,7 +1184,7 @@ class TopicTest(TembaTest):
             self.org.default_ticket_topic.release(self.admin)
 
         # can't release a topic with tickets
-        ticket = self.create_ticket(self.create_contact("Bob"), "Test 1", topic=topic1)
+        ticket = self.create_ticket(self.create_contact("Bob"), topic=topic1)
         with self.assertRaises(AssertionError):
             topic1.release(self.admin)
 
