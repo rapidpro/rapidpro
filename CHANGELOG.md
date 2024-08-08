@@ -1,3 +1,8 @@
+v9.3.14 (2024-08-08)
+-------------------------
+ * Update tests to not set ticket body
+ * Add data migration to move body to ticket on open ticket event
+
 v9.3.13 (2024-08-08)
 -------------------------
  * Show notes on ticket open events in contact history
