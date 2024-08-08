@@ -1,3 +1,7 @@
+v9.3.15 (2024-08-08)
+-------------------------
+ * Add Org.prometheus_token and backill from API tokens
+
 v9.3.14 (2024-08-08)
 -------------------------
  * Update tests to not set ticket body
