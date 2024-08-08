@@ -740,9 +740,9 @@ class TembaTest(SmartminTest):
     def create_ticket(
         self,
         contact,
-        body: str,
         topic=None,
         assignee=None,
+        note: str = None,
         opened_on=None,
         opened_by=None,
         opened_in=None,
@@ -756,7 +756,6 @@ class TembaTest(SmartminTest):
             org=contact.org,
             contact=contact,
             topic=topic or contact.org.default_ticket_topic,
-            body=body,
             status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
             assignee=assignee,
             opened_on=opened_on,
@@ -770,6 +769,7 @@ class TembaTest(SmartminTest):
             ticket=ticket,
             event_type=TicketEvent.TYPE_OPENED,
             assignee=assignee,
+            note=note,
             created_by=opened_by,
             created_on=opened_on,
         )

@@ -542,7 +542,7 @@ class MailroomClientTest(TembaTest):
     @patch("requests.post")
     def test_msg_send(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
-        ticket = self.create_ticket(ann, "Help")
+        ticket = self.create_ticket(ann)
         mock_post.return_value = MockJsonResponse(200, {"id": 12345})
         response = self.client.msg_send(self.org, self.admin, ann, "hi", [], ticket)
 
@@ -598,8 +598,8 @@ class MailroomClientTest(TembaTest):
     def test_ticket_assign(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         bob = self.create_contact("Bob", urns=["tel:+12340000002"])
-        ticket1 = self.create_ticket(ann, "Help")
-        ticket2 = self.create_ticket(bob, "Help")
+        ticket1 = self.create_ticket(ann)
+        ticket2 = self.create_ticket(bob)
 
         mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
         response = self.client.ticket_assign(self.org, self.admin, [ticket1, ticket2], self.agent)
@@ -620,8 +620,8 @@ class MailroomClientTest(TembaTest):
     def test_ticket_add_note(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         bob = self.create_contact("Bob", urns=["tel:+12340000002"])
-        ticket1 = self.create_ticket(ann, "Help")
-        ticket2 = self.create_ticket(bob, "Help")
+        ticket1 = self.create_ticket(ann)
+        ticket2 = self.create_ticket(bob)
 
         mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
         response = self.client.ticket_add_note(self.org, self.admin, [ticket1, ticket2], "please handle")
@@ -642,8 +642,8 @@ class MailroomClientTest(TembaTest):
     def test_ticket_change_topic(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         bob = self.create_contact("Bob", urns=["tel:+12340000002"])
-        ticket1 = self.create_ticket(ann, "Help")
-        ticket2 = self.create_ticket(bob, "Help")
+        ticket1 = self.create_ticket(ann)
+        ticket2 = self.create_ticket(bob)
         topic = Topic.create(self.org, self.admin, "Support")
 
         mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
@@ -665,8 +665,8 @@ class MailroomClientTest(TembaTest):
     def test_ticket_close(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         bob = self.create_contact("Bob", urns=["tel:+12340000002"])
-        ticket1 = self.create_ticket(ann, "Help")
-        ticket2 = self.create_ticket(bob, "Help")
+        ticket1 = self.create_ticket(ann)
+        ticket2 = self.create_ticket(bob)
 
         mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
         response = self.client.ticket_close(self.org, self.admin, [ticket1, ticket2], force=True)
@@ -687,8 +687,8 @@ class MailroomClientTest(TembaTest):
     def test_ticket_reopen(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         bob = self.create_contact("Bob", urns=["tel:+12340000002"])
-        ticket1 = self.create_ticket(ann, "Help")
-        ticket2 = self.create_ticket(bob, "Help")
+        ticket1 = self.create_ticket(ann)
+        ticket2 = self.create_ticket(bob)
 
         mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
         response = self.client.ticket_reopen(self.org, self.admin, [ticket1, ticket2])
