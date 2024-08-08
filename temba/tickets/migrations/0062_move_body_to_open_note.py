@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def move_body_to_open_note(apps, schema_editor):
+def move_body_to_open_note(apps, schema_editor):  # pragma: no cover
     Ticket = apps.get_model("tickets", "Ticket")
 
     num_updated = 0

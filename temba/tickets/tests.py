@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -38,7 +38,6 @@ class TicketTest(TembaTest):
             org=self.org,
             contact=contact,
             topic=self.org.default_ticket_topic,
-            body="Where are my cookies?",
             status="O",
         )
 
@@ -489,7 +488,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "uuid": str(contact2.tickets.filter(status="O").first().uuid),
                         "assignee": None,
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
-                        "body": None,
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -510,7 +508,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "uuid": str(joes_open_tickets[0].uuid),
                         "assignee": None,
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
-                        "body": None,
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -536,7 +533,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                             "email": "admin@nyaruka.com",
                         },
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
-                        "body": None,
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -588,7 +584,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "uuid": str(c3_t2.uuid),
                     "assignee": None,
                     "topic": {"uuid": matchers.UUID4String(), "name": "General"},
-                    "body": None,
                     "last_activity_on": matchers.ISODate(),
                     "closed_on": matchers.ISODate(),
                 },
@@ -1396,28 +1391,3 @@ class TicketDailyTimingTest(TembaTest):
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
         )
-
-
-class MoveBodyToOpenNoteTest(MigrationTest):
-    app = "tickets"
-    migrate_from = "0061_alter_ticket_body_alter_ticketevent_note"
-    migrate_to = "0062_move_body_to_open_note"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", urns=["twitter:bobby"])
-
-        self.ticket1 = self.create_ticket(contact)
-        self.ticket2 = self.create_ticket(contact)
-        self.ticket2.body = "I was a body"
-        self.ticket2.save(update_fields=("body",))
-
-    def test_migration(self):
-        self.ticket1.refresh_from_db()
-        self.ticket2.refresh_from_db()
-
-        # body unchanged
-        self.assertIsNone(self.ticket1.body)
-        self.assertEqual("I was a body", self.ticket2.body)
-
-        self.assertEqual(None, self.ticket1.events.get(event_type="O").note)
-        self.assertEqual("I was a body", self.ticket2.events.get(event_type="O").note)
