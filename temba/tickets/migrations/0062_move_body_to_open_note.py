@@ -8,17 +8,15 @@ def move_body_to_open_note(apps, schema_editor):
 
     num_updated = 0
 
-    while True:
-        batch = list(Ticket.objects.exclude(body=None).exclude(body="")[:1000])
-        if not batch:
-            break
+    for ticket in Ticket.objects.exclude(body=None).exclude(body=""):
+        ticket.events.filter(event_type="O").update(note=ticket.body)
 
-        for ticket in batch:
-            ticket.events.filter(event_type="O").update(note=ticket.body)
+        num_updated += 1
 
-        Ticket.objects.filter(id__in=[t.id for t in batch]).update(body=None)
-        num_updated += len(batch)
+        if num_updated % 1000 == 0:
+            print(f" > updated {num_updated} tickets")
 
+    if num_updated:
         print(f" > Updated {num_updated} tickets")
 
 

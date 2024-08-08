@@ -1415,8 +1415,9 @@ class MoveBodyToOpenNoteTest(MigrationTest):
         self.ticket1.refresh_from_db()
         self.ticket2.refresh_from_db()
 
+        # body unchanged
         self.assertIsNone(self.ticket1.body)
-        self.assertIsNone(self.ticket2.body)
+        self.assertEqual("I was a body", self.ticket2.body)
 
         self.assertEqual(None, self.ticket1.events.get(event_type="O").note)
         self.assertEqual("I was a body", self.ticket2.events.get(event_type="O").note)
