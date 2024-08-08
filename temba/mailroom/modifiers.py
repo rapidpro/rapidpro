@@ -72,8 +72,8 @@ class Groups(Modifier):
 class Ticket(Modifier):
     type: str = field(default="ticket", init=False)
     topic: TopicRef
-    body: str
     assignee: Optional[UserRef]
+    note: Optional[str]
 
 
 @dataclass(frozen=True)

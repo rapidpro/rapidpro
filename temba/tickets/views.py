@@ -120,11 +120,11 @@ class TicketCRUDL(SmartCRUDL):
                 )
 
             class Meta:
-                fields = ("topic", "body")
+                fields = ("topic",)
                 model = Ticket
 
         form_class = Form
-        fields = ("topic", "body")
+        fields = ("topic",)
         slug_url_kwarg = "uuid"
         success_url = "hide"
 

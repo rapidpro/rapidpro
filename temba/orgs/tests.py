@@ -1367,10 +1367,10 @@ class OrgDeleteTest(TembaTest):
         add(FlowStartCount.objects.create(start=start1, count=1))
 
     def _create_ticket_content(self, org, user, contacts, flows, add):
-        ticket1 = add(self.create_ticket(contacts[0], "Help"))
+        ticket1 = add(self.create_ticket(contacts[0]))
         ticket1.events.create(org=org, contact=contacts[0], event_type="N", note="spam", created_by=user)
 
-        add(self.create_ticket(contacts[0], "Help", opened_in=flows[0]))
+        add(self.create_ticket(contacts[0], opened_in=flows[0]))
 
     def _create_export_content(self, org, user, flows, groups, fields, labels, add):
         results = add(

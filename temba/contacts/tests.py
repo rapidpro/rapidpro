@@ -32,7 +32,7 @@ from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
-from temba.tickets.models import Ticket, TicketCount
+from temba.tickets.models import Ticket, TicketCount, Topic
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_timestamp
@@ -472,7 +472,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(read_url, self.admin, ["Edit", "Start Flow", "Open Ticket"])
 
         # if there's an open ticket already, don't show open ticket option
-        self.create_ticket(joe, "Help")
+        self.create_ticket(joe)
         self.assertContentMenu(read_url, self.editor, ["Edit", "Start Flow"])
 
         # login as viewer
@@ -892,7 +892,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         open_url = reverse("contacts.contact_open_ticket", args=[contact.id])
 
         self.assertRequestDisallowed(open_url, [None, self.user, self.agent, self.admin2])
-        self.assertUpdateFetch(open_url, [self.editor, self.admin], form_fields=("topic", "body", "assignee"))
+        self.assertUpdateFetch(open_url, [self.editor, self.admin], form_fields=("topic", "assignee", "note"))
 
         # can submit with no assignee
         response = self.assertUpdateSubmit(open_url, self.admin, {"topic": general.id, "body": "Help", "assignee": ""})
@@ -900,7 +900,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # should have new ticket
         ticket = contact.tickets.get()
         self.assertEqual(general, ticket.topic)
-        self.assertEqual("Help", ticket.body)
         self.assertIsNone(ticket.assignee)
 
         # and we're redirected to that ticket
@@ -1751,10 +1750,12 @@ class ContactTest(TembaTest, CRUDLTestMixin):
     def test_open_ticket(self, mock_contact_modify):
         mock_contact_modify.return_value = {self.joe.id: {"contact": {}, "events": []}}
 
-        ticket = self.joe.open_ticket(self.admin, self.org.default_ticket_topic, "Looks sus", assignee=self.agent)
+        ticket = self.joe.open_ticket(
+            self.admin, topic=self.org.default_ticket_topic, assignee=self.agent, note="Looks sus"
+        )
 
         self.assertEqual(self.org.default_ticket_topic, ticket.topic)
-        self.assertEqual("Looks sus", ticket.body)
+        self.assertEqual("Looks sus", ticket.events.get(event_type="O").note)
 
     @mock_mailroom
     def test_interrupt(self, mr_mocks):
@@ -1774,7 +1775,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         urn = old_contact.get_urn()
         self.create_channel_event(self.channel, urn.identity, ChannelEvent.TYPE_CALL_IN_MISSED)
 
-        self.create_ticket(old_contact, "Hi")
+        self.create_ticket(old_contact)
 
         ivr_flow = self.get_flow("ivr")
         msg_flow = self.get_flow("favorites_v13")
@@ -1831,11 +1832,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.create_incoming_call(msg_flow, contact)
 
         # give contact an open and a closed ticket
-        self.create_ticket(contact, "Hi")
-        self.create_ticket(contact, "Hi", closed_on=timezone.now())
-        bcast_ticket = self.create_ticket(contact, "Hi All")
-        bcast2.ticket = bcast_ticket
-        bcast2.save()
+        self.create_ticket(contact)
+        self.create_ticket(contact, closed_on=timezone.now())
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.calls.all().count())
@@ -1846,7 +1844,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(2, len(contact.fields))
         self.assertEqual(1, contact.campaign_fires.count())
 
-        self.assertEqual(3, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
+        self.assertEqual(2, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
         self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
 
         # first try releasing with _full_release patched so we can check the state of the contact before the task
@@ -1860,7 +1858,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(URN.DELETED_SCHEME, urn.scheme)
 
         # tickets unchanged
-        self.assertEqual(3, contact.tickets.count())
+        self.assertEqual(2, contact.tickets.count())
 
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
@@ -1868,7 +1866,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual({contact2}, set(bcast1.contacts.all()))
         self.assertEqual({contact, contact2}, set(bcast2.contacts.all()))
-        self.assertIsNotNone(bcast2.ticket)
 
         # now lets go for a full release
         contact.release(self.admin)
@@ -2358,8 +2355,9 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
         # two tickets for joe
-        self.create_ticket(self.joe, "Question 1", opened_on=timezone.now(), closed_on=timezone.now())
-        ticket = self.create_ticket(self.joe, "Question 2")
+        sales = Topic.create(self.org, self.admin, "Sales")
+        self.create_ticket(self.joe, opened_on=timezone.now(), closed_on=timezone.now())
+        ticket = self.create_ticket(self.joe, topic=sales)
 
         # create missed incoming and outgoing calls
         self.create_channel_event(
@@ -2430,9 +2428,9 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 1, "channel_event", channel_event_type="new_conversation")
         assertHistoryEvent(history, 2, "channel_event", channel_event_type="mo_miss")
         assertHistoryEvent(history, 3, "channel_event", channel_event_type="mt_miss")
-        assertHistoryEvent(history, 4, "ticket_opened", ticket__body="Question 2")
-        assertHistoryEvent(history, 5, "ticket_closed", ticket__body="Question 1")
-        assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 1")
+        assertHistoryEvent(history, 4, "ticket_opened", ticket__topic__name="Sales")
+        assertHistoryEvent(history, 5, "ticket_closed", ticket__topic__name="General")
+        assertHistoryEvent(history, 6, "ticket_opened", ticket__topic__name="General")
         assertHistoryEvent(history, 7, "airtime_transferred", actual_amount="100.00")
         assertHistoryEvent(history, 8, "msg_created", msg__text="What is your favorite color?")
         assertHistoryEvent(history, 9, "flow_entered", flow__name="Colors")
@@ -2452,7 +2450,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 0, "ticket_assigned", assignee__id=self.admin.id)
         assertHistoryEvent(history, 1, "ticket_note_added", note="I have a bad feeling about this")
         assertHistoryEvent(history, 5, "channel_event", channel_event_type="mt_miss")
-        assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 2")
+        assertHistoryEvent(history, 6, "ticket_opened", ticket__topic__name="Sales")
         assertHistoryEvent(history, 7, "airtime_transferred", actual_amount="100.00")
 
         # fetch next page

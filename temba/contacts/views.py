@@ -797,17 +797,17 @@ class ContactCRUDL(SmartCRUDL):
 
         class Form(forms.Form):
             topic = forms.ModelChoiceField(queryset=Topic.objects.none(), label=_("Topic"), required=True)
-            body = forms.CharField(
-                label=_("Body"),
-                widget=InputWidget(attrs={"textarea": True, "placeholder": _("Optional")}),
-                required=False,
-            )
             assignee = forms.ModelChoiceField(
                 queryset=User.objects.none(),
                 label=_("Assignee"),
                 widget=SelectWidget(),
                 required=False,
                 empty_label=_("Unassigned"),
+            )
+            note = forms.CharField(
+                label=_("Note"),
+                widget=InputWidget(attrs={"textarea": True, "placeholder": _("Optional")}),
+                required=False,
             )
 
             def __init__(self, instance, org, **kwargs):
@@ -827,9 +827,9 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             self.ticket = obj.open_ticket(
                 self.request.user,
-                self.form.cleaned_data["topic"],
-                self.form.cleaned_data.get("body"),
+                topic=self.form.cleaned_data["topic"],
                 assignee=self.form.cleaned_data.get("assignee"),
+                note=self.form.cleaned_data.get("note"),
             )
 
         def get_success_url(self):
