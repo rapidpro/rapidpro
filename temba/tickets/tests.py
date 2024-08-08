@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom, MigrationTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -1409,7 +1409,17 @@ class MoveBodyToOpenNoteTest(MigrationTest):
     def setUpBeforeMigration(self, apps):
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
-        ticket = self.create_ticket(contact, "Test 1", assignee=self.admin)
+        self.ticket1 = self.create_ticket(contact)
+        self.ticket2 = self.create_ticket(contact)
+        self.ticket2.body = "I was a body"
+        self.ticket2.save(update_fields=("body",))
 
     def test_migration(self):
-        pass
+        self.ticket1.refresh_from_db()
+        self.ticket2.refresh_from_db()
+
+        self.assertIsNone(self.ticket1.body)
+        self.assertIsNone(self.ticket2.body)
+
+        self.assertEqual(None, self.ticket1.events.get(event_type="O").note)
+        self.assertEqual("I was a body", self.ticket2.events.get(event_type="O").note)
