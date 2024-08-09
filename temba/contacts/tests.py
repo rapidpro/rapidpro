@@ -6,7 +6,6 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import iso8601
-import xlrd
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -3777,7 +3776,9 @@ class ContactImportTest(TembaTest):
     def test_parse_errors(self):
         # try to open an import that is completely empty
         with self.assertRaisesRegex(ValidationError, "Import file appears to be empty."):
-            ContactImport.try_to_parse(self.org, io.BytesIO(b""), "foo.csv")
+            path = "media/test_imports/empty_all_rows.xlsx"  # No header row present either
+            with open(path, "rb") as f:
+                ContactImport.try_to_parse(self.org, f, path)
 
         def try_to_parse(name):
             path = f"media/test_imports/{name}"
@@ -3789,16 +3790,9 @@ class ContactImportTest(TembaTest):
             with self.assertRaisesRegex(ValidationError, r"Import files can contain a maximum of 2 records\."):
                 try_to_parse("simple.xlsx")
 
-        with patch("pyexcel.iget_array") as mock_iget_array:
-            mock_iget_array.side_effect = xlrd.XLRDError("error")
-            with self.assertRaisesRegex(
-                ValidationError, r"Import file appears to be corrupted. Please save again in Excel and try again."
-            ):
-                try_to_parse("simple.csv")
-
         bad_files = [
-            ("empty.csv", "Import file doesn't contain any records."),
-            ("empty_header.xls", "Import file contains an empty header."),
+            ("empty.xlsx", "Import file doesn't contain any records."),
+            ("empty_header.xlsx", "Import file contains an empty header."),
             ("duplicate_urn.xlsx", "Import file contains duplicated contact URN 'tel:+250788382382' on row 4."),
             (
                 "duplicate_uuid.xlsx",
@@ -3808,7 +3802,7 @@ class ContactImportTest(TembaTest):
             ("invalid_field_key.xlsx", "Header 'Field: #$^%' is not a valid field name."),
             ("reserved_field_key.xlsx", "Header 'Field:HAS' is not a valid field name."),
             ("no_urn_or_uuid.xlsx", "Import files must contain either UUID or a URN header."),
-            ("uuid_only.csv", "Import files must contain columns besides UUID."),
+            ("uuid_only.xlsx", "Import files must contain columns besides UUID."),
         ]
 
         for imp_file, imp_error in bad_files:
@@ -3818,7 +3812,7 @@ class ContactImportTest(TembaTest):
 
     def test_extract_mappings(self):
         # try simple import in different formats
-        for ext in ("csv", "xls", "xlsx"):
+        for ext in ("xlsx",):
             imp = self.create_contact_import(f"media/test_imports/simple.{ext}")
             self.assertEqual(3, imp.num_records)
             self.assertEqual(
@@ -3830,7 +3824,7 @@ class ContactImportTest(TembaTest):
             )
 
         # try import with 2 URN types
-        imp = self.create_contact_import("media/test_imports/twitter_and_phone.xls")
+        imp = self.create_contact_import("media/test_imports/twitter_and_phone.xlsx")
         self.assertEqual(
             [
                 {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
@@ -3852,7 +3846,7 @@ class ContactImportTest(TembaTest):
             imp.mappings,
         )
 
-        imp = self.create_contact_import("media/test_imports/missing_name_header.xls")
+        imp = self.create_contact_import("media/test_imports/missing_name_header.xlsx")
         self.assertEqual([{"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}}], imp.mappings)
 
         self.create_field("goats", "Num Goats", ContactField.TYPE_NUMBER)
@@ -4224,8 +4218,8 @@ class ContactImportTest(TembaTest):
         )
 
     @mock_mailroom
-    def test_batches_from_csv(self, mr_mocks):
-        imp = self.create_contact_import("media/test_imports/simple.csv")
+    def test_batches_from_xlsx(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
         imp.start()
         batch = imp.batches.get()
 
@@ -4253,21 +4247,9 @@ class ContactImportTest(TembaTest):
             batch.specs,
         )
 
-        # check that we correctly detect different encodings
-        enc_tests = [
-            ("utf16-le", "Drazen"),
-            ("utf16-be", "Drazen"),
-            ("iso-8859-1", "Dràzen"),
-        ]
-        for test in enc_tests:
-            imp = self.create_contact_import(f"media/test_imports/encoding_{test[0]}.csv")
-            imp.start()
-            batch = imp.batches.get()
-            self.assertEqual(test[1], batch.specs[0]["name"])
-
     @mock_mailroom
     def test_detect_spamminess(self, mr_mocks):
-        imp = self.create_contact_import("media/test_imports/sequential_tels.xls")
+        imp = self.create_contact_import("media/test_imports/sequential_tels.xlsx")
         imp.start()
 
         self.org.refresh_from_db()
@@ -4302,7 +4284,7 @@ class ContactImportTest(TembaTest):
         # if an org is verified, no flagging occurs
         self.org.verify()
 
-        imp = self.create_contact_import("media/test_imports/sequential_tels.xls")
+        imp = self.create_contact_import("media/test_imports/sequential_tels.xlsx")
         imp.start()
 
         self.org.refresh_from_db()
@@ -4319,7 +4301,7 @@ class ContactImportTest(TembaTest):
                     "uuid": "17c4388a-024f-4e67-937a-13be78a70766",
                     "fields": {
                         "a_number": "1234.5678",
-                        "a_date": "2020-10-19",
+                        "a_date": "2020-10-19T00:00:00+02:00",
                         "a_time": "13:17:00",
                         "a_datetime": "2020-10-19T13:18:00+02:00",
                         "price": "123.45",
@@ -4349,19 +4331,19 @@ class ContactImportTest(TembaTest):
     def test_get_default_group_name(self):
         self.create_group("Testers", contacts=[])
         tests = [
-            ("simple.csv", "Simple"),
-            ("testers.csv", "Testers 2"),  # group called Testers already exists
-            ("contact-imports.csv", "Contact Imports"),
-            ("abc_@@é.csv", "Abc É"),
-            ("a_@@é.csv", "Import"),  # would be too short
-            (f"{'x' * 100}.csv", "Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),  # truncated
+            ("simple.xlsx", "Simple"),
+            ("testers.xlsx", "Testers 2"),  # group called Testers already exists
+            ("contact-imports.xlsx", "Contact Imports"),
+            ("abc_@@é.xlsx", "Abc É"),
+            ("a_@@é.xlsx", "Import"),  # would be too short
+            (f"{'x' * 100}.xlsx", "Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),  # truncated
         ]
         for test in tests:
             self.assertEqual(test[1], ContactImport(org=self.org, original_filename=test[0]).get_default_group_name())
 
     @mock_mailroom
     def test_delete(self, mr_mocks):
-        imp = self.create_contact_import("media/test_imports/simple.csv")
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
         imp.start()
         imp.delete()
 
@@ -4380,8 +4362,8 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(create_url, {})
         self.assertFormError(response.context["form"], "file", "This field is required.")
 
-        # try uploading an empty CSV file
-        response = self.client.post(create_url, {"file": self.upload("media/test_imports/empty.csv")})
+        # try uploading an empty file
+        response = self.client.post(create_url, {"file": self.upload("media/test_imports/empty.xlsx")})
         self.assertFormError(response.context["form"], "file", "Import file doesn't contain any records.")
 
         # try uploading a valid XLSX file
@@ -4421,7 +4403,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     @mock_mailroom
     def test_creating_new_group(self, mr_mocks):
         self.login(self.admin)
-        imp = self.create_contact_import("media/test_imports/simple.csv")
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
@@ -4457,7 +4439,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(new_group, imp.group)
 
         # existing group should not check for workspace limit
-        imp = self.create_contact_import("media/test_imports/simple.csv")
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
         with override_settings(ORG_LIMIT_DEFAULTS={"groups": 2}):
@@ -4471,7 +4453,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     @mock_mailroom
     def test_using_existing_group(self, mr_mocks):
         self.login(self.admin)
-        imp = self.create_contact_import("media/test_imports/simple.csv")
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
