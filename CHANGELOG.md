@@ -1,3 +1,7 @@
+v9.3.17 (2024-08-12)
+-------------------------
+ * Data migration to delete old surveyor and prometheus API tokens
+
 v9.3.16 (2024-08-08)
 -------------------------
  * Stop generating prometheus API tokens
