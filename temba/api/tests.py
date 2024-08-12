@@ -8,7 +8,7 @@ from django.utils import timezone
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.api.tasks import trim_webhook_events
 from temba.orgs.models import OrgRole
-from temba.tests import TembaTest
+from temba.tests import MigrationTest, TembaTest
 
 
 class APITokenTest(TembaTest):
@@ -262,3 +262,25 @@ class APITestMixin:
             self.assertIsInstance(resp_json, dict)
             self.assertIn("detail", resp_json)
             self.assertEqual(resp_json["detail"], expected_message)
+
+
+class DeleteSurveyorPrometheusTokensTest(MigrationTest):
+    app = "api"
+    migrate_from = "0043_squashed"
+    migrate_to = "0044_delete_surveyor_and_prometheus_tokens"
+
+    def setUpBeforeMigration(self, apps):
+        administrators = Group.objects.get(name="Administrators")
+        surveyors = Group.objects.get(name="Surveyors")
+        prometheus = Group.objects.get(name="Prometheus")
+
+        APIToken.objects.create(org=self.org, user=self.admin, role=administrators, key="111")
+        APIToken.objects.create(org=self.org, user=self.editor, role=administrators, key="222")
+        APIToken.objects.create(org=self.org, user=self.admin, role=surveyors, key="333")
+        APIToken.objects.create(org=self.org, user=self.admin, role=prometheus, key="444")
+
+    def test_migration(self):
+        self.assertTrue(APIToken.objects.filter(key="111").exists())
+        self.assertTrue(APIToken.objects.filter(key="222").exists())
+        self.assertFalse(APIToken.objects.filter(key="333").exists())
+        self.assertFalse(APIToken.objects.filter(key="444").exists())
