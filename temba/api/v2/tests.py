@@ -3928,8 +3928,6 @@ class EndpointsTest(APITest):
         media = Media.objects.get()
         self.assertEqual(Media.STATUS_READY, media.status)
 
-        self.clear_storage()
-
     @mock_mailroom
     def test_messages(self, mr_mocks):
         endpoint_url = reverse("api.v2.messages") + ".json"
@@ -4203,8 +4201,6 @@ class EndpointsTest(APITest):
         self.assertIsNone(msg_json["channel"])
         self.assertIsNone(msg_json["urn"])
         self.assertEqual("failed", msg_json["status"])
-
-        self.clear_storage()
 
     def test_message_actions(self):
         endpoint_url = reverse("api.v2.message_actions") + ".json"

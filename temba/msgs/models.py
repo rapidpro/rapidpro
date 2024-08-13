@@ -86,7 +86,7 @@ class Media(models.Model):
         Returns the storage path for the given filename. Differs slightly from that used by the media endpoint because
         it preserves the original filename which courier still needs if there's no media record for an attachment URL.
         """
-        return f"{settings.STORAGE_ROOT_DIR}/{org.id}/media/{str(uuid)[0:4]}/{uuid}/{filename}"
+        return f"orgs/{org.id}/media/{str(uuid)[0:4]}/{uuid}/{filename}"
 
     @classmethod
     def clean_name(cls, filename: str, content_type: str) -> str:

@@ -19,9 +19,6 @@ class ApkCRUDLTest(CRUDLTestMixin, TembaTest):
             ),
         )
 
-    def tearDown(self):
-        self.clear_storage()
-
     def test_claim_android(self):
         self.login(self.admin)
         response = self.client.get(reverse("channels.types.android.claim"))

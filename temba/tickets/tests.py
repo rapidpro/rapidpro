@@ -717,8 +717,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             export.config,
         )
 
-        self.clear_storage()
-
 
 class TicketExportTest(TembaTest):
     def _export(self, start_date: date, end_date: date, with_fields=(), with_groups=()):
@@ -776,8 +774,6 @@ class TicketExportTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
-
-        self.clear_storage()
 
     def test_export(self):
         gender = self.create_field("gender", "Gender")
@@ -1042,8 +1038,6 @@ class TicketExportTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
-
-        self.clear_storage()
 
 
 class TopicTest(TembaTest):

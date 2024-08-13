@@ -64,11 +64,6 @@ class AttachmentTest(TembaTest):
 
 
 class MediaTest(TembaTest):
-    def tearDown(self):
-        self.clear_storage()
-
-        return super().tearDown()
-
     def test_clean_name(self):
         self.assertEqual("file.jpg", Media.clean_name("", "image/jpeg"))
         self.assertEqual("foo.jpg", Media.clean_name("foo", "image/jpeg"))
@@ -909,8 +904,6 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             export.config,
         )
 
-        self.clear_storage()
-
 
 class MessageExportTest(TembaTest):
     def setUp(self):
@@ -1286,8 +1279,6 @@ class MessageExportTest(TembaTest):
             ],
             self.org.timezone,
         )
-
-        self.clear_storage()
 
     def test_export(self):
         age = self.create_field("age", "Age")
@@ -1758,8 +1749,6 @@ class MessageExportTest(TembaTest):
                 ],
                 self.org.timezone,
             )
-
-        self.clear_storage()
 
 
 class BroadcastTest(TembaTest):
@@ -3132,8 +3121,6 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
                 response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
                 self.assertEqual({"error": "Limit for file uploads is 0.0009765625 MB"}, response.json())
 
-        self.clear_storage()
-
     def test_list(self):
         upload_url = reverse("msgs.media_upload")
         list_url = reverse("msgs.media_list")
@@ -3152,8 +3139,6 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.customer_support, choose_org=self.org)
         response = self.client.get(list_url)
         self.assertEqual([media2, media1], list(response.context["object_list"]))
-
-        self.clear_storage()
 
 
 class TrimOldBroadcastsToNodesTest(MigrationTest):

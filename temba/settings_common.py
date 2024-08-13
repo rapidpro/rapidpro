@@ -101,7 +101,6 @@ AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_FILE_OVERWRITE = False
 
 STORAGE_URL = f"{AWS_S3_ENDPOINT_URL}/{_bucket_prefix}-default"
-STORAGE_ROOT_DIR = "orgs"
 
 # -----------------------------------------------------------------------------------
 # Localization

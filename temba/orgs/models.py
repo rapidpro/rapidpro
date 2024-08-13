@@ -1405,7 +1405,7 @@ class OrgMembership(models.Model):
 
 def get_import_upload_path(instance: Any, filename: str):
     ext = Path(filename).suffix.lower()
-    return f"{settings.STORAGE_ROOT_DIR}/{instance.org_id}/org_imports/{uuid4()}{ext}"
+    return f"orgs/{instance.org_id}/org_imports/{uuid4()}{ext}"
 
 
 class OrgImport(SmartModel):
@@ -1651,7 +1651,7 @@ class Export(TembaUUIDMixin, models.Model):
             temp_file, extension, num_records = self.type.write(self)
 
             # save file to storage
-            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.slug + "_exports")
+            directory = os.path.join("orgs", str(self.org.id), self.type.slug + "_exports")
             path = f"{directory}/{self.uuid}.{extension}"
             default_storage.save(path, File(temp_file))
 

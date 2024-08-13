@@ -774,8 +774,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             export.config,
         )
 
-        self.clear_storage()
-
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
         contact2 = self.create_contact("Frank", phone="+1204567802")
@@ -4641,8 +4639,6 @@ class ContactExportTest(TembaTest):
 
     @mock_mailroom
     def test_export(self, mr_mocks):
-        self.clear_storage()
-
         # archive all our current contacts
         Contact.apply_action_block(self.admin, self.org.contacts.all())
 

@@ -3113,8 +3113,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             export.config,
         )
 
-        self.clear_storage()
-
     def test_export_and_download_translation(self):
         self.org.set_flow_languages(self.admin, ["spa"])
 
