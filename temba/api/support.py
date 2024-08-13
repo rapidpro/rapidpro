@@ -54,6 +54,7 @@ class APITokenAuthentication(RequestAttributesMixin, TokenAuthentication):
             raise exceptions.AuthenticationFailed("Invalid token")
 
         if token.user.is_active:
+            token.record_used()
             return token.user, token
 
         raise exceptions.AuthenticationFailed("Invalid token")

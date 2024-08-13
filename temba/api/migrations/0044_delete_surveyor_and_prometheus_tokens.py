@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def delete_surveyor_and_prometheus_tokens(apps, schema_editor):
+def delete_surveyor_and_prometheus_tokens(apps, schema_editor):  # pragma: no cover
     APIToken = apps.get_model("api", "APIToken")
     Group = apps.get_model("auth", "Group")
 

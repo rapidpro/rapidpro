@@ -749,6 +749,7 @@ CELERY_BEAT_SCHEDULE = {
     "trim-http-logs": {"task": "trim_http_logs", "schedule": crontab(hour=2, minute=0)},
     "trim-notifications": {"task": "trim_notifications", "schedule": crontab(hour=2, minute=0)},
     "trim-webhook-events": {"task": "trim_webhook_events", "schedule": crontab(hour=3, minute=0)},
+    "update-tokens-used": {"task": "update_tokens_used", "schedule": timedelta(seconds=30)},
 }
 
 # -----------------------------------------------------------------------------------
