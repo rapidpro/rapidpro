@@ -30,6 +30,15 @@ if TESTING:
 TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
 TEST_EXCLUDE = ("smartmin",)
 
+if os.getenv("REMOTE_CONTAINERS") == "true":
+    _db_host = "postgres"
+    _redis_host = "redis"
+    _minio_host = "minio"
+else:
+    _db_host = "localhost"
+    _redis_host = "localhost"
+    _minio_host = "localhost"
+
 # -----------------------------------------------------------------------------------
 # Email
 # -----------------------------------------------------------------------------------
@@ -51,28 +60,48 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # Storage
 # -----------------------------------------------------------------------------------
 
+_bucket_prefix = "test" if TESTING else "temba"
+
 STORAGES = {
     # default storage for things like exports, imports
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    # wherever rp-archiver writes archive files (must be S3 compatible)
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {"bucket_name": f"{_bucket_prefix}-default"},
+    },
+    # wherever rp-archiver writes archive files
     "archives": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {"bucket_name": "temba-archives"},
+        "OPTIONS": {"bucket_name": f"{_bucket_prefix}-archives"},
     },
     # wherever courier and mailroom are writing logs
-    "logs": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+    "logs": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {"bucket_name": f"{_bucket_prefix}-logs"},
+    },
     # media file uploads that need to be publicly accessible
-    "public": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "public": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "bucket_name": f"{_bucket_prefix}-default",
+            "signature_version": "s3v4",
+            "default_acl": "public-read",
+            "querystring_auth": False,
+        },
+    },
     # standard Django static files storage
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-STORAGE_URL = None  # may be an absolute URL to /media (like http://localhost:8000/media) or AWS S3
-STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
+# settings used by django-storages (defaults to local Minio server)
+AWS_ACCESS_KEY_ID = "root"
+AWS_SECRET_ACCESS_KEY = "tembatemba"
+AWS_S3_REGION_NAME = "us-east-1"
+AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
+AWS_S3_ADDRESSING_STYLE = "path"
+AWS_S3_FILE_OVERWRITE = False
 
-# settings used by django-storages
-AWS_ACCESS_KEY_ID = "aws_access_key_id"
-AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
+STORAGE_URL = f"{AWS_S3_ENDPOINT_URL}/{_bucket_prefix}-default"
+STORAGE_ROOT_DIR = "orgs"
 
 # -----------------------------------------------------------------------------------
 # Localization
@@ -665,13 +694,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
 INVITATION_VALIDITY = timedelta(days=30)
-
-_db_host = "localhost"
-_redis_host = "localhost"
-
-if os.getenv("REMOTE_CONTAINERS") == "true":
-    _db_host = "postgres"
-    _redis_host = "redis"
 
 # -----------------------------------------------------------------------------------
 # Database

@@ -1,6 +1,5 @@
 import itertools
 import logging
-import mimetypes
 import os
 from abc import ABCMeta
 from collections import defaultdict
@@ -16,7 +15,6 @@ import pyotp
 import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
-from storages.backends.s3boto3 import S3Boto3Storage
 from timezone_field import TimeZoneField
 
 from django.conf import settings
@@ -1761,23 +1759,19 @@ class Export(TembaUUIDMixin, models.Model):
     def type(self):
         return self._get_types()[self.export_type]
 
-    def get_raw_access(self) -> tuple[str]:
+    def get_raw_url(self) -> tuple[str]:
         """
-        Gets a tuple of 1) raw storage URL, 2) a friendly filename and 3) its MIME type
+        Gets the raw storage URL
         """
 
         filename = self._get_download_filename()
+        url = default_storage.url(
+            self.path,
+            parameters=dict(ResponseContentDisposition=f"attachment;filename={filename}"),
+            http_method="GET",
+        )
 
-        if isinstance(default_storage, S3Boto3Storage):  # pragma: needs cover
-            url = default_storage.url(
-                self.path,
-                parameters=dict(ResponseContentDisposition=f"attachment;filename={filename}"),
-                http_method="GET",
-            )
-        else:
-            url = default_storage.url(self.path)
-
-        return url, filename, mimetypes.guess_type(self.path)[0]
+        return url
 
     def _get_download_filename(self):
         """

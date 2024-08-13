@@ -3,7 +3,7 @@ from unittest.mock import call, patch
 
 from openpyxl import load_workbook
 
-from django.conf import settings
+from django.core.files.storage import default_storage
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -731,8 +731,8 @@ class TicketExportTest(TembaTest):
             with_groups=with_groups,
         )
         export.perform()
-        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx"
-        workbook = load_workbook(filename=filename)
+
+        workbook = load_workbook(filename=default_storage.open(f"orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx"))
         return workbook.worksheets, export
 
     def test_export_empty(self):
