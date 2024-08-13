@@ -1987,21 +1987,27 @@ class ContactImport(SmartModel):
 
         workbook = load_workbook(filename=file, read_only=True)
         ws = workbook.active
+
+        # see https://openpyxl.readthedocs.io/en/latest/optimized.html#worksheet-dimensions but even with this we need
+        # to ignore empty columns after the last column with data
+        ws.reset_dimensions()
+
         data = ws.iter_rows()
 
         try:
-            headers_vals = [h.value or "" for h in next(data)]
+            header_row = next(data)
         except StopIteration:
             raise ValidationError(_("Import file appears to be empty."))
-        headers = []
-        start = False
-        for elt in headers_vals[::-1]:
-            if elt:
-                start = True
-            if start:
-                headers.append(str(elt).strip())
 
-        headers = headers[::-1]
+        headers = [h.value for h in header_row]
+        headers = [str(h).strip() if h else "" for h in headers]
+
+        # ignore empty header columns after the last column with data
+        max_col = 0
+        for h, header in enumerate(headers):
+            if header:
+                max_col = h
+        headers = headers[: max_col + 1]
 
         if any([h == "" for h in headers]):
             raise ValidationError(_("Import file contains an empty header."))
@@ -2199,7 +2205,6 @@ class ContactImport(SmartModel):
         # parse each row, creating batch tasks for mailroom
         workbook = load_workbook(filename=self.file, read_only=True)
         ws = workbook.active
-        data = ws.rows
         data = ws.iter_rows(min_row=2)
 
         urns = []
