@@ -1,3 +1,8 @@
+v9.3.18 (2024-08-13)
+-------------------------
+ * Record when API tokens were last used
+ * Only support import contacts using .xlsx files with openpyxl
+
 v9.3.17 (2024-08-12)
 -------------------------
  * Data migration to delete old surveyor and prometheus API tokens
