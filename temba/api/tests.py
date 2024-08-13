@@ -5,10 +5,11 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 
-from temba.api.models import APIToken, Resthook, WebHookEvent
-from temba.api.tasks import trim_webhook_events
 from temba.orgs.models import OrgRole
-from temba.tests import MigrationTest, TembaTest
+from temba.tests import TembaTest
+
+from .models import APIToken, Resthook, WebHookEvent
+from .tasks import trim_webhook_events, update_tokens_used
 
 
 class APITokenTest(TembaTest):
@@ -65,6 +66,20 @@ class APITokenTest(TembaTest):
 
         # user from another org has no API roles in this org
         self.assertIsNone(APIToken.get_default_role(self.org, self.admin2))
+
+    def test_record_used(self):
+        token1 = APIToken.get_or_create(self.org, self.admin)
+        token2 = APIToken.get_or_create(self.org2, self.admin2)
+
+        token1.record_used()
+
+        update_tokens_used()
+
+        token1.refresh_from_db()
+        token2.refresh_from_db()
+
+        self.assertIsNotNone(token1.last_used_on)
+        self.assertIsNone(token2.last_used_on)
 
 
 class WebHookTest(TembaTest):
@@ -262,25 +277,3 @@ class APITestMixin:
             self.assertIsInstance(resp_json, dict)
             self.assertIn("detail", resp_json)
             self.assertEqual(resp_json["detail"], expected_message)
-
-
-class DeleteSurveyorPrometheusTokensTest(MigrationTest):
-    app = "api"
-    migrate_from = "0043_squashed"
-    migrate_to = "0044_delete_surveyor_and_prometheus_tokens"
-
-    def setUpBeforeMigration(self, apps):
-        administrators = Group.objects.get(name="Administrators")
-        surveyors = Group.objects.get(name="Surveyors")
-        prometheus = Group.objects.get(name="Prometheus")
-
-        APIToken.objects.create(org=self.org, user=self.admin, role=administrators, key="111")
-        APIToken.objects.create(org=self.org, user=self.editor, role=administrators, key="222")
-        APIToken.objects.create(org=self.org, user=self.admin, role=surveyors, key="333")
-        APIToken.objects.create(org=self.org, user=self.admin, role=prometheus, key="444")
-
-    def test_migration(self):
-        self.assertTrue(APIToken.objects.filter(key="111").exists())
-        self.assertTrue(APIToken.objects.filter(key="222").exists())
-        self.assertFalse(APIToken.objects.filter(key="333").exists())
-        self.assertFalse(APIToken.objects.filter(key="444").exists())

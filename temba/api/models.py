@@ -2,6 +2,7 @@ import hmac
 import logging
 from hashlib import sha1
 
+from django_redis import get_redis_connection
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 
@@ -212,11 +213,12 @@ class APIToken(models.Model):
         "Editors": (OrgRole.ADMINISTRATOR, OrgRole.EDITOR),
     }
 
+    key = models.CharField(max_length=40, primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="api_tokens")
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="api_tokens")
     role = models.ForeignKey(Group, on_delete=models.PROTECT)
-    key = models.CharField(max_length=40, primary_key=True)
     created = models.DateTimeField(default=timezone.now)
+    last_used_on = models.DateTimeField(null=True)
     is_active = models.BooleanField(default=True)
 
     @classmethod
@@ -265,6 +267,15 @@ class APIToken(models.Model):
         role = self.org.get_user_role(self.user)
         roles_allowed_this_perm_group = self.GROUP_GRANTED_TO.get(self.role.name, ())
         return role and role in roles_allowed_this_perm_group
+
+    def record_used(self):
+        r = get_redis_connection()
+        r.sadd("api_tokens_used", self.key)
+
+    @classmethod
+    def get_used_keys(self) -> list:
+        r = get_redis_connection()
+        return [k.decode() for k in r.spop("api_tokens_used", r.scard("api_tokens_used"))]
 
     def save(self, *args, **kwargs):
         if not self.key:
