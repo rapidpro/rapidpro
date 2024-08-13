@@ -1,10 +1,8 @@
 import base64
-import io
 import secrets
 import sys
 from os import urandom
 
-import chardet
 import regex
 
 from django.utils.text import slugify
@@ -118,24 +116,3 @@ def generate_secret(length: int) -> str:
 
 def generate_token():
     return base64.b32encode(urandom(5)).decode("utf-8").lower()
-
-
-def decode_stream(f):
-    """
-    Detects the character encoding of the given byte stream and returns as text stream
-    """
-
-    data = f.read()
-    f.seek(0)
-
-    encodings = [d["encoding"] for d in chardet.detect_all(data)]
-
-    if "utf-8" in encodings:  # always go with UTF-8 if it appears to be an option
-        encoding = "utf-8"
-    else:
-        encoding = encodings[0]
-
-    if not encoding or encoding == "ascii":
-        encoding = "utf-8"
-
-    return io.TextIOWrapper(f, encoding=encoding)
