@@ -222,11 +222,11 @@ class MediaTest(TembaTest):
     @mock_uuids
     def test_process_unsupported(self):
         media = Media.from_upload(
-            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "audio/m4a")
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_imports/simple.xlsx", "audio/m4a")
         )
         media.refresh_from_db()
 
-        self.assertEqual(19968, media.size)
+        self.assertEqual(9635, media.size)
         self.assertEqual(Media.STATUS_FAILED, media.status)
 
 
@@ -3118,7 +3118,7 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertEqual({"error": "Unsupported file type"}, response.json())
 
         # error message if you upload something unsupported
-        with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "rb") as data:
+        with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xlsx", "rb") as data:
             response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
             self.assertEqual({"error": "Unsupported file type"}, response.json())
 

@@ -7,10 +7,9 @@ from typing import Any
 
 import iso8601
 import phonenumbers
-import pyexcel
 import regex
-import xlrd
 from django_redis import get_redis_connection
+from openpyxl import load_workbook
 from smartmin.models import SmartModel
 
 from django.conf import settings
@@ -30,7 +29,7 @@ from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole,
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import MultiSheetExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
-from temba.utils.text import decode_stream, unsnakify
+from temba.utils.text import unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
 
@@ -1986,21 +1985,23 @@ class ContactImport(SmartModel):
         total number of records. Otherwise raises a ValidationError.
         """
 
-        file_type = Path(filename).suffix[1:].lower()
-
-        # CSV reader expects str stream so wrap file
-        if file_type == "csv":
-            file = decode_stream(file)
+        workbook = load_workbook(filename=file, read_only=True)
+        ws = workbook.active
+        data = ws.iter_rows()
 
         try:
-            data = pyexcel.iget_array(file_stream=file, file_type=file_type)
-        except xlrd.XLRDError:
-            raise ValidationError(_("Import file appears to be corrupted. Please save again in Excel and try again."))
-
-        try:
-            headers = [str(h).strip() for h in next(data)]
+            headers_vals = [h.value or "" for h in next(data)]
         except StopIteration:
             raise ValidationError(_("Import file appears to be empty."))
+        headers = []
+        start = False
+        for elt in headers_vals[::-1]:
+            if elt:
+                start = True
+            if start:
+                headers.append(str(elt).strip())
+
+        headers = headers[::-1]
 
         if any([h == "" for h in headers]):
             raise ValidationError(_("Import file contains an empty header."))
@@ -2018,8 +2019,6 @@ class ContactImport(SmartModel):
 
             try:
                 raw_row = next(data)
-            except xlrd.XLDateError:  # pragma: needs cover
-                raise ValidationError(_("Import file contains invalid date on row %(row)s."), params={"row": row_num})
             except StopIteration:
                 break
 
@@ -2197,12 +2196,11 @@ class ContactImport(SmartModel):
             self.group = ContactGroup.create_manual(self.org, self.created_by, name=self.group_name)
             self.save(update_fields=("group",))
 
-        # CSV reader expects str stream so wrap file
-        file_type = self._get_file_type()
-        file = decode_stream(self.file) if file_type == "csv" else self.file
-
         # parse each row, creating batch tasks for mailroom
-        data = pyexcel.iget_array(file_stream=file, file_type=file_type, start_row=1)
+        workbook = load_workbook(filename=self.file, read_only=True)
+        ws = workbook.active
+        data = ws.rows
+        data = ws.iter_rows(min_row=2)
 
         urns = []
         batches = []
@@ -2288,12 +2286,6 @@ class ContactImport(SmartModel):
             "time_taken": int(time_taken.total_seconds()),
         }
 
-    def _get_file_type(self):
-        """
-        Returns one of xlxs, xls, or csv
-        """
-        return Path(self.file.name).suffix[1:].lower()
-
     @staticmethod
     def _parse_header(header: str) -> tuple[str, str]:
         """
@@ -2357,7 +2349,7 @@ class ContactImport(SmartModel):
         """
         parsed = []
         for i in range(size):
-            parsed.append(cls._parse_value(row[i], tz=tz) if i < len(row) else "")
+            parsed.append(cls._parse_value(row[i].value, tz=tz) if i < len(row) else "")
         return parsed
 
     @staticmethod
@@ -2375,7 +2367,7 @@ class ContactImport(SmartModel):
         elif isinstance(value, date):
             return value.isoformat()
         else:
-            return str(value).strip()
+            return str(value).strip() if value is not None else ""
 
     @classmethod
     def _detect_spamminess(cls, urns: list[str]) -> bool:

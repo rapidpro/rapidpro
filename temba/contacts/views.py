@@ -1156,7 +1156,7 @@ class ContactImportCRUDL(SmartCRUDL):
 
     class Create(SpaMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
-            file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=("xls", "xlsx", "csv"))])
+            file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=("xlsx",))])
 
             def __init__(self, *args, org, **kwargs):
                 self.org = org

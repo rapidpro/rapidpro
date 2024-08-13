@@ -1,5 +1,4 @@
 import datetime
-import io
 from collections import OrderedDict
 from datetime import date, timezone as tzone
 from decimal import Decimal
@@ -35,7 +34,7 @@ from .checks import storage
 from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .fields import ExternalURLField, NameValidator
-from .text import clean_string, decode_stream, generate_secret, generate_token, slugify_with, truncate, unsnakify
+from .text import clean_string, generate_secret, generate_token, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -97,14 +96,6 @@ class InitTest(TembaTest):
         rs = generate_secret(1000)
         self.assertEqual(1000, len(rs))
         self.assertFalse("1" in rs or "I" in rs or "0" in rs or "O" in rs)
-
-    def test_decode_stream(self):
-        self.assertEqual("", decode_stream(io.BytesIO(b"")).read())
-        self.assertEqual("hello", decode_stream(io.BytesIO(b"hello")).read())
-        self.assertEqual("hello👋", decode_stream(io.BytesIO(b"hello\xf0\x9f\x91\x8b")).read())  # UTF-8
-        self.assertEqual("سلام", decode_stream(io.BytesIO(b"\xd8\xb3\xd9\x84\xd8\xa7\xd9\x85")).read())  # UTF-8
-        self.assertEqual("hello", decode_stream(io.BytesIO(b"\xff\xfeh\x00e\x00l\x00l\x00o\x00")).read())  # UTF-16
-        self.assertEqual("hèllo", decode_stream(io.BytesIO(b"h\xe8llo")).read())  # ISO8859-1
 
     def test_percentage(self):
         self.assertEqual(0, percentage(0, 100))
