@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 import boto3
 from botocore.client import Config
 
+from django.conf import settings
 from django.core.files.storage import storages
 
 from temba.utils import json
@@ -27,30 +28,24 @@ def client():  # pragma: no cover
             )
         else:
             session = boto3.Session()
-        _s3_client = session.client("s3", config=Config(retries={"max_attempts": 3}))
+        _s3_client = session.client(
+            "s3", endpoint_url=settings.AWS_S3_ENDPOINT_URL, config=Config(retries={"max_attempts": 3})
+        )
 
     return _s3_client
 
 
-def split_url(url):
+def split_url(url: str) -> tuple:
     """
     Given an S3 URL parses it and returns a tuple of the bucket and key suitable for S3 boto calls
     """
-    parsed = urlparse(url)
-    bucket = parsed.netloc.split(".")[0]
-    path = parsed.path.lstrip("/")
+    url_parts = urlparse(url)
 
-    return bucket, path
-
-
-def get_body(url):
-    """
-    Given an S3 URL, downloads the object and returns the read body
-    """
-    bucket, key = split_url(url)
-
-    obj = client().get_object(Bucket=bucket, Key=key)
-    return obj["Body"].read()
+    if settings.AWS_S3_ADDRESSING_STYLE == "path":
+        path_parts = url_parts.path[1:].split("/")
+        return path_parts[0], "/".join(path_parts[1:])
+    else:
+        return url_parts.netloc.split(".")[0], url_parts.path[1:]
 
 
 class EventStreamReader:

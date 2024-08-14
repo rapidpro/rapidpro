@@ -78,6 +78,11 @@ STORAGES = {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         "OPTIONS": {"bucket_name": f"{_bucket_prefix}-logs"},
     },
+    # wherever mailroom is writing flow sessions
+    "sessions": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {"bucket_name": f"{_bucket_prefix}-sessions"},
+    },
     # media file uploads that need to be publicly accessible
     "public": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",

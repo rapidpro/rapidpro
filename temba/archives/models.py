@@ -5,7 +5,6 @@ import re
 import tempfile
 from datetime import date, datetime
 from gettext import gettext as _
-from urllib.parse import urlparse
 
 from dateutil.relativedelta import relativedelta
 
@@ -65,6 +64,17 @@ class Archive(models.Model):
     # when this archive's records where deleted (if any)
     deleted_on = models.DateTimeField(null=True)
 
+    @classmethod
+    def storage(cls):
+        return storages["archives"]
+
+    @classmethod
+    def s3(cls):
+        """
+        Convenience method to get the S3 client for archive storage
+        """
+        return cls.storage().connection.meta.client
+
     def size_display(self):
         return sizeof_fmt(self.size)
 
@@ -72,8 +82,7 @@ class Archive(models.Model):
         """
         Returns a tuple of the storage bucket and key
         """
-        url_parts = urlparse(self.url)
-        return url_parts.netloc.split(".")[0], url_parts.path[1:]
+        return s3.split_url(self.url)
 
     def get_end_date(self):
         """
@@ -94,8 +103,9 @@ class Archive(models.Model):
             archive.delete()
 
         # find any remaining S3 files and remove them for this org
-        s3_bucket = storages["archives"].bucket.name
-        s3_client = s3.client()
+        s3_bucket = cls.storage().bucket.name
+        s3_client = cls.s3()
+
         paginator = s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=s3_bucket, Prefix=f"{org.id}/"):
             archive_objs = page.get("Contents", [])
@@ -106,7 +116,6 @@ class Archive(models.Model):
 
     def get_download_link(self):
         if self.url:
-            s3_client = s3.client()
             bucket, key = self.get_storage_location()
             s3_params = {
                 "Bucket": bucket,
@@ -117,7 +126,7 @@ class Archive(models.Model):
                 "ResponseContentEncoding": "none",
             }
 
-            return s3_client.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
+            return self.s3().generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
         else:
             return ""
 
@@ -177,11 +186,9 @@ class Archive(models.Model):
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
 
-        s3_client = s3.client()
-
         if where:
             bucket, key = self.get_storage_location()
-            response = s3_client.select_object_content(
+            response = self.s3().select_object_content(
                 Bucket=bucket,
                 Key=key,
                 ExpressionType="SQL",
@@ -198,11 +205,11 @@ class Archive(models.Model):
 
         else:
             bucket, key = self.get_storage_location()
-            s3_obj = s3_client.get_object(Bucket=bucket, Key=key)
+            s3_obj = self.s3().get_object(Bucket=bucket, Key=key)
             return jsonlgz_iterate(s3_obj["Body"])
 
     def rewrite(self, transform, delete_old=False):
-        s3_client = s3.client()
+        s3_client = self.s3()
         bucket, key = self.get_storage_location()
 
         s3_obj = s3_client.get_object(Bucket=bucket, Key=key)
@@ -244,7 +251,7 @@ class Archive(models.Model):
         # delete our archive file from storage
         if self.url:
             bucket, key = self.get_storage_location()
-            s3.client().delete_object(Bucket=bucket, Key=key)
+            self.s3().delete_object(Bucket=bucket, Key=key)
 
         # and lastly delete ourselves
         super().delete()

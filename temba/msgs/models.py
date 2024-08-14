@@ -1170,7 +1170,7 @@ class MessageExport(ExportType):
         if system_label:
             where = SystemLabel.get_archive_query(system_label)
         elif label:
-            where = {"visibility": "visible", "__raw__": f"'{label.uuid}' IN s.labels[*].uuid[*]"}
+            where = {"visibility": "visible", "__raw__": f"'{label.uuid}' IN s.labels[*].uuid"}
         else:
             where = {"visibility": "visible"}
 

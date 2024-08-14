@@ -44,7 +44,6 @@ from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
-from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
 from temba.triggers.models import Trigger
 from temba.utils import json, languages
@@ -1143,11 +1142,6 @@ class OrgTest(TembaTest):
 
 
 class OrgDeleteTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.mock_s3 = MockS3Client()
-
     def create_content(self, org, user) -> list:
         # add child workspaces
         org.features = [Org.FEATURE_CHILD_ORGS]
@@ -1398,28 +1392,15 @@ class OrgDeleteTest(TembaTest):
         ExportFinishedNotificationType.create(tickets)
 
     def _create_archive_content(self, org, add):
-        def create_archive(org, period, rollup=None):
-            file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
-            body, md5, size = jsonlgz_encode([{"id": 1}])
-            archive = Archive.objects.create(
-                org=org,
-                url=f"http://test-archives.aws.com/{file}",
-                start_date=timezone.now(),
-                build_time=100,
-                archive_type=Archive.TYPE_MSG,
-                period=period,
-                rollup=rollup,
-                size=size,
-                hash=md5,
+        daily = add(self.create_archive(Archive.TYPE_MSG, Archive.PERIOD_DAILY, timezone.now(), [{"id": 1}], org=org))
+        add(
+            self.create_archive(
+                Archive.TYPE_MSG, Archive.PERIOD_MONTHLY, timezone.now(), [{"id": 1}], rollup_of=(daily,), org=org
             )
-            self.mock_s3.put_object("test-archives", file, body)
-            return archive
-
-        daily = add(create_archive(org, Archive.PERIOD_DAILY))
-        add(create_archive(org, Archive.PERIOD_MONTHLY, daily))
+        )
 
         # extra S3 file in archive dir
-        self.mock_s3.put_object("test-archives", f"{org.id}/extra_file.json", io.StringIO("[]"))
+        Archive.storage().save(f"{org.id}/extra_file.json", io.StringIO("[]"))
 
     def _exists(self, obj) -> bool:
         return obj._meta.model.objects.filter(id=obj.id).exists()
@@ -1510,8 +1491,7 @@ class OrgDeleteTest(TembaTest):
         # make it look like released orgs were released over a week ago
         Org.objects.exclude(released_on=None).update(released_on=timezone.now() - timedelta(days=8))
 
-        with patch("temba.utils.s3.client", return_value=self.mock_s3):
-            delete_released_orgs()
+        delete_released_orgs()
 
         self.assertOrgDeleted(self.org, org1_content)
         self.assertOrgDeleted(org1_child1)
@@ -1519,14 +1499,11 @@ class OrgDeleteTest(TembaTest):
         self.assertOrgActive(self.org2, org2_content)
 
         # only org 2 files left in S3
-        self.assertEqual(
-            [
-                ("test-archives", f"{self.org2.id}/archive2.jsonl.gz"),
-                ("test-archives", f"{self.org2.id}/archive3.jsonl.gz"),
-                ("test-archives", f"{self.org2.id}/extra_file.json"),
-            ],
-            list(self.mock_s3.objects.keys()),
-        )
+        for archive in self.org2.archives.all():
+            self.assertTrue(Archive.storage().exists(archive.get_storage_location()[1]))
+
+        self.assertTrue(Archive.storage().exists(f"{self.org2.id}/extra_file.json"))
+        self.assertFalse(Archive.storage().exists(f"{self.org.id}/extra_file.json"))
 
         # we don't actually delete org objects but at this point there should be no related fields preventing that
         Model.delete(org1_child1)

@@ -625,24 +625,23 @@ class TembaTest(SmartminTest):
         return call
 
     def create_archive(
-        self, archive_type, period, start_date, records=(), needs_deletion=False, rollup_of=(), s3=None, org=None
+        self, archive_type, period, start_date, records=(), needs_deletion=False, rollup_of=(), org=None
     ):
         org = org or self.org
         body, md5, size = jsonlgz_encode(records)
-        bucket = "s3-bucket"
         type_code = "run" if archive_type == Archive.TYPE_FLOWRUN else "message"
         date_code = start_date.strftime("%Y%m") if period == "M" else start_date.strftime("%Y%m%d")
         key = f"{org.id}/{type_code}_{period}{date_code}_{md5}.jsonl.gz"
 
-        if s3:
-            s3.put_object(bucket, key, body)
+        key = Archive.storage().save(key, body)
+        url = Archive.storage().url(key)
 
         archive = Archive.objects.create(
             org=org,
             archive_type=archive_type,
             size=size,
             hash=md5,
-            url=f"http://{bucket}.aws.com/{key}",
+            url=url,
             record_count=len(records),
             start_date=start_date,
             period=period,
