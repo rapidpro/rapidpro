@@ -1,11 +1,11 @@
 import base64
 import gzip
 import hashlib
+import io
 import re
 import tempfile
 from datetime import date, datetime
 from gettext import gettext as _
-from urllib.parse import urlparse
 
 from dateutil.relativedelta import relativedelta
 
@@ -65,6 +65,10 @@ class Archive(models.Model):
     # when this archive's records where deleted (if any)
     deleted_on = models.DateTimeField(null=True)
 
+    @classmethod
+    def storage(cls):
+        return storages["archives"]
+
     def size_display(self):
         return sizeof_fmt(self.size)
 
@@ -72,8 +76,7 @@ class Archive(models.Model):
         """
         Returns a tuple of the storage bucket and key
         """
-        url_parts = urlparse(self.url)
-        return url_parts.netloc.split(".")[0], url_parts.path[1:]
+        return s3.split_url(self.url)
 
     def get_end_date(self):
         """
@@ -94,8 +97,9 @@ class Archive(models.Model):
             archive.delete()
 
         # find any remaining S3 files and remove them for this org
-        s3_bucket = storages["archives"].bucket.name
+        s3_bucket = cls.storage().bucket.name
         s3_client = s3.client()
+
         paginator = s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=s3_bucket, Prefix=f"{org.id}/"):
             archive_objs = page.get("Contents", [])
@@ -283,6 +287,19 @@ def jsonlgz_rewrite(in_file, out_file, transform) -> tuple:
     out_stream.close()
 
     return out_wrapped.hash, out_wrapped.size
+
+
+def jsonlgz_encode(records: list) -> tuple:
+    stream = io.BytesIO()
+    wrapper = FileAndHash(stream)
+    gz = gzip.GzipFile(fileobj=wrapper, mode="wb")
+
+    for record in records:
+        gz.write(json.dumps(record).encode("utf-8"))
+        gz.write(b"\n")
+    gz.close()
+
+    return stream, wrapper.hash.hexdigest(), wrapper.size
 
 
 class FileAndHash:

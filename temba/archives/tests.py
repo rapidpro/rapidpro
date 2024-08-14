@@ -3,27 +3,31 @@ import gzip
 import hashlib
 import io
 from datetime import date, datetime, timezone as tzone
-from unittest.mock import call, patch
 
 from django.urls import reverse
-from django.utils import timezone
 
 from temba.tests import CRUDLTestMixin, TembaTest
-from temba.tests.s3 import MockS3Client
+from temba.utils import s3
 
 from .models import Archive, jsonlgz_rewrite
 
 
 class ArchiveTest(TembaTest):
-    @patch("temba.utils.s3.client")
-    def test_iter_records(self, mock_s3_client):
-        mock_s3 = MockS3Client()
-        mock_s3_client.return_value = mock_s3
+    def setUp(self):
+        super().setUp()
 
-        archive = self.create_archive(
-            Archive.TYPE_MSG, "D", timezone.now().date(), [{"id": 1}, {"id": 2}, {"id": 3}], s3=mock_s3
-        )
+        self.s3_calls = []
+
+        def record_s3(model, params, **kwargs):
+            self.s3_calls.append((model.name, params))
+
+        s3.client().meta.events.register("provide-client-params.s3.*", record_s3)
+
+    def test_iter_records(self):
+        archive = self.create_archive(Archive.TYPE_MSG, "D", date(2024, 8, 14), [{"id": 1}, {"id": 2}, {"id": 3}])
         bucket, key = archive.get_storage_location()
+        self.assertEqual("test-archives", bucket)
+        self.assertEqual(f"{self.org.id}/message_D20240814_{archive.hash}.jsonl.gz", key)
 
         # can fetch records without any filtering
         records_iter = archive.iter_records()
@@ -32,45 +36,47 @@ class ArchiveTest(TembaTest):
         self.assertEqual(next(records_iter), {"id": 2})
         self.assertEqual(next(records_iter), {"id": 3})
         self.assertRaises(StopIteration, next, records_iter)
-        self.assertEqual(mock_s3.calls["get_object"][-1], call(Bucket="s3-bucket", Key=key))
 
         # can filter using where dict
         records_iter = archive.iter_records(where={"id__gt": 1})
 
         self.assertEqual([{"id": 2}, {"id": 3}], [r for r in records_iter])
-        self.assertEqual(
-            mock_s3.calls["select_object_content"][-1],
-            call(
-                Bucket="s3-bucket",
-                Key=key,
-                Expression="SELECT s.* FROM s3object s WHERE s.id > 1",
-                ExpressionType="SQL",
-                InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
-                OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
-            ),
-        )
+
         # can also filter using raw where string (used by search_archives command)
         records_iter = archive.iter_records(where={"__raw__": "s.id < 3"})
 
         self.assertEqual([{"id": 1}, {"id": 2}], list(records_iter))
 
         self.assertEqual(
-            mock_s3.calls["select_object_content"][-1],
-            call(
-                Bucket="s3-bucket",
-                Key=key,
-                Expression="SELECT s.* FROM s3object s WHERE s.id < 3",
-                ExpressionType="SQL",
-                InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
-                OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
-            ),
+            [
+                ("GetObject", {"Bucket": bucket, "Key": key}),
+                (
+                    "SelectObjectContent",
+                    {
+                        "Bucket": bucket,
+                        "Key": key,
+                        "Expression": "SELECT s.* FROM s3object s WHERE s.id > 1",
+                        "ExpressionType": "SQL",
+                        "InputSerialization": {"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
+                        "OutputSerialization": {"JSON": {"RecordDelimiter": "\n"}},
+                    },
+                ),
+                (
+                    "SelectObjectContent",
+                    {
+                        "Bucket": bucket,
+                        "Key": key,
+                        "Expression": "SELECT s.* FROM s3object s WHERE s.id < 3",
+                        "ExpressionType": "SQL",
+                        "InputSerialization": {"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
+                        "OutputSerialization": {"JSON": {"RecordDelimiter": "\n"}},
+                    },
+                ),
+            ],
+            self.s3_calls,
         )
 
-    @patch("temba.utils.s3.client")
-    def test_iter_all_records(self, mock_s3_client):
-        mock_s3 = MockS3Client()
-        mock_s3_client.return_value = mock_s3
-
+    def test_iter_all_records(self):
         d1 = self.create_archive(
             Archive.TYPE_MSG,
             "D",
@@ -79,7 +85,6 @@ class ArchiveTest(TembaTest):
                 {"id": 1, "created_on": "2020-07-30T10:00:00Z", "contact": {"name": "Bob"}},
                 {"id": 2, "created_on": "2020-07-30T15:00:00Z", "contact": {"name": "Jim"}},
             ],
-            s3=mock_s3,
         )
         self.create_archive(
             Archive.TYPE_MSG,
@@ -90,7 +95,6 @@ class ArchiveTest(TembaTest):
                 {"id": 2, "created_on": "2020-07-30T15:00:00Z", "contact": {"name": "Jim"}},
             ],
             rollup_of=(d1,),
-            s3=mock_s3,
         )
         self.create_archive(
             Archive.TYPE_MSG,
@@ -100,7 +104,6 @@ class ArchiveTest(TembaTest):
                 {"id": 3, "created_on": "2020-08-01T10:00:00Z", "contact": {"name": "Jim"}},
                 {"id": 4, "created_on": "2020-08-01T15:00:00Z", "contact": {"name": "Bob"}},
             ],
-            s3=mock_s3,
         )
         self.create_archive(
             Archive.TYPE_FLOWRUN,
@@ -110,7 +113,6 @@ class ArchiveTest(TembaTest):
                 {"id": 3, "created_on": "2020-08-01T10:00:00Z", "contact": {"name": "Jim"}},
                 {"id": 4, "created_on": "2020-08-01T15:00:00Z", "contact": {"name": "Bob"}},
             ],
-            s3=mock_s3,
         )
         self.create_archive(
             Archive.TYPE_MSG,
@@ -120,7 +122,6 @@ class ArchiveTest(TembaTest):
                 {"id": 5, "created_on": "2020-08-02T10:00:00Z", "contact": {"name": "Bob"}},
                 {"id": 6, "created_on": "2020-08-02T15:00:00Z", "contact": {"name": "Bob"}},
             ],
-            s3=mock_s3,
         )
 
         def assert_records(record_iter, ids):
@@ -165,11 +166,7 @@ class ArchiveTest(TembaTest):
         # check the start date of our db data
         self.assertEqual(date(2018, 2, 1), self.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN))
 
-    @patch("temba.utils.s3.client")
-    def test_rewrite(self, mock_s3_client):
-        mock_s3 = MockS3Client()
-        mock_s3_client.return_value = mock_s3
-
+    def test_rewrite(self):
         archive = self.create_archive(
             Archive.TYPE_FLOWRUN,
             "D",
@@ -179,12 +176,9 @@ class ArchiveTest(TembaTest):
                 {"id": 2, "created_on": "2020-08-01T10:00:00Z", "contact": {"name": "Jim"}},
                 {"id": 3, "created_on": "2020-08-01T15:00:00Z", "contact": {"name": "Bob"}},
             ],
-            s3=mock_s3,
         )
 
         bucket, key = archive.get_storage_location()
-        self.assertEqual({(bucket, key)}, set(mock_s3.objects.keys()))
-        self.assertEqual(1, len(mock_s3.calls["put_object"]))
 
         def purge_jim(record):
             return record if record["contact"]["name"] != "Jim" else None
@@ -193,22 +187,20 @@ class ArchiveTest(TembaTest):
 
         bucket, new_key = archive.get_storage_location()
         self.assertNotEqual(key, new_key)
-        self.assertEqual({(bucket, new_key)}, set(mock_s3.objects.keys()))
 
         self.assertEqual(32, len(archive.hash))
         self.assertEqual(
-            f"https://s3-bucket.s3.amazonaws.com/{self.org.id}/run_D20200801_{archive.hash}.jsonl.gz", archive.url
+            f"https://test-archives.s3.amazonaws.com/{self.org.id}/run_D20200801_{archive.hash}.jsonl.gz", archive.url
         )
 
         hash_b64 = base64.standard_b64encode(bytes.fromhex(archive.hash)).decode()
 
-        self.assertEqual(2, len(mock_s3.calls["put_object"]))
-
-        kwargs = mock_s3.calls["put_object"][1][2]
-        self.assertEqual("s3-bucket", kwargs["Bucket"])
-        self.assertEqual(f"{self.org.id}/run_D20200801_{archive.hash}.jsonl.gz", kwargs["Key"])
-        self.assertEqual(hash_b64, kwargs["ContentMD5"])
-        self.assertEqual([call(Bucket="s3-bucket", Key=key)], mock_s3.calls["delete_object"])
+        self.assertEqual("PutObject", self.s3_calls[-2][0])
+        self.assertEqual("test-archives", self.s3_calls[-2][1]["Bucket"])
+        self.assertEqual(f"{self.org.id}/run_D20200801_{archive.hash}.jsonl.gz", self.s3_calls[-2][1]["Key"])
+        self.assertEqual(hash_b64, self.s3_calls[-2][1]["ContentMD5"])
+        self.assertEqual("DeleteObject", self.s3_calls[-1][0])
+        self.assertEqual("test-archives", self.s3_calls[-1][1]["Bucket"])
 
 
 class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -246,7 +238,7 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         archive = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}])
 
         download_url = (
-            f"https://s3-bucket.s3.amazonaws.com/{self.org.id}/message_D20200731_{archive.hash}.jsonl.gz?response-con"
+            f"http://localhost:9000/test-archives/{self.org.id}/message_D20200731_{archive.hash}.jsonl.gz?response-con"
             f"tent-disposition=attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
         )
 

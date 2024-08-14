@@ -25,9 +25,8 @@ from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.triggers.models import Trigger
-from temba.utils import json
+from temba.utils import json, s3
 from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -4867,49 +4866,29 @@ class ResultsExportTest(TembaTest):
         contact2_other_flow.refresh_from_db()
         contact3_run.refresh_from_db()
 
-        # archive the first 3 runs
-        Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_FLOWRUN,
-            size=10,
-            hash=uuid4().hex,
-            url="http://test-bucket.aws.com/archive1.jsonl.gz",
-            record_count=3,
-            start_date=timezone.now().date(),
-            period="D",
-            build_time=23425,
-        )
-
-        # prepare 'old' archive format that used a list of values
+        # archive the first 3 runs, using 'old' archive format that used a list of values for one of them
         old_archive_format = contact2_run.as_archive_json()
         old_archive_format["values"] = [old_archive_format["values"]]
 
-        mock_s3 = MockS3Client()
-        body, md5, size = jsonlgz_encode(
-            [contact1_run.as_archive_json(), old_archive_format, contact2_other_flow.as_archive_json()]
+        self.create_archive(
+            Archive.TYPE_FLOWRUN,
+            "D",
+            timezone.now().date(),
+            [contact1_run.as_archive_json(), old_archive_format, contact2_other_flow.as_archive_json()],
         )
-        mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
 
         contact1_run.delete()
         contact2_run.delete()
 
         # create an archive earlier than our flow created date so we check that it isn't included
-        Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_FLOWRUN,
-            size=10,
-            hash=uuid4().hex,
-            url="http://test-bucket.aws.com/archive2.jsonl.gz",
-            record_count=1,
-            start_date=timezone.now().date() - timedelta(days=2),
-            period="D",
-            build_time=5678,
+        self.create_archive(
+            Archive.TYPE_FLOWRUN,
+            "D",
+            timezone.now().date() - timedelta(days=2),
+            [contact2_run.as_archive_json()],
         )
-        body, md5, size = jsonlgz_encode([contact2_run.as_archive_json()])
-        mock_s3.put_object("test-bucket", "archive2.jsonl.gz", body)
 
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
+        workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
         (sheet_runs,) = workbook.worksheets
@@ -5212,18 +5191,18 @@ class FlowSessionCRUDLTest(TembaTest):
         session = MockSessionWriter(contact, flow).wait().save().session
 
         # normal users can't see session json
-        url = reverse("flows.flowsession_json", args=[session.uuid])
-        response = self.client.get(url)
+        json_url = reverse("flows.flowsession_json", args=[session.uuid])
+        response = self.client.get(json_url)
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
-        response = self.client.get(url)
+        response = self.client.get(json_url)
         self.assertLoginRedirect(response)
 
         # but logged in as a CS rep we can
         self.login(self.customer_support, choose_org=self.org)
 
-        response = self.client.get(url)
+        response = self.client.get(json_url)
         self.assertEqual(200, response.status_code)
 
         response_json = json.loads(response.content)
@@ -5231,20 +5210,18 @@ class FlowSessionCRUDLTest(TembaTest):
         self.assertEqual(session.uuid, response_json["uuid"])
 
         # now try with an s3 session
-        mock_s3 = MockS3Client()
-        mock_s3.objects[("temba-sessions", "c/session.json")] = io.StringIO(json.dumps(session.output))
-
+        s3.client().put_object(
+            Bucket="test-sessions", Key="c/session.json", Body=io.BytesIO(json.dumps(session.output).encode())
+        )
         FlowSession.objects.filter(id=session.id).update(
-            output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json",
-            output=None,
+            output_url="http://minio:9000/test-sessions/c/session.json", output=None
         )
 
         # fetch our contact history
-        with patch("temba.utils.s3.s3.client", return_value=mock_s3):
-            response = self.client.get(url)
-            self.assertEqual(200, response.status_code)
-            self.assertEqual("Nyaruka", response_json["_metadata"]["org"])
-            self.assertEqual(session.uuid, response_json["uuid"])
+        response = self.client.get(json_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("Nyaruka", response_json["_metadata"]["org"])
+        self.assertEqual(session.uuid, response_json["uuid"])
 
 
 class FlowStartTest(TembaTest):

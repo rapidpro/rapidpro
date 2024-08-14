@@ -32,7 +32,6 @@ from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
 from temba.utils import s3
 from temba.utils.compose import compose_deserialize_attachments, compose_serialize
@@ -987,21 +986,12 @@ class MessageExportTest(TembaTest):
         msg3.visibility = Msg.VISIBILITY_ARCHIVED
         msg3.save()
 
-        # archive 5 msgs
-        mock_s3 = MockS3Client()
-        body, md5, size = jsonlgz_encode([m.as_archive_json() for m in (msg1, msg2, msg3, msg4, msg5, msg6)])
-        mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
-
-        Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_MSG,
-            size=size,
-            hash=md5,
-            url="http://test-bucket.aws.com/archive1.jsonl.gz",
-            record_count=6,
-            start_date=msg5.created_on.date(),
-            period="D",
-            build_time=23425,
+        # archive 6 msgs
+        self.create_archive(
+            Archive.TYPE_MSG,
+            "D",
+            msg5.created_on.date(),
+            [m.as_archive_json() for m in (msg1, msg2, msg3, msg4, msg5, msg6)],
         )
 
         with patch("django.core.files.storage.default_storage.delete"):
@@ -1011,27 +1001,14 @@ class MessageExportTest(TembaTest):
             msg5.delete()
             msg6.delete()
 
-        # create an archive earlier than our flow created date so we check that it isn't included
-        body, md5, size = jsonlgz_encode([msg7.as_archive_json()])
-        Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_MSG,
-            size=size,
-            hash=md5,
-            url="http://test-bucket.aws.com/archive2.jsonl.gz",
-            record_count=1,
-            start_date=self.org.created_on - timedelta(days=2),
-            period="D",
-            build_time=5678,
-        )
-        mock_s3.put_object("test-bucket", "archive2.jsonl.gz", body)
+        # create an archive earlier than our org creation date so we check that it isn't included
+        self.create_archive(Archive.TYPE_MSG, "D", self.org.created_on - timedelta(days=2), [msg7.as_archive_json()])
 
         msg7.delete()
 
         # export all visible messages (i.e. not msg3) using export_all param
         with self.assertNumQueries(18):
-            with patch("temba.utils.s3.client", return_value=mock_s3):
-                workbook = self._export(None, None, date(2000, 9, 1), date(2022, 9, 1))
+            workbook = self._export(None, None, date(2000, 9, 1), date(2022, 9, 1))
 
         expected_headers = [
             "Date",
@@ -1141,9 +1118,7 @@ class MessageExportTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = self._export(SystemLabel.TYPE_INBOX, None, msg5.created_on.date(), msg7.created_on.date())
-
+        workbook = self._export(SystemLabel.TYPE_INBOX, None, msg5.created_on.date(), msg7.created_on.date())
         self.assertExcelSheet(
             workbook.worksheets[0],
             [
@@ -1166,9 +1141,7 @@ class MessageExportTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = self._export(SystemLabel.TYPE_SENT, None, date(2000, 9, 1), date(2022, 9, 1))
-
+        workbook = self._export(SystemLabel.TYPE_SENT, None, date(2000, 9, 1), date(2022, 9, 1))
         self.assertExcelSheet(
             workbook.worksheets[0],
             [
@@ -1191,9 +1164,7 @@ class MessageExportTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = self._export(SystemLabel.TYPE_FAILED, None, date(2000, 9, 1), date(2022, 9, 1))
-
+        workbook = self._export(SystemLabel.TYPE_FAILED, None, date(2000, 9, 1), date(2022, 9, 1))
         self.assertExcelSheet(
             workbook.worksheets[0],
             [
@@ -1230,9 +1201,7 @@ class MessageExportTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = self._export(SystemLabel.TYPE_FLOWS, None, date(2000, 9, 1), date(2022, 9, 1))
-
+        workbook = self._export(SystemLabel.TYPE_FLOWS, None, date(2000, 9, 1), date(2022, 9, 1))
         self.assertExcelSheet(
             workbook.worksheets[0],
             [
@@ -1255,9 +1224,7 @@ class MessageExportTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = self._export(None, label, date(2000, 9, 1), date(2022, 9, 1))
-
+        workbook = self._export(None, label, date(2000, 9, 1), date(2022, 9, 1))
         self.assertExcelSheet(
             workbook.worksheets[0],
             [

@@ -31,10 +31,9 @@ from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount, Topic
 from temba.triggers.models import Trigger
-from temba.utils import json
+from temba.utils import json, s3
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -1682,8 +1681,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # create contact in other org
         self.other_org_contact = self.create_contact(name="Fred", phone="+250768111222", org=self.org2)
 
-        self.mock_s3 = MockS3Client()
-
     def create_campaign(self):
         # create a campaign with a future event and add joe
         self.farmers = self.create_group("Farmers", [self.joe])
@@ -2401,14 +2398,15 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # set an output URL on our session so we fetch from there
         s = FlowSession.objects.get(contact=self.joe)
-        FlowSession.objects.filter(id=s.id).update(output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json")
-        self.mock_s3.objects[("temba-sessions", "c/session.json")] = io.StringIO(json.dumps(s.output))
+        s3.client().put_object(
+            Bucket="test-sessions", Key="c/session.json", Body=io.BytesIO(json.dumps(s.output).encode())
+        )
+        FlowSession.objects.filter(id=s.id).update(output_url="http://minio:9000/test-sessions/c/session.json")
 
         # fetch our contact history
         self.login(self.admin)
-        with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(27):
-                response = self.client.get(url + "?limit=100")
+        with self.assertNumQueries(27):
+            response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
         history = response.json()["events"]
