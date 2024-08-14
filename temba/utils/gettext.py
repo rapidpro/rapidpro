@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 import polib
@@ -10,7 +9,7 @@ from .uuid import uuid4
 
 
 def po_get_path(org, uuid):
-    return os.path.join("orgs", str(org.id), "po_imports", uuid + ".po")
+    return f"orgs/{org.id}/po_imports/{uuid}.po"
 
 
 def po_save(org, data):
