@@ -1,3 +1,8 @@
+v9.3.19 (2024-08-14)
+-------------------------
+ * Fix DTOne formax section
+ * Change default settings to use minio for file storage
+
 v9.3.18 (2024-08-13)
 -------------------------
  * Record when API tokens were last used
