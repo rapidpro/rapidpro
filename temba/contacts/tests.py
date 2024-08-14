@@ -33,7 +33,7 @@ from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, 
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticket, TicketCount, Topic
 from temba.triggers.models import Trigger
-from temba.utils import json
+from temba.utils import json, s3
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -2398,8 +2398,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # set an output URL on our session so we fetch from there
         s = FlowSession.objects.get(contact=self.joe)
-        FlowSession.storage().save("c/session.json", io.BytesIO(json.dumps(s.output).encode()))
-        FlowSession.objects.filter(id=s.id).update(output_url=FlowSession.storage().url("c/session.json"))
+        s3.client().put_object(
+            Bucket="test-sessions", Key="c/session.json", Body=io.BytesIO(json.dumps(s.output).encode())
+        )
+        FlowSession.objects.filter(id=s.id).update(output_url="http://minio:9000/test-sessions/c/session.json")
 
         # fetch our contact history
         self.login(self.admin)

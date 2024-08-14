@@ -1,38 +1,19 @@
 from typing import Iterable
 from urllib.parse import urlparse
 
-import boto3
-from botocore.client import Config
-
 from django.conf import settings
 from django.core.files.storage import storages
 
 from temba.utils import json
 
 public_file_storage = storages["public"]
-_s3_client = None
 
 
-def client():  # pragma: no cover
+def client():
     """
-    Returns our shared S3 client
+    Returns an S3 client
     """
-    from django.conf import settings
-
-    global _s3_client
-    if not _s3_client:
-        if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
-            session = boto3.Session(
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            )
-        else:
-            session = boto3.Session()
-        _s3_client = session.client(
-            "s3", endpoint_url=settings.AWS_S3_ENDPOINT_URL, config=Config(retries={"max_attempts": 3})
-        )
-
-    return _s3_client
+    return storages["default"].connection.meta.client
 
 
 def split_url(url: str) -> tuple:

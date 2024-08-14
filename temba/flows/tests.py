@@ -26,7 +26,7 @@ from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, m
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
-from temba.utils import json
+from temba.utils import json, s3
 from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -5210,9 +5210,11 @@ class FlowSessionCRUDLTest(TembaTest):
         self.assertEqual(session.uuid, response_json["uuid"])
 
         # now try with an s3 session
-        FlowSession.storage().save("c/session.json", io.BytesIO(json.dumps(session.output).encode()))
+        s3.client().put_object(
+            Bucket="test-sessions", Key="c/session.json", Body=io.BytesIO(json.dumps(session.output).encode())
+        )
         FlowSession.objects.filter(id=session.id).update(
-            output_url=FlowSession.storage().url("c/session.json"), output=None
+            output_url="http://minio:9000/test-sessions/c/session.json", output=None
         )
 
         # fetch our contact history

@@ -9,7 +9,6 @@ from packaging.version import Version
 
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
-from django.core.files.storage import storages
 from django.db import models, transaction
 from django.db.models import Max, Prefetch, Q, Sum
 from django.db.models.functions import Lower, TruncDate
@@ -1001,10 +1000,6 @@ class FlowSession(models.Model):
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
-    @classmethod
-    def storage(cls):
-        return storages["sessions"]
-
     @property
     def output_json(self):
         """
@@ -1014,7 +1009,7 @@ class FlowSession(models.Model):
         if self.output_url:
             bucket, key = s3.split_url(self.output_url)
 
-            obj = self.storage().connection.meta.client.get_object(Bucket=bucket, Key=key)
+            obj = s3.client().get_object(Bucket=bucket, Key=key)
             return json.loads(obj["Body"].read())
 
         # otherwise, read it from our DB field
