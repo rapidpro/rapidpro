@@ -1651,8 +1651,7 @@ class Export(TembaUUIDMixin, models.Model):
             temp_file, extension, num_records = self.type.write(self)
 
             # save file to storage
-            directory = os.path.join("orgs", str(self.org.id), self.type.slug + "_exports")
-            path = f"{directory}/{self.uuid}.{extension}"
+            path = f"orgs/{self.org.id}/{self.type.slug}_exports/{self.uuid}.{extension}"
             default_storage.save(path, File(temp_file))
 
             # remove temporary file
