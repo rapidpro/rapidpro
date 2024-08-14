@@ -1,6 +1,4 @@
-from unittest.mock import MagicMock
-
-from django.core.files import File
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from temba.tests import CRUDLTestMixin, TembaTest
@@ -11,15 +9,15 @@ from .models import Apk
 class ApkCRUDLTest(CRUDLTestMixin, TembaTest):
     def setUp(self):
         super().setUp()
-        apk_file_mock = MagicMock(spec=File)
-        apk_file_mock.name = "relayer.apk"
 
         self.apk = Apk.objects.create(
-            apk_type="R", version="1.0", description="* has new things", apk_file=apk_file_mock
+            apk_type="R",
+            version="1.0",
+            description="* has new things",
+            apk_file=SimpleUploadedFile(
+                "relayer.apk", content=b"APKDATA", content_type="application/vnd.android.package-archive"
+            ),
         )
-
-    def tearDown(self):
-        self.clear_storage()
 
     def test_claim_android(self):
         self.login(self.admin)

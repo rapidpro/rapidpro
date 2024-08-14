@@ -1,13 +1,12 @@
 import decimal
 import io
-import os
 from datetime import date, datetime, timedelta, timezone as tzone
 from unittest.mock import patch
 
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
-from django.conf import settings
+from django.core.files.storage import default_storage
 from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -3114,8 +3113,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             export.config,
         )
 
-        self.clear_storage()
-
     def test_export_and_download_translation(self):
         self.org.set_flow_languages(self.admin, ["spa"])
 
@@ -3873,8 +3870,7 @@ class ResultsExportTest(TembaTest):
         with self.mockReadOnly(assert_models=readonly_models):
             export.perform()
 
-        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/results_exports/{export.uuid}.xlsx"
-        return load_workbook(filename=os.path.join(settings.MEDIA_ROOT, filename))
+        return load_workbook(filename=default_storage.open(f"orgs/{self.org.id}/results_exports/{export.uuid}.xlsx"))
 
     @mock_mailroom
     def test_export(self, mr_mocks):

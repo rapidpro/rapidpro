@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from django.urls import reverse
 from django.utils import timezone
 
@@ -833,9 +834,7 @@ class CampaignTest(TembaTest):
         export = DefinitionExport.create(self.org, self.admin, flows=[], campaigns=[campaign])
         export.perform()
 
-        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/definition_exports/{export.uuid}.json"
-
-        with open(filename) as export_file:
+        with default_storage.open(f"orgs/{self.org.id}/definition_exports/{export.uuid}.json") as export_file:
             exported = json.loads(export_file.read())
 
         self.org.import_app(exported, self.admin)

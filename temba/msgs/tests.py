@@ -5,6 +5,7 @@ from unittest.mock import call, patch
 from openpyxl import load_workbook
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -63,11 +64,6 @@ class AttachmentTest(TembaTest):
 
 
 class MediaTest(TembaTest):
-    def tearDown(self):
-        self.clear_storage()
-
-        return super().tearDown()
-
     def test_clean_name(self):
         self.assertEqual("file.jpg", Media.clean_name("", "image/jpeg"))
         self.assertEqual("foo.jpg", Media.clean_name("foo", "image/jpeg"))
@@ -87,12 +83,12 @@ class MediaTest(TembaTest):
         self.assertEqual("b97f69f7-5edf-45c7-9fda-d37066eae91d", str(media.uuid))
         self.assertEqual(self.org, media.org)
         self.assertEqual(
-            f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
+            f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
             media.url,
         )
         self.assertEqual("image/jpeg", media.content_type)
         self.assertEqual(
-            f"test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve marten.jpg", media.path
+            f"orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve marten.jpg", media.path
         )
         self.assertEqual(self.admin, media.created_by)
         self.assertEqual(Media.STATUS_PENDING, media.status)
@@ -105,9 +101,7 @@ class MediaTest(TembaTest):
             process=False,
         )
 
-        self.assertEqual(
-            f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/passwd.png", media.path
-        )
+        self.assertEqual(f"orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/passwd.png", media.path)
 
     @mock_uuids
     def test_process_image_png(self):
@@ -141,10 +135,11 @@ class MediaTest(TembaTest):
 
         self.assertEqual(self.org, alt1.org)
         self.assertEqual(
-            f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.url
+            f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3",
+            alt1.url,
         )
         self.assertEqual("audio/mp3", alt1.content_type)
-        self.assertEqual(f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.path)
+        self.assertEqual(f"orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.path)
         self.assertAlmostEqual(5517, alt1.size, delta=1000)
         self.assertEqual(5110, alt1.duration)
         self.assertEqual(0, alt1.width)
@@ -153,10 +148,11 @@ class MediaTest(TembaTest):
 
         self.assertEqual(self.org, alt2.org)
         self.assertEqual(
-            f"/media/test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.url
+            f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a",
+            alt2.url,
         )
         self.assertEqual("audio/mp4", alt2.content_type)
-        self.assertEqual(f"test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.path)
+        self.assertEqual(f"orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.path)
         self.assertAlmostEqual(20552, alt2.size, delta=7500)
         self.assertEqual(5110, alt2.duration)
         self.assertEqual(0, alt2.width)
@@ -180,12 +176,11 @@ class MediaTest(TembaTest):
 
         self.assertEqual(self.org, alt.org)
         self.assertEqual(
-            f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/bubbles.mp3", alt.url
+            f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/bubbles.mp3",
+            alt.url,
         )
         self.assertEqual("audio/mp3", alt.content_type)
-        self.assertEqual(
-            f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/bubbles.mp3", alt.path
-        )
+        self.assertEqual(f"orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/bubbles.mp3", alt.path)
         self.assertAlmostEqual(41493, alt.size, delta=1000)
         self.assertEqual(10216, alt.duration)
         self.assertEqual(0, alt.width)
@@ -209,10 +204,11 @@ class MediaTest(TembaTest):
 
         self.assertEqual(self.org, alt.org)
         self.assertEqual(
-            f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.jpg", alt.url
+            f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.jpg",
+            alt.url,
         )
         self.assertEqual("image/jpeg", alt.content_type)
-        self.assertEqual(f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.jpg", alt.path)
+        self.assertEqual(f"orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.jpg", alt.path)
         self.assertAlmostEqual(37613, alt.size, delta=1000)
         self.assertEqual(0, alt.duration)
         self.assertEqual(640, alt.width)
@@ -908,8 +904,6 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             export.config,
         )
 
-        self.clear_storage()
-
 
 class MessageExportTest(TembaTest):
     def setUp(self):
@@ -936,8 +930,7 @@ class MessageExportTest(TembaTest):
         with self.mockReadOnly():
             export.perform()
 
-        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/message_exports/{export.uuid}.xlsx"
-        return load_workbook(filename=filename)
+        return load_workbook(filename=default_storage.open(f"orgs/{self.org.id}/message_exports/{export.uuid}.xlsx"))
 
     def test_export_from_archives(self):
         self.joe.name = "Jo\02e Blow"
@@ -1286,8 +1279,6 @@ class MessageExportTest(TembaTest):
             ],
             self.org.timezone,
         )
-
-        self.clear_storage()
 
     def test_export(self):
         age = self.create_field("age", "Age")
@@ -1758,8 +1749,6 @@ class MessageExportTest(TembaTest):
                 ],
                 self.org.timezone,
             )
-
-        self.clear_storage()
 
 
 class BroadcastTest(TembaTest):
@@ -3084,7 +3073,7 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
                 "uuid": "b97f69f7-5edf-45c7-9fda-d37066eae91d",
                 "content_type": "image/jpeg",
                 "type": "image/jpeg",
-                "url": f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
+                "url": f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
                 "name": "steve marten.jpg",
                 "size": 7461,
             },
@@ -3096,7 +3085,7 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
                 "uuid": "14f6ea01-456b-4417-b0b8-35e942f549f1",
                 "content_type": "video/mp4",
                 "type": "video/mp4",
-                "url": f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.mp4",
+                "url": f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.mp4",
                 "name": "snow.mp4",
                 "size": 684558,
             },
@@ -3108,7 +3097,7 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
                 "uuid": "9295ebab-5c2d-4eb1-86f9-7c15ed2f3219",
                 "content_type": "audio/mp4",
                 "type": "audio/mp4",
-                "url": f"/media/test_orgs/{self.org.id}/media/9295/9295ebab-5c2d-4eb1-86f9-7c15ed2f3219/bubbles.m4a",
+                "url": f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/9295/9295ebab-5c2d-4eb1-86f9-7c15ed2f3219/bubbles.m4a",
                 "name": "bubbles.m4a",
                 "size": 46468,
             },
@@ -3132,8 +3121,6 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
                 response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
                 self.assertEqual({"error": "Limit for file uploads is 0.0009765625 MB"}, response.json())
 
-        self.clear_storage()
-
     def test_list(self):
         upload_url = reverse("msgs.media_upload")
         list_url = reverse("msgs.media_list")
@@ -3152,8 +3139,6 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.customer_support, choose_org=self.org)
         response = self.client.get(list_url)
         self.assertEqual([media2, media1], list(response.context["object_list"]))
-
-        self.clear_storage()
 
 
 class TrimOldBroadcastsToNodesTest(MigrationTest):

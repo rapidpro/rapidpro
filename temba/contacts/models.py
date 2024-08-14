@@ -1943,7 +1943,7 @@ class ContactExport(ExportType):
 
 def get_import_upload_path(instance: Any, filename: str):
     ext = Path(filename).suffix.lower()
-    return f"{settings.STORAGE_ROOT_DIR}/{instance.org_id}/contact_imports/{uuid4()}{ext}"
+    return f"orgs/{instance.org_id}/contact_imports/{uuid4()}{ext}"
 
 
 class ContactImport(SmartModel):

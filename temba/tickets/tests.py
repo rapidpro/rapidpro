@@ -3,7 +3,7 @@ from unittest.mock import call, patch
 
 from openpyxl import load_workbook
 
-from django.conf import settings
+from django.core.files.storage import default_storage
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -717,8 +717,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             export.config,
         )
 
-        self.clear_storage()
-
 
 class TicketExportTest(TembaTest):
     def _export(self, start_date: date, end_date: date, with_fields=(), with_groups=()):
@@ -731,8 +729,8 @@ class TicketExportTest(TembaTest):
             with_groups=with_groups,
         )
         export.perform()
-        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx"
-        workbook = load_workbook(filename=filename)
+
+        workbook = load_workbook(filename=default_storage.open(f"orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx"))
         return workbook.worksheets, export
 
     def test_export_empty(self):
@@ -776,8 +774,6 @@ class TicketExportTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
-
-        self.clear_storage()
 
     def test_export(self):
         gender = self.create_field("gender", "Gender")
@@ -1042,8 +1038,6 @@ class TicketExportTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
-
-        self.clear_storage()
 
 
 class TopicTest(TembaTest):

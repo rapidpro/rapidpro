@@ -3012,16 +3012,7 @@ class ExportCRUDL(SmartCRUDL):
             if str_to_bool(request.GET.get("raw", 0)):
                 export = self.get_object()
 
-                url, filename, mime_type = export.get_raw_access()
-
-                if url.startswith("http"):  # pragma: needs cover
-                    response = HttpResponseRedirect(url)
-                else:
-                    asset_file = open("." + url, "rb")
-                    response = HttpResponse(asset_file, content_type=mime_type)
-                    response["Content-Disposition"] = "attachment; filename=%s" % filename
-
-                return response
+                return HttpResponseRedirect(export.get_raw_url())
 
             return super().get(request, *args, **kwargs)
 

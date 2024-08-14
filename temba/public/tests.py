@@ -1,6 +1,5 @@
-from unittest.mock import MagicMock
-
-from django.core.files import File
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from temba import __version__ as temba_version
@@ -45,22 +44,33 @@ class PublicTest(TembaTest):
         response = self.client.get(android_url, follow=True)
         self.assertEqual(404, response.status_code)
 
-        apk_file_mock = MagicMock(spec=File)
-        apk_file_mock.name = "relayer.apk"
-        apk = Apk.objects.create(apk_type="R", version="1.9.8", description="* better syncing", apk_file=apk_file_mock)
-
-        android_url = reverse("public.public_android")
-        response = self.client.get(android_url, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], apk.apk_file.url)
-
-        apk_pack_file_mock = MagicMock(spec=File)
-        apk_pack_file_mock.name = "pack.apk"
-        pack_apk = Apk.objects.create(
-            apk_type="M", version="1.9.8", pack=1, description="* latest pack", apk_file=apk_pack_file_mock
+        Apk.objects.create(
+            apk_type="R",
+            version="1.9.8",
+            description="* better syncing",
+            apk_file=SimpleUploadedFile(
+                "relayer.apk", content=b"DATA", content_type="application/vnd.android.package-archive"
+            ),
         )
 
-        response = self.client.get(f"{android_url}?v=1.9.8&pack=1", follow=True)
-        self.assertEqual(response.request["PATH_INFO"], pack_apk.apk_file.url)
+        android_url = reverse("public.public_android")
+        response = self.client.get(android_url)
+        self.assertEqual(302, response.status_code)
+        self.assertIn(f"{settings.STORAGE_URL}/apks/relayer", response.url)
+
+        Apk.objects.create(
+            apk_type="M",
+            version="1.9.8",
+            pack=1,
+            description="* latest pack",
+            apk_file=SimpleUploadedFile(
+                "pack.apk", content=b"DATA", content_type="application/vnd.android.package-archive"
+            ),
+        )
+
+        response = self.client.get(f"{android_url}?v=1.9.8&pack=1")
+        self.assertEqual(302, response.status_code)
+        self.assertIn(f"{settings.STORAGE_URL}/apks/pack", response.url)
 
     def test_welcome(self):
         welcome_url = reverse("public.public_welcome")

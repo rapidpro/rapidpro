@@ -3918,7 +3918,7 @@ class EndpointsTest(APITest):
             {
                 "uuid": "b97f69f7-5edf-45c7-9fda-d37066eae91d",
                 "content_type": "image/jpeg",
-                "url": f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
+                "url": f"{settings.STORAGE_URL}/orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
                 "filename": "steve marten.jpg",
                 "size": 7461,
             },
@@ -3927,8 +3927,6 @@ class EndpointsTest(APITest):
 
         media = Media.objects.get()
         self.assertEqual(Media.STATUS_READY, media.status)
-
-        self.clear_storage()
 
     @mock_mailroom
     def test_messages(self, mr_mocks):
@@ -4203,8 +4201,6 @@ class EndpointsTest(APITest):
         self.assertIsNone(msg_json["channel"])
         self.assertIsNone(msg_json["urn"])
         self.assertEqual("failed", msg_json["status"])
-
-        self.clear_storage()
 
     def test_message_actions(self):
         endpoint_url = reverse("api.v2.message_actions") + ".json"

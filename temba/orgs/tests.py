@@ -1403,7 +1403,7 @@ class OrgDeleteTest(TembaTest):
             body, md5, size = jsonlgz_encode([{"id": 1}])
             archive = Archive.objects.create(
                 org=org,
-                url=f"http://temba-archives.aws.com/{file}",
+                url=f"http://test-archives.aws.com/{file}",
                 start_date=timezone.now(),
                 build_time=100,
                 archive_type=Archive.TYPE_MSG,
@@ -1412,14 +1412,14 @@ class OrgDeleteTest(TembaTest):
                 size=size,
                 hash=md5,
             )
-            self.mock_s3.put_object("temba-archives", file, body)
+            self.mock_s3.put_object("test-archives", file, body)
             return archive
 
         daily = add(create_archive(org, Archive.PERIOD_DAILY))
         add(create_archive(org, Archive.PERIOD_MONTHLY, daily))
 
         # extra S3 file in archive dir
-        self.mock_s3.put_object("temba-archives", f"{org.id}/extra_file.json", io.StringIO("[]"))
+        self.mock_s3.put_object("test-archives", f"{org.id}/extra_file.json", io.StringIO("[]"))
 
     def _exists(self, obj) -> bool:
         return obj._meta.model.objects.filter(id=obj.id).exists()
@@ -1521,9 +1521,9 @@ class OrgDeleteTest(TembaTest):
         # only org 2 files left in S3
         self.assertEqual(
             [
-                ("temba-archives", f"{self.org2.id}/archive2.jsonl.gz"),
-                ("temba-archives", f"{self.org2.id}/archive3.jsonl.gz"),
-                ("temba-archives", f"{self.org2.id}/extra_file.json"),
+                ("test-archives", f"{self.org2.id}/archive2.jsonl.gz"),
+                ("test-archives", f"{self.org2.id}/archive3.jsonl.gz"),
+                ("test-archives", f"{self.org2.id}/extra_file.json"),
             ],
             list(self.mock_s3.objects.keys()),
         )
@@ -3878,9 +3878,7 @@ class BulkExportTest(TembaTest):
         export = DefinitionExport.create(self.org, self.admin, flows=flows, campaigns=campaigns)
         export.perform()
 
-        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/definition_exports/{export.uuid}.json"
-
-        with open(filename) as export_file:
+        with default_storage.open(f"orgs/{self.org.id}/definition_exports/{export.uuid}.json") as export_file:
             definitions = json.loads(export_file.read())
 
         return definitions, export
@@ -4669,16 +4667,11 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(1, self.admin.notifications.filter(notification_type="export:finished", is_seen=False).count())
 
         download_url = reverse("orgs.export_download", kwargs={"uuid": export.uuid})
-
         self.assertEqual(f"/export/download/{export.uuid}/", download_url)
-        self.assertEqual(
-            (
-                f"/media/test_orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx",
-                f"tickets_{datetime.today().strftime(r'%Y%m%d')}.xlsx",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            ),
-            export.get_raw_access(),
-        )
+
+        raw_url = export.get_raw_url()
+        self.assertIn(f"{settings.STORAGE_URL}/orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx", raw_url)
+        self.assertIn(f"tickets_{datetime.today().strftime(r'%Y%m%d')}.xlsx", raw_url)
 
         response = self.client.get(download_url)
         self.assertLoginRedirect(response)
@@ -4697,7 +4690,4 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(0, self.admin.notifications.filter(notification_type="export:finished", is_seen=False).count())
 
         response = self.client.get(download_url + "?raw=1")
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
-        )
+        self.assertRedirect(response, f"/test-default/orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx")

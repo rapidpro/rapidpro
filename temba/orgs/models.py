@@ -1,6 +1,5 @@
 import itertools
 import logging
-import mimetypes
 import os
 from abc import ABCMeta
 from collections import defaultdict
@@ -16,7 +15,6 @@ import pyotp
 import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
-from storages.backends.s3boto3 import S3Boto3Storage
 from timezone_field import TimeZoneField
 
 from django.conf import settings
@@ -1407,7 +1405,7 @@ class OrgMembership(models.Model):
 
 def get_import_upload_path(instance: Any, filename: str):
     ext = Path(filename).suffix.lower()
-    return f"{settings.STORAGE_ROOT_DIR}/{instance.org_id}/org_imports/{uuid4()}{ext}"
+    return f"orgs/{instance.org_id}/org_imports/{uuid4()}{ext}"
 
 
 class OrgImport(SmartModel):
@@ -1653,7 +1651,7 @@ class Export(TembaUUIDMixin, models.Model):
             temp_file, extension, num_records = self.type.write(self)
 
             # save file to storage
-            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.slug + "_exports")
+            directory = os.path.join("orgs", str(self.org.id), self.type.slug + "_exports")
             path = f"{directory}/{self.uuid}.{extension}"
             default_storage.save(path, File(temp_file))
 
@@ -1761,23 +1759,19 @@ class Export(TembaUUIDMixin, models.Model):
     def type(self):
         return self._get_types()[self.export_type]
 
-    def get_raw_access(self) -> tuple[str]:
+    def get_raw_url(self) -> tuple[str]:
         """
-        Gets a tuple of 1) raw storage URL, 2) a friendly filename and 3) its MIME type
+        Gets the raw storage URL
         """
 
         filename = self._get_download_filename()
+        url = default_storage.url(
+            self.path,
+            parameters=dict(ResponseContentDisposition=f"attachment;filename={filename}"),
+            http_method="GET",
+        )
 
-        if isinstance(default_storage, S3Boto3Storage):  # pragma: needs cover
-            url = default_storage.url(
-                self.path,
-                parameters=dict(ResponseContentDisposition=f"attachment;filename={filename}"),
-                http_method="GET",
-            )
-        else:
-            url = default_storage.url(self.path)
-
-        return url, filename, mimetypes.guess_type(self.path)[0]
+        return url
 
     def _get_download_filename(self):
         """

@@ -1,17 +1,15 @@
-import os
 from dataclasses import dataclass
 
 import polib
 import pycountry
 
-from django.conf import settings
 from django.core.files.storage import default_storage
 
 from .uuid import uuid4
 
 
 def po_get_path(org, uuid):
-    return os.path.join(settings.STORAGE_ROOT_DIR, str(org.id), "po_imports", uuid + ".po")
+    return f"orgs/{org.id}/po_imports/{uuid}.po"
 
 
 def po_save(org, data):

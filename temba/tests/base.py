@@ -1,5 +1,4 @@
 import copy
-import shutil
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
@@ -152,12 +151,6 @@ class TembaTest(SmartminTest):
 
         r = get_redis_connection()
         r.flushdb()
-
-    def clear_storage(self):
-        """
-        If a test has written files to storage, it should remove them by calling this
-        """
-        shutil.rmtree("%s/%s" % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
     def login(self, user, update_last_auth_on: bool = True, choose_org=None):
         self.assertTrue(

@@ -1,4 +1,5 @@
 import io
+import tempfile
 from datetime import date, datetime, timedelta, timezone as tzone
 from decimal import Decimal
 from unittest.mock import call, patch
@@ -8,7 +9,7 @@ from zoneinfo import ZoneInfo
 import iso8601
 from openpyxl import load_workbook
 
-from django.conf import settings
+from django.core.files.storage import default_storage
 from django.core.validators import ValidationError
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
@@ -772,8 +773,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             {"group_id": self.org.active_contacts_group.id, "search": None, "with_groups": [big_group.id]},
             export.config,
         )
-
-        self.clear_storage()
 
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
@@ -4373,7 +4372,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         imp = ContactImport.objects.get()
         self.assertEqual(self.org, imp.org)
         self.assertEqual(3, imp.num_records)
-        self.assertRegex(imp.file.name, rf"test_orgs/{self.org.id}/contact_imports/[\w-]{{36}}.xlsx$")
+        self.assertRegex(imp.file.name, rf"orgs/{self.org.id}/contact_imports/[\w-]{{36}}.xlsx$")
         self.assertEqual("simple.xlsx", imp.original_filename)
         self.assertIsNone(imp.started_on)
         self.assertIsNone(imp.group)
@@ -4633,14 +4632,13 @@ class ContactExportTest(TembaTest):
         with self.mockReadOnly(assert_models={Contact, ContactURN, ContactField}):
             export.perform()
 
-        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx"
-        workbook = load_workbook(filename=filename)
+        workbook = load_workbook(
+            filename=default_storage.open(f"orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx")
+        )
         return workbook.worksheets, export
 
     @mock_mailroom
     def test_export(self, mr_mocks):
-        self.clear_storage()
-
         # archive all our current contacts
         Contact.apply_action_block(self.admin, self.org.contacts.all())
 
@@ -4686,8 +4684,12 @@ class ContactExportTest(TembaTest):
         ContactURN.objects.create(org=self.org, identity="line:12345", scheme="line", path="12345")
 
         def assertReimport(export):
-            filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx"
-            self.create_contact_import(filename)
+            with default_storage.open(f"orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx") as exp:
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                    tmp.write(exp.read())
+                    tmp.close()
+
+                    self.create_contact_import(tmp.name)
 
         with self.assertNumQueries(22):
             sheets, export = self._export(self.org.active_contacts_group, with_groups=[group1])
