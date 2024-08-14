@@ -1,3 +1,7 @@
+v9.3.20 (2024-08-14)
+-------------------------
+ * Rework S3 code to always use real S3 clients, even in tests
+
 v9.3.19 (2024-08-14)
 -------------------------
  * Fix DTOne formax section
