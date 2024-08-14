@@ -7,6 +7,7 @@ from datetime import date, datetime, timezone as tzone
 from django.urls import reverse
 
 from temba.tests import CRUDLTestMixin, TembaTest
+from temba.utils import s3
 
 from .models import Archive, jsonlgz_rewrite
 
@@ -20,7 +21,7 @@ class ArchiveTest(TembaTest):
         def record_s3(model, params, **kwargs):
             self.s3_calls.append((model.name, params))
 
-        Archive.storage().connection.meta.client.meta.events.register("provide-client-params.s3.*", record_s3)
+        s3.client().meta.events.register("provide-client-params.s3.*", record_s3)
 
     def test_iter_records(self):
         archive = self.create_archive(Archive.TYPE_MSG, "D", date(2024, 8, 14), [{"id": 1}, {"id": 2}, {"id": 3}])
@@ -72,7 +73,7 @@ class ArchiveTest(TembaTest):
                     },
                 ),
             ],
-            self.s3_calls[3:],
+            self.s3_calls,
         )
 
     def test_iter_all_records(self):
@@ -237,7 +238,7 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         archive = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}])
 
         download_url = (
-            f"http://minio:9000/test-archives/{self.org.id}/message_D20200731_{archive.hash}.jsonl.gz?response-con"
+            f"http://localhost:9000/test-archives/{self.org.id}/message_D20200731_{archive.hash}.jsonl.gz?response-con"
             f"tent-disposition=attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
         )
 

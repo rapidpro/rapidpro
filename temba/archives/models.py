@@ -1,6 +1,7 @@
 import base64
 import gzip
 import hashlib
+import io
 import re
 import tempfile
 from datetime import date, datetime
@@ -286,6 +287,19 @@ def jsonlgz_rewrite(in_file, out_file, transform) -> tuple:
     out_stream.close()
 
     return out_wrapped.hash, out_wrapped.size
+
+
+def jsonlgz_encode(records: list) -> tuple:
+    stream = io.BytesIO()
+    wrapper = FileAndHash(stream)
+    gz = gzip.GzipFile(fileobj=wrapper, mode="wb")
+
+    for record in records:
+        gz.write(json.dumps(record).encode("utf-8"))
+        gz.write(b"\n")
+    gz.close()
+
+    return stream, wrapper.hash.hexdigest(), wrapper.size
 
 
 class FileAndHash:

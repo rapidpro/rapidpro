@@ -19,7 +19,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import override_settings
 from django.utils import timezone
 
-from temba.archives.models import Archive
+from temba.archives.models import Archive, jsonlgz_encode
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport
 from temba.flows.models import Flow, FlowRun, FlowSession
@@ -39,7 +39,6 @@ from .mailroom import (
     resolve_destination,
     update_field_locally,
 )
-from .s3 import jsonlgz_encode
 
 
 def add_testing_flag_to_context(*args):

@@ -46,7 +46,7 @@ class EventStreamReader:
                 lines = self.buffer.splitlines(keepends=True)
 
                 # if last line doesn't end with \n then it's incomplete and goes back in the buffer
-                if not lines[-1].endswith(b"\n"):
+                if not lines[-1].endswith(b"\n"):  # pragma: no cover
                     self.buffer = bytearray(lines[-1])
                     lines = lines[:-1]
 
