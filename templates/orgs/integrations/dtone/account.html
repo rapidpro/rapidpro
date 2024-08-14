@@ -5,9 +5,6 @@
   {% if integration_connected %}
     <div class="flex items-center">
       <div class="flex-grow mr-4">{% trans "Connected to your DT One account." %}</div>
-      <div class="buttons">
-        <a href="{% url "airtime.airtimetransfer_list" %}" class="button-light">{% trans "Transfer Log" %}</a>
-      </div>
     </div>
   {% else %}
     {% trans "Connect your DT One account." %}
@@ -34,12 +31,26 @@
   </div>
 {% endif %}
 {% endblock fields %}
+{% block form-buttons %}
+  <div class="form-actions">
+    {% if not integration_connected %}
+      <input type="submit" class="button-primary" value="{% trans "Connect" %}">
+    {% endif %}
+  </div>
+{% endblock form-buttons %}
 {% block post-form %}
   {% if integration_connected %}
-    <div class="mt-4">{% trans "Your account is connected to a DT One account." %}</div>
     <div class="mt-4">
+      {% trans "Your account is connected to a DT One account." %}
+      <div class="buttons inline float-right">
+        <a href="{% url "airtime.airtimetransfer_list" %}" class="button-light">{% trans "Transfer Log" %}</a>
+      </div>
+    </div>
+    <div class="my-4">
       {% blocktrans trimmed with disconnect_url='javascript:confirmDTOneDisconnect();' %}
-        If you no longer want it connected, you can <a href="{{ disconnect_url }}">disconnect</a> it.
+        If you no longer want it connected, you can
+        <button type="button" class="linked focus:outline-none" onclick="{{ disconnect_url }}">disconnect</button>
+        it.
         Doing so will cause the payment actions in your flows to no longer be processed.
       {% endblocktrans %}
     </div>
