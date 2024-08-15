@@ -279,14 +279,8 @@ class User(AuthUser):
 
         return role.has_perm(permission)
 
-    def get_api_token(self, org) -> str:
-        from temba.api.models import APIToken
-
-        try:
-            token = APIToken.get_or_create(org, self)
-            return token.key
-        except ValueError:
-            return None
+    def get_tokens(self, org):
+        return self.api_tokens.filter(org=org, is_active=True)
 
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}

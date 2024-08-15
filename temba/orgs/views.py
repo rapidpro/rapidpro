@@ -590,7 +590,7 @@ class UserCRUDL(SmartCRUDL):
         "two_factor_disable",
         "two_factor_tokens",
         "account",
-        "token",
+        "tokens",
         "verify_email",
         "send_verification_email",
     )
@@ -1135,30 +1135,39 @@ class UserCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["two_factor_enabled"] = self.request.user.settings.two_factor_enabled
+            context["num_tokens"] = self.request.user.get_tokens(self.request.org).count()
             return context
 
         def derive_formax_sections(self, formax, context):
             formax.add_section("profile", reverse("orgs.user_edit"), icon="user")
 
-            if self.has_org_perm("orgs.user_token"):
-                formax.add_section("token", reverse("orgs.user_token"), icon="upload", nobutton=True)
-
-    class Token(InferUserMixin, OrgPermsMixin, SmartUpdateView):
+    class Tokens(SpaMixin, InferUserMixin, ContentMenuMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
+            new = forms.BooleanField(required=False)
+
             class Meta:
                 model = User
                 fields = ()
 
         form_class = Form
-        submit_button_name = _("Regenerate")
+        title = _("API Tokens")
+        menu_path = "/settings/account"
+        success_url = "@orgs.user_tokens"
+        token_limit = 3
+
+        def build_content_menu(self, menu):
+            if self.request.user.get_tokens(self.request.org).count() < self.token_limit:
+                menu.add_url_post(_("New Token"), reverse("orgs.user_tokens") + "?new=1", as_button=True)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["api_token"] = self.request.user.get_api_token(self.request.org)
+            context["tokens"] = self.request.user.get_tokens(self.request.org).order_by("created")
+            context["token_limit"] = self.token_limit
             return context
 
         def form_valid(self, form):
-            APIToken.get_or_create(self.request.org, self.request.user, refresh=True)
+            if self.request.user.get_tokens(self.request.org).count() < self.token_limit:
+                APIToken.create(self.request.org, self.request.user)
 
             return super().form_valid(form)
 
