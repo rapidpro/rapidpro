@@ -8,7 +8,6 @@ jobs:
       python-version: '3.11.x'
       node-version: '20'
       mailroom-version: '9.1.78'
-      DJANGO_SETTINGS_MODULE: temba.settings_ci
 
     services:
       redis:
