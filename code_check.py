@@ -32,8 +32,8 @@ def status(line):
 if __name__ == "__main__":
     colorama.init()
 
-    status("Make any missing migrations")
-    cmd("python manage.py makemigrations")
+    status("Check for missing migrations")
+    cmd("python manage.py makemigrations --check")
 
     status("Running isort")
     cmd("isort temba")
@@ -44,9 +44,4 @@ if __name__ == "__main__":
     status("Running ruff")
     cmd("ruff check temba")
 
-    # if any code changes were made, exit with error
-    if cmd("git diff temba locale"):
-        print("👎 " + colorama.Fore.RED + "Changes to be committed")
-        exit(1)
-    else:
-        print("👍 " + colorama.Fore.GREEN + "Code looks good. Make that PR!")
+    print("👍 " + colorama.Fore.GREEN + "Code looks good. Make that PR!")

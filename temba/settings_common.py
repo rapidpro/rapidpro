@@ -18,6 +18,10 @@ SECRET_KEY = "your own secret key"
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500  # needed for exports of big workspaces
 
+_db_host = "postgres"
+_redis_host = "redis"
+_minio_host = "minio"
+
 # -----------------------------------------------------------------------------------
 # Tests
 # -----------------------------------------------------------------------------------
@@ -29,15 +33,6 @@ if TESTING:
 
 TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
 TEST_EXCLUDE = ("smartmin",)
-
-if os.getenv("REMOTE_CONTAINERS") == "true":
-    _db_host = "postgres"
-    _redis_host = "redis"
-    _minio_host = "minio"
-else:
-    _db_host = "localhost"
-    _redis_host = "localhost"
-    _minio_host = "localhost"
 
 # -----------------------------------------------------------------------------------
 # Email
