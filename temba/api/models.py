@@ -76,6 +76,10 @@ class APIPermission(BasePermission):
         if request.auth:
             # auth token was used
             role = org.get_user_role(request.auth.user)
+
+            # only editors and administrators can use API tokens
+            if role not in (OrgRole.EDITOR, OrgRole.ADMINISTRATOR):
+                return False
         elif org:
             role = org.get_user_role(request.user)
         else:

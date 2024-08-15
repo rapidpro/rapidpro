@@ -2134,11 +2134,6 @@ class OrgCRUDL(SmartCRUDL):
                 elif org.get_user_role(user) != new_role:
                     org.add_user(user, new_role)
 
-                # when a user's role changes, delete any API tokens they're no longer allowed to have
-                for token in APIToken.objects.filter(org=org, user=user):
-                    if not token.is_valid():
-                        token.release()
-
             return obj
 
         def get_context_data(self, **kwargs):

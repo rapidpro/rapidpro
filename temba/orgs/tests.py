@@ -1656,11 +1656,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
         self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
 
-        # our second editors API token should be deleted
-        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 1)
-        self.assertEqual(self.editor.api_tokens.filter(is_active=True).count(), 1)
-        self.assertEqual(editor2.api_tokens.filter(is_active=True).count(), 0)
-
         # pretend our first invite was acted on
         invitation1.release()
 
@@ -1723,14 +1718,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({self.user}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
         self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
         self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.AGENT])))
-
-        # editor will have lost their API tokens
-        self.editor.refresh_from_db()
-        self.assertEqual(0, self.editor.api_tokens.filter(is_active=True).count())
-
-        # and all our API tokens for the admin are deleted
-        self.admin.refresh_from_db()
-        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
     def test_manage_children(self):
         children_url = reverse("orgs.org_sub_orgs")

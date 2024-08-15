@@ -536,7 +536,14 @@ class EndpointsTest(APITest):
         response = request_by_token(fields_url, token1.key)
         self.assertEqual(response.status_code, 429)
 
-        # if user is inactive, disallow the request
+        # if user is demoted to a role that can't use tokens, tokens shouldn't work for them
+        self.org.add_user(self.admin, OrgRole.VIEWER)
+
+        self.assertEqual(request_by_token(campaigns_url, token1.key).status_code, 403)
+        self.assertEqual(request_by_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
+
+        # and if user is inactive, disallow the request
+        self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
         self.admin.is_active = False
         self.admin.save()
 
