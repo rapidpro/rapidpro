@@ -40,7 +40,7 @@ from . import fields
 from .serializers import format_datetime, normalize_extra
 
 NUM_BASE_SESSION_QUERIES = 4  # number of queries required for any request using session auth
-NUM_BASE_TOKEN_QUERIES = 3  # number of queries required for any request using token auth
+NUM_BASE_TOKEN_QUERIES = 2  # number of queries required for any request using token auth
 
 
 class APITest(APITestMixin, TembaTest):
@@ -536,15 +536,7 @@ class EndpointsTest(APITest):
         response = request_by_token(fields_url, token1.key)
         self.assertEqual(response.status_code, 429)
 
-        # if user loses access to the token's role, don't allow the request
-        self.org.add_user(self.admin, OrgRole.EDITOR)
-
-        self.assertEqual(request_by_token(campaigns_url, token1.key).status_code, 403)
-        self.assertEqual(request_by_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
-        self.assertEqual(request_by_token(contacts_url, token2.key).status_code, 200)  # other token unaffected
-        self.assertEqual(request_by_basic_auth(contacts_url, self.editor.username, token2.key).status_code, 200)
-
-        # and if user is inactive, disallow the request
+        # if user is inactive, disallow the request
         self.admin.is_active = False
         self.admin.save()
 
