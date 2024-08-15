@@ -74,13 +74,13 @@ class APIPermission(BasePermission):
         org = request.org
 
         if request.auth:
-            # check that user is still allowed to use the token's role
-            if not request.auth.is_valid():
-                return False
+            # auth token was used
+            role = org.get_user_role(request.auth.user)
 
-            role = OrgRole.from_group(request.auth.role)
+            # only editors and administrators can use API tokens
+            if role not in (OrgRole.EDITOR, OrgRole.ADMINISTRATOR):
+                return False
         elif org:
-            # user may not have used token authentication
             role = org.get_user_role(request.user)
         else:
             return False
@@ -259,14 +259,6 @@ class APIToken(models.Model):
             return None
 
         return role
-
-    def is_valid(self) -> bool:
-        """
-        A user's role in an org can change so this return whether this token is still valid.
-        """
-        role = self.org.get_user_role(self.user)
-        roles_allowed_this_perm_group = self.GROUP_GRANTED_TO.get(self.role.name, ())
-        return role and role in roles_allowed_this_perm_group
 
     def record_used(self):
         r = get_redis_connection()

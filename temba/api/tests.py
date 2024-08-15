@@ -48,17 +48,6 @@ class APITokenTest(TembaTest):
         self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.admin, role=OrgRole.VIEWER)
         self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.user)
 
-    def test_is_valid(self):
-        token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
-        token2 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.EDITOR)
-
-        # demote admin to an editor
-        self.org.add_user(self.admin, OrgRole.EDITOR)
-        self.admin.refresh_from_db()
-
-        self.assertFalse(token1.is_valid())
-        self.assertTrue(token2.is_valid())
-
     def test_get_default_role(self):
         self.assertEqual(APIToken.get_default_role(self.org, self.admin), OrgRole.ADMINISTRATOR)
         self.assertEqual(APIToken.get_default_role(self.org, self.editor), OrgRole.EDITOR)
