@@ -5,7 +5,6 @@ from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -214,9 +213,6 @@ class APIToken(models.Model):
     created = models.DateTimeField(default=timezone.now)
     last_used_on = models.DateTimeField(null=True)
     is_active = models.BooleanField(default=True)
-
-    # TODO remove
-    role = models.ForeignKey(Group, on_delete=models.PROTECT, null=True)
 
     @classmethod
     def create(cls, org, user):
