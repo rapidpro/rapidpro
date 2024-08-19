@@ -1,3 +1,7 @@
+v9.3.22 (2024-08-19)
+-------------------------
+ * Drop APIToken.role field
+
 v9.3.21 (2024-08-19)
 -------------------------
  * Use correct URL when breaking spa-container
