@@ -669,6 +669,8 @@ class UserTest(TembaTest):
         self.assertFalse(self.editor.is_active)
 
     def test_release(self):
+        token = APIToken.create(self.org, self.admin)
+
         # admin doesn't "own" any orgs
         self.assertEqual(0, len(self.admin.get_owned_orgs()))
 
@@ -688,6 +690,9 @@ class UserTest(TembaTest):
         # and we take our org with us
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
+
+        token.refresh_from_db()
+        self.assertFalse(token.is_active)
 
 
 class OrgTest(TembaTest):

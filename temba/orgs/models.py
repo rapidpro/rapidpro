@@ -301,6 +301,9 @@ class User(AuthUser):
         self.is_active = False
         self.save()
 
+        # release any API tokens
+        self.api_tokens.update(is_active=False)
+
         # release any orgs we own
         for org in self.get_owned_orgs():
             org.release(user, release_users=False)
