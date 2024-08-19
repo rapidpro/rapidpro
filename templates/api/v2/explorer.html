@@ -17,9 +17,16 @@
     </div>
     <div class="mb-4">
       <temba-alert level="warning">
-        {% blocktrans trimmed with org=user_org.name %}
-          All operations work against real data in the <b>{{ org }}</b> workspace.
-        {% endblocktrans %}
+        {% if api_token %}
+          {% blocktrans trimmed with org=user_org.name %}
+            All operations work against real data in the <b>{{ org }}</b> workspace.
+          {% endblocktrans %}
+        {% else %}
+          {% url "orgs.user_tokens" as tokens_url %}
+          {% blocktrans trimmed with org=user_org.name %}
+            To use the explorer you need to first create <a href="{{ tokens_url }}">an API token</a>.
+          {% endblocktrans %}
+        {% endif %}
       </temba-alert>
     </div>
     {% for endpoint in endpoints %}
@@ -83,8 +90,10 @@
                 https://{{ branding.domain }}{{ endpoint.url }}.json<span class="query-display"></span>
                 <br />
               </div>
-              <b class="font-bold">Authorization:</b>
-              <div class="md:text-base md:inline whitespace-nowrap text-sm">Token {{ api_token }}</div>
+              {% if api_token %}
+                <b class="font-bold">Authorization:</b>
+                <div class="md:text-base md:inline whitespace-nowrap text-sm">Token {{ api_token }}</div>
+              {% endif %}
             </div>
             {% if endpoint.params %}
               <div class="md:flex form-group items-center">
@@ -113,8 +122,6 @@
             {% if api_token %}
               <div onclick="javascript:handleRequest('{{ endpoint.slug }}', '{{ endpoint.method }}', '{{ endpoint.url }}.json')"
                    class="button-primary">{{ endpoint.method|upper }}</div>
-            {% else %}
-              <span>{% trans "Log in to use the Explorer" %}</span>
             {% endif %}
           </div>
           <pre style="margin-bottom:0;" class="prettyprint result mb-0 mt-4 p-4" id="result-{{ endpoint.slug }}"></pre>

@@ -3,7 +3,7 @@
 
 {% block content %}
   {% include "formax.html" %}
-  <div class="flex flex-row bg-gray-200 border border-gray-400 rounded-lg cursor-pointer items-center"
+  <div class="flex flex-row bg-gray-200 border border-gray-400 rounded-lg cursor-pointer items-center mb-4"
        onclick="goto(event, this)"
        href="{% if two_factor_enabled %}{% url 'orgs.user_two_factor_disable' %}{% else %}{% url 'orgs.user_two_factor_enable' %}{% endif %}">
     <div class="m-8 text-4xl text-gray-600 items-center">
@@ -25,4 +25,21 @@
       </div>
     </div>
   </div>
+  {% if org_perms.orgs.user_tokens %}
+    <div class="flex flex-row bg-gray-200 border border-gray-400 rounded-lg cursor-pointer items-center mb-4"
+         onclick="goto(event, this)"
+         href="{% url 'orgs.user_tokens' %}">
+      <div class="m-8 text-4xl text-gray-600 items-center">
+        <temba-icon name="user_token">
+        </temba-icon>
+      </div>
+      <div class="flex-grow p-6">
+        {% blocktrans trimmed count count=num_api_tokens %}
+          You have <b>{{ count }}</b> active API token.
+        {% plural %}
+          You have <b>{{ count }}</b> active API tokens.
+        {% endblocktrans %}
+      </div>
+    </div>
+  {% endif %}
 {% endblock content %}

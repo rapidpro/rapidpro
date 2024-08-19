@@ -1,0 +1,11 @@
+{% extends "includes/modax.html" %}
+{% load i18n %}
+
+{% block fields %}
+  {% blocktrans with prefix=object.key|truncatechars:7 %}
+    You are about to delete the API token <b>{{ prefix }}</b>. There is no way to undo this. Are you sure?
+  {% endblocktrans %}
+{% endblock fields %}
+{% block form-buttons %}
+  <input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">
+{% endblock form-buttons %}

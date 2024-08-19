@@ -467,9 +467,9 @@ class EndpointsTest(APITest):
         campaigns_url = reverse("api.v2.campaigns")
         fields_url = reverse("api.v2.fields")
 
-        token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
-        token2 = APIToken.get_or_create(self.org, self.editor, role=OrgRole.EDITOR)
-        token3 = APIToken.get_or_create(self.org, self.customer_support, role=OrgRole.ADMINISTRATOR)
+        token1 = APIToken.create(self.org, self.admin)
+        token2 = APIToken.create(self.org, self.editor)
+        token3 = APIToken.create(self.org, self.customer_support)
 
         # can request fields endpoint using all 3 methods
         response = request_by_token(fields_url, token1.key)
@@ -608,8 +608,15 @@ class EndpointsTest(APITest):
         self.assertEqual(200, response.status_code)
 
         self.login(self.admin)
+
         response = self.client.get(explorer_url)
-        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "To use the explorer you need to first create")
+        self.assertContains(response, reverse("orgs.user_tokens"))
+
+        APIToken.create(self.org, self.admin)
+
+        response = self.client.get(explorer_url)
+        self.assertContains(response, "All operations work against real data in the <b>Nyaruka</b> workspace.")
 
     def test_pagination(self):
         endpoint_url = reverse("api.v2.runs") + ".json"
