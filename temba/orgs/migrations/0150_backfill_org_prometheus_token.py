@@ -13,6 +13,6 @@ def backfill_prometheus_token(apps, schema_editor):  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [("orgs", "0149_org_prometheus_token")]
+    dependencies = [("orgs", "0149_org_prometheus_token"), ("api", "0043_squashed")]
 
     operations = [migrations.RunPython(backfill_prometheus_token, migrations.RunPython.noop)]
