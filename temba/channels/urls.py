@@ -19,9 +19,10 @@ for ch_type in Channel.get_types():
         type_urls.append(re_path("^%s/" % ch_type.slug, include(channel_urls)))
 
     # register a Courier placeholder URL which will error if ever accessed directly
-    courier_urls.append(
-        re_path(ch_type.courier_url, CourierURLHandler.as_view(), name="courier.%s" % ch_type.code.lower())
-    )
+    if ch_type.courier_url:
+        courier_urls.append(
+            re_path(ch_type.courier_url, CourierURLHandler.as_view(), name="courier.%s" % ch_type.code.lower())
+        )
 
 
 urlpatterns = [

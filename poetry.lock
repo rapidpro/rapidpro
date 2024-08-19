@@ -621,17 +621,17 @@ files = [
 
 [[package]]
 name = "django"
-version = "5.0.8"
+version = "5.1"
 description = "A high-level Python web framework that encourages rapid development and clean, pragmatic design."
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "Django-5.0.8-py3-none-any.whl", hash = "sha256:333a7988f7ca4bc14d360d3d8f6b793704517761ae3813b95432043daec22a45"},
-    {file = "Django-5.0.8.tar.gz", hash = "sha256:ebe859c9da6fead9c9ee6dbfa4943b04f41342f4cea2c4d8c978ef0d10694f2b"},
+    {file = "Django-5.1-py3-none-any.whl", hash = "sha256:d3b811bf5371a26def053d7ee42a9df1267ef7622323fe70a601936725aa4557"},
+    {file = "Django-5.1.tar.gz", hash = "sha256:848a5980e8efb76eea70872fb0e4bc5e371619c70fffbe48e3e1b50b2c09455d"},
 ]
 
 [package.dependencies]
-asgiref = ">=3.7.0,<4"
+asgiref = ">=3.8.1,<4"
 sqlparse = ">=0.3.1"
 tzdata = {version = "*", markers = "sys_platform == \"win32\""}
 
@@ -744,18 +744,20 @@ tests = ["coverage"]
 
 [[package]]
 name = "django-mptt"
-version = "0.12.0"
+version = "0.16.0"
 description = "Utilities for implementing Modified Preorder Tree Traversal with your Django Models and working with trees of Model instances."
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.9"
 files = [
-    {file = "django-mptt-0.12.0.tar.gz", hash = "sha256:8ae6c3821127b529bb2f938de27bf0771b1bcbe9dbccdfba33986af78611f13a"},
-    {file = "django_mptt-0.12.0-py2.py3-none-any.whl", hash = "sha256:63b421a054bceb7406582e2be876a80b3848a5106765baea1003696348ffd628"},
+    {file = "django_mptt-0.16.0-py3-none-any.whl", hash = "sha256:8716849ba3318d94e2e100ed0923a05c1ffdf8195f8472b690dbaf737d2af3b5"},
+    {file = "django_mptt-0.16.0.tar.gz", hash = "sha256:56c9606bf0b329b5f5afd55dd8bfd073612ea1d5999b10903b09de62bee84c8e"},
 ]
 
 [package.dependencies]
-Django = ">=1.11"
 django-js-asset = "*"
+
+[package.extras]
+tests = ["coverage[toml]", "mock-django"]
 
 [[package]]
 name = "django-redis"
@@ -1959,21 +1961,21 @@ testing = ["Flask (>=1,<2)", "Flask-Sockets (>=0.2,<1)", "Jinja2 (==3.0.3)", "We
 
 [[package]]
 name = "smartmin"
-version = "5.0.9"
+version = "5.1.0"
 description = "Scaffolding system for Django object management."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "smartmin-5.0.9-py3-none-any.whl", hash = "sha256:9545ff3d6a4e3c3ae728e10c191b03fc6bb621da4b54bd7da0ec148dedd5b480"},
-    {file = "smartmin-5.0.9.tar.gz", hash = "sha256:1902e02f0432022831b56cfbc644763bdf7b0c4faa7aefd90ecae7cacced270a"},
+    {file = "smartmin-5.1.0-py3-none-any.whl", hash = "sha256:6d7ac21129f2e66e22a55240faad69e2bcbf845afefe7bff09dae51c2ae98eec"},
+    {file = "smartmin-5.1.0.tar.gz", hash = "sha256:9cb24d58ca677e837a0e2cead546c4e7ce1b74900a902319878e4418eec67e50"},
 ]
 
 [package.dependencies]
 celery = ">=5.1"
-Django = ">=4.0,<5.1"
+Django = ">=5.0,<5.2"
 redis = ">=3.5.3"
 sqlparse = ">=0.4.1,<0.6.0"
-xlrd = ">=2.0.1,<3.0.0"
+xlrd = ">=1.2.0,<2.0.0"
 xlwt = ">=1.3.0,<2.0.0"
 
 [[package]]
@@ -2202,19 +2204,14 @@ files = [
 
 [[package]]
 name = "xlrd"
-version = "2.0.1"
-description = "Library for developers to extract data from Microsoft Excel (tm) .xls spreadsheet files"
+version = "1.2.0"
+description = "Library for developers to extract data from Microsoft Excel (tm) spreadsheet files"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 files = [
-    {file = "xlrd-2.0.1-py2.py3-none-any.whl", hash = "sha256:6a33ee89877bd9abc1158129f6e94be74e2679636b8a205b43b85206c3f0bbdd"},
-    {file = "xlrd-2.0.1.tar.gz", hash = "sha256:f72f148f54442c6b056bf931dbc34f986fd0c3b0b6b5a58d013c9aef274d0c88"},
+    {file = "xlrd-1.2.0-py2.py3-none-any.whl", hash = "sha256:e551fb498759fa3a5384a94ccd4c3c02eb7c00ea424426e212ac0c57be9dfbde"},
+    {file = "xlrd-1.2.0.tar.gz", hash = "sha256:546eb36cee8db40c3eaa46c351e67ffee6eeb5fa2650b71bc4c758a29a1b29b2"},
 ]
-
-[package.extras]
-build = ["twine", "wheel"]
-docs = ["sphinx"]
-test = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "xlsxlite"
@@ -2241,4 +2238,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "41b54857008603a65722733d390d6fc76a03ece3443899f2659dadfdd401020c"
+content-hash = "1e5eca221256ae4e280d282c9442ab9d6cf06f03700b08e05474ab4bec0c704b"
