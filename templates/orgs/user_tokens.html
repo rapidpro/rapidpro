@@ -8,6 +8,10 @@
   {% endblocktrans %}
 {% endblock subtitle %}
 {% block content %}
+  {% block pre-table %}
+    <temba-modax header="{{ _("Delete Token") |escapejs }}" -temba-redirected="refreshGlobals" id="delete-token">
+    </temba-modax>
+  {% endblock pre-table %}
   <table class="list lined">
     <tr>
       <th>{% trans "Key" %}</th>
@@ -24,8 +28,33 @@
             --
           {% endif %}
         </td>
-        <td></td>
+        <td class="w-10">
+          <div style="visibility:hidden"
+               onclick="event.stopPropagation(); showDeleteTokenModal('{{ token.key }}');"
+               class="pl-2 pt-1 delete-link linked text-gray-400">
+            <temba-icon name="delete_small">
+            </temba-icon>
+          </div>
+        </td>
       </tr>
     {% endfor %}
   </table>
 {% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showDeleteTokenModal(key) {
+      var modax = document.querySelector('#delete-token');
+      modax.endpoint = `/apitoken/delete/${key}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    tr:hover .delete-link {
+      visibility: visible !important;
+    }
+  </style>
+{% endblock extra-style %}

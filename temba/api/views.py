@@ -4,16 +4,20 @@ from uuid import UUID
 import iso8601
 from rest_framework import generics, mixins, status
 from rest_framework.response import Response
+from smartmin.views import SmartCRUDL, SmartDeleteView
 
 from django.db import transaction
+from django.http import HttpResponseRedirect
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
+from temba.orgs.views import ModalMixin, OrgObjPermsMixin
 from temba.utils.models import TembaModel
 from temba.utils.views import NonAtomicMixin
 
-from .models import BulkActionFailure
+from .models import APIToken, BulkActionFailure
 
 
 class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
@@ -270,3 +274,23 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
 
     def perform_destroy(self, instance):
         instance.release(self.request.user)
+
+
+class APITokenCRUDL(SmartCRUDL):
+    model = APIToken
+    actions = ("delete",)
+
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        slug_url_kwarg = "key"
+        fields = ("key",)
+        cancel_url = "@orgs.user_tokens"
+        redirect_url = "@orgs.user_tokens"
+        submit_button_name = _("Delete")
+
+        def has_permission(self, request, *args, **kwargs):
+            return self.get_object().user == request.user
+
+        def post(self, request, *args, **kwargs):
+            self.get_object().release()
+
+            return HttpResponseRedirect(self.get_redirect_url())

@@ -467,9 +467,9 @@ class EndpointsTest(APITest):
         campaigns_url = reverse("api.v2.campaigns")
         fields_url = reverse("api.v2.fields")
 
-        token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
-        token2 = APIToken.get_or_create(self.org, self.editor, role=OrgRole.EDITOR)
-        token3 = APIToken.get_or_create(self.org, self.customer_support, role=OrgRole.ADMINISTRATOR)
+        token1 = APIToken.create(self.org, self.admin)
+        token2 = APIToken.create(self.org, self.editor)
+        token3 = APIToken.create(self.org, self.customer_support)
 
         # can request fields endpoint using all 3 methods
         response = request_by_token(fields_url, token1.key)

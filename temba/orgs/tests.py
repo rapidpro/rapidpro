@@ -196,8 +196,6 @@ class UserTest(TembaTest):
         self.assertFalse(user.is_beta)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
         self.assertEqual([self.org, self.org2], list(user.get_orgs().order_by("id")))
-        self.assertEqual(40, len(user.get_api_token(self.org)))
-        self.assertIsNone(user.get_api_token(self.org2))  # can't generate API token as agent
 
         user.last_name = ""
         user.save(update_fields=("last_name",))
@@ -1631,9 +1629,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "norkans7@gmail.com")
 
         # give users an API token
-        APIToken.get_or_create(self.org, self.admin)
-        APIToken.get_or_create(self.org, self.editor)
-        APIToken.get_or_create(self.org, editor2)
+        APIToken.create(self.org, self.admin)
+        APIToken.create(self.org, self.editor)
+        APIToken.create(self.org, editor2)
 
         # leave admin, editor and agent as is, but change user to an editor too, and remove the second editor
         response = self.assertUpdateSubmit(
@@ -2389,9 +2387,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         org = Org.objects.get(name="AlexCom")
         self.assertEqual(org.timezone, ZoneInfo("Africa/Kigali"))
 
-        # of which our user is an administrator and can generate an API token
+        # of which our user is an administrator
         self.assertIn(user, org.get_admins())
-        self.assertIsNotNone(user.get_api_token(org))
 
         # not the logged in user at the signup time
         self.assertNotIn(self.user, org.get_admins())
@@ -2496,9 +2493,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(org.timezone, ZoneInfo("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
 
-        # of which our user is an administrator, and can generate an API token
+        # of which our user is an administrator
         self.assertIn(user, org.get_admins())
-        self.assertIsNotNone(user.get_api_token(org))
 
         # check default org content was created correctly
         system_fields = set(org.fields.filter(is_system=True).values_list("key", flat=True))
@@ -3390,7 +3386,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
 
         response = self.client.get(reverse("orgs.user_account"))
-        self.assertEqual(2, len(response.context["formax"].sections))
+        self.assertEqual(1, len(response.context["formax"].sections))
 
     def test_edit(self):
         edit_url = reverse("orgs.user_edit")
@@ -3717,25 +3713,38 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, FailedLogin.objects.filter(username="admin@nyaruka.com").count())  # deleted
         self.assertEqual(1, FailedLogin.objects.filter(username="editor@nyaruka.com").count())  # unaffected
 
-    def test_token(self):
-        token_url = reverse("orgs.user_token")
+    def test_tokens(self):
+        tokens_url = reverse("orgs.user_tokens")
 
-        self.assertRequestDisallowed(token_url, [None, self.user, self.agent])
+        self.assertRequestDisallowed(tokens_url, [None, self.user, self.agent])
+        self.assertReadFetch(tokens_url, [self.admin], context_object=self.admin)
 
-        self.login(self.editor)
+        # add user to other org and create API tokens for both
+        self.org2.add_user(self.admin, OrgRole.EDITOR)
+        token1 = APIToken.create(self.org, self.admin)
+        token2 = APIToken.create(self.org, self.admin)
+        APIToken.create(self.org, self.editor)  # other user
+        APIToken.create(self.org2, self.admin)  # other org
 
-        editor_token = self.editor.get_api_token(self.org)
+        response = self.assertReadFetch(tokens_url, [self.admin], context_object=self.admin, choose_org=self.org)
+        self.assertEqual([token1, token2], list(response.context["tokens"]))
+        self.assertContentMenu(tokens_url, self.admin, ["New Token"], choose_org=self.org)
 
-        response = self.client.get(token_url)
-        self.assertContains(response, editor_token)
+        # can POST to create new token
+        response = self.client.post(tokens_url, {"new": "1"})
+        self.assertRedirect(response, reverse("orgs.user_tokens"))
+        self.assertEqual(3, self.admin.get_tokens(self.org).count())
+        token3 = self.admin.get_tokens(self.org).order_by("created").last()
 
-        # a post should refresh the token
-        response = self.client.post(token_url, {}, follow=True)
-        self.assertNotContains(response, editor_token)
+        # and now option to create new token is gone because we've reached the limit
+        response = self.assertReadFetch(tokens_url, [self.admin], context_object=self.admin, choose_org=self.org)
+        self.assertEqual([token1, token2, token3], list(response.context["tokens"]))
+        self.assertContentMenu(tokens_url, self.admin, [], choose_org=self.org)
 
-        new_token = self.editor.get_api_token(self.org)
-
-        self.assertContains(response, new_token)
+        # and POSTing is noop
+        response = self.client.post(tokens_url, {"new": "1"})
+        self.assertRedirect(response, reverse("orgs.user_tokens"))
+        self.assertEqual(3, self.admin.get_tokens(self.org).count())
 
     def test_verify_email(self):
         self.assertEqual(self.admin.settings.email_status, "U")
