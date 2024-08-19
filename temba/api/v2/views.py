@@ -103,7 +103,7 @@ class ExplorerView(OrgPermsMixin, SmartTemplateView):
         org = self.request.org
         user = self.request.user
 
-        context["api_token"] = user.get_api_token(org)
+        context["api_token"] = user.get_api_tokens(org).order_by("created").last()
         context["endpoints"] = [
             ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),

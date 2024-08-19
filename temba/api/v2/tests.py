@@ -40,7 +40,7 @@ from . import fields
 from .serializers import format_datetime, normalize_extra
 
 NUM_BASE_SESSION_QUERIES = 4  # number of queries required for any request using session auth
-NUM_BASE_TOKEN_QUERIES = 3  # number of queries required for any request using token auth
+NUM_BASE_TOKEN_QUERIES = 2  # number of queries required for any request using token auth
 
 
 class APITest(APITestMixin, TembaTest):
@@ -467,9 +467,9 @@ class EndpointsTest(APITest):
         campaigns_url = reverse("api.v2.campaigns")
         fields_url = reverse("api.v2.fields")
 
-        token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
-        token2 = APIToken.get_or_create(self.org, self.editor, role=OrgRole.EDITOR)
-        token3 = APIToken.get_or_create(self.org, self.customer_support, role=OrgRole.ADMINISTRATOR)
+        token1 = APIToken.create(self.org, self.admin)
+        token2 = APIToken.create(self.org, self.editor)
+        token3 = APIToken.create(self.org, self.customer_support)
 
         # can request fields endpoint using all 3 methods
         response = request_by_token(fields_url, token1.key)
@@ -536,15 +536,14 @@ class EndpointsTest(APITest):
         response = request_by_token(fields_url, token1.key)
         self.assertEqual(response.status_code, 429)
 
-        # if user loses access to the token's role, don't allow the request
-        self.org.add_user(self.admin, OrgRole.EDITOR)
+        # if user is demoted to a role that can't use tokens, tokens shouldn't work for them
+        self.org.add_user(self.admin, OrgRole.VIEWER)
 
         self.assertEqual(request_by_token(campaigns_url, token1.key).status_code, 403)
         self.assertEqual(request_by_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
-        self.assertEqual(request_by_token(contacts_url, token2.key).status_code, 200)  # other token unaffected
-        self.assertEqual(request_by_basic_auth(contacts_url, self.editor.username, token2.key).status_code, 200)
 
         # and if user is inactive, disallow the request
+        self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
         self.admin.is_active = False
         self.admin.save()
 
@@ -609,8 +608,15 @@ class EndpointsTest(APITest):
         self.assertEqual(200, response.status_code)
 
         self.login(self.admin)
+
         response = self.client.get(explorer_url)
-        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "To use the explorer you need to first create")
+        self.assertContains(response, reverse("orgs.user_tokens"))
+
+        APIToken.create(self.org, self.admin)
+
+        response = self.client.get(explorer_url)
+        self.assertContains(response, "All operations work against real data in the <b>Nyaruka</b> workspace.")
 
     def test_pagination(self):
         endpoint_url = reverse("api.v2.runs") + ".json"

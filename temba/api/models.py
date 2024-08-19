@@ -1,6 +1,4 @@
-import hmac
 import logging
-from hashlib import sha1
 
 from django_redis import get_redis_connection
 from rest_framework.permissions import BasePermission
@@ -14,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import Org, OrgRole, User
 from temba.utils.models import JSONAsTextField
-from temba.utils.uuid import uuid4
+from temba.utils.text import generate_secret
 
 logger = logging.getLogger(__name__)
 
@@ -74,13 +72,13 @@ class APIPermission(BasePermission):
         org = request.org
 
         if request.auth:
-            # check that user is still allowed to use the token's role
-            if not request.auth.is_valid():
-                return False
+            # auth token was used
+            role = org.get_user_role(request.auth.user)
 
-            role = OrgRole.from_group(request.auth.role)
+            # only editors and administrators can use API tokens
+            if role not in APIToken.ALLOWED_ROLES:
+                return False
         elif org:
-            # user may not have used token authentication
             role = org.get_user_role(request.user)
         else:
             return False
@@ -205,68 +203,30 @@ class WebHookEvent(models.Model):
 
 class APIToken(models.Model):
     """
-    An org+user+role specific access token for the API
+    An org+user specific access token for the API
     """
 
-    GROUP_GRANTED_TO = {
-        "Administrators": (OrgRole.ADMINISTRATOR,),
-        "Editors": (OrgRole.ADMINISTRATOR, OrgRole.EDITOR),
-    }
+    ALLOWED_ROLES = (OrgRole.ADMINISTRATOR, OrgRole.EDITOR)
 
     key = models.CharField(max_length=40, primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="api_tokens")
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="api_tokens")
-    role = models.ForeignKey(Group, on_delete=models.PROTECT)
     created = models.DateTimeField(default=timezone.now)
     last_used_on = models.DateTimeField(null=True)
     is_active = models.BooleanField(default=True)
 
-    @classmethod
-    def get_or_create(cls, org, user, *, role: OrgRole = None, refresh: bool = False):
-        """
-        Gets or creates an API token for this user
-        """
-
-        role = role or cls.get_default_role(org, user)
-        role_group = role.group if role else None
-
-        if not role_group:
-            raise ValueError("User '%s' has no suitable role for API usage" % str(user))
-        elif role_group.name not in cls.GROUP_GRANTED_TO:
-            raise ValueError("Role %s is not valid for API usage" % role_group.name)
-
-        tokens = cls.objects.filter(is_active=True, user=user, org=org, role=role_group)
-
-        # if we are refreshing the token, clear existing ones
-        if refresh and tokens:
-            for token in tokens:
-                token.release()
-            tokens = None
-
-        if not tokens:
-            return cls.objects.create(user=user, org=org, role=role_group)
-        else:
-            return tokens.first()
+    # TODO remove
+    role = models.ForeignKey(Group, on_delete=models.PROTECT, null=True)
 
     @classmethod
-    def get_default_role(cls, org, user):
+    def create(cls, org, user):
         """
-        Gets the default API role for the given user
+        Creates a new API token for this user
         """
-        role = org.get_user_role(user)
 
-        if not role or role.group.name not in cls.GROUP_GRANTED_TO:  # don't allow creating tokens for VIEWER role etc
-            return None
+        assert org.get_user_role(user) in cls.ALLOWED_ROLES
 
-        return role
-
-    def is_valid(self) -> bool:
-        """
-        A user's role in an org can change so this return whether this token is still valid.
-        """
-        role = self.org.get_user_role(self.user)
-        roles_allowed_this_perm_group = self.GROUP_GRANTED_TO.get(self.role.name, ())
-        return role and role in roles_allowed_this_perm_group
+        return cls.objects.create(user=user, org=org, key=generate_secret(40))
 
     def record_used(self):
         r = get_redis_connection()
@@ -276,15 +236,6 @@ class APIToken(models.Model):
     def get_used_keys(self) -> list:
         r = get_redis_connection()
         return [k.decode() for k in r.spop("api_tokens_used", r.scard("api_tokens_used"))]
-
-    def save(self, *args, **kwargs):
-        if not self.key:
-            self.key = self.generate_key()
-        return super().save(*args, **kwargs)
-
-    def generate_key(self):
-        unique = uuid4()
-        return hmac.new(unique.bytes, digestmod=sha1).hexdigest()
 
     def release(self):
         self.is_active = False

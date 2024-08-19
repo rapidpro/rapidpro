@@ -1,3 +1,9 @@
+v9.3.21 (2024-08-19)
+-------------------------
+ * Use correct URL when breaking spa-container
+ * Delete API tokens when user deleted and use generate_secret to create new tokens
+ * Update API token management UI to support multiple tokens
+
 v9.3.20 (2024-08-14)
 -------------------------
  * Rework S3 code to always use real S3 clients, even in tests

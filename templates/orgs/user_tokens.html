@@ -1,0 +1,64 @@
+{% extends "smartmin/update.html" %}
+{% load i18n temba %}
+
+{% block subtitle %}
+  {% url "api.v2.root" as api_url %}
+  {% blocktrans trimmed with api_url=api_url limit=token_limit %}
+    These are your personal tokens for accessing the <a href="{{ api_url }}">API</a>. You can have a maximum of {{ limit }}.
+  {% endblocktrans %}
+{% endblock subtitle %}
+{% block content %}
+  {% block pre-table %}
+    <temba-modax header="{{ _("Delete Token") |escapejs }}" -temba-redirected="refreshGlobals" id="delete-token">
+    </temba-modax>
+  {% endblock pre-table %}
+  <table class="list lined">
+    <tr>
+      <th>{% trans "Key" %}</th>
+      <th>{% trans "Last Used" %}</th>
+      <th></th>
+    </tr>
+    {% for token in tokens %}
+      <tr>
+        <td>{{ token.key }}</td>
+        <td>
+          {% if token.last_used_on %}
+            {{ token.last_used_on|duration }}
+          {% else %}
+            --
+          {% endif %}
+        </td>
+        <td class="w-10">
+          <div style="visibility:hidden"
+               onclick="event.stopPropagation(); showDeleteTokenModal('{{ token.key }}');"
+               class="pl-2 pt-1 delete-link linked text-gray-400">
+            <temba-icon name="delete_small">
+            </temba-icon>
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="3" class="text-center">No tokens</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showDeleteTokenModal(key) {
+      var modax = document.querySelector('#delete-token');
+      modax.endpoint = `/apitoken/delete/${key}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    tr:hover .delete-link {
+      visibility: visible !important;
+    }
+  </style>
+{% endblock extra-style %}

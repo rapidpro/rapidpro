@@ -3,10 +3,11 @@ from datetime import timedelta
 from django.contrib.auth.models import Group
 from django.db import connection
 from django.test import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.orgs.models import OrgRole
-from temba.tests import TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import APIToken, Resthook, WebHookEvent
 from .tasks import trim_webhook_events, update_tokens_used
@@ -21,55 +22,25 @@ class APITokenTest(TembaTest):
 
         self.org2.add_user(self.admin, OrgRole.EDITOR)  # our admin can act as editor for other org
 
-    def test_get_or_create(self):
-        token1 = APIToken.get_or_create(self.org, self.admin)
+    def test_create(self):
+        token1 = APIToken.create(self.org, self.admin)
         self.assertEqual(self.org, token1.org)
         self.assertEqual(self.admin, token1.user)
-        self.assertEqual(self.admins_group, token1.role)
         self.assertTrue(token1.key)
         self.assertEqual(str(token1), token1.key)
 
-        # tokens for different roles with same user should differ
-        token2 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
-        token3 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.EDITOR)
+        # can create another token for same user
+        token2 = APIToken.create(self.org, self.admin)
+        self.assertNotEqual(token1, token2)
+        self.assertNotEqual(token1.key, token2.key)
 
-        self.assertEqual(token1, token2)
-        self.assertNotEqual(token1, token3)
-        self.assertNotEqual(token1.key, token3.key)
-
-        self.assertEqual(self.editors_group, token3.role)
-
-        # tokens with same role for different users should differ
-        token5 = APIToken.get_or_create(self.org, self.editor)
-
-        self.assertNotEqual(token3, token5)
-
-        # can't create token for viewer users or other users using viewers role
-        self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.admin, role=OrgRole.VIEWER)
-        self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.user)
-
-    def test_is_valid(self):
-        token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
-        token2 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.EDITOR)
-
-        # demote admin to an editor
-        self.org.add_user(self.admin, OrgRole.EDITOR)
-        self.admin.refresh_from_db()
-
-        self.assertFalse(token1.is_valid())
-        self.assertTrue(token2.is_valid())
-
-    def test_get_default_role(self):
-        self.assertEqual(APIToken.get_default_role(self.org, self.admin), OrgRole.ADMINISTRATOR)
-        self.assertEqual(APIToken.get_default_role(self.org, self.editor), OrgRole.EDITOR)
-        self.assertIsNone(APIToken.get_default_role(self.org, self.user))
-
-        # user from another org has no API roles in this org
-        self.assertIsNone(APIToken.get_default_role(self.org, self.admin2))
+        # can't create tokens for viewer or agent users
+        self.assertRaises(AssertionError, APIToken.create, self.org, self.agent)
+        self.assertRaises(AssertionError, APIToken.create, self.org, self.user)
 
     def test_record_used(self):
-        token1 = APIToken.get_or_create(self.org, self.admin)
-        token2 = APIToken.get_or_create(self.org2, self.admin2)
+        token1 = APIToken.create(self.org, self.admin)
+        token2 = APIToken.create(self.org2, self.admin2)
 
         token1.record_used()
 
@@ -80,6 +51,28 @@ class APITokenTest(TembaTest):
 
         self.assertIsNotNone(token1.last_used_on)
         self.assertIsNone(token2.last_used_on)
+
+
+class APITokenCRUDLTest(CRUDLTestMixin, TembaTest):
+    def test_delete(self):
+        token1 = APIToken.create(self.org, self.admin)
+        token2 = APIToken.create(self.org, self.editor)
+
+        delete_url = reverse("api.apitoken_delete", args=[token1.key])
+
+        self.assertRequestDisallowed(delete_url, [self.editor, self.admin2])
+
+        response = self.assertDeleteFetch(delete_url, [self.admin], as_modal=True)
+        self.assertContains(response, f"You are about to delete the API token <b>{token1.key[:6]}…</b>")
+
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=token1)
+        self.assertRedirect(response, "/user/tokens/")
+
+        token1.refresh_from_db()
+        token2.refresh_from_db()
+
+        self.assertFalse(token1.is_active)
+        self.assertTrue(token2.is_active)
 
 
 class WebHookTest(TembaTest):
@@ -121,7 +114,7 @@ class APITestMixin:
         kwargs = {"HTTP_X_FORWARDED_HTTPS": "https"}
         if user:
             if by_token:
-                token = APIToken.get_or_create(self.org, user)
+                token = APIToken.create(self.org, user)
                 kwargs["HTTP_AUTHORIZATION"] = f"Token {token.key}"
             else:
                 self.login(user)

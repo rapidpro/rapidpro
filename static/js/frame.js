@@ -306,9 +306,12 @@ function fetchAjax(url, options) {
       if (container) {
         // if we got redirected when updating our container, make sure reflect it in the url
         if (response.redirected) {
-          var url = response.url;
-          if (url) {
-            window.history.replaceState({ url: url }, '', url);
+          if (response.url) {
+            window.history.replaceState(
+              { url: response.url },
+              '',
+              response.url
+            );
           }
         }
 
@@ -317,7 +320,7 @@ function fetchAjax(url, options) {
           container === '.spa-content' &&
           response.headers.get('x-temba-content-only') != 1
         ) {
-          document.location.href = url;
+          document.location.href = response.url;
           return;
         }
 
