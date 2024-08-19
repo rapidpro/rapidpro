@@ -3733,8 +3733,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         # can POST to create new token
         response = self.client.post(tokens_url, {"new": "1"})
         self.assertRedirect(response, reverse("orgs.user_tokens"))
-        self.assertEqual(3, self.admin.get_tokens(self.org).count())
-        token3 = self.admin.get_tokens(self.org).order_by("created").last()
+        self.assertEqual(3, self.admin.get_api_tokens(self.org).count())
+        token3 = self.admin.get_api_tokens(self.org).order_by("created").last()
 
         # and now option to create new token is gone because we've reached the limit
         response = self.assertReadFetch(tokens_url, [self.admin], context_object=self.admin, choose_org=self.org)
@@ -3744,7 +3744,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         # and POSTing is noop
         response = self.client.post(tokens_url, {"new": "1"})
         self.assertRedirect(response, reverse("orgs.user_tokens"))
-        self.assertEqual(3, self.admin.get_tokens(self.org).count())
+        self.assertEqual(3, self.admin.get_api_tokens(self.org).count())
 
     def test_verify_email(self):
         self.assertEqual(self.admin.settings.email_status, "U")

@@ -608,8 +608,15 @@ class EndpointsTest(APITest):
         self.assertEqual(200, response.status_code)
 
         self.login(self.admin)
+
         response = self.client.get(explorer_url)
-        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "To use the explorer you need to first create")
+        self.assertContains(response, reverse("orgs.user_tokens"))
+
+        APIToken.create(self.org, self.admin)
+
+        response = self.client.get(explorer_url)
+        self.assertContains(response, "All operations work against real data in the <b>Nyaruka</b> workspace.")
 
     def test_pagination(self):
         endpoint_url = reverse("api.v2.runs") + ".json"

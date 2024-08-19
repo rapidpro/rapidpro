@@ -279,7 +279,10 @@ class User(AuthUser):
 
         return role.has_perm(permission)
 
-    def get_tokens(self, org):
+    def get_api_tokens(self, org):
+        """
+        Gets this users active API tokens for the given org
+        """
         return self.api_tokens.filter(org=org, is_active=True)
 
     def as_engine_ref(self) -> dict:

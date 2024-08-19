@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.orgs.models import OrgRole
-from temba.tests import TembaTest, CRUDLTestMixin
+from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import APIToken, Resthook, WebHookEvent
 from .tasks import trim_webhook_events, update_tokens_used

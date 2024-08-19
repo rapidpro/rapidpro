@@ -1135,7 +1135,7 @@ class UserCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["two_factor_enabled"] = self.request.user.settings.two_factor_enabled
-            context["num_tokens"] = self.request.user.get_tokens(self.request.org).count()
+            context["num_api_tokens"] = self.request.user.get_api_tokens(self.request.org).count()
             return context
 
         def derive_formax_sections(self, formax, context):
@@ -1156,17 +1156,17 @@ class UserCRUDL(SmartCRUDL):
         token_limit = 3
 
         def build_content_menu(self, menu):
-            if self.request.user.get_tokens(self.request.org).count() < self.token_limit:
+            if self.request.user.get_api_tokens(self.request.org).count() < self.token_limit:
                 menu.add_url_post(_("New Token"), reverse("orgs.user_tokens") + "?new=1", as_button=True)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["tokens"] = self.request.user.get_tokens(self.request.org).order_by("created")
+            context["tokens"] = self.request.user.get_api_tokens(self.request.org).order_by("created")
             context["token_limit"] = self.token_limit
             return context
 
         def form_valid(self, form):
-            if self.request.user.get_tokens(self.request.org).count() < self.token_limit:
+            if self.request.user.get_api_tokens(self.request.org).count() < self.token_limit:
                 APIToken.create(self.request.org, self.request.user)
 
             return super().form_valid(form)
