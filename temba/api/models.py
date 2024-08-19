@@ -1,6 +1,4 @@
-import hmac
 import logging
-from hashlib import sha1
 
 from django_redis import get_redis_connection
 from rest_framework.permissions import BasePermission
@@ -14,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import Org, OrgRole, User
 from temba.utils.models import JSONAsTextField
-from temba.utils.uuid import uuid4
+from temba.utils.text import generate_secret
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +76,7 @@ class APIPermission(BasePermission):
             role = org.get_user_role(request.auth.user)
 
             # only editors and administrators can use API tokens
-            if role not in (OrgRole.EDITOR, OrgRole.ADMINISTRATOR):
+            if role not in APIToken.ALLOWED_ROLES:
                 return False
         elif org:
             role = org.get_user_role(request.user)
@@ -208,13 +206,17 @@ class APIToken(models.Model):
     An org+user specific access token for the API
     """
 
+    ALLOWED_ROLES = (OrgRole.ADMINISTRATOR, OrgRole.EDITOR)
+
     key = models.CharField(max_length=40, primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="api_tokens")
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="api_tokens")
-    role = models.ForeignKey(Group, on_delete=models.PROTECT)
     created = models.DateTimeField(default=timezone.now)
     last_used_on = models.DateTimeField(null=True)
     is_active = models.BooleanField(default=True)
+
+    # TODO remove
+    role = models.ForeignKey(Group, on_delete=models.PROTECT, null=True)
 
     @classmethod
     def create(cls, org, user):
@@ -222,16 +224,9 @@ class APIToken(models.Model):
         Creates a new API token for this user
         """
 
-        role = org.get_user_role(user)
+        assert org.get_user_role(user) in cls.ALLOWED_ROLES
 
-        assert role in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR)
-
-        role_group = role.group if role else None
-
-        unique = uuid4()
-        key = hmac.new(unique.bytes, digestmod=sha1).hexdigest()
-
-        return cls.objects.create(user=user, org=org, role=role_group, key=key)
+        return cls.objects.create(user=user, org=org, key=generate_secret(40))
 
     def record_used(self):
         r = get_redis_connection()
