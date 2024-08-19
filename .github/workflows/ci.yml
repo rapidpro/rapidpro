@@ -53,6 +53,15 @@ jobs:
         with:
           node-version: ${{ env.node-version }}
 
+      - name: Install Mailroom
+        run: |
+          git clone --depth 1 https://github.com/${{ github.repository_owner }}/mailroom
+          cd mailroom
+          go install github.com/${{ github.repository_owner }}/mailroom/cmd/mailroom
+          # start mailroom but use different redis db so that it doesn't actually handle tasks
+          ./mailroom -db=postgres://temba:temba@postgres:5432/temba?sslmode=disable -redis=redis://redis:6379/15 -log-level=info > mailroom.log &
+        working-directory: ${{ github.workspace }}
+
       - name: Initialize environment
         run: |
           npm install -g yarn less
@@ -60,11 +69,6 @@ jobs:
           yarn install
           ln -s settings.py.dev temba/settings.py
           poetry run python manage.py migrate
-          # fetch, extract and start mailroom
-          wget https://github.com/${{ github.repository_owner }}/mailroom/releases/download/v${{ env.mailroom-version }}/mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz
-          tar -xvf mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz mailroom
-          # start mailroom but use different redis db so that it doesn't actually handle tasks
-          ./mailroom -db=postgres://temba:temba@postgres:5432/temba?sslmode=disable -redis=redis://redis:6379/15 -log-level=info > mailroom.log &
         working-directory: ${{ github.workspace }} # https://github.com/actions/runner/issues/2058#issuecomment-2085119510
 
       - name: Run pre-test checks
