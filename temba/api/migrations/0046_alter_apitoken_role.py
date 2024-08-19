@@ -9,6 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("api", "0045_apitoken_last_used_on"),
         ("auth", "0012_alter_user_first_name_max_length"),
+        ("orgs", "0150_backfill_org_prometheus_token"),
     ]
 
     operations = [
