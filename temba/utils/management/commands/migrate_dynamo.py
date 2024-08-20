@@ -21,6 +21,10 @@ class Command(BaseCommand):
         client = dynamo.get_client()
 
         for table in TABLES:
+            # add optional prefix to name to allow multiple deploys in same region
+            name = settings.DYNAMO_TABLE_PREFIX + table["TableName"]
+            table["TableName"] = name
+
             # if we're running against a local install of dynamodb, we need to remove the TTL spec
             if settings.AWS_ACCESS_KEY_ID == "root" and "TimeToLiveSpecification" in table:
                 del table["TimeToLiveSpecification"]
