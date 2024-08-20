@@ -1,3 +1,7 @@
+v9.3.24 (2024-08-20)
+-------------------------
+ * Add dynamo table prefix setting
+
 v9.3.23 (2024-08-20)
 -------------------------
  * Add management command to create DynamoDB tables
