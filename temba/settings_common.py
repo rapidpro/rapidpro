@@ -34,10 +34,12 @@ if os.getenv("REMOTE_CONTAINERS") == "true":
     _db_host = "postgres"
     _redis_host = "redis"
     _minio_host = "minio"
+    _dynamo_host = "dynamo"
 else:
     _db_host = "localhost"
     _redis_host = "localhost"
     _minio_host = "localhost"
+    _dynamo_host = "localhost"
 
 # -----------------------------------------------------------------------------------
 # Email
@@ -55,6 +57,16 @@ EMAIL_TIMEOUT = 10
 # Used when sending email from within a flow and the user hasn't configured
 # their own SMTP server.
 FLOW_FROM_EMAIL = "no-reply@temba.io"
+
+# -----------------------------------------------------------------------------------
+# AWS
+# -----------------------------------------------------------------------------------
+
+AWS_ACCESS_KEY_ID = "root"
+AWS_SECRET_ACCESS_KEY = "tembatemba"
+AWS_REGION = "us-east-1"
+
+DYNAMO_ENDPOINT_URL = f"http://{_dynamo_host}:8000"
 
 # -----------------------------------------------------------------------------------
 # Storage
@@ -93,9 +105,7 @@ STORAGES = {
 }
 
 # settings used by django-storages (defaults to local Minio server)
-AWS_ACCESS_KEY_ID = "root"
-AWS_SECRET_ACCESS_KEY = "tembatemba"
-AWS_S3_REGION_NAME = "us-east-1"
+AWS_S3_REGION_NAME = AWS_REGION
 AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_FILE_OVERWRITE = False
