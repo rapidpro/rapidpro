@@ -25,9 +25,8 @@ class Command(BaseCommand):
             name = settings.DYNAMO_TABLE_PREFIX + table["TableName"]
             table["TableName"] = name
 
-            # if we're running against a local install of dynamodb, we need to remove the TTL spec
-            if settings.AWS_ACCESS_KEY_ID == "root" and "TimeToLiveSpecification" in table:
-                del table["TimeToLiveSpecification"]
+            # ttl isn't actually part of the create_table call
+            ttlSpec = table.pop("TimeToLiveSpecification", None)
 
             try:
                 client.describe_table(TableName=table["TableName"])
@@ -35,5 +34,11 @@ class Command(BaseCommand):
                 self.stdout.write(f"{table['TableName']}: already exists")
             except client.exceptions.ResourceNotFoundException:
                 client.create_table(**table)
+
+                if ttlSpec:
+                    client.update_time_to_live(
+                        TableName=table["TableName"],
+                        TimeToLiveSpecification=ttlSpec,
+                    )
 
                 self.stdout.write(f"{table['TableName']}: created")
