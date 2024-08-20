@@ -18,7 +18,7 @@ class Command(BaseCommand):
     help = "Creates DynamoDB tables that don't already exist."
 
     def handle(self, *args, **kwargs):
-        client = dynamo.get_client()
+        self.client = dynamo.get_client()
 
         for table in TABLES:
             # add optional prefix to name to allow multiple deploys in same region
@@ -28,17 +28,21 @@ class Command(BaseCommand):
             # ttl isn't actually part of the create_table call
             ttlSpec = table.pop("TimeToLiveSpecification", None)
 
-            try:
-                client.describe_table(TableName=table["TableName"])
+            if not self._table_exists(name):
+                self.client.create_table(**table)
 
-                self.stdout.write(f"{table['TableName']}: already exists")
-            except client.exceptions.ResourceNotFoundException:
-                client.create_table(**table)
+                self.stdout.write(f"{name}: created")
 
                 if ttlSpec:
-                    client.update_time_to_live(
-                        TableName=table["TableName"],
-                        TimeToLiveSpecification=ttlSpec,
-                    )
+                    self.client.update_time_to_live(TableName=name, TimeToLiveSpecification=ttlSpec)
 
-                self.stdout.write(f"{table['TableName']}: created")
+                    self.stdout.write(f"{name}: updated TTL")
+            else:
+                self.stdout.write(f"{name}: already exists")
+
+    def _table_exists(self, name: str) -> bool:
+        try:
+            self.client.describe_table(TableName=name)
+            return True
+        except self.client.exceptions.ResourceNotFoundException:
+            return False
