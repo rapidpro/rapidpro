@@ -1,3 +1,8 @@
+v9.3.23 (2024-08-20)
+-------------------------
+ * Add management command to create DynamoDB tables
+ * Add option for connection pooling
+
 v9.3.22 (2024-08-19)
 -------------------------
  * Drop APIToken.role field
