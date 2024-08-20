@@ -46,7 +46,7 @@ openpyxl = "^3.1.5"
 ffmpeg-python = "^0.2.0"
 slack-sdk = "3.17.0"
 django-formtools = "^2.4.1"
-psycopg = "^3.1.9"
+psycopg = {extras = ["pool"], version = "^3.2.1"}
 pillow = "^10.1.0"
 django-imagekit = "^5.0.0"
 iso639-lang = "^2.2.3"
