@@ -1,3 +1,8 @@
+v9.3.25 (2024-08-21)
+-------------------------
+ * Fix matching for invites with email case insensitively
+ * Tweak migrate_dynamo command
+
 v9.3.24 (2024-08-20)
 -------------------------
  * Add dynamo table prefix setting
