@@ -2093,6 +2093,30 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # should be logged out as the other user
         self.assertEqual(0, len(self.client.session.keys()))
 
+        # invitation with mismatching case email
+        invitation2 = Invitation.objects.create(
+            org=self.org2,
+            user_group="E",
+            email="eDwin@nyaruka.com",
+            created_by=self.admin2,
+            modified_by=self.admin2,
+        )
+
+        join_accept_url = reverse("orgs.org_join_accept", args=[invitation2.secret])
+        join_url = reverse("orgs.org_join", args=[invitation2.secret])
+
+        self.login(user)
+
+        response = self.client.get(join_url)
+        self.assertRedirect(response, join_accept_url)
+
+        # but only if they're the currently logged in user
+        self.login(self.admin)
+
+        response = self.client.get(join_url)
+        self.assertContains(response, "Sign in to join the <b>Trileet Inc.</b> workspace")
+        self.assertContains(response, f"/users/login/?next={join_accept_url}")
+
     def test_join_signup(self):
         # if invitation secret is invalid, redirect to root
         response = self.client.get(reverse("orgs.org_join_signup", args=["invalid"]))

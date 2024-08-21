@@ -2406,7 +2406,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # if user exists and is logged in then they just need to accept
             user = User.get_by_email(self.invitation.email)
-            if user and self.invitation.email == request.user.username:
+            if user and self.invitation.email.lower() == request.user.username.lower():
                 return HttpResponseRedirect(reverse("orgs.org_join_accept", args=[secret]))
 
             logout(request)
