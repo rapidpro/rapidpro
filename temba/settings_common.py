@@ -67,7 +67,7 @@ AWS_SECRET_ACCESS_KEY = "tembatemba"
 AWS_REGION = "us-east-1"
 
 DYNAMO_ENDPOINT_URL = f"http://{_dynamo_host}:8000"
-DYNAMO_TABLE_PREFIX = "Local"
+DYNAMO_TABLE_PREFIX = "Test" if TESTING else "Temba"
 
 # -----------------------------------------------------------------------------------
 # Storage
