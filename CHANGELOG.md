@@ -1,3 +1,7 @@
+v9.3.27 (2024-08-21)
+-------------------------
+ * Updates to migrate_dynamo command
+
 v9.3.26 (2024-08-21)
 -------------------------
  * Add redirect for contact interrupt
