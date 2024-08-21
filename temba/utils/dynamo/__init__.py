@@ -6,7 +6,7 @@ from django.conf import settings
 _client = None
 
 
-def get_client():  # pragma: no cover
+def get_client():
     """
     Returns our shared DynamoDB client
     """
@@ -20,7 +20,7 @@ def get_client():  # pragma: no cover
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_REGION,
             )
-        else:
+        else:  # pragma: no cover
             session = boto3.Session()
 
         _client = session.client(
@@ -28,3 +28,10 @@ def get_client():  # pragma: no cover
         )
 
     return _client
+
+
+def table_name(logical_name: str) -> str:
+    """
+    Add optional prefix to name to allow multiple deploys in same region
+    """
+    return settings.DYNAMO_TABLE_PREFIX + logical_name
