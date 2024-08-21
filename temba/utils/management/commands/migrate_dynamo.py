@@ -8,7 +8,7 @@ TABLES = [
         "TableName": "ChannelLogsAttached",
         "KeySchema": [{"AttributeName": "UUID", "KeyType": "HASH"}],
         "AttributeDefinitions": [{"AttributeName": "UUID", "AttributeType": "S"}],
-        "ProvisionedThroughput": {"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+        "BillingMode": "PAY_PER_REQUEST",
         "TimeToLiveSpecification": {"AttributeName": "ExpireOn", "Enabled": True},
     }
 ]
