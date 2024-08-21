@@ -9,4 +9,4 @@ class DynamoTest(TembaTest):
         self.assertIs(client1, client2)
 
     def test_table_name(self):
-        self.assertEqual("LocalThings", dynamo.table_name("Things"))
+        self.assertEqual("TestThings", dynamo.table_name("Things"))
