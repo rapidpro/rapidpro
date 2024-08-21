@@ -841,6 +841,7 @@ class ContactCRUDL(SmartCRUDL):
         """
 
         fields = ()
+        success_url = "uuid@contacts.contact_read"
 
         def save(self, obj):
             obj.interrupt(self.request.user)
