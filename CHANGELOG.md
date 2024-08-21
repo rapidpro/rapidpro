@@ -1,3 +1,8 @@
+v9.3.26 (2024-08-21)
+-------------------------
+ * Add redirect for contact interrupt
+ * Create dynamo table with on-demand billing by default
+
 v9.3.25 (2024-08-21)
 -------------------------
  * Fix matching for invites with email case insensitively
