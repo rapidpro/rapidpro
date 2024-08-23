@@ -88,6 +88,12 @@ class ExpressionsTest(TembaTest):
 
 
 class FlowMigrationTest(TembaTest):
+    def load_flow(self, filename: str, substitutions=None, name=None):
+        return self.get_flow(f"legacy/migrations/{filename}", substitutions=substitutions, name=name)
+
+    def load_flow_def(self, filename: str, substitutions=None):
+        return self.load_json(f"test_flows/legacy/migrations/{filename}.json", substitutions=substitutions)["flows"][0]
+
     def migrate_flow(self, flow, to_version=None):
         if not to_version:
             to_version = Flow.FINAL_LEGACY_VERSION
@@ -120,7 +126,7 @@ class FlowMigrationTest(TembaTest):
             version_number="3",
         )
 
-        flow_json = self.get_flow_json("malformed_single_message")["definition"]
+        flow_json = self.load_flow_def("malformed_single_message")["definition"]
 
         FlowRevision.objects.create(flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin)
 
@@ -132,7 +138,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual(2, flow_json["revision"])
 
     def test_migrate_to_11_12(self):
-        flow = self.get_flow("favorites")
+        flow = self.load_flow("favorites")
         definition = {
             "entry": "79b4776b-a995-475d-ae06-1cab9af8a28e",
             "rule_sets": [],
@@ -225,23 +231,23 @@ class FlowMigrationTest(TembaTest):
         # removed the invalid reference
         self.assertEqual(len(migrated["action_sets"]), 2)
 
-        flow = self.get_flow("migrate_to_11_12")
-        flow_json = self.get_flow_json("migrate_to_11_12")
+        flow = self.load_flow("migrate_to_11_12")
+        flow_json = self.load_flow_def("migrate_to_11_12")
         migrated = migrate_to_version_11_12(flow_json, flow)
 
         self.assertEqual(migrated["action_sets"][0]["actions"][0]["msg"]["base"], "Hey there, Yes or No?")
         self.assertEqual(len(migrated["action_sets"]), 3)
 
     def test_migrate_to_11_12_with_one_node(self):
-        flow = self.get_flow("migrate_to_11_12_one_node")
-        flow_json = self.get_flow_json("migrate_to_11_12_one_node")
+        flow = self.load_flow("migrate_to_11_12_one_node")
+        flow_json = self.load_flow_def("migrate_to_11_12_one_node")
         migrated = migrate_to_version_11_12(flow_json, flow)
 
         self.assertEqual(len(migrated["action_sets"]), 0)
 
     def test_migrate_to_11_12_other_org_existing_flow(self):
-        flow = self.get_flow("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
-        flow_json = self.get_flow_json("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
+        flow = self.load_flow("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
+        flow_json = self.load_flow_def("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
 
         # change ownership of the channel it's referencing
         self.channel.org = self.org2
@@ -256,14 +262,14 @@ class FlowMigrationTest(TembaTest):
         self.channel.name = "1234"
         self.channel.save()
 
-        self.get_flow("migrate_to_11_12_one_node")
+        self.load_flow("migrate_to_11_12_one_node")
         flow = Flow.objects.filter(name="channel").first()
 
         self.assertEqual(flow.channel_dependencies.count(), 1)
 
     def test_migrate_to_11_11(self):
-        flow = self.get_flow("migrate_to_11_11")
-        flow_json = self.get_flow_json("migrate_to_11_11")
+        flow = self.load_flow("migrate_to_11_11")
+        flow_json = self.load_flow_def("migrate_to_11_11")
 
         migrated = migrate_to_version_11_11(flow_json, flow)
         migrated_labels = get_labels(migrated)
@@ -271,7 +277,7 @@ class FlowMigrationTest(TembaTest):
             self.assertTrue(Label.objects.filter(uuid=uuid, name=name).exists(), msg="Label UUID mismatch")
 
     def test_migrate_to_11_10(self):
-        import_def = self.get_import_json("migrate_to_11_10")
+        import_def = self.load_json("test_flows/legacy/migrations/migrate_to_11_10.json")
         migrated_import = migrate_export_to_version_11_10(import_def, self.org)
 
         migrated = migrated_import["flows"][1]
@@ -322,14 +328,14 @@ class FlowMigrationTest(TembaTest):
         )
 
     def test_migrate_to_11_9(self):
-        flow = self.get_flow("migrate_to_11_9", name="Master")
+        flow = self.load_flow("migrate_to_11_9", name="Master")
 
         # give our flows same UUIDs as in import and make 2 of them invalid
         Flow.objects.filter(name="Valid1").update(uuid="b823cc3b-aaa6-4cd1-b7a5-28d6b492cfa3")
         Flow.objects.filter(name="Invalid1").update(uuid="ad40071e-a665-4df3-af14-0bc0fe589244", is_archived=True)
         Flow.objects.filter(name="Invalid2").update(uuid="136cdab3-e9d1-458c-b6eb-766afd92b478", is_active=False)
 
-        import_def = self.get_import_json("migrate_to_11_9")
+        import_def = self.load_json("test_flows/legacy/migrations/migrate_to_11_9.json")
         flow_def = import_def["flows"][-1]
 
         self.assertEqual(len(flow_def["rule_sets"]), 4)
@@ -349,7 +355,7 @@ class FlowMigrationTest(TembaTest):
                     uuids.append(rule["uuid"])
             return uuids
 
-        original = self.get_flow_json("migrate_to_11_8")
+        original = self.load_flow_def("migrate_to_11_8")
         original_uuids = get_rule_uuids(original)
 
         self.assertEqual(len(original_uuids), 9)
@@ -363,7 +369,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual(len(set(migrated_uuids).difference(original_uuids)), 2)
 
     def test_migrate_to_11_7(self):
-        original = self.get_flow_json("migrate_to_11_7")
+        original = self.load_flow_def("migrate_to_11_7")
 
         self.assertEqual(len(original["action_sets"]), 5)
         self.assertEqual(len(original["rule_sets"]), 1)
@@ -374,8 +380,8 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual(len(migrated["rule_sets"]), 6)
 
     def test_migrate_to_11_6(self):
-        flow = self.get_flow("migrate_to_11_6")
-        flow_json = self.get_flow_json("migrate_to_11_6")
+        flow = self.load_flow("migrate_to_11_6")
+        flow_json = self.load_flow_def("migrate_to_11_6")
 
         migrated = migrate_to_version_11_6(flow_json, flow)
         migrated_groups = get_legacy_groups(migrated)
@@ -383,7 +389,7 @@ class FlowMigrationTest(TembaTest):
             self.assertTrue(ContactGroup.objects.filter(uuid=uuid, name=name).exists(), msg="Group UUID mismatch")
 
     def test_migrate_to_11_5(self):
-        flow_json = self.get_flow_json("migrate_to_11_5")
+        flow_json = self.load_flow_def("migrate_to_11_5")
         flow_json = migrate_to_version_11_5(flow_json)
 
         # check text was updated in the reply action
@@ -436,7 +442,7 @@ class FlowMigrationTest(TembaTest):
 
     @mock_mailroom
     def test_migrate_to_11_4(self, mr_mocks):
-        flow_json = self.get_flow_json("migrate_to_11_4")
+        flow_json = self.load_flow_def("migrate_to_11_4")
         migrated = migrate_to_version_11_4(flow_json.copy())
 
         # gather up replies to check expressions were migrated
@@ -463,7 +469,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual("", migrated["action_sets"][0]["actions"][0]["msg"]["eng"])
 
     def test_migrate_to_11_3(self):
-        flow_json = self.get_flow_json("migrate_to_11_3")
+        flow_json = self.load_flow_def("migrate_to_11_3")
 
         migrated = migrate_to_version_11_3(flow_json)
 
@@ -643,8 +649,8 @@ class FlowMigrationTest(TembaTest):
         self.create_field("district", "District", ContactField.TYPE_DISTRICT)
         self.create_field("joined_on", "Joined On", ContactField.TYPE_DATETIME)
 
-        flow = self.get_flow("type_flow")
-        flow_def = self.get_flow_json("type_flow")
+        flow = self.load_flow("type_flow")
+        flow_def = self.load_flow_def("type_flow")
         migrated = migrate_to_version_11_0(flow_def, flow)
 
         # gather up replies to check expressions were migrated
@@ -672,7 +678,7 @@ class FlowMigrationTest(TembaTest):
         )
 
     def test_migrate_to_11_0_with_null_ruleset_label(self):
-        flow = self.get_flow("migrate_to_11_0")
+        flow = self.load_flow("migrate_to_11_0")
         definition = {
             "rule_sets": [
                 {
@@ -693,7 +699,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual(migrated, definition)
 
     def test_migrate_to_11_0_with_null_msg_text(self):
-        flow = self.get_flow("migrate_to_11_0")
+        flow = self.load_flow("migrate_to_11_0")
         definition = {
             "action_sets": [
                 {
@@ -710,8 +716,8 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual(migrated, definition)
 
     def test_migrate_to_11_0_with_broken_localization(self):
-        flow = self.get_flow("migrate_to_11_0")
-        flow_def = self.get_flow_json("migrate_to_11_0")
+        flow = self.load_flow("migrate_to_11_0")
+        flow_def = self.load_flow_def("migrate_to_11_0")
         migrated = migrate_to_version_11_0(flow_def, flow)
 
         self.assertEqual(
@@ -741,7 +747,7 @@ class FlowMigrationTest(TembaTest):
                 self.assertIsNotNone(action["uuid"])
 
     def test_migrate_to_10_3(self):
-        flow_def = self.get_flow_json("favorites")
+        flow_def = self.load_flow_def("favorites")
         migrated = migrate_to_version_10_3(flow_def, flow=None)
 
         # make sure all of our action sets have an exit uuid
@@ -749,13 +755,13 @@ class FlowMigrationTest(TembaTest):
             self.assertIsNotNone(actionset.get("exit_uuid"))
 
     def test_migrate_to_10_2(self):
-        flow_def = self.get_flow_json("single_message_bad_localization")
+        flow_def = self.load_flow_def("single_message_bad_localization")
         migrated = migrate_to_version_10_2(flow_def)
 
         self.assertEqual("Campaign Message 12", migrated["action_sets"][0]["actions"][0]["msg"]["eng"])
 
     def test_migrate_to_10_1(self):
-        flow_def = self.get_flow_json("favorites")
+        flow_def = self.load_flow_def("favorites")
         migrated = migrate_to_version_10_1(flow_def, flow=None)
 
         # make sure all of our actions have uuids set
@@ -765,8 +771,8 @@ class FlowMigrationTest(TembaTest):
 
     def test_migrate_to_10(self):
         # this is really just testing our rewriting of webhook rulesets
-        flow = self.get_flow("dual_webhook")
-        flow_def = self.get_flow_json("dual_webhook")
+        flow = self.load_flow("dual_webhook")
+        flow_def = self.load_flow_def("dual_webhook")
 
         # get our definition out
         migrated = migrate_to_version_10(flow_def, flow=flow)
@@ -793,7 +799,7 @@ class FlowMigrationTest(TembaTest):
             label_id=label.pk,
         )
 
-        exported_json = self.get_import_json("migrate_to_9", substitutions)
+        exported_json = self.load_json("test_flows/legacy/migrations/migrate_to_9.json", substitutions)
         exported_json = migrate_export_to_version_9(exported_json, self.org, True)
 
         # our campaign events shouldn't have ids
@@ -855,23 +861,23 @@ class FlowMigrationTest(TembaTest):
         self.assertNotIn("id", flow_json["metadata"])
 
         # import the same thing again, should have the same uuids
-        new_exported_json = self.get_import_json("migrate_to_9", substitutions)
+        new_exported_json = self.load_json("test_flows/legacy/migrations/migrate_to_9.json", substitutions)
         new_exported_json = migrate_export_to_version_9(new_exported_json, self.org, True)
         self.assertEqual(flow_json["metadata"]["uuid"], new_exported_json["flows"][0]["metadata"]["uuid"])
 
         # but when done as a different site, it should be unique
-        new_exported_json = self.get_import_json("migrate_to_9", substitutions)
+        new_exported_json = self.load_json("test_flows/legacy/migrations/migrate_to_9.json", substitutions)
         new_exported_json = migrate_export_to_version_9(new_exported_json, self.org, False)
         self.assertNotEqual(flow_json["metadata"]["uuid"], new_exported_json["flows"][0]["metadata"]["uuid"])
 
         # can also just import a single flow
-        exported_json = self.get_import_json("migrate_to_9", substitutions)
+        exported_json = self.load_json("test_flows/legacy/migrations/migrate_to_9.json", substitutions)
         flow_json = migrate_to_version_9(exported_json["flows"][0], start_flow)
         self.assertIn("uuid", flow_json["metadata"])
         self.assertNotIn("id", flow_json["metadata"])
 
         # try it with missing metadata
-        flow_json = self.get_import_json("migrate_to_9", substitutions)["flows"][0]
+        flow_json = self.load_json("test_flows/legacy/migrations/migrate_to_9.json", substitutions)["flows"][0]
         del flow_json["metadata"]
         flow_json = migrate_to_version_9(flow_json, start_flow)
         self.assertEqual(1, flow_json["metadata"]["revision"])
@@ -885,7 +891,7 @@ class FlowMigrationTest(TembaTest):
 
     def test_migrate_to_8(self):
         # file uses old style expressions
-        flow_json = self.get_flow_json("old_expressions")
+        flow_json = self.load_flow_def("old_expressions")
 
         # migrate to the version right before us first
         flow_json = migrate_to_version_7(flow_json)
@@ -904,7 +910,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual(flow_json["rule_sets"][1]["operand"], "@(step.value + 3)")
 
     def test_migrate_to_7(self):
-        flow_json = self.get_flow_json("ivr_v3")
+        flow_json = self.load_flow_def("ivr_v3")
 
         # migrate to the version right before us first
         flow_json = migrate_to_version_5(flow_json)
@@ -926,7 +932,7 @@ class FlowMigrationTest(TembaTest):
 
     def test_migrate_to_6(self):
         # file format is old non-localized format
-        voice_json = self.get_flow_json("ivr_v3")
+        voice_json = self.load_flow_def("ivr_v3")
         definition = voice_json.get("definition")
 
         # no language set
@@ -948,7 +954,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual("/recording.mp3", definition["action_sets"][0]["actions"][0]["recording"]["base"])
 
         # now try one that doesn't have a recording set
-        voice_json = self.get_flow_json("ivr_v3")
+        voice_json = self.load_flow_def("ivr_v3")
         definition = voice_json.get("definition")
         del definition["action_sets"][0]["actions"][0]["recording"]
         voice_json = migrate_to_version_5(voice_json)
@@ -957,7 +963,7 @@ class FlowMigrationTest(TembaTest):
         self.assertNotIn("recording", definition["action_sets"][0]["actions"][0])
 
     def test_migrate_to_5_language(self):
-        flow_json = self.get_flow_json("multi_language_flow")
+        flow_json = self.load_flow_def("multi_language_flow")
         ruleset = flow_json["definition"]["rule_sets"][0]
         ruleset["operand"] = "@step.value|lower_case"
 
@@ -980,7 +986,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual("Otro", rules[0]["category"]["spa"])
 
     def test_migrate_to_5(self):
-        flow = self.get_flow_json("favorites_v4")
+        flow = self.load_flow_def("favorites_v4")
         migrated = migrate_to_version_5(flow)["definition"]
 
         # first node should be a wait node
@@ -1042,7 +1048,7 @@ class FlowMigrationTest(TembaTest):
         # at the time of this fix
         for v in ("4", "5", "6", "7", "8", "9", "10"):
             error = 'Failure migrating group names "%s" forward from v%s'
-            flow = self.get_flow("favorites_bad_group_name_v%s" % v)
+            flow = self.load_flow("favorites_bad_group_name_v%s" % v)
             self.assertIsNotNone(flow, "Failure importing favorites from v%s" % v)
             self.assertTrue(ContactGroup.objects.filter(name="Contacts < 25").exists(), error % ("< 25", v))
             self.assertTrue(ContactGroup.objects.filter(name="Contacts > 100").exists(), error % ("> 100", v))
@@ -1052,7 +1058,7 @@ class FlowMigrationTest(TembaTest):
             flow.release(self.admin)
 
     def test_migrate_malformed_groups(self):
-        flow = self.get_flow("malformed_groups")
+        flow = self.load_flow("malformed_groups")
         self.assertIsNotNone(flow)
         self.assertTrue(ContactGroup.objects.filter(name="Contacts < 25").exists())
         self.assertTrue(ContactGroup.objects.filter(name="Unknown").exists())

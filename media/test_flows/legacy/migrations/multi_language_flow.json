@@ -1,0 +1,176 @@
+{
+    "version": 4,
+    "flows": [
+        {
+            "definition": {
+                "base_language": "eng",
+                "action_sets": [
+                    {
+                        "y": 0,
+                        "x": 100,
+                        "destination": "c969c5ba-8595-4e2c-86d0-c2e375afe3e0",
+                        "uuid": "d563e7ca-aa0f-4615-ba8c-eab5e13ff4bf",
+                        "actions": [
+                            {
+                                "msg": {
+                                    "spa": "\u00a1Hola amigo! \u00bfCu\u00e1l es tu color favorito?",
+                                    "eng": "Hello friend! What is your favorite color?"
+                                },
+                                "type": "reply"
+                            }
+                        ]
+                    },
+                    {
+                        "y": 266,
+                        "x": 351,
+                        "destination": null,
+                        "uuid": "5532bc8e-ecf8-42ad-9654-bb4b3374001e",
+                        "actions": [
+                            {
+                                "msg": {
+                                    "spa": "\u00a1Gracias! Me gusta @flow.color.",
+                                    "eng": "Thank you! I like @flow.color."
+                                },
+                                "type": "reply"
+                            },
+                            {
+                                "msg": {
+                                    "eng": "This message was not translated."
+                                },
+                                "type": "reply"
+                            }
+                        ]
+                    },
+                    {
+                        "y": 179,
+                        "x": 683,
+                        "destination": "c969c5ba-8595-4e2c-86d0-c2e375afe3e0",
+                        "uuid": "6ea52610-838c-4f64-8e24-99754135da67",
+                        "actions": [
+                            {
+                                "msg": {
+                                    "spa": "Por favor, una vez m\u00e1s",
+                                    "eng": "Please try again."
+                                },
+                                "type": "reply"
+                            }
+                        ]
+                    }
+                ],
+                "last_saved": "2015-02-19T05:55:32.232993Z",
+                "entry": "d563e7ca-aa0f-4615-ba8c-eab5e13ff4bf",
+                "rule_sets": [
+                    {
+                        "uuid": "c969c5ba-8595-4e2c-86d0-c2e375afe3e0",
+                        "webhook_action": null,
+                        "rules": [
+                            {
+                                "test": {
+                                    "test": {
+                                        "spa": "rojo",
+                                        "eng": "Red"
+                                    },
+                                    "base": "Red",
+                                    "type": "contains_any"
+                                },
+                                "category": {
+                                    "spa": "Rojo",
+                                    "base": "Red",
+                                    "eng": "Red"
+                                },
+                                "destination": "5532bc8e-ecf8-42ad-9654-bb4b3374001e",
+                                "config": {
+                                    "type": "contains_any",
+                                    "verbose_name": "has any of these words",
+                                    "name": "Contains any",
+                                    "localized": true,
+                                    "operands": 1
+                                },
+                                "uuid": "de555b2c-2616-49ff-8564-409a01b0bd79"
+                            },
+                            {
+                                "test": {
+                                    "test": {
+                                        "spa": "verde",
+                                        "eng": "Green"
+                                    },
+                                    "base": "Green",
+                                    "type": "contains_any"
+                                },
+                                "category": {
+                                    "spa": "Verde",
+                                    "base": "Green",
+                                    "eng": "Green"
+                                },
+                                "destination": "5532bc8e-ecf8-42ad-9654-bb4b3374001e",
+                                "config": {
+                                    "type": "contains_any",
+                                    "verbose_name": "has any of these words",
+                                    "name": "Contains any",
+                                    "localized": true,
+                                    "operands": 1
+                                },
+                                "uuid": "e09c7ad3-46c8-4024-9fcf-8a0d26d97d6a"
+                            },
+                            {
+                                "test": {
+                                    "test": {
+                                        "spa": "azul",
+                                        "eng": "Blue"
+                                    },
+                                    "base": "Blue",
+                                    "type": "contains_any"
+                                },
+                                "category": {
+                                    "spa": "Azul",
+                                    "base": "Blue",
+                                    "eng": "Blue"
+                                },
+                                "destination": "5532bc8e-ecf8-42ad-9654-bb4b3374001e",
+                                "config": {
+                                    "type": "contains_any",
+                                    "verbose_name": "has any of these words",
+                                    "name": "Contains any",
+                                    "localized": true,
+                                    "operands": 1
+                                },
+                                "uuid": "aafd9e60-4d74-40cb-a923-3501560cb5c1"
+                            },
+                            {
+                                "test": {
+                                    "test": "true",
+                                    "type": "true"
+                                },
+                                "category": {
+                                    "spa": "Otro",
+                                    "base": "Other",
+                                    "eng": "Other"
+                                },
+                                "destination": "6ea52610-838c-4f64-8e24-99754135da67",
+                                "config": {
+                                    "type": "true",
+                                    "verbose_name": "contains anything",
+                                    "name": "Other",
+                                    "operands": 0
+                                },
+                                "uuid": "2263684a-0354-448e-8213-c57644e91798"
+                            }
+                        ],
+                        "webhook": null,
+                        "label": "Color",
+                        "operand": "@step.value",
+                        "finished_key": null,
+                        "response_type": "C",
+                        "y": 132,
+                        "x": 242
+                    }
+                ],
+                "metadata": {}
+            },
+            "id": 1400,
+            "flow_type": "F",
+            "name": "Multi Language Flow"
+        }
+    ],
+    "triggers": []
+}
