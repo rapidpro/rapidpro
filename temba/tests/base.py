@@ -543,7 +543,7 @@ class TembaTest(SmartminTest):
             "name": name,
             "type": Flow.GOFLOW_TYPES[flow_type],
             "revision": 1,
-            "spec_version": "13.1.0",
+            "spec_version": Flow.CURRENT_SPEC_VERSION,
             "expire_after_minutes": Flow.EXPIRES_DEFAULTS[flow_type],
             "language": "eng",
             "nodes": nodes,
@@ -551,9 +551,7 @@ class TembaTest(SmartminTest):
 
         flow.version_number = definition["spec_version"]
         flow.save()
-
-        json_flow = Flow.migrate_definition(definition, flow)
-        flow.save_revision(self.admin, json_flow)
+        flow.save_revision(self.admin, definition)
 
         return flow
 

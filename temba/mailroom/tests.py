@@ -20,7 +20,7 @@ from .events import Event
 
 class MailroomQueueTest(TembaTest):
     def test_queue_flow_start(self):
-        flow = self.get_flow("favorites")
+        flow = self.create_flow("Test")
         jim = self.create_contact("Jim", phone="+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
 
@@ -101,7 +101,7 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_interrupt_by_flow(self):
-        flow = self.get_flow("favorites")
+        flow = self.create_flow("Test")
         flow.archive(self.admin)
 
         self.assert_org_queued(self.org, "batch")
@@ -472,7 +472,7 @@ class EventTest(TembaTest):
         )
 
     def test_from_event_fire(self):
-        flow = self.get_flow("color_v13")
+        flow = self.create_flow("Test")
         group = self.create_group("Reporters", contacts=[])
         registered = self.create_field("registered", "Registered", value_type="D")
         campaign = Campaign.create(self.org, self.admin, "Welcomes", group)

@@ -29,8 +29,8 @@ class GlobalTest(TembaTest):
         self.assertEqual("Secret Value", global3.name)
         self.assertEqual("", global3.value)
 
-        flow1 = self.get_flow("color")
-        flow2 = self.get_flow("favorites")
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
 
         flow1.global_dependencies.add(global1, global2)
         flow2.global_dependencies.add(global1)

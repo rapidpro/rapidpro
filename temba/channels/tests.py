@@ -178,7 +178,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         channel2 = Channel.create(self.org, self.user, "", "T", "Test Channel", "0785553333")
 
         # add channel trigger
-        flow = self.get_flow("color")
+        flow = self.create_flow("Test")
         Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=channel1)
 
         # create some activity on this channel
