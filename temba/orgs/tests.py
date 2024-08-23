@@ -3901,7 +3901,7 @@ class BulkExportTest(TembaTest):
     def test_trigger_dependency(self):
         # tests the case of us doing an export of only a single flow (despite dependencies) and making sure we
         # don't include the triggers of our dependent flows (which weren't exported)
-        self.import_file("parent_child_trigger")
+        self.import_file("test_flows/parent_child_trigger.json")
 
         parent = Flow.objects.filter(name="Parent Flow").first()
 
@@ -3913,7 +3913,7 @@ class BulkExportTest(TembaTest):
         self.assertFalse(exported["triggers"])
 
     def test_subflow_dependencies(self):
-        self.import_file("subflow")
+        self.import_file("test_flows/subflow.json")
 
         parent = Flow.objects.filter(name="Parent Flow").first()
         child = Flow.objects.filter(name="Child Flow").first()
@@ -3993,7 +3993,7 @@ class BulkExportTest(TembaTest):
             self.assertIsNone(Flow.objects.filter(org=self.org, name="New Mother").first())
 
     def test_import_campaign_with_translations(self):
-        self.import_file("campaign_import_with_translations")
+        self.import_file("test_flows/campaign_import_with_translations.json")
 
         campaign = Campaign.objects.all().first()
         event = campaign.events.all().first()
@@ -4011,7 +4011,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(flow_def["localization"]["eng"][action["uuid"]]["text"], ["Hey"])
 
     def test_reimport(self):
-        self.import_file("survey_campaign")
+        self.import_file("test_flows/survey_campaign.json")
 
         campaign = Campaign.objects.filter(is_active=True).last()
         event = campaign.events.filter(is_active=True).last()
@@ -4021,7 +4021,7 @@ class BulkExportTest(TembaTest):
         campaign.group.contacts.add(sally)
 
         # importing it again shouldn't result in failures
-        self.import_file("survey_campaign")
+        self.import_file("test_flows/survey_campaign.json")
 
         # get our latest campaign and event
         new_campaign = Campaign.objects.filter(is_active=True).last()
@@ -4032,7 +4032,7 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(event.id, new_event.id)
 
     def test_import_mixed_flow_versions(self):
-        self.import_file("mixed_versions")
+        self.import_file("test_flows/mixed_versions.json")
 
         group = ContactGroup.objects.get(name="Survey Audience")
 
@@ -4051,7 +4051,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(dep_graph[parent], {child})
 
     def test_import_dependency_types(self):
-        self.import_file("all_dependency_types")
+        self.import_file("test_flows/all_dependency_types.json")
 
         parent = Flow.objects.get(name="All Dep Types")
         child = Flow.objects.get(name="New Child")
@@ -4081,7 +4081,7 @@ class BulkExportTest(TembaTest):
         # final call is after new flows and dependencies have been committed so mailroom can see them
         mr_mocks.flow_inspect(dependencies=[{"key": "age", "name": "", "type": "field", "missing": False}])
 
-        self.import_file("color")
+        self.import_file("test_flows/color.json")
 
         flow = Flow.objects.get()
 
@@ -4089,7 +4089,7 @@ class BulkExportTest(TembaTest):
 
     def test_import_missing_flow_dependency(self):
         # in production this would blow up validating the flow but we can't do that during tests
-        self.import_file("parent_without_its_child")
+        self.import_file("test_flows/parent_without_its_child.json")
 
         parent = Flow.objects.get(name="Single Parent")
         self.assertEqual(set(parent.flow_dependencies.all()), set())
@@ -4097,7 +4097,7 @@ class BulkExportTest(TembaTest):
         # create child with that name and re-import
         child1 = Flow.create(self.org, self.admin, "New Child", Flow.TYPE_MESSAGE)
 
-        self.import_file("parent_without_its_child")
+        self.import_file("test_flows/parent_without_its_child.json")
         self.assertEqual(set(parent.flow_dependencies.all()), {child1})
 
         # create child with that UUID and re-import
@@ -4105,7 +4105,7 @@ class BulkExportTest(TembaTest):
             self.org, self.admin, "New Child 2", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
         )
 
-        self.import_file("parent_without_its_child")
+        self.import_file("test_flows/parent_without_its_child.json")
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
     def validate_flow_dependencies(self, definition):
@@ -4132,7 +4132,7 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions without fields and groups included in the export
         """
-        data = self.get_import_json("cataclysm")
+        data = self.load_json("test_flows/cataclysm.json")
 
         del data["fields"]
         del data["groups"]
@@ -4154,7 +4154,7 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups included in the export but not fields
         """
-        data = self.get_import_json("cataclysm")
+        data = self.load_json("test_flows/cataclysm.json")
         del data["fields"]
 
         mr_mocks.contact_parse_query("facts_per_day = 1", fields=["facts_per_day"])
@@ -4197,7 +4197,7 @@ class BulkExportTest(TembaTest):
         mr_mocks.contact_parse_query("facts_per_day = 1", fields=["facts_per_day"])
         mr_mocks.contact_parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
 
-        self.import_file("cataclysm")
+        self.import_file("test_flows/cataclysm.json")
 
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.get_definition())
@@ -4242,7 +4242,7 @@ class BulkExportTest(TembaTest):
             self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keywords=["rating"], match_type=Trigger.MATCH_FIRST_WORD
         )
 
-        data = self.get_import_json("rating_10")
+        data = self.load_json("test_flows/rating_10.json")
 
         self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
@@ -4264,7 +4264,7 @@ class BulkExportTest(TembaTest):
         flow_trigger.archive(self.admin)
 
         # re import again will restore the trigger
-        data = self.get_import_json("rating_10")
+        data = self.load_json("test_flows/rating_10.json")
         self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow_trigger.refresh_from_db()
@@ -4312,7 +4312,7 @@ class BulkExportTest(TembaTest):
             )
 
         # import all our bits
-        self.import_file("the_clinic")
+        self.import_file("test_flows/the_clinic.json")
 
         confirm_appointment = Flow.objects.get(name="Confirm Appointment")
         self.assertEqual(10080, confirm_appointment.expires_after_minutes)
@@ -4334,7 +4334,7 @@ class BulkExportTest(TembaTest):
         message_flow.update_single_message_flow(self.admin, {"eng": "No reminders for you!"}, base_language="eng")
 
         # now reimport
-        self.import_file("the_clinic")
+        self.import_file("test_flows/the_clinic.json")
 
         # our flow should get reset from the import
         confirm_appointment.refresh_from_db()

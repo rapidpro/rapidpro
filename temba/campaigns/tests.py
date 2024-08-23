@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.campaigns.views import CampaignEventCRUDL
 from temba.contacts.models import ContactField
-from temba.flows.models import Flow, FlowRevision
+from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import DefinitionExport, Org
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
@@ -159,7 +159,7 @@ class CampaignTest(TembaTest):
         # create a campaign
         campaign = Campaign.create(self.org, self.user, "Planting Reminders", self.farmers)
 
-        flow = self.create_flow("Test")
+        flow = self.create_flow("Test 1")
 
         event1 = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour="13"
@@ -173,22 +173,15 @@ class CampaignTest(TembaTest):
 
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3])
 
-        flow_json = self.get_flow_json("favorites")
-        flow = Flow.objects.create(
-            name="Call Me Maybe",
-            org=self.org,
-            is_system=True,
-            created_by=self.admin,
-            modified_by=self.admin,
-            saved_by=self.admin,
-            version_number="13.5.0",
-            flow_type="V",
-        )
-
-        FlowRevision.objects.create(flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin)
-
         event4 = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, self.planting_date, offset=2, unit="W", flow=flow, delivery_hour="5"
+            self.org,
+            self.admin,
+            campaign,
+            self.planting_date,
+            offset=2,
+            unit="W",
+            flow=self.create_flow("Test 2"),
+            delivery_hour="5",
         )
 
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3, event4])
@@ -801,7 +794,7 @@ class CampaignTest(TembaTest):
         self.assertIsNotNone(ev4.get_relative_to_value())
 
     def test_import(self):
-        self.import_file("the_clinic")
+        self.import_file("test_flows/the_clinic.json")
         self.assertEqual(1, Campaign.objects.count())
 
         campaign = Campaign.objects.get()

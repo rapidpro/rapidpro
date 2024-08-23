@@ -1156,24 +1156,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-    def test_legacy_validate_definition(self):
-        with self.assertRaises(ValueError):
-            FlowRevision.validate_legacy_definition({"flow_type": "U", "nodes": []})
-
-        with self.assertRaises(ValueError):
-            FlowRevision.validate_legacy_definition(self.get_flow_json("not_fully_localized"))
-
-        # base_language of null, but spec version 8
-        with self.assertRaises(ValueError):
-            FlowRevision.validate_legacy_definition(self.get_flow_json("no_base_language_v8"))
-
-        # base_language of 'eng' but non localized actions
-        with self.assertRaises(ValueError):
-            FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_with_language"))
-
-        with self.assertRaises(ValueError):
-            FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_ruleset"))
-
     def test_importing_dependencies(self):
         # create channel to be matched by name
         channel = self.create_channel("TG", "RapidPro Test", "12345324635")
@@ -2143,7 +2125,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make a flow that looks like a legacy flow
         flow = self.get_flow("color_v11")
-        original_def = self.get_flow_json("color_v11")
+        original_def = self.load_json("test_flows/color_v11.json")["flows"][0]
 
         flow.version_number = "11.12"
         flow.save(update_fields=("version_number",))
@@ -2173,7 +2155,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # we should have one revision for an imported flow
         flow = self.get_flow("color_v11")
-        original_def = self.get_flow_json("color_v11")
+        original_def = self.load_json("test_flows/color_v11.json")["flows"][0]
 
         # rewind definition to legacy spec
         revision = flow.revisions.get()
@@ -5297,6 +5279,28 @@ class SystemChecksTest(TembaTest):
 
 
 class FlowRevisionTest(TembaTest):
+    def test_validate_legacy_definition(self):
+        def validate(flow_def: dict, expected_error: str):
+            with self.assertRaises(ValueError) as cm:
+                FlowRevision.validate_legacy_definition(flow_def)
+            self.assertEqual(expected_error, str(cm.exception))
+
+        validate({"flow_type": "U", "nodes": []}, "unsupported flow type")
+        validate(self.load_json("test_flows/legacy/invalid/not_fully_localized.json"), "non-localized flow definition")
+
+        # base_language of null, but spec version 8
+        validate(self.load_json("test_flows/legacy/invalid/no_base_language_v8.json"), "non-localized flow definition")
+
+        # base_language of 'eng' but non localized actions
+        validate(
+            self.load_json("test_flows/legacy/invalid/non_localized_with_language.json"),
+            "non-localized flow definition",
+        )
+
+        validate(
+            self.load_json("test_flows/legacy/invalid/non_localized_ruleset.json"), "non-localized flow definition"
+        )
+
     def test_trim_revisions(self):
         start = timezone.now()
 

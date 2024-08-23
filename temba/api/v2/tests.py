@@ -2788,7 +2788,7 @@ class EndpointsTest(APITest):
         self.assertPostNotAllowed(endpoint_url)
         self.assertDeleteNotAllowed(endpoint_url)
 
-        self.import_file("subflow")
+        self.import_file("test_flows/subflow.json")
         flow = Flow.objects.get(name="Parent Flow")
 
         # all flow dependencies and we should get the child flow
@@ -2806,7 +2806,7 @@ class EndpointsTest(APITest):
         )
 
         # import the clinic app which has campaigns
-        self.import_file("the_clinic")
+        self.import_file("test_flows/the_clinic.json")
 
         # our catchall flow, all alone
         flow = Flow.objects.get(name="Catch All")
@@ -2874,7 +2874,7 @@ class EndpointsTest(APITest):
         )
 
         # test that flows are migrated
-        self.import_file("favorites_v13")
+        self.import_file("test_flows/favorites_v13.json")
 
         flow = Flow.objects.get(name="Favorites")
         self.assertGet(

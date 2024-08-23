@@ -1,4 +1,5 @@
 import copy
+import os
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
@@ -165,26 +166,31 @@ class TembaTest(SmartminTest):
             session.update({"org_id": choose_org.id})
             session.save()
 
-    def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
-        data = self.get_import_json(filename, substitutions=substitutions)
-        self.org.import_app(data, self.admin, site=site)
+    def load_json(self, path: str, substitutions=None) -> dict:
+        """
+        Loads a JSON test file from a path relatve to the media directory
+        """
 
-    def get_import_json(self, filename, substitutions=None):
-        handle = open("%s/test_flows/%s.json" % (settings.MEDIA_ROOT, filename), "r+")
-        data = handle.read()
-        handle.close()
+        with open(os.path.join(settings.MEDIA_ROOT, path), "r") as f:
+            data = f.read()
 
-        if substitutions:
-            for k, v in substitutions.items():
-                print('Replacing "%s" with "%s"' % (k, v))
-                data = data.replace(k, str(v))
+            if substitutions:
+                for k, v in substitutions.items():
+                    data = data.replace(k, str(v))
 
-        return json.loads(data)
+            return json.loads(data)
+
+    def import_file(self, path: str, substitutions=None):
+        """
+        Imports definitions from a JSON file
+        """
+
+        self.org.import_app(self.load_json(path, substitutions), self.admin, site="http://rapidpro.io")
 
     def get_flow(self, filename, substitutions=None, name=None):
         now = timezone.now()
 
-        self.import_file(filename, substitutions=substitutions)
+        self.import_file(f"test_flows/{filename}.json", substitutions=substitutions)
 
         imported_flows = Flow.objects.filter(org=self.org, saved_on__gt=now)
         flow = imported_flows.filter(name=name).first() if name else imported_flows.order_by("id").last()
@@ -193,10 +199,6 @@ class TembaTest(SmartminTest):
 
         flow.org = self.org
         return flow
-
-    def get_flow_json(self, filename, substitutions=None):
-        data = self.get_import_json(filename, substitutions=substitutions)
-        return data["flows"][0]
 
     def create_user(self, email, group_names=(), **kwargs):
         user = User.objects.create_user(username=email, email=email, **kwargs)
