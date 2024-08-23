@@ -986,9 +986,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
     @mock_mailroom
     def test_start(self, mr_mocks):
         sample_flows = list(self.org.flows.order_by("name"))
-        background_flow = self.get_flow("background")
-        self.get_flow("media_survey")
-        archived_flow = self.get_flow("color")
+        background_flow = self.create_flow("Background")
+        archived_flow = self.create_flow("Archived")
         archived_flow.archive(self.admin)
 
         contact = self.create_contact("Joe", phone="+593979000111")

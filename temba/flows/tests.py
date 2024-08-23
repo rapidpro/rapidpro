@@ -96,7 +96,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.mailroom.queue_interrupt")
     def test_archive(self, mock_queue_interrupt):
-        flow = self.get_flow("color")
+        flow = self.create_flow("Test")
         flow.archive(self.admin)
 
         mock_queue_interrupt.assert_called_once_with(self.org, flow=flow)
@@ -220,7 +220,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(flow.is_archived)
 
     def test_editor(self):
-        flow = self.get_flow("color")
+        flow = self.create_flow("Test")
 
         self.login(self.admin)
 
@@ -1245,7 +1245,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.get_flow("group_send_flow")
 
     def test_flow_delete_of_inactive_flow(self):
-        flow = self.get_flow("favorites")
+        flow = self.create_flow("Test")
         flow.release(self.admin)
 
         self.login(self.admin)
@@ -1630,7 +1630,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("flows.flow_create")
 
         self.create_contact("Eric", phone="+250788382382")
-        flow = self.get_flow("color")
+        flow = self.create_flow("Test")
 
         # create a flow for another org
         other_flow = Flow.create(self.org2, self.admin2, "Flow2")
@@ -1821,7 +1821,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(language_flow.base_language, "eng")
 
     def test_update_messaging_flow(self):
-        flow = self.get_flow("color_v13")
+        flow = self.create_flow("Test")
         update_url = reverse("flows.flow_update", args=[flow.id])
 
         def assert_triggers(expected: list):
@@ -1833,9 +1833,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             [self.editor, self.admin],
             form_fields={
-                "name": "Colors",
+                "name": "Test",
                 "keyword_triggers": [],
-                "expires_after_minutes": 720,
+                "expires_after_minutes": 10080,
                 "ignore_triggers": False,
             },
         )
@@ -1931,7 +1931,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_update_voice_flow(self):
-        flow = self.get_flow("ivr")
+        flow = self.create_flow("IVR Test", flow_type=Flow.TYPE_VOICE)
         update_url = reverse("flows.flow_update", args=[flow.id])
 
         self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
@@ -1979,7 +1979,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(30, flow.metadata["ivr_retry"])
 
     def test_update_surveyor_flow(self):
-        flow = self.get_flow("media_survey")
+        flow = self.create_flow("Survey", flow_type=Flow.TYPE_SURVEY)
         update_url = reverse("flows.flow_update", args=[flow.id])
 
         # we should only see name and contact creation option on form
@@ -1994,7 +1994,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("login", flow.metadata.get("contact_creation"))
 
     def test_update_background_flow(self):
-        flow = self.get_flow("background")
+        flow = self.create_flow("Background", flow_type=Flow.TYPE_BACKGROUND)
         update_url = reverse("flows.flow_update", args=[flow.id])
 
         # we should only see name on form
@@ -2008,14 +2008,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("New Name", flow.name)
 
     def test_list_views(self):
-        flow1 = self.get_flow("color_v13")
-        flow2 = self.get_flow("no_ruleset_flow")
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
 
         # archive second flow
         flow2.is_archived = True
         flow2.save(update_fields=("is_archived",))
 
-        flow3 = Flow.create(self.org, self.admin, "Flow 3")
+        flow3 = self.create_flow("Flow 3")
 
         self.login(self.admin)
 
@@ -2293,7 +2293,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertResponseError(response, "description", "Your flow has been upgraded to the latest version")
 
     def test_inactive_flow(self):
-        flow = self.get_flow("color_v13")
+        flow = self.create_flow("Deleted")
         flow.release(self.admin)
 
         self.login(self.admin)
@@ -2898,6 +2898,16 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(24, len(data["hod"]))
         self.assertEqual(7, len(data["dow"]))
 
+        # check that views return 404 for inactive flows
+        flow = self.create_flow("Deleted")
+        flow.release(self.admin)
+
+        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
+        self.assertEqual(404, response.status_code)
+
+        response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
+        self.assertEqual(404, response.status_code)
+
     def test_activity(self):
         flow = self.get_flow("favorites_v13")
         flow_nodes = flow.get_definition()["nodes"]
@@ -2938,24 +2948,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             },
             response.json(),
         )
-
-    def test_activity_chart_of_inactive_flow(self):
-        flow = self.get_flow("favorites")
-        flow.release(self.admin)
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-
-        self.assertEqual(404, response.status_code)
-
-    def test_category_counts_of_inactive_flow(self):
-        flow = self.get_flow("favorites")
-        flow.release(self.admin)
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
-
-        self.assertEqual(404, response.status_code)
 
     def test_write_protection(self):
         flow = self.get_flow("favorites_v13")
@@ -3738,7 +3730,7 @@ class FlowSessionTest(TembaTest):
 
     def test_trim(self):
         contact = self.create_contact("Ben Haggerty", phone="+250788123123")
-        flow = self.get_flow("color")
+        flow = self.create_flow("Test")
 
         # create some runs that have sessions
         session1 = FlowSession.objects.create(
@@ -4953,7 +4945,7 @@ class ResultsExportTest(TembaTest):
 
     def test_no_responses(self):
         today = timezone.now().astimezone(self.org.timezone).date()
-        flow = self.get_flow("color_v13")
+        flow = self.create_flow("Test")
 
         self.assertEqual(flow.get_run_stats()["total"], 0)
 
@@ -4963,7 +4955,7 @@ class ResultsExportTest(TembaTest):
 
         # every sheet has only the head row
         self.assertEqual(1, len(list(workbook.worksheets[0].rows)))
-        self.assertEqual(11, len(list(workbook.worksheets[0].columns)))
+        self.assertEqual(8, len(list(workbook.worksheets[0].columns)))
 
 
 class FlowLabelTest(TembaTest):
@@ -5308,28 +5300,28 @@ class FlowRevisionTest(TembaTest):
     def test_trim_revisions(self):
         start = timezone.now()
 
-        color = self.get_flow("color")
-        clinic = self.get_flow("the_clinic")
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
 
         revision = 100
         FlowRevision.objects.all().update(revision=revision)
 
         # create a single old clinic revision
         FlowRevision.objects.create(
-            flow=clinic,
+            flow=flow2,
             definition=dict(),
             revision=99,
             created_on=timezone.now() - timedelta(days=7),
             created_by=self.admin,
         )
 
-        # make a bunch of revisions for color on the same day
+        # make a bunch of revisions for flow 1 on the same day
         created = timezone.now().replace(hour=6) - timedelta(days=1)
         for i in range(25):
             revision -= 1
             created = created - timedelta(minutes=1)
             FlowRevision.objects.create(
-                flow=color, definition=dict(), revision=revision, created_by=self.admin, created_on=created
+                flow=flow1, definition=dict(), revision=revision, created_by=self.admin, created_on=created
             )
 
         # then for 5 days prior, make a few more
@@ -5339,32 +5331,32 @@ class FlowRevisionTest(TembaTest):
                 revision -= 1
                 created = created - timedelta(minutes=1)
                 FlowRevision.objects.create(
-                    flow=color, definition=dict(), revision=revision, created_by=self.admin, created_on=created
+                    flow=flow1, definition=dict(), revision=revision, created_by=self.admin, created_on=created
                 )
 
         # trim our flow revisions, should be left with original (today), 25 from yesterday, 1 per day for 5 days = 31
-        self.assertEqual(76, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(76, FlowRevision.objects.filter(flow=flow1).count())
         self.assertEqual(45, FlowRevision.trim(start))
-        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=flow1).count())
         self.assertEqual(
             7,
-            FlowRevision.objects.filter(flow=color)
+            FlowRevision.objects.filter(flow=flow1)
             .annotate(created_date=TruncDate("created_on"))
             .distinct("created_date")
             .count(),
         )
 
         # trim our clinic flow manually, should remain unchanged
-        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
-        self.assertEqual(0, FlowRevision.trim_for_flow(clinic.id))
-        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(2, FlowRevision.objects.filter(flow=flow2).count())
+        self.assertEqual(0, FlowRevision.trim_for_flow(flow2.id))
+        self.assertEqual(2, FlowRevision.objects.filter(flow=flow2).count())
 
         # call our task
         trim_flow_revisions()
-        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
-        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(2, FlowRevision.objects.filter(flow=flow2).count())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=flow1).count())
 
         # call again (testing reading redis key)
         trim_flow_revisions()
-        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
-        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(2, FlowRevision.objects.filter(flow=flow2).count())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=flow1).count())

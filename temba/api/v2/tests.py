@@ -3184,7 +3184,7 @@ class EndpointsTest(APITest):
         self.assertPostNotPermitted(endpoint_url, [None, self.agent, self.user])
         self.assertDeleteNotAllowed(endpoint_url)
 
-        flow = self.get_flow("favorites_v13")
+        flow = self.create_flow("Test")
 
         # try to create an empty flow start
         self.assertPost(endpoint_url, self.editor, {}, errors={"flow": "This field is required."})
@@ -3402,7 +3402,7 @@ class EndpointsTest(APITest):
             {
                 "id": start3.id,
                 "uuid": str(start3.uuid),
-                "flow": {"uuid": flow.uuid, "name": "Favorites"},
+                "flow": {"uuid": flow.uuid, "name": "Test"},
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
