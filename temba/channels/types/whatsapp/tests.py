@@ -63,10 +63,15 @@ class WhatsAppTypeTest(TembaTest):
         with patch("requests.get") as wa_cloud_get:
             wa_cloud_get.side_effect = [
                 MockJsonResponse(400, {}),
+                # debug not valid
+                MockJsonResponse(
+                    200,
+                    {"data": {"scopes": [], "is_valid": False}},
+                ),
                 # missing permissions
                 MockJsonResponse(
                     200,
-                    {"data": {"scopes": []}},
+                    {"data": {"scopes": [], "is_valid": True}},
                 ),
                 # success
                 MockJsonResponse(
@@ -77,7 +82,8 @@ class WhatsAppTypeTest(TembaTest):
                                 "business_management",
                                 "whatsapp_business_management",
                                 "whatsapp_business_messaging",
-                            ]
+                            ],
+                            "is_valid": True,
                         }
                     },
                 ),
@@ -89,7 +95,8 @@ class WhatsAppTypeTest(TembaTest):
                                 "business_management",
                                 "whatsapp_business_management",
                                 "whatsapp_business_messaging",
-                            ]
+                            ],
+                            "is_valid": True,
                         }
                     },
                 ),
@@ -101,7 +108,8 @@ class WhatsAppTypeTest(TembaTest):
                                 "business_management",
                                 "whatsapp_business_management",
                                 "whatsapp_business_messaging",
-                            ]
+                            ],
+                            "is_valid": True,
                         }
                     },
                 ),
@@ -110,6 +118,12 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(response.status_code, 200)
 
             # 400 status
+            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
+            self.assertEqual(
+                response.context["form"].errors["__all__"][0], "Sorry account could not be connected. Please try again"
+            )
+
+            # 200 but has invalid key
             response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
             self.assertEqual(
                 response.context["form"].errors["__all__"][0], "Sorry account could not be connected. Please try again"
@@ -153,7 +167,8 @@ class WhatsAppTypeTest(TembaTest):
                                     "scopes": [
                                         "business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
@@ -184,7 +199,8 @@ class WhatsAppTypeTest(TembaTest):
                                         "business_management",
                                         "whatsapp_business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
@@ -256,7 +272,8 @@ class WhatsAppTypeTest(TembaTest):
                                         "business_management",
                                         "whatsapp_business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
@@ -405,7 +422,8 @@ class WhatsAppTypeTest(TembaTest):
                                         "business_management",
                                         "whatsapp_business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
@@ -473,7 +491,8 @@ class WhatsAppTypeTest(TembaTest):
                                         "business_management",
                                         "whatsapp_business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
