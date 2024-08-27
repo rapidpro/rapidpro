@@ -1,3 +1,13 @@
+v9.3.28 (2024-08-27)
+-------------------------
+ * Authorization code cannot be debugged
+ * Fix channel URLs to have a trailing slash
+ * Delete no longer used test flows
+ * Simplify functions for loading flows in tests and move flows used by legacy migration tests into their own directory
+ * TembaTest.create_flow should return a flow in latest version without migrating
+ * Only import real flows in tests where it's required
+ * Update README.md
+
 v9.3.27 (2024-08-21)
 -------------------------
  * Updates to migrate_dynamo command
