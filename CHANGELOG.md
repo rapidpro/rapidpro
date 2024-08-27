@@ -1,3 +1,7 @@
+v9.3.29 (2024-08-27)
+-------------------------
+ * Fix authorization code, verification, redirect URI
+
 v9.3.28 (2024-08-27)
 -------------------------
  * Authorization code cannot be debugged
