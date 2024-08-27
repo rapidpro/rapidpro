@@ -356,7 +356,8 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
                 params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
 
                 response = requests.get(url, params=params)
-                if response.status_code != 200:  # pragma: no cover
+                response_json = response.json()
+                if response.status_code != 200 or not response_json["data"]["is_valid"]:  # pragma: no cover
                     auth_code = auth_token
 
                     token_request_data = {
@@ -381,8 +382,6 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
                         self.cleaned_data["user_access_token"] = auth_token
                     else:
                         raise Exception("Failed to debug user token")
-
-                response_json = response.json()
 
                 for perm in ["business_management", "whatsapp_business_management", "whatsapp_business_messaging"]:
                     if perm not in response_json.get("data", dict()).get("scopes", []):
