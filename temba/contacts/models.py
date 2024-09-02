@@ -1985,7 +1985,7 @@ class ContactImport(SmartModel):
         total number of records. Otherwise raises a ValidationError.
         """
 
-        workbook = load_workbook(filename=file, read_only=True)
+        workbook = load_workbook(filename=file, read_only=True, data_only=True)
         ws = workbook.active
 
         # see https://openpyxl.readthedocs.io/en/latest/optimized.html#worksheet-dimensions but even with this we need
@@ -2203,7 +2203,7 @@ class ContactImport(SmartModel):
             self.save(update_fields=("group",))
 
         # parse each row, creating batch tasks for mailroom
-        workbook = load_workbook(filename=self.file, read_only=True)
+        workbook = load_workbook(filename=self.file, read_only=True, data_only=True)
         ws = workbook.active
         data = ws.iter_rows(min_row=2)
 
