@@ -1,3 +1,7 @@
+v9.3.30 (2024-09-02)
+-------------------------
+ * Import cell data value instead of formulas using data_only flag to load the workbook
+
 v9.3.29 (2024-08-27)
 -------------------------
  * Fix authorization code, verification, redirect URI
