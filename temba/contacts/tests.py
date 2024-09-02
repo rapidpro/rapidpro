@@ -4244,6 +4244,32 @@ class ContactImportTest(TembaTest):
         )
 
     @mock_mailroom
+    def test_batches_from_xlsx_with_formulas(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/formula_data.xlsx")
+        imp.start()
+        batch = imp.batches.get()
+
+        self.assertEqual(
+            [
+                {
+                    "_import_row": 2,
+                    "fields": {"team": "Managers"},
+                    "name": "John Smith",
+                    "urns": ["tel:+12025550199"],
+                    "groups": [str(imp.group.uuid)],
+                },
+                {
+                    "_import_row": 3,
+                    "fields": {"team": "Advisors"},
+                    "name": "Mary Green",
+                    "urns": ["tel:+14045550178"],
+                    "groups": [str(imp.group.uuid)],
+                },
+            ],
+            batch.specs,
+        )
+
+    @mock_mailroom
     def test_detect_spamminess(self, mr_mocks):
         imp = self.create_contact_import("media/test_imports/sequential_tels.xlsx")
         imp.start()
