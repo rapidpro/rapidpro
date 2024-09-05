@@ -1520,6 +1520,10 @@ class FlowCRUDL(SmartCRUDL):
                 'To start this flow you need to <a href="%(link)s">add a voice channel</a> to your workspace which will '
                 "allow you to make and receive calls."
             ),
+            "outbox_full": _(
+                "Your outbox currently has too many queued messages to start a flow. "
+                "Please wait for these messages to finish sending and try again."
+            ),
         }
 
         warnings = {
@@ -1538,6 +1542,8 @@ class FlowCRUDL(SmartCRUDL):
         def get_blockers(self, flow) -> list:
             blockers = []
 
+            if flow.org.is_outbox_full():
+                blockers.append(self.blockers["outbox_full"])
             if flow.org.is_suspended:
                 blockers.append(Org.BLOCKER_SUSPENDED)
             elif flow.org.is_flagged:

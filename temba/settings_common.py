@@ -938,6 +938,7 @@ ORG_LIMIT_DEFAULTS = {
     "labels": 250,
     "teams": 50,
     "topics": 250,
+    "outbox": 1000000,
 }
 
 RETENTION_PERIODS = {

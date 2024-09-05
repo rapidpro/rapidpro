@@ -2407,6 +2407,17 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.is_flagged = False
         self.org.save()
 
+        # if we have too many messages in our outbox we should block
+        mr_mocks.msg_broadcast_preview(query="age > 30", total=2)
+        with override_settings(ORG_LIMIT_DEFAULTS={"outbox": 0}):
+            response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
+            self.assertEqual(
+                [
+                    "You currently have too many messages queued in your outbox. Please wait for these messages to send and try again later."
+                ],
+                response.json()["blockers"],
+            )
+
         # if we release our send channel we can't send a broadcast
         self.channel.release(self.admin)
         mr_mocks.msg_broadcast_preview(query='age > 30 AND status = "active"', total=100)
