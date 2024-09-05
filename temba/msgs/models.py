@@ -884,13 +884,6 @@ class SystemLabel:
         elif label_type == cls.TYPE_FAILED:
             return dict(direction="out", visibility="visible", status="failed")
 
-    @classmethod
-    def is_outbox_full(cls, org):
-        outbox_limit = org.get_limit(Org.LIMIT_OUTBOX)
-        counts = SystemLabel.get_counts(org)
-        outbox = counts[SystemLabel.TYPE_OUTBOX] + Broadcast.get_queued(org).count()
-        return outbox >= outbox_limit
-
 
 class SystemLabelCount(SquashableModel):
     """

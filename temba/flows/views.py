@@ -34,7 +34,6 @@ from temba.contacts.models import URN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
-from temba.msgs.models import SystemLabel
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import (
     BaseExportView,
@@ -1543,7 +1542,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_blockers(self, flow) -> list:
             blockers = []
 
-            if SystemLabel.is_outbox_full(flow.org):
+            if flow.org.is_outbox_full():
                 blockers.append(self.blockers["outbox_full"])
             if flow.org.is_suspended:
                 blockers.append(Org.BLOCKER_SUSPENDED)

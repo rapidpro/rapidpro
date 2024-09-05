@@ -844,6 +844,14 @@ class Org(SmartModel):
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
+    def is_outbox_full(self):
+        from temba.msgs.models import SystemLabel, Broadcast
+
+        outbox_limit = self.get_limit(Org.LIMIT_OUTBOX)
+        counts = SystemLabel.get_counts(self)
+        outbox = counts[SystemLabel.TYPE_OUTBOX] + Broadcast.get_queued(self).count()
+        return outbox >= outbox_limit
+
     def get_channel(self, role: str, scheme: str):
         """
         Gets a channel for this org which supports the given role and scheme

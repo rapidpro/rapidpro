@@ -635,7 +635,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def get_blockers(self, org) -> list:
             blockers = []
 
-            if SystemLabel.is_outbox_full(org):
+            if org.is_outbox_full():
                 blockers.append(self.blockers["outbox_full"])
 
             if org.is_suspended:
