@@ -627,15 +627,22 @@ class BroadcastCRUDL(SmartCRUDL):
                 'To get started you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
                 "you to send messages to your contacts."
             ),
+            "outbox_full": _(
+                "You currently have too many messages queued in your outbox. Please wait for these messages to send and try again later."
+            ),
         }
 
         def get_blockers(self, org) -> list:
             blockers = []
 
+            if SystemLabel.is_outbox_full(org):
+                blockers.append(self.blockers["outbox_full"])
+
             if org.is_suspended:
                 blockers.append(Org.BLOCKER_SUSPENDED)
             elif org.is_flagged:
                 blockers.append(Org.BLOCKER_FLAGGED)
+
             if not org.get_send_channel():
                 blockers.append(self.blockers["no_send_channel"] % {"link": reverse("channels.channel_claim")})
 

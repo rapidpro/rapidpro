@@ -2407,6 +2407,25 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 'To start this flow you need to <a href="/channels/channel/claim/">add a voice channel</a> to your workspace which will allow you to make and receive calls.',
             )
 
+            # if we have too many messages in our outbox we should block
+            with override_settings(ORG_LIMIT_DEFAULTS={"outbox": 0}):
+                preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+                mr_mocks.flow_start_preview(query="age > 30", total=10000)
+
+                response = self.client.post(
+                    preview_url,
+                    {
+                        "query": "age > 30",
+                    },
+                    content_type="application/json",
+                )
+                self.assertEqual(
+                    [
+                        "Your outbox currently has too many queued messages to start a flow. Please wait for these messages to finish sending and try again."
+                    ],
+                    response.json()["blockers"],
+                )
+
             # check warning for lots of contacts
             preview_url = reverse("flows.flow_preview_start", args=[flow.id])
             mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=10000)
