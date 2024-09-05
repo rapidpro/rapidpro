@@ -38,7 +38,7 @@ class FacebookAppType(ChannelType):
         return [
             self.get_claim_url(),
             re_path(
-                r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(channel_type=self), name="refresh_token"
+                r"^(?P<uuid>[a-z0-9\-]+)/refresh_token/$", RefreshToken.as_view(channel_type=self), name="refresh_token"
             ),
         ]
 

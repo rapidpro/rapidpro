@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "9.3.27"
+version = "9.3.30"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 
@@ -22,7 +22,7 @@ smartmin = "^5.1.0"
 celery = "^5.4.0"
 redis = "^5.0.7"
 boto3 = "^1.34.137"
-cryptography = "^42.0.4"
+cryptography = "^43.0.1"
 vonage = "2.5.2"
 pyotp = "2.4.1"
 twilio = "6.24.0"

@@ -20,6 +20,7 @@ class WhatsAppTypeTest(TembaTest):
         FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET",
         WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
         WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN",
+        FACEBOOK_LOGIN_WHATSAPP_CONFIG_ID="100",
     )
     @patch("temba.channels.types.whatsapp.views.randint")
     def test_claim(self, mock_randint):
@@ -61,78 +62,99 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(response.request["PATH_INFO"], connect_whatsapp_cloud_url)
 
         with patch("requests.get") as wa_cloud_get:
-            wa_cloud_get.side_effect = [
-                MockJsonResponse(400, {}),
+            with patch("requests.post") as wa_cloud_post:
+                wa_cloud_get.side_effect = [
+                    MockJsonResponse(400, {}),
+                    # debug not valid
+                    MockJsonResponse(
+                        200,
+                        {"data": {"scopes": [], "is_valid": False}},
+                    ),
+                    # missing permissions
+                    MockJsonResponse(
+                        200,
+                        {"data": {"scopes": [], "is_valid": True}},
+                    ),
+                    # success
+                    MockJsonResponse(
+                        200,
+                        {
+                            "data": {
+                                "scopes": [
+                                    "business_management",
+                                    "whatsapp_business_management",
+                                    "whatsapp_business_messaging",
+                                ],
+                                "is_valid": True,
+                            }
+                        },
+                    ),
+                    MockJsonResponse(
+                        200,
+                        {
+                            "data": {
+                                "scopes": [
+                                    "business_management",
+                                    "whatsapp_business_management",
+                                    "whatsapp_business_messaging",
+                                ],
+                                "is_valid": True,
+                            }
+                        },
+                    ),
+                    MockJsonResponse(
+                        200,
+                        {
+                            "data": {
+                                "scopes": [
+                                    "business_management",
+                                    "whatsapp_business_management",
+                                    "whatsapp_business_messaging",
+                                ],
+                                "is_valid": True,
+                            }
+                        },
+                    ),
+                ]
+
+                wa_cloud_post.return_value = MockResponse(200, json.dumps({"access_token": "Z" * 48}))
+
+                response = self.client.get(connect_whatsapp_cloud_url)
+                self.assertEqual(response.status_code, 200)
+
+                # 400 status
+                response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
+                self.assertEqual(
+                    response.context["form"].errors["__all__"][0],
+                    "Sorry account could not be connected. Please try again",
+                )
+
+                # 200 but has invalid key
+                response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
+                self.assertEqual(
+                    response.context["form"].errors["__all__"][0],
+                    "Sorry account could not be connected. Please try again",
+                )
+
                 # missing permissions
-                MockJsonResponse(
-                    200,
-                    {"data": {"scopes": []}},
-                ),
-                # success
-                MockJsonResponse(
-                    200,
-                    {
-                        "data": {
-                            "scopes": [
-                                "business_management",
-                                "whatsapp_business_management",
-                                "whatsapp_business_messaging",
-                            ]
-                        }
-                    },
-                ),
-                MockJsonResponse(
-                    200,
-                    {
-                        "data": {
-                            "scopes": [
-                                "business_management",
-                                "whatsapp_business_management",
-                                "whatsapp_business_messaging",
-                            ]
-                        }
-                    },
-                ),
-                MockJsonResponse(
-                    200,
-                    {
-                        "data": {
-                            "scopes": [
-                                "business_management",
-                                "whatsapp_business_management",
-                                "whatsapp_business_messaging",
-                            ]
-                        }
-                    },
-                ),
-            ]
-            response = self.client.get(connect_whatsapp_cloud_url)
-            self.assertEqual(response.status_code, 200)
+                response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
+                self.assertEqual(
+                    response.context["form"].errors["__all__"][0],
+                    "Sorry account could not be connected. Please try again",
+                )
 
-            # 400 status
-            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
-            self.assertEqual(
-                response.context["form"].errors["__all__"][0], "Sorry account could not be connected. Please try again"
-            )
+                response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36))
+                self.assertIn(WhatsAppType.SESSION_USER_TOKEN, self.client.session)
+                self.assertEqual(response.url, claim_whatsapp_cloud_url)
 
-            # missing permissions
-            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
-            self.assertEqual(
-                response.context["form"].errors["__all__"][0], "Sorry account could not be connected. Please try again"
-            )
+                response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
+                self.assertEqual(response.status_code, 200)
 
-            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36))
-            self.assertIn(WhatsAppType.SESSION_USER_TOKEN, self.client.session)
-            self.assertEqual(response.url, claim_whatsapp_cloud_url)
-
-            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
-            self.assertEqual(response.status_code, 200)
-
-            self.assertEqual(wa_cloud_get.call_args_list[0][0][0], "https://graph.facebook.com/v18.0/debug_token")
-            self.assertEqual(
-                wa_cloud_get.call_args_list[0][1],
-                {"params": {"access_token": "FB_APP_ID|FB_APP_SECRET", "input_token": "X" * 36}},
-            )
+                self.assertEqual(wa_cloud_get.call_args_list[0][0][0], "https://graph.facebook.com/v18.0/debug_token")
+                self.assertEqual(
+                    wa_cloud_get.call_args_list[0][1],
+                    {"params": {"access_token": "FB_APP_ID|FB_APP_SECRET", "input_token": "Z" * 48}},
+                )
 
         # make sure the token is set on the session
         session = self.client.session
@@ -153,7 +175,8 @@ class WhatsAppTypeTest(TembaTest):
                                     "scopes": [
                                         "business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
@@ -184,7 +207,8 @@ class WhatsAppTypeTest(TembaTest):
                                         "business_management",
                                         "whatsapp_business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
@@ -256,7 +280,8 @@ class WhatsAppTypeTest(TembaTest):
                                         "business_management",
                                         "whatsapp_business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
@@ -405,7 +430,8 @@ class WhatsAppTypeTest(TembaTest):
                                         "business_management",
                                         "whatsapp_business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),
@@ -473,7 +499,8 @@ class WhatsAppTypeTest(TembaTest):
                                         "business_management",
                                         "whatsapp_business_management",
                                         "whatsapp_business_messaging",
-                                    ]
+                                    ],
+                                    "is_valid": True,
                                 }
                             }
                         ),

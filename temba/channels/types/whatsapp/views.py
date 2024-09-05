@@ -345,6 +345,10 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     class WhatsappCloudConnectForm(forms.Form):
         user_access_token = forms.CharField(min_length=32, required=True)
 
+        def __init__(self, org, *args, **kwargs):
+            self.org = org
+            super().__init__(*args, **kwargs)
+
         def clean(self):
             try:
                 auth_token = self.cleaned_data.get("user_access_token", None)
@@ -352,37 +356,32 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
                 app_id = settings.FACEBOOK_APPLICATION_ID
                 app_secret = settings.FACEBOOK_APPLICATION_SECRET
 
-                url = "https://graph.facebook.com/v18.0/debug_token"
-                params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
-
-                response = requests.get(url, params=params)
-                if response.status_code != 200:  # pragma: no cover
-                    auth_code = auth_token
-
+                if settings.FACEBOOK_LOGIN_WHATSAPP_CONFIG_ID:
                     token_request_data = {
                         "client_id": app_id,
                         "client_secret": app_secret,
-                        "code": auth_code,
+                        "code": auth_token,
                         "grant_type": "authorization_code",
                         "redirect_uri": "https://"
-                        + self.derive_org().get_brand_domain()
+                        + self.org.get_brand_domain()
                         + reverse("channels.types.whatsapp.connect"),
                     }
                     token_url = "https://graph.facebook.com/v18.0/oauth/access_token"
                     response = requests.post(token_url, json=token_request_data)
                     response_json = response.json()
+                    if int(response.status_code / 100) == 2:
+                        auth_token = response_json["access_token"]
 
-                    auth_token = response_json["access_token"]
+                url = "https://graph.facebook.com/v18.0/debug_token"
+                params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
 
-                    params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
-
-                    response = requests.get(url, params=params)
-                    if response.status_code == 200:
-                        self.cleaned_data["user_access_token"] = auth_token
-                    else:
-                        raise Exception("Failed to debug user token")
-
+                response = requests.get(url, params=params)
                 response_json = response.json()
+
+                if response.status_code == 200:
+                    self.cleaned_data["user_access_token"] = auth_token
+                else:
+                    raise Exception("Failed to debug user token")
 
                 for perm in ["business_management", "whatsapp_business_management", "whatsapp_business_messaging"]:
                     if perm not in response_json.get("data", dict()).get("scopes", []):
@@ -413,6 +412,11 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
             return HttpResponseRedirect(self.get_success_url())
 
         return super().pre_process(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["org"] = self.request.org
+        return kwargs
 
     def form_valid(self, form):
         auth_token = form.cleaned_data["user_access_token"]
