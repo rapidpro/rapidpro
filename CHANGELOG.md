@@ -1,3 +1,7 @@
+v9.3.32 (2024-09-07)
+-------------------------
+ * Add outbox monitor for large queues
+
 v9.3.31 (2024-09-05)
 -------------------------
  * Add an org limit for too many messages in outbox
