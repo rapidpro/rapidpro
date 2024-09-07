@@ -1,43 +1,45 @@
 {% extends "smartmin/list.html" %}
 {% load i18n temba humanize %}
 
-{% block table %}
-  <table class="list lined header">
-    <thead>
-      <tr>
-        <th>{% trans "Flow" %}</th>
-        <th>{% trans "URL" %}</th>
-        <th style="width:100px;">{% trans "Status" %}</th>
-        <th style="width:100px;">{% trans "Elapsed" %}</th>
-        <th style="width:100px;" class="text-right">{% trans "Time" %}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for obj in object_list %}
-        <tr class="{% if obj.is_error %}warning{% endif %}">
-          <td class="clickable">
-            <a href="{% url "flows.flow_editor" obj.flow.uuid %}" class="linked">{{ obj.flow.name }}</a>
-          </td>
-          <td class="clickable">
-            <a href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.url|truncatechars:128 }}</a>
-          </td>
-          <td class="clickable">
-            <a href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.status_code|default:"--" }}</a>
-          </td>
-          <td class="whitespace-nowrap">
-            {% if obj.request_time %}
-              {{ obj.request_time|intcomma }}ms
-            {% else %}
-              {{ "--" }}
-            {% endif %}
-          </td>
-          <td class="text-right whitespace-nowrap">{{ obj.created_on|datetime }}</td>
-        </tr>
-      {% empty %}
+{% block content %}
+  <div class="flex-grow overflow-y-auto shadow rounded-b-lg">
+    <table class="list lined header scrolled" style="100%">
+      <thead>
         <tr>
-          <td colspan="99" class="text-center">{% trans "No webhook calls yet" %}</td>
+          <th>{% trans "Flow" %}</th>
+          <th>{% trans "URL" %}</th>
+          <th style="width:100px;">{% trans "Status" %}</th>
+          <th style="width:100px;">{% trans "Elapsed" %}</th>
+          <th style="width:100px;" class="text-right">{% trans "Time" %}</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-{% endblock table %}
+      </thead>
+      <tbody>
+        {% for obj in object_list %}
+          <tr class="{% if obj.is_error %}warning{% endif %}">
+            <td class="clickable">
+              <a href="{% url "flows.flow_editor" obj.flow.uuid %}" class="linked">{{ obj.flow.name }}</a>
+            </td>
+            <td class="clickable">
+              <a href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.url|truncatechars:128 }}</a>
+            </td>
+            <td class="clickable">
+              <a href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.status_code|default:"--" }}</a>
+            </td>
+            <td class="whitespace-nowrap">
+              {% if obj.request_time %}
+                {{ obj.request_time|intcomma }}ms
+              {% else %}
+                {{ "--" }}
+              {% endif %}
+            </td>
+            <td class="text-right whitespace-nowrap">{{ obj.created_on|datetime }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="99" class="text-center">{% trans "No webhook calls yet" %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}
