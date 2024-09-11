@@ -1,3 +1,7 @@
+v9.3.34 (2024-09-11)
+-------------------------
+ * Add timing controls around flow starts
+
 v9.3.33 (2024-09-11)
 -------------------------
  * Rename dynamodb channel logs table
