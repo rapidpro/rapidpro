@@ -845,7 +845,7 @@ class Org(SmartModel):
         return self.get_call_channel() or self.get_answer_channel()
 
     def is_outbox_full(self):
-        from temba.msgs.models import SystemLabel, Broadcast
+        from temba.msgs.models import Broadcast, SystemLabel
 
         outbox_limit = self.get_limit(Org.LIMIT_OUTBOX)
         counts = SystemLabel.get_counts(self)

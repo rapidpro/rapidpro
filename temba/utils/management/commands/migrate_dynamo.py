@@ -6,7 +6,7 @@ from temba.utils import dynamo
 
 TABLES = [
     {
-        "TableName": "ChannelLogsAttached",
+        "TableName": "ChannelLogs",
         "KeySchema": [{"AttributeName": "UUID", "KeyType": "HASH"}],
         "AttributeDefinitions": [{"AttributeName": "UUID", "AttributeType": "S"}],
         "TimeToLiveSpecification": {"AttributeName": "ExpireOn", "Enabled": True},

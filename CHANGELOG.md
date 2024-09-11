@@ -1,3 +1,7 @@
+v9.3.33 (2024-09-11)
+-------------------------
+ * Rename dynamodb channel logs table
+
 v9.3.32 (2024-09-07)
 -------------------------
  * Add outbox monitor for large queues
