@@ -45,7 +45,7 @@ class URN:
         * No hex escaping in URN path
     """
 
-    DELETED_SCHEME = "deleted"
+    DELETED_SCHEME  = "deleted"
     DISCORD_SCHEME = "discord"
     EMAIL_SCHEME = "mailto"
     EXTERNAL_SCHEME = "ext"

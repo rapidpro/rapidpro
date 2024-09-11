@@ -36,10 +36,10 @@ if __name__ == "__main__":
     cmd("python manage.py makemigrations --check")
 
     status("Running isort")
-    cmd("isort temba")
+    cmd("isort --check temba")
 
     status("Running black")
-    cmd("black temba")
+    cmd("black --check temba")
 
     status("Running ruff")
     cmd("ruff check temba")
