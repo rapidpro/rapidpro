@@ -708,22 +708,21 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         return text
 
-    def get_count(self, count_types):
-        count = (
-            ChannelCount.objects.filter(channel=self, count_type__in=count_types)
-            .aggregate(Sum("count"))
-            .get("count__sum", 0)
-        )
+    def get_count(self, count_types, since=None):
+        qs = ChannelCount.objects.filter(channel=self, count_type__in=count_types)
+        if since:
+            qs = qs.filter(day__gte=since)
 
+        count = qs.aggregate(Sum("count")).get("count__sum", 0)
         return 0 if count is None else count
 
-    def get_msg_count(self):
-        return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE])
+    def get_msg_count(self, since=None):
+        return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE], since)
 
-    def get_ivr_count(self):
+    def get_ivr_count(self, since=None):
         return self.get_count([ChannelCount.INCOMING_IVR_TYPE, ChannelCount.OUTGOING_IVR_TYPE])
 
-    def get_log_count(self):
+    def get_log_count(self, since=None):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE, ChannelCount.ERROR_LOG_TYPE])
 
     class Meta:
