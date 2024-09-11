@@ -17,7 +17,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactNote, ContactURN
-from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.flows.models import Flow, FlowRun, FlowStart, FlowStartCount
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
@@ -3094,13 +3094,12 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     By making a `GET` request you can list all the manual flow starts on your organization, in the order of last
     modified. Each flow start has the following attributes:
 
-     * **uuid** - the UUID of this flow start (string).
+     * **uuid** - the UUID of this flow start (string), filterable as `uuid`.
      * **flow** - the flow which was started (object).
      * **contacts** - the list of contacts that were started in the flow (objects).
      * **groups** - the list of groups that were started in the flow (objects).
-     * **restart_participants** - whether the contacts were restarted in this flow (boolean).
-     * **exclude_active** - whether the active contacts in other flows were excluded in this flow start (boolean).
      * **status** - the status of this flow start.
+     * **progress** - the progress of this flow start (object).
      * **params** - the dictionary of extra parameters passed to the flow start (object).
      * **created_on** - the datetime when this flow start was created (datetime).
      * **modified_on** - the datetime when this flow start was modified (datetime).
@@ -3125,6 +3124,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                          {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
                     ],
                     "status": "complete",
+                    "progress": {"total": 10, "started": 5},
                     "params": {
                         "first_name": "Ryan",
                         "last_name": "Lewis"
@@ -3172,7 +3172,8 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             "contacts": [
                  {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Wanz"}
             ],
-            "status": "complete",
+            "status": "pending",
+            "progress": {"total": -1, "started": 0},
             "params": {
                 "first_name": "Ryan",
                 "last_name": "Lewis"
@@ -3189,13 +3190,8 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     pagination_class = ModifiedOnCursorPagination
 
     def filter_queryset(self, queryset):
-        # ignore flow starts created by mailroom
+        # ignore flow starts created by flows or triggers
         queryset = queryset.exclude(created_by=None)
-
-        # filter by id (optional and deprecated)
-        start_id = self.get_int_param("id")
-        if start_id:
-            queryset = queryset.filter(id=start_id)
 
         # filter by UUID (optional)
         uuid = self.get_uuid_param("uuid")
@@ -3219,6 +3215,9 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     def post_save(self, instance):
         # actually start our flow
         instance.async_start()
+
+    def prepare_for_serialization(self, object_list, using: str):
+        FlowStartCount.bulk_annotate(object_list)
 
     @classmethod
     def get_read_explorer(cls):
