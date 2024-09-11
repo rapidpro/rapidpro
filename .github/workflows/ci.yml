@@ -58,7 +58,9 @@ jobs:
           node-version: ${{ env.node-version }}
 
       - name: Install and start DynamoDB
-        uses: rrainn/dynamodb-action@v2.0.1
+        uses: rrainn/dynamodb-action@v4.0.0
+        with:
+          port: 6000
 
       - name: Initialize environment
         run: |
