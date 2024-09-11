@@ -2034,7 +2034,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 ],
                 "advanced": False,
                 "query": None,
-                "exclusions": {},
+                "exclusions": {"in_a_flow": True},
             },
             json.loads(contact_search.value()),
         )

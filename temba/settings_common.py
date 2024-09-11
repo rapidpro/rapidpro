@@ -326,6 +326,12 @@ BRAND = {
 
 FEATURES = {"locations"}
 
+# The default checked options for flow starts and broadcasts
+DEFAULT_EXCLUSIONS = {"in_a_flow": True}
+
+# Estimated send time limits before warning or blocking, zero is no limit
+SEND_HOURS_WARNING = 0
+SEND_HOURS_BLOCK = 0
 
 # -----------------------------------------------------------------------------------
 # Permissions

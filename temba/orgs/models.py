@@ -852,6 +852,48 @@ class Org(SmartModel):
         outbox = counts[SystemLabel.TYPE_OUTBOX] + Broadcast.get_queued(self).count()
         return outbox >= outbox_limit
 
+    def is_flow_starting(self):
+        from temba.flows.models import FlowStart
+
+        return (
+            FlowStart.objects.filter(org=self, status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING))
+            .exclude(created_by=None)
+            .exists()
+        )
+
+    def get_estimated_send_time(self, msg_count):
+        """
+        Estimates the time it will take to send the given number of messages
+        """
+        channels = self.channels.filter(is_active=True)
+        channel_counts = {}
+        month_ago = timezone.now() - timedelta(days=30)
+        total_count = 0
+
+        for channel in channels:
+            channel_count = channel.get_msg_count(since=month_ago)
+            total_count += channel_count
+            channel_counts[channel.uuid] = {"count": channel_count, "tps": channel.tps or 10}
+
+        # balance all channels equally if we have nothing to go on
+        if not total_count:
+            for channel_uuid in channel_counts:
+                channel_counts[channel_uuid]["count"] = 1
+            total_count = len(channel_counts)
+
+        # calculate pct of messages that will go to each channel
+        for channel_uuid, channel_count in channel_counts.items():
+            pct = channel_count["count"] / total_count
+            channel_counts[channel_uuid]["time"] = pct * msg_count / channel_count["tps"]
+
+        longest_time = 0
+        if channel_counts:
+            longest_time = max(
+                [channel_count["time"] if "time" in channel_count else 0 for channel_count in channel_counts.values()]
+            )
+
+        return timedelta(seconds=longest_time)
+
     def get_channel(self, role: str, scheme: str):
         """
         Gets a channel for this org which supports the given role and scheme

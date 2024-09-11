@@ -1509,8 +1509,7 @@ class FlowCRUDL(SmartCRUDL):
 
         blockers = {
             "already_starting": _(
-                "This flow is already being started - please wait until that process completes before starting "
-                "more contacts."
+                "A flow is already starting. You will need to wait until that process completes before starting another one."
             ),
             "no_send_channel": _(
                 'To start this flow you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
@@ -1524,6 +1523,10 @@ class FlowCRUDL(SmartCRUDL):
                 "Your outbox currently has too many queued messages to start a flow. "
                 "Please wait for these messages to finish sending and try again."
             ),
+            "too_many_recipients": _(
+                "Your channels cannot send fast enough to reach all of the selected contacts in a reasonable time. "
+                "Select fewer contacts to continue."
+            ),
         }
 
         warnings = {
@@ -1531,15 +1534,13 @@ class FlowCRUDL(SmartCRUDL):
                 "This flow does not use message templates. You may still start this flow but WhatsApp contacts who "
                 "have not sent an incoming message in the last 24 hours may not receive it."
             ),
-            "inactive_threshold": _(
-                "You've selected a lot of contacts! Depending on your channel "
-                "it could take days to reach everybody and could reduce response rates. "
-                "Filter for contacts that have sent a message recently "
-                "to limit your selection to contacts who are more likely to respond."
+            "too_many_recipients": _(
+                "Your channels will likely take over a day to reach all of the selected contacts. Consider "
+                "selecting fewer contacts before continuing."
             ),
         }
 
-        def get_blockers(self, flow) -> list:
+        def get_blockers(self, flow, send_time) -> list:
             blockers = []
 
             if flow.org.is_outbox_full():
@@ -1548,8 +1549,12 @@ class FlowCRUDL(SmartCRUDL):
                 blockers.append(Org.BLOCKER_SUSPENDED)
             elif flow.org.is_flagged:
                 blockers.append(Org.BLOCKER_FLAGGED)
-            elif flow.is_starting():
+            elif flow.org.is_flow_starting():
                 blockers.append(self.blockers["already_starting"])
+
+            hours = send_time / timedelta(hours=1)
+            if settings.SEND_HOURS_BLOCK and hours >= settings.SEND_HOURS_BLOCK:
+                blockers.append(self.blockers["too_many_recipients"])
 
             if flow.flow_type == Flow.TYPE_MESSAGE and not flow.org.get_send_channel():
                 blockers.append(self.blockers["no_send_channel"] % {"link": reverse("channels.channel_claim")})
@@ -1558,13 +1563,11 @@ class FlowCRUDL(SmartCRUDL):
 
             return blockers
 
-        def get_warnings(self, flow, query, total) -> list:
+        def get_warnings(self, flow, query, send_time) -> list:
             warnings = []
-
-            # if we are over our threshold, show the amount warning
-            threshold = self.request.branding.get("inactive_threshold", 0)
-            if "last_seen_on" not in query and threshold > 0 and total > threshold:
-                warnings.append(self.warnings["inactive_threshold"])
+            hours = send_time / timedelta(hours=1)
+            if settings.SEND_HOURS_WARNING and hours >= settings.SEND_HOURS_WARNING:
+                warnings.append(self.warnings["too_many_recipients"])
 
             # if we have a whatsapp channel that requires a message template; exclude twilio whatsApp
             whatsapp_channel = flow.org.channels.filter(
@@ -1598,12 +1601,16 @@ class FlowCRUDL(SmartCRUDL):
             except mailroom.QueryValidationException as e:
                 return JsonResponse({"query": "", "total": 0, "error": str(e)}, status=400)
 
+            # calculate the estimated send time
+            send_time = flow.org.get_estimated_send_time(total)
+
             return JsonResponse(
                 {
                     "query": query,
                     "total": total,
-                    "warnings": self.get_warnings(flow, query, total),
-                    "blockers": self.get_blockers(flow),
+                    "warnings": self.get_warnings(flow, query, send_time),
+                    "blockers": self.get_blockers(flow, send_time),
+                    "send_time": send_time.total_seconds(),
                 }
             )
 
@@ -1619,7 +1626,12 @@ class FlowCRUDL(SmartCRUDL):
 
             contact_search = forms.JSONField(
                 required=True,
-                widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
+                widget=ContactSearchWidget(
+                    attrs={
+                        "widget_only": True,
+                        "placeholder": _("Enter contact query"),
+                    }
+                ),
             )
 
             def __init__(self, org, flow, **kwargs):
@@ -1687,7 +1699,12 @@ class FlowCRUDL(SmartCRUDL):
                 recipients.append({"id": contact.uuid, "name": contact.name, "urn": urn, "type": "contact"})
 
             return {
-                "contact_search": {"recipients": recipients, "advanced": False, "query": "", "exclusions": {}},
+                "contact_search": {
+                    "recipients": recipients,
+                    "advanced": False,
+                    "query": "",
+                    "exclusions": settings.DEFAULT_EXCLUSIONS,
+                },
                 "flow": self.flow.id if self.flow else None,
             }
 

@@ -16,6 +16,7 @@ from smartmin.views import (
 )
 
 from django import forms
+from django.conf import settings
 from django.db.models.functions.text import Lower
 from django.forms import Form, ValidationError
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
@@ -388,24 +389,20 @@ class BroadcastCRUDL(SmartCRUDL):
             return {"org": self.request.org}
 
         def get_form_initial(self, step):
+            initial = super().get_form_initial(step)
 
             if step == "target":
-                initial = {}
                 org = self.request.org
                 contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
                 contacts = org.contacts.filter(uuid__in=contact_uuids)
-                if contact_uuids:
-                    params = {}
-                    if len(contact_uuids) > 0:
-                        params["c"] = ",".join(contact_uuids)
-                    initial["contact_search"] = {
-                        "recipients": ContactSearchWidget.get_recipients(contacts),
-                        "advanced": False,
-                        "query": None,
-                        "exclusions": {},
-                    }
-                    return initial
-            return super().get_form_initial(step)
+
+                initial["contact_search"] = {
+                    "recipients": ContactSearchWidget.get_recipients(contacts),
+                    "advanced": False,
+                    "query": None,
+                    "exclusions": settings.DEFAULT_EXCLUSIONS,
+                }
+                return initial
 
         def done(self, form_list, form_dict, **kwargs):
             user = self.request.user

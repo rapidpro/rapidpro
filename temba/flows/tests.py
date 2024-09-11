@@ -22,7 +22,7 @@ from temba.globals.models import Global
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, mock_mailroom, override_brand
+from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
@@ -2289,147 +2289,156 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(404, response.status_code)
 
     @mock_mailroom
-    @patch("temba.flows.models.Flow.is_starting")
+    @patch("temba.flows.models.Org.is_flow_starting")
     def test_preview_start(self, mr_mocks, mock_flow_is_starting):
         mock_flow_is_starting.return_value = False
 
-        with override_brand(inactive_threshold=1000):
-            flow = self.create_flow("Test")
-            self.create_field("age", "Age")
-            self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
-            self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
+        flow = self.create_flow("Test")
+        self.create_field("age", "Age")
+        self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
+        self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
 
-            mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
+        mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
 
+        preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+
+        self.login(self.editor)
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            {
+                "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
+                "total": 100,
+                "send_time": 10.0,
+                "warnings": [],
+                "blockers": [],
+            },
+            response.json(),
+        )
+
+        # try with a bad query
+        mr_mocks.exception(mailroom.QueryValidationException("mismatched input at (((", "syntax"))
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "(((",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax."}, response.json())
+
+        # suspended orgs should block
+        self.org.is_suspended = True
+        self.org.save()
+        mr_mocks.flow_start_preview(query="age > 30", total=2)
+        response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
+        self.assertEqual(
+            [
+                "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
+            ],
+            response.json()["blockers"],
+        )
+
+        # flagged orgs should block
+        self.org.is_suspended = False
+        self.org.is_flagged = True
+        self.org.save()
+        mr_mocks.flow_start_preview(query="age > 30", total=2)
+        response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
+        self.assertEqual(
+            [
+                "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
+            ],
+            response.json()["blockers"],
+        )
+
+        self.org.is_flagged = False
+        self.org.save()
+
+        # trying to start again should fail because there is already a pending start for this flow
+        mock_flow_is_starting.return_value = True
+        mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            [
+                "A flow is already starting. You will need to wait until that process completes before starting another one."
+            ],
+            response.json()["blockers"],
+        )
+
+        ivr_flow = self.create_flow("IVR Test", flow_type=Flow.TYPE_VOICE)
+
+        preview_url = reverse("flows.flow_preview_start", args=[ivr_flow.id])
+
+        # shouldn't be able to since we don't have a call channel
+        mock_flow_is_starting.return_value = False
+        mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            response.json()["blockers"][0],
+            'To start this flow you need to <a href="/channels/channel/claim/">add a voice channel</a> to your workspace which will allow you to make and receive calls.',
+        )
+
+        # if we have too many messages in our outbox we should block
+        with override_settings(ORG_LIMIT_DEFAULTS={"outbox": 0}):
             preview_url = reverse("flows.flow_preview_start", args=[flow.id])
-
-            self.login(self.editor)
-
-            response = self.client.post(
-                preview_url,
-                {
-                    "query": "age > 30",
-                    "exclusions": {"non_active": True, "started_previously": True},
-                },
-                content_type="application/json",
-            )
-            self.assertEqual(
-                {
-                    "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
-                    "total": 100,
-                    "warnings": [],
-                    "blockers": [],
-                },
-                response.json(),
-            )
-
-            # try with a bad query
-            mr_mocks.exception(mailroom.QueryValidationException("mismatched input at (((", "syntax"))
-
-            response = self.client.post(
-                preview_url,
-                {
-                    "query": "(((",
-                    "exclusions": {"non_active": True, "started_previously": True},
-                },
-                content_type="application/json",
-            )
-            self.assertEqual(400, response.status_code)
-            self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax."}, response.json())
-
-            # suspended orgs should block
-            self.org.is_suspended = True
-            self.org.save()
-            mr_mocks.flow_start_preview(query="age > 30", total=2)
-            response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
-            self.assertEqual(
-                [
-                    "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
-                ],
-                response.json()["blockers"],
-            )
-
-            # flagged orgs should block
-            self.org.is_suspended = False
-            self.org.is_flagged = True
-            self.org.save()
-            mr_mocks.flow_start_preview(query="age > 30", total=2)
-            response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
-            self.assertEqual(
-                [
-                    "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
-                ],
-                response.json()["blockers"],
-            )
-
-            self.org.is_flagged = False
-            self.org.save()
-
-            # trying to start again should fail because there is already a pending start for this flow
-            mock_flow_is_starting.return_value = True
-            mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
+            mr_mocks.flow_start_preview(query="age > 30", total=1000)
 
             response = self.client.post(
                 preview_url,
                 {
                     "query": "age > 30",
-                    "exclusions": {"non_active": True, "started_previously": True},
                 },
                 content_type="application/json",
             )
-
             self.assertEqual(
                 [
-                    "This flow is already being started - please wait until that process completes before starting more contacts."
+                    "Your outbox currently has too many queued messages to start a flow. Please wait for these messages to finish sending and try again."
                 ],
                 response.json()["blockers"],
             )
 
-            ivr_flow = self.create_flow("IVR Test", flow_type=Flow.TYPE_VOICE)
+        # check warning for lots of contacts
+        preview_url = reverse("flows.flow_preview_start", args=[flow.id])
 
-            preview_url = reverse("flows.flow_preview_start", args=[ivr_flow.id])
+        # with patch("temba.orgs.models.Org.get_estimated_send_time") as mock_get_estimated_send_time:
+        with override_settings(SEND_HOURS_WARNING=24, SEND_HOURS_BLOCK=48):
 
-            # shouldn't be able to since we don't have a call channel
-            mock_flow_is_starting.return_value = False
-            mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
-
-            response = self.client.post(
-                preview_url,
-                {
-                    "query": "age > 30",
-                    "exclusions": {"non_active": True, "started_previously": True},
-                },
-                content_type="application/json",
+            # we send at 10 tps, so make the total take 24 hours
+            expected_tps = 10
+            mr_mocks.flow_start_preview(
+                query='age > 30 AND status = "active" AND history != "Test Flow"', total=24 * 60 * 60 * expected_tps
             )
 
-            self.assertEqual(
-                response.json()["blockers"][0],
-                'To start this flow you need to <a href="/channels/channel/claim/">add a voice channel</a> to your workspace which will allow you to make and receive calls.',
-            )
-
-            # if we have too many messages in our outbox we should block
-            with override_settings(ORG_LIMIT_DEFAULTS={"outbox": 0}):
-                preview_url = reverse("flows.flow_preview_start", args=[flow.id])
-                mr_mocks.flow_start_preview(query="age > 30", total=10000)
-
-                response = self.client.post(
-                    preview_url,
-                    {
-                        "query": "age > 30",
-                    },
-                    content_type="application/json",
-                )
-                self.assertEqual(
-                    [
-                        "Your outbox currently has too many queued messages to start a flow. Please wait for these messages to finish sending and try again."
-                    ],
-                    response.json()["blockers"],
-                )
-
-            # check warning for lots of contacts
-            preview_url = reverse("flows.flow_preview_start", args=[flow.id])
-            mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=10000)
-
+            # mock_get_estimated_send_time.return_value = timedelta(days=2)
             response = self.client.post(
                 preview_url,
                 {
@@ -2441,16 +2450,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
             self.assertEqual(
                 response.json()["warnings"][0],
-                "You've selected a lot of contacts! Depending on your channel "
-                "it could take days to reach everybody and could reduce response rates. "
-                "Filter for contacts that have sent a message recently "
-                "to limit your selection to contacts who are more likely to respond.",
+                "Your channels will likely take over a day to reach all of the selected contacts. Consider selecting fewer contacts before continuing.",
             )
 
-            # if we release our send channel we also can't start a regular messaging flow
-            self.channel.release(self.admin)
-            mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
-
+            # now really long so it should block
+            mr_mocks.flow_start_preview(
+                query='age > 30 AND status = "active" AND history != "Test Flow"', total=3 * 24 * 60 * 60 * expected_tps
+            )
+            # mock_get_estimated_send_time.return_value = timedelta(days=7)
             response = self.client.post(
                 preview_url,
                 {
@@ -2462,8 +2469,26 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
             self.assertEqual(
                 response.json()["blockers"][0],
-                'To start this flow you need to <a href="/channels/channel/claim/">add a channel</a> to your workspace which will allow you to send messages to your contacts.',
+                "Your channels cannot send fast enough to reach all of the selected contacts in a reasonable time. Select fewer contacts to continue.",
             )
+
+        # if we release our send channel we also can't start a regular messaging flow
+        self.channel.release(self.admin)
+        mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            response.json()["blockers"][0],
+            'To start this flow you need to <a href="/channels/channel/claim/">add a channel</a> to your workspace which will allow you to send messages to your contacts.',
+        )
 
     @mock_mailroom
     def test_template_warnings(self, mr_mocks):

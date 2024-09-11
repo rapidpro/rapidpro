@@ -89,6 +89,7 @@
             queryWidget.started_previously = true;
             queryWidget.not_seen_since_days = true;
             queryWidget.endpoint = "/flow/preview_start/" + this.value + "/";
+            queryWidget.flow = this.values[0];
             queryWidget.refresh();
           }
         });
