@@ -3395,23 +3395,25 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor],
             results=[start4, start3, start2, start1],
-            num_queries=NUM_BASE_SESSION_QUERIES + 4,
+            num_queries=NUM_BASE_SESSION_QUERIES + 5,
         )
         self.assertEqual(
             response.json()["results"][1],
             {
-                "id": start3.id,
                 "uuid": str(start3.uuid),
                 "flow": {"uuid": flow.uuid, "name": "Test"},
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
-                "restart_participants": False,
-                "exclude_active": False,
                 "status": "pending",
-                "extra": {"first_name": "Bob", "last_name": "Marley"},
+                "progress": {"total": -1, "started": 0},
                 "params": {"first_name": "Bob", "last_name": "Marley"},
                 "created_on": format_datetime(start3.created_on),
                 "modified_on": format_datetime(start3.modified_on),
+                # deprecated
+                "id": start3.id,
+                "extra": {"first_name": "Bob", "last_name": "Marley"},
+                "restart_participants": False,
+                "exclude_active": False,
             },
         )
 
@@ -3420,9 +3422,6 @@ class EndpointsTest(APITest):
 
         # check filtering by in invalid UUID
         self.assertGet(endpoint_url + "?uuid=xyz", [self.editor], errors={None: "Value for uuid must be a valid UUID"})
-
-        # check filtering by id (deprecated)
-        response = self.assertGet(endpoint_url + f"?id={start2.id}", [self.editor], results=[start2])
 
         response = self.assertPost(
             endpoint_url,

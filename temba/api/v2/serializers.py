@@ -1084,6 +1084,7 @@ class FlowStartReadSerializer(ReadSerializer):
 
     flow = fields.FlowField()
     status = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
     params = serializers.JSONField(required=False)
@@ -1098,6 +1099,9 @@ class FlowStartReadSerializer(ReadSerializer):
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
+    def get_progress(self, obj):
+        return {"total": obj.contact_count or -1, "started": obj.run_count}
+
     def get_restart_participants(self, obj):
         return not (obj.exclusions and obj.exclusions.get(FlowStart.EXCLUSION_STARTED_PREVIOUSLY, False))
 
@@ -1107,15 +1111,17 @@ class FlowStartReadSerializer(ReadSerializer):
     class Meta:
         model = FlowStart
         fields = (
-            "id",
             "uuid",
             "flow",
             "status",
+            "progress",
             "groups",
             "contacts",
             "params",
             "created_on",
             "modified_on",
+            # deprecated
+            "id",
             "extra",
             "restart_participants",
             "exclude_active",
