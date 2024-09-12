@@ -35,7 +35,7 @@ class MailroomQueueTest(TembaTest):
 
         start.async_start()
 
-        self.assert_org_queued(self.org, "batch")
+        self.assert_org_queued(self.org)
         self.assert_queued_batch_task(
             self.org,
             {
@@ -61,7 +61,7 @@ class MailroomQueueTest(TembaTest):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
         imp.start()
 
-        self.assert_org_queued(self.org, "batch")
+        self.assert_org_queued(self.org)
         self.assert_queued_batch_task(
             self.org,
             {
@@ -74,7 +74,7 @@ class MailroomQueueTest(TembaTest):
     def test_queue_interrupt_channel(self):
         self.channel.release(self.admin)
 
-        self.assert_org_queued(self.org, "batch")
+        self.assert_org_queued(self.org)
         self.assert_queued_batch_task(
             self.org,
             {
@@ -90,7 +90,7 @@ class MailroomQueueTest(TembaTest):
 
         queue_interrupt(self.org, contacts=[jim, bob])
 
-        self.assert_org_queued(self.org, "batch")
+        self.assert_org_queued(self.org)
         self.assert_queued_batch_task(
             self.org,
             {
@@ -104,7 +104,7 @@ class MailroomQueueTest(TembaTest):
         flow = self.create_flow("Test")
         flow.archive(self.admin)
 
-        self.assert_org_queued(self.org, "batch")
+        self.assert_org_queued(self.org)
         self.assert_queued_batch_task(
             self.org,
             {"type": "interrupt_sessions", "task": {"flow_ids": [flow.id]}, "queued_on": matchers.ISODate()},
@@ -131,19 +131,19 @@ class MailroomQueueTest(TembaTest):
         session = run.session
         run.delete()
 
-        self.assert_org_queued(self.org, "batch")
+        self.assert_org_queued(self.org)
         self.assert_queued_batch_task(
             self.org,
             {"type": "interrupt_sessions", "task": {"session_ids": [session.id]}, "queued_on": matchers.ISODate()},
         )
 
-    def assert_org_queued(self, org, queue):
+    def assert_org_queued(self, org):
         r = get_redis_connection()
 
         # check we have one org with active tasks
-        self.assertEqual(r.zcard(f"{queue}:active"), 1)
+        self.assertEqual(r.zcard("tasks:batch:active"), 1)
 
-        queued_org = json.loads(r.zrange(f"{queue}:active", 0, 1)[0])
+        queued_org = json.loads(r.zrange("tasks:batch:active", 0, 1)[0])
 
         self.assertEqual(queued_org, org.id)
 
@@ -151,10 +151,10 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
 
         # check we have one task in the org's queue
-        self.assertEqual(r.zcard(f"batch:{org.id}"), 1)
+        self.assertEqual(r.zcard(f"tasks:batch:{org.id}"), 1)
 
         # load and check that task
-        actual_task = json.loads(r.zrange(f"batch:{org.id}", 0, 1)[0])
+        actual_task = json.loads(r.zrange(f"tasks:batch:{org.id}", 0, 1)[0])
 
         self.assertEqual(actual_task, expected_task)
 
