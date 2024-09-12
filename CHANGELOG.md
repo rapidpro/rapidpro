@@ -1,3 +1,7 @@
+v9.3.36 (2024-09-12)
+-------------------------
+ * Use 'tasks:batch' queue name instead of 'batch'
+
 v9.3.35 (2024-09-12)
 -------------------------
  * Add progress field to flow starts endpoint
