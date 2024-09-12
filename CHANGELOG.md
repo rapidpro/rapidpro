@@ -1,3 +1,7 @@
+v9.3.35 (2024-09-12)
+-------------------------
+ * Add progress field to flow starts endpoint
+
 v9.3.34 (2024-09-11)
 -------------------------
  * Add timing controls around flow starts
