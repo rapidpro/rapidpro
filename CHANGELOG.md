@@ -1,3 +1,9 @@
+v9.3.37 (2024-09-13)
+-------------------------
+ * Fix import read page title
+ * Fix importing contacts from spreadsheet with broken dimensions
+ * Fix TTL attribute name on DynamoDB channel logs table
+
 v9.3.36 (2024-09-12)
 -------------------------
  * Use 'tasks:batch' queue name instead of 'batch'
