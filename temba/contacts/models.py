@@ -2205,6 +2205,7 @@ class ContactImport(SmartModel):
         # parse each row, creating batch tasks for mailroom
         workbook = load_workbook(filename=self.file, read_only=True, data_only=True)
         ws = workbook.active
+        ws.reset_dimensions()  # see https://openpyxl.readthedocs.io/en/latest/optimized.html#worksheet-dimensions
         data = ws.iter_rows(min_row=2)
 
         urns = []
