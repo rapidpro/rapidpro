@@ -1408,6 +1408,7 @@ class ContactImportCRUDL(SmartCRUDL):
 
     class Read(SpaMixin, OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
         menu_path = "/contact/import"
+        title = _("Contact Import")
 
         def get_notification_scope(self) -> tuple:
             return "import:finished", f"contact:{self.object.id}"
