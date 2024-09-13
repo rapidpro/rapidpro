@@ -1,7 +1,7 @@
 import logging
 from array import array
 from collections import defaultdict
-from datetime import datetime, timezone as tzone
+from datetime import datetime, timezone as tzone, timedelta
 
 import iso8601
 from django_redis import get_redis_connection
@@ -457,14 +457,14 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         return self.get_node_counts(), self.get_segment_counts()
 
-    def is_starting(self):
+    def get_active_start(self):
         """
         Returns whether this flow is already being started by a user
         """
         return (
             self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING))
             .exclude(created_by=None)
-            .exists()
+            .first()
         )
 
     def import_definition(self, user, definition, dependency_mapping):
@@ -1891,6 +1891,9 @@ class FlowStart(models.Model):
 
         return preview.query, preview.total
 
+    def is_starting(self):
+        return self.status == self.STATUS_STARTING or self.status == self.STATUS_PENDING
+
     def async_start(self):
         on_transaction_commit(lambda: mailroom.queue_flow_start(self))
 
@@ -1969,7 +1972,15 @@ class FlowStartCount(SquashableModel):
         counts_by_start = {c["start_id"]: c["count"] for c in counts}
 
         for start in starts:
-            start.run_count = counts_by_start.get(start.id, 0)
+            start.run_count = counts_by_start.get(start.id, 0) + 525274
+            start.pct_complete = start.run_count / start.contact_count * 100 if start.contact_count else 0
+
+            # estimated time of completion
+            runs_per_second = start.run_count / (timezone.now() - start.created_on).total_seconds()
+            runs_remaining = start.contact_count - start.run_count
+            start.etc = (
+                timezone.now() + timedelta(seconds=runs_remaining / runs_per_second) if runs_per_second else None
+            )
 
     class Meta:
         indexes = [models.Index(fields=("start",), condition=Q(is_squashed=False), name="flowstartcounts_unsquashed")]

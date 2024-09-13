@@ -235,19 +235,16 @@
   </script>
 {% endblock extra-script %}
 {% block alert-messages %}
-  {% if is_starting or messages or user_org.is_suspended %}
-    <div class="pt-5 pr-5 pl-5">
-      {{ block.super }}
-      {% if is_starting %}
-        <temba-alert class="mb-3">
-          {% blocktrans trimmed %}
-            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
-          {% endblocktrans %}
-        </temba-alert>
-      {% endif %}
-    </div>
-  {% endif %}
 {% endblock alert-messages %}
+{% block page-header %}
+  {% if active_start or messages or user_org.is_suspended %}
+    {% if active_start %}
+      <temba-flowstart-progress class="mb-4 -mt-2 -mx-2" uuid="{{ active_start.uuid }}">
+      </temba-flowstart-progress>
+    {% endif %}
+  {% endif %}
+  {{ block.super }}
+{% endblock page-header %}
 {% block content %}
   <temba-modax header="Send Message" id="send-message-modal">
   </temba-modax>
