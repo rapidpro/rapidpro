@@ -1,3 +1,7 @@
+v9.3.38 (2024-09-14)
+-------------------------
+ * Add flow start progress bar
+
 v9.3.37 (2024-09-13)
 -------------------------
  * Fix import read page title
