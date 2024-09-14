@@ -2964,7 +2964,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
         self.assertEqual(
             {
-                "is_starting": False,
                 "nodes": {beer_split["uuid"]: 1},
                 "segments": {
                     f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
@@ -5297,7 +5296,6 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "was started by an API call")
         self.assertContains(response, "was started by Zapier")
         self.assertContains(response, "Not in a flow")
-        self.assertContains(response, "<b>1,234</b> runs")
 
         response = self.assertListFetch(list_url + "?type=manual", [self.admin], context_objects=[start1])
         self.assertTrue(response.context["filtered"])

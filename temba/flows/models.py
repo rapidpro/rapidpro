@@ -1,7 +1,7 @@
 import logging
 from array import array
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone as tzone
+from datetime import datetime, timezone as tzone
 
 import iso8601
 from django_redis import get_redis_connection
@@ -1972,15 +1972,7 @@ class FlowStartCount(SquashableModel):
         counts_by_start = {c["start_id"]: c["count"] for c in counts}
 
         for start in starts:
-            start.run_count = counts_by_start.get(start.id, 0) + 525274
-            start.pct_complete = start.run_count / start.contact_count * 100 if start.contact_count else 0
-
-            # estimated time of completion
-            runs_per_second = start.run_count / (timezone.now() - start.created_on).total_seconds()
-            runs_remaining = start.contact_count - start.run_count
-            start.etc = (
-                timezone.now() + timedelta(seconds=runs_remaining / runs_per_second) if runs_per_second else None
-            )
+            start.run_count = counts_by_start.get(start.id, 0)
 
     class Meta:
         indexes = [models.Index(fields=("start",), condition=Q(is_squashed=False), name="flowstartcounts_unsquashed")]
