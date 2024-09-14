@@ -103,10 +103,10 @@
     serialize-javascript "^6.0.2"
     tiny-lru "^11.2.5"
 
-"@nyaruka/temba-components@0.106.0":
-  version "0.106.0"
-  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.106.0.tgz#378b1df023fa0935f0f0bb2b1e8a24b21288fa53"
-  integrity sha512-pvQTDPbekkG2z7ng9NgaCg51zcdOc29v/q6rxFP0Vv4fqmwxVR+2v6gL1GAjavDSYwCsMIjmcVedB4G5k+pwjA==
+"@nyaruka/temba-components@0.107.0":
+  version "0.107.0"
+  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.107.0.tgz#ffc4b388fa9212aee8a2bd44ad06b42470685563"
+  integrity sha512-34JRLbIV24LtS0pRYsl9sYW55G5kcGIPTJYf09ozgyCvg1PaYQylq+mWEQWswoMfIBYL+L/1Ned//L1/R/H69Q==
   dependencies:
     "@lit/localize" "^0.12.1"
     color-hash "^2.0.2"
@@ -117,7 +117,7 @@
     lit "3.1.2"
     lit-element "^4.0.4"
     lit-html "^3.1.2"
-    luxon "^2.4.0"
+    luxon "3.5"
     remarkable "^2.0.1"
     serialize-javascript "^6.0.2"
     tiny-lru "^11.2.5"
@@ -832,6 +832,11 @@ lru-cache@^6.0.0:
   integrity sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==
   dependencies:
     yallist "^4.0.0"
+
+luxon@3.5:
+  version "3.5.0"
+  resolved "https://registry.yarnpkg.com/luxon/-/luxon-3.5.0.tgz#6b6f65c5cd1d61d1fd19dbf07ee87a50bf4b8e20"
+  integrity sha512-rh+Zjr6DNfUYR3bPwJEnuwDdqMbxZW7LOQfUN4B54+Cl+0o5zaU9RJ6bcidfDtC1cWCZXQ+nvX8bf6bAji37QQ==
 
 luxon@^2.4.0:
   version "2.5.2"
