@@ -888,7 +888,7 @@ class FlowCRUDL(SmartCRUDL):
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
                 context["can_simulate"] = True
 
-            context["is_starting"] = flow.is_starting()
+            context["active_start"] = flow.get_active_start()
             context["feature_filters"] = json.dumps(self.get_features(flow.org))
             return context
 
@@ -1422,8 +1422,7 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             flow = self.get_object(self.get_queryset())
             (active, visited) = flow.get_activity()
-
-            return JsonResponse(dict(nodes=active, segments=visited, is_starting=flow.is_starting()))
+            return JsonResponse(dict(nodes=active, segments=visited))
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
         permission = "flows.flow_editor"

@@ -457,14 +457,14 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         return self.get_node_counts(), self.get_segment_counts()
 
-    def is_starting(self):
+    def get_active_start(self):
         """
         Returns whether this flow is already being started by a user
         """
         return (
             self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING))
             .exclude(created_by=None)
-            .exists()
+            .first()
         )
 
     def import_definition(self, user, definition, dependency_mapping):
@@ -1890,6 +1890,9 @@ class FlowStart(models.Model):
         preview = mailroom.get_client().flow_start_preview(flow.org, flow, include=include, exclude=exclude)
 
         return preview.query, preview.total
+
+    def is_starting(self):
+        return self.status == self.STATUS_STARTING or self.status == self.STATUS_PENDING
 
     def async_start(self):
         on_transaction_commit(lambda: mailroom.queue_flow_start(self))
