@@ -1,3 +1,7 @@
+import json
+from urllib.parse import quote_plus
+from xml.sax.saxutils import escape
+
 from django.utils.translation import gettext_lazy as _
 
 from ...models import Channel, ChannelType, ConfigUI
@@ -35,6 +39,27 @@ class ExternalType(ChannelType):
         "&channel={{channel}}"
     )
 
+    @classmethod
+    def replace_variables(cls, text, variables, content_type=Channel.CONTENT_TYPE_URLENCODED):
+        for key in variables.keys():
+            replacement = str(variables[key])
+
+            # encode based on our content type
+            if content_type == Channel.CONTENT_TYPE_URLENCODED:
+                replacement = quote_plus(replacement)
+
+            # if this is JSON, need to wrap in quotes (and escape them)
+            elif content_type == Channel.CONTENT_TYPE_JSON:
+                replacement = json.dumps(replacement)
+
+            # XML needs to be escaped
+            elif content_type == Channel.CONTENT_TYPE_XML:
+                replacement = escape(replacement)
+
+            text = text.replace("{{%s}}" % key, replacement)
+
+        return text
+
     def get_config_ui_context(self, channel):
         context = super().get_config_ui_context(channel)
 
@@ -55,8 +80,8 @@ class ExternalType(ChannelType):
 
         content_type = config.get(ExternalType.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
         context["example_content_type"] = "Content-Type: " + Channel.CONTENT_TYPES.get(content_type, content_type)
-        context["example_url"] = Channel.replace_variables(send_url, example_payload)
-        context["example_body"] = Channel.replace_variables(send_body, example_payload, content_type)
+        context["example_url"] = ExternalType.replace_variables(send_url, example_payload)
+        context["example_body"] = ExternalType.replace_variables(send_body, example_payload, content_type)
 
         quick_replies_payload = {}
 
@@ -67,10 +92,10 @@ class ExternalType(ChannelType):
         else:
             quick_replies_payload["quick_replies"] = "&quick_reply=One&quick_reply=Two&quick_reply=Three"
 
-        context["example_url"] = Channel.replace_variables(
+        context["example_url"] = ExternalType.replace_variables(
             context["example_url"], quick_replies_payload, "don't encode"
         )
-        context["example_body"] = Channel.replace_variables(
+        context["example_body"] = ExternalType.replace_variables(
             context["example_body"], quick_replies_payload, "don't encode"
         )
         return context
