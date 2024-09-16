@@ -3,9 +3,7 @@ from abc import ABCMeta
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
-from urllib.parse import quote_plus
 from uuid import uuid4
-from xml.sax.saxutils import escape
 
 import phonenumbers
 from django_countries.fields import CountryField
@@ -686,27 +684,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         if fcm_id and settings.ANDROID_FCM_PROJECT_ID and settings.ANDROID_CREDENTIALS_FILE:
             on_transaction_commit(lambda: sync_channel_fcm_task.delay(fcm_id, channel_id=self.id))
-
-    @classmethod
-    def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
-        for key in variables.keys():
-            replacement = str(variables[key])
-
-            # encode based on our content type
-            if content_type == Channel.CONTENT_TYPE_URLENCODED:
-                replacement = quote_plus(replacement)
-
-            # if this is JSON, need to wrap in quotes (and escape them)
-            elif content_type == Channel.CONTENT_TYPE_JSON:
-                replacement = json.dumps(replacement)
-
-            # XML needs to be escaped
-            elif content_type == Channel.CONTENT_TYPE_XML:
-                replacement = escape(replacement)
-
-            text = text.replace("{{%s}}" % key, replacement)
-
-        return text
 
     def get_count(self, count_types, since=None):
         qs = ChannelCount.objects.filter(channel=self, count_type__in=count_types)

@@ -95,6 +95,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean(self):
+            from .type import ExternalType
+
             cleaned_data = super().clean()
             scheme = cleaned_data.get("scheme")
             if scheme == URN.TEL_SCHEME and not cleaned_data.get("number"):
@@ -113,7 +115,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 "id": "",
                 "quick_replies": "",
             }
-            replaced_body = Channel.replace_variables(cleaned_data.get("body"), variables, content_type=content_type)
+            replaced_body = ExternalType.replace_variables(
+                cleaned_data.get("body"), variables, content_type=content_type
+            )
             if content_type == Channel.CONTENT_TYPE_JSON:
                 try:
 
