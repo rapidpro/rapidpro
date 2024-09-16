@@ -86,11 +86,6 @@ STORAGES = {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         "OPTIONS": {"bucket_name": f"{_bucket_prefix}-archives"},
     },
-    # wherever courier and mailroom are writing logs
-    "logs": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {"bucket_name": f"{_bucket_prefix}-logs"},
-    },
     # media file uploads that need to be publicly accessible
     "public": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
@@ -949,7 +944,7 @@ ORG_LIMIT_DEFAULTS = {
 
 RETENTION_PERIODS = {
     "channelevent": timedelta(days=90),
-    "channellog": timedelta(days=14),
+    "channellog": timedelta(days=7),
     "export": timedelta(days=90),
     "eventfire": timedelta(days=90),
     "flowsession": timedelta(days=7),

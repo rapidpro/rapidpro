@@ -6,7 +6,7 @@ from django.core.checks import Error, register
 def storage(app_configs, **kwargs):
     errors = []
 
-    for name in ("default", "archives", "logs", "public", "staticfiles"):
+    for name in ("default", "archives", "public", "staticfiles"):
         if name not in settings.STORAGES:
             errors.append(
                 Error(

@@ -1,5 +1,6 @@
 import copy
 import os
+from collections import namedtuple
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
@@ -30,7 +31,7 @@ from temba.msgs.models import Broadcast, Label, Msg, OptIn
 from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template
 from temba.tickets.models import Ticket, TicketEvent
-from temba.utils import json
+from temba.utils import dynamo, json
 from temba.utils.uuid import UUID, uuid4
 
 from .mailroom import (
@@ -692,6 +693,27 @@ class TembaTest(SmartminTest):
             created_by=self.admin,
             modified_by=self.admin,
         )
+
+    def create_channel_log(self, log_type: str, *, http_logs=(), errors=()) -> dict:
+        # should be v7 but see https://discuss.python.org/t/add-uuid7-in-uuid-module-in-standard-library/44390/7
+        uuid = uuid4()
+        created_on = timezone.now()
+        expires_on = created_on + timezone.timedelta(days=7)
+
+        client = dynamo.get_client()
+        client.put_item(
+            TableName=dynamo.table_name(ChannelLog.DYNAMO_TABLE),
+            Item={
+                "UUID": {"S": str(uuid)},
+                "Type": {"S": log_type},
+                "DataGZ": {"B": dynamo.dump_jsongz({"http_logs": http_logs, "errors": errors})},
+                "ElapsedMS": {"N": "12"},
+                "CreatedOn": {"N": str(int(created_on.timestamp()))},
+                "ExpiresOn": {"N": str(int(expires_on.timestamp()))},
+            },
+        )
+
+        return namedtuple("ChannelLog", ["uuid", "created_on"])(uuid, created_on)
 
     def create_channel_event(self, channel, urn, event_type, occurred_on=None, optin=None, extra=None):
         urn_obj = contact_urn_lookup(channel.org, urn)

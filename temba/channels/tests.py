@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import hmac
-import io
 import time
 from datetime import date, datetime, timedelta, timezone as tzone
 from unittest.mock import patch
@@ -12,7 +11,6 @@ from smartmin.tests import SmartminTest
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
-from django.core.files.storage import storages
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -1519,10 +1517,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_msg(self):
         contact = self.create_contact("Fred", phone="+12067799191")
 
-        log1 = ChannelLog.objects.create(
-            channel=self.channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
+        log1 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://foo.bar/send1",
@@ -1531,15 +1527,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                     "response": "HTTP/1.0 200 OK\r\r\r\n",
                     "elapsed_ms": 12,
                     "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
+                    "created_on": "2024-09-16T00:00:00Z",
                 }
             ],
-            errors=[],
         )
-        log2 = ChannelLog.objects.create(
-            channel=self.channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
+        log2 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://foo.bar/send2",
@@ -1548,29 +1541,26 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                     "response": "HTTP/1.0 200 OK\r\r\r\n",
                     "elapsed_ms": 12,
                     "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
+                    "created_on": "2024-09-16T00:00:00Z",
                 }
             ],
-            errors=[],
         )
         msg1 = self.create_outgoing_msg(contact, "success message", status="D", logs=[log1, log2])
 
         # create another msg and log that shouldn't be included
-        log3 = ChannelLog.objects.create(
-            channel=self.channel,
-            is_error=False,
+        log3 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://foo.bar/send3",
                     "status_code": 200,
-                    "request": "POST https://foo.bar/send2\r\n\r\n{}",
+                    "request": "POST https://foo.bar/send3\r\n\r\n{}",
                     "response": "HTTP/1.0 200 OK\r\r\r\n",
                     "elapsed_ms": 12,
                     "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
+                    "created_on": "2024-09-16T00:00:00Z",
                 }
             ],
-            errors=[],
         )
         self.create_outgoing_msg(contact, "success message", status="D", logs=[log3])
 
@@ -1584,29 +1574,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         response = self.client.get(msg1_url)
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
-
-        # try when log objects are in storage rather than the database
-        ChannelLog.objects.all().delete()
-
-        storages["logs"].save(
-            f"channels/{self.channel.uuid}/{str(log1.uuid)[:4]}/{log1.uuid}.json",
-            io.StringIO(json.dumps(log1._get_json())),
-        )
-        storages["logs"].save(
-            f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json",
-            io.StringIO(json.dumps(log2._get_json())),
-        )
-
-        response = self.assertListFetch(msg1_url, [self.admin], context_objects=[])
-        self.assertEqual(2, len(response.context["logs"]))
-        self.assertEqual("https://foo.bar/send1", response.context["logs"][0]["http_logs"][0]["url"])
-        self.assertEqual("https://foo.bar/send2", response.context["logs"][1]["http_logs"][0]["url"])
-
-        # missing logs are logged as errors and ignored
-        storages["logs"].delete(f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")
-
-        response = self.assertListFetch(msg1_url, [self.admin], context_objects=[])
-        self.assertEqual(1, len(response.context["logs"]))
 
     def test_call(self):
         contact = self.create_contact("Fred", phone="+12067799191")
