@@ -625,7 +625,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 "you to send messages to your contacts."
             ),
             "outbox_full": _(
-                "You currently have too many messages queued in your outbox. Please wait for these messages to send and try again later."
+                "You have too many messages queued in your outbox. Please wait for these messages to send and then try again."
             ),
         }
 

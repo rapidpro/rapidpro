@@ -476,7 +476,6 @@ class Org(SmartModel):
     LIMIT_LABELS = "labels"
     LIMIT_TOPICS = "topics"
     LIMIT_TEAMS = "teams"
-    LIMIT_OUTBOX = "outbox"
 
     DELETE_DELAY_DAYS = 7  # how many days after releasing that an org is deleted
 
@@ -844,13 +843,10 @@ class Org(SmartModel):
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
-    def is_outbox_full(self):
-        from temba.msgs.models import Broadcast, SystemLabel
+    def is_outbox_full(self) -> bool:
+        from temba.msgs.models import SystemLabel
 
-        outbox_limit = self.get_limit(Org.LIMIT_OUTBOX)
-        counts = SystemLabel.get_counts(self)
-        outbox = counts[SystemLabel.TYPE_OUTBOX] + Broadcast.get_queued(self).count()
-        return outbox >= outbox_limit
+        return SystemLabel.get_counts(self)[SystemLabel.TYPE_OUTBOX] >= 1_000_000
 
     def is_flow_starting(self):
         from temba.flows.models import FlowStart
