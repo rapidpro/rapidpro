@@ -2381,9 +2381,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(
             [
-                "A flow is already starting. You will need to wait until that process completes before starting another one."
+                "A flow is already starting. To avoid confusion, make sure you are not targeting the same contacts before continuing."
             ],
-            response.json()["blockers"],
+            response.json()["warnings"],
         )
 
         ivr_flow = self.create_flow("IVR Test", flow_type=Flow.TYPE_VOICE)
