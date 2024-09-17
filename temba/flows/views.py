@@ -1507,9 +1507,6 @@ class FlowCRUDL(SmartCRUDL):
         permission = "flows.flow_start"
 
         blockers = {
-            "already_starting": _(
-                "A flow is already starting. You will need to wait until that process completes before starting another one."
-            ),
             "no_send_channel": _(
                 'To start this flow you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
                 "you to send messages to your contacts."
@@ -1528,6 +1525,9 @@ class FlowCRUDL(SmartCRUDL):
         }
 
         warnings = {
+            "already_starting": _(
+                "A flow is already starting. To avoid confusion, make sure you are not targeting the same contacts before continuing."
+            ),
             "no_templates": _(
                 "This flow does not use message templates. You may still start this flow but WhatsApp contacts who "
                 "have not sent an incoming message in the last 24 hours may not receive it."
@@ -1547,8 +1547,6 @@ class FlowCRUDL(SmartCRUDL):
                 blockers.append(Org.BLOCKER_SUSPENDED)
             elif flow.org.is_flagged:
                 blockers.append(Org.BLOCKER_FLAGGED)
-            elif flow.org.is_flow_starting():
-                blockers.append(self.blockers["already_starting"])
 
             hours = send_time / timedelta(hours=1)
             if settings.SEND_HOURS_BLOCK and hours >= settings.SEND_HOURS_BLOCK:
@@ -1586,6 +1584,10 @@ class FlowCRUDL(SmartCRUDL):
                         )
                     elif not template.is_approved():
                         warnings.append(_(f"Your message template {template.name} is not approved and cannot be sent."))
+
+            if flow.org.is_flow_starting():
+                warnings.append(self.warnings["already_starting"])
+
             return warnings
 
         def post(self, request, *args, **kwargs):
