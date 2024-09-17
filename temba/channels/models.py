@@ -971,7 +971,7 @@ class ChannelLog(models.Model):
                 }
             )
 
-        return sorted(logs, key=lambda l: l["created_on"])
+        return sorted(logs, key=lambda l: l["uuid"])
 
     def _get_json(self):
         """

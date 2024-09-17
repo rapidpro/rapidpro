@@ -1,6 +1,8 @@
 import random
 import re
+import secrets
 import sys
+import time
 from uuid import UUID, uuid4 as real_uuid4
 
 default_generator = real_uuid4
@@ -45,3 +47,26 @@ def find_uuid(val: str) -> str | None:
     """
     match = UUID_REGEX.search(val)
     return match.group(0) if match else None
+
+
+_last_v7_timestamp = None
+
+
+def uuid7() -> str:
+    """
+    Until standard libnrary gets v7 support, this is adapted from https://github.com/oittaa/uuid6-python and only used
+    for tests.
+    """
+
+    global _last_v7_timestamp
+
+    nanoseconds = time.time_ns()
+    timestamp_ms = nanoseconds // 10**6
+    if _last_v7_timestamp is not None and timestamp_ms <= _last_v7_timestamp:
+        timestamp_ms = _last_v7_timestamp + 1
+    _last_v7_timestamp = timestamp_ms
+    uuid_int = (timestamp_ms & 0xFFFFFFFFFFFF) << 80
+    uuid_int |= secrets.randbits(76)
+
+    hex = "%032x" % uuid_int
+    return "%s-%s-%s-%s-%s" % (hex[:8], hex[8:12], hex[12:16], hex[16:20], hex[20:])
