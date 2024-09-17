@@ -1,3 +1,8 @@
+v9.3.40 (2024-09-17)
+-------------------------
+ * Add INTERRUPTED as a status for flow starts
+ * Switch flow starting blocker to warning
+
 v9.3.39 (2024-09-17)
 -------------------------
  * Show bad import file error as validation errors to the user
