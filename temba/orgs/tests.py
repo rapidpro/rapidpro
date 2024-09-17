@@ -3028,7 +3028,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "labels_limit",
                 "teams_limit",
                 "topics_limit",
-                "outbox_limit",
                 "loc",
             ],
             list(response.context["form"].fields.keys()),
@@ -3046,7 +3045,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "globals_limit": "",
                 "groups_limit": 400,
                 "labels_limit": "",
-                "outbox_limit": 1000,
                 "teams_limit": "",
                 "topics_limit": "",
             },
@@ -3060,7 +3058,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
         self.assertEqual(self.org.get_limit(Org.LIMIT_CHANNELS), 20)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_OUTBOX), 1000)
 
         # flag org
         self.client.post(update_url, {"action": "flag"})

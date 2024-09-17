@@ -1519,8 +1519,7 @@ class FlowCRUDL(SmartCRUDL):
                 "allow you to make and receive calls."
             ),
             "outbox_full": _(
-                "Your outbox currently has too many queued messages to start a flow. "
-                "Please wait for these messages to finish sending and try again."
+                "You have too many messages queued in your outbox. Please wait for these messages to send and then try again."
             ),
             "too_many_recipients": _(
                 "Your channels cannot send fast enough to reach all of the selected contacts in a reasonable time. "
