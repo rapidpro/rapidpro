@@ -1,5 +1,6 @@
 import time
 
+from django.conf import settings
 from django.core.management import BaseCommand
 
 from temba.utils import dynamo
@@ -18,8 +19,16 @@ TABLES = [
 class Command(BaseCommand):
     help = "Creates DynamoDB tables that don't already exist."
 
-    def handle(self, *args, **kwargs):
+    def add_arguments(self, parser):
+        parser.add_argument("--testing", action="store_true")
+
+    def handle(self, testing: bool, *args, **kwargs):
         self.client = dynamo.get_client()
+
+        # during tests settings.TESTING is true so table prefix is "Test" - but this command is run with
+        # settings.TESTING == False, so when setting up tables for testing we need to override the prefix
+        if testing:
+            settings.DYNAMO_TABLE_PREFIX = "Test"
 
         for table in TABLES:
             self._migrate_table(table)

@@ -662,7 +662,7 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(STORAGES={"default": {"BACKEND": "x"}, "staticfiles": {"BACKEND": "x"}}):
             self.assertEqual(storage(None)[0].msg, "Missing 'archives' storage config.")
-            self.assertEqual(storage(None)[2].msg, "Missing 'public' storage config.")
+            self.assertEqual(storage(None)[1].msg, "Missing 'public' storage config.")
 
         with override_settings(STORAGE_URL=None):
             self.assertEqual(storage(None)[0].msg, "No storage URL set.")
