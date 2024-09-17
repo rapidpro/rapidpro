@@ -57,12 +57,14 @@
                 <div style="white-space:nowrap">{{ obj.created_on|timedate }}</div>
                 <div style="padding-top: 10px; font-size: 11px; white-space: nowrap;">
                   {% if obj.status == 'F' %}
-                    Failed
+                    {% trans "Failed" %}
+                  {% elif obj.status == 'I' %}
+                    {% trans "Interrupted" %}
                   {% else %}
                     {% if obj.is_starting %}
-                      Starting
+                      {% trans "Starting" %}
                     {% else %}
-                      Started
+                      {% trans "Started" %}
                     {% endif %}
                     {% blocktrans trimmed with count=obj.contact_count|intcomma count counter=obj.contact_count %}
                       <b>{{ count }}</b> contact

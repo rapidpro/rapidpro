@@ -1795,11 +1795,13 @@ class FlowStart(models.Model):
     STATUS_STARTING = "S"
     STATUS_COMPLETE = "C"
     STATUS_FAILED = "F"
+    STATUS_INTERRUPTED = "I"
     STATUS_CHOICES = (
         (STATUS_PENDING, _("Pending")),
         (STATUS_STARTING, _("Starting")),
         (STATUS_COMPLETE, _("Complete")),
         (STATUS_FAILED, _("Failed")),
+        (STATUS_INTERRUPTED, _("Interrupted")),
     )
 
     TYPE_MANUAL = "M"
@@ -1828,7 +1830,7 @@ class FlowStart(models.Model):
     query = models.TextField(null=True)
     exclusions = models.JSONField(default=dict, null=True)
 
-    # the number of de-duped contacts that might be started, depending on options above
+    # number of contacts that will be started, only set when status becomes STARTING
     contact_count = models.IntegerField(default=0, null=True)
 
     campaign_event = models.ForeignKey(
@@ -1840,10 +1842,9 @@ class FlowStart(models.Model):
     parent_summary = models.JSONField(null=True)
     session_history = models.JSONField(null=True)
 
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="flow_starts"
-    )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="+")
     created_on = models.DateTimeField(default=timezone.now)
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="+")
     modified_on = models.DateTimeField(default=timezone.now)
 
     @classmethod
@@ -1897,6 +1898,15 @@ class FlowStart(models.Model):
     def async_start(self):
         on_transaction_commit(lambda: mailroom.queue_flow_start(self))
 
+    def interrupt(self, user):
+        """
+        Interrupts this flow start
+        """
+
+        self.status = self.STATUS_INTERRUPTED
+        self.modified_by = user
+        self.save(update_fields=("status", "modified_by", "modified_on"))
+
     def delete(self):
         """
         Deletes this flow start - called during org deletion or trimming task.
@@ -1911,8 +1921,8 @@ class FlowStart(models.Model):
 
         super().delete()
 
-    def __str__(self):  # pragma: no cover
-        return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"
+    def __repr__(self):
+        return f'<FlowStart: id={self.id} flow="{self.flow.uuid}">'
 
     class Meta:
         indexes = [

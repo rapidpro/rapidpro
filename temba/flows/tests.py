@@ -5244,6 +5244,20 @@ class FlowSessionCRUDLTest(TembaTest):
 
 
 class FlowStartTest(TembaTest):
+    def test_model(self):
+        flow = self.create_flow("Test Flow")
+        contact = self.create_contact("Bob", phone="+1234567890")
+        start = FlowStart.create(flow, self.admin, contacts=[contact])
+
+        self.assertEqual(f'<FlowStart: id={start.id} flow="{start.flow.uuid}">', repr(start))
+
+        start.interrupt(self.editor)
+
+        start.refresh_from_db()
+        self.assertEqual(FlowStart.STATUS_INTERRUPTED, start.status)
+        self.assertEqual(self.editor, start.modified_by)
+        self.assertIsNotNone(self.admin, start.modified_on)
+
     @mock_mailroom
     def test_preview(self, mr_mocks):
         flow = self.create_flow("Test")
