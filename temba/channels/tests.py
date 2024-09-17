@@ -1338,6 +1338,27 @@ class ChannelEventTest(TembaTest):
 
 
 class ChannelLogTest(TembaTest):
+    def test_get_logs(self):
+        log1 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
+            http_logs=[{"url": "https://foo.bar/send1"}],
+            errors=[{"code": "bad_response", "message": "response not right"}],
+        )
+        log2 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_STATUS,
+            http_logs=[{"url": "https://foo.bar/send2"}],
+            errors=[],
+        )
+
+        self.assertEqual([], ChannelLog.get_logs([]))
+
+        logs = ChannelLog.get_logs([log1.uuid, log2.uuid])
+        self.assertEqual(2, len(logs))
+        self.assertEqual(log1.uuid, logs[0]["uuid"])
+        self.assertEqual(ChannelLog.LOG_TYPE_MSG_SEND, logs[0]["type"])
+        self.assertEqual(log2.uuid, logs[1]["uuid"])
+        self.assertEqual(ChannelLog.LOG_TYPE_MSG_STATUS, logs[1]["type"])
+
     def test_get_display(self):
         channel = self.create_channel("TG", "Telegram", "mybot")
         contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
