@@ -1,3 +1,10 @@
+v9.3.39 (2024-09-17)
+-------------------------
+ * Show bad import file error as validation errors to the user
+ * Fix flow start progress bar with high pcts
+ * Simplify outbox limit to be hardcoded at 1M
+ * Validate body for EX channel type will be valid JSON after replacing variables
+
 v9.3.38 (2024-09-14)
 -------------------------
  * Add flow start progress bar
