@@ -1985,7 +1985,10 @@ class ContactImport(SmartModel):
         total number of records. Otherwise raises a ValidationError.
         """
 
-        workbook = load_workbook(filename=file, read_only=True, data_only=True)
+        try:
+            workbook = load_workbook(filename=file, read_only=True, data_only=True)
+        except Exception:
+            raise ValidationError(_("Import file appears to be corrupted."))
         ws = workbook.active
 
         # see https://openpyxl.readthedocs.io/en/latest/optimized.html#worksheet-dimensions but even with this we need
