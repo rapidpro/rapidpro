@@ -4,6 +4,7 @@ html {
   font-size: var(--font-size);
   font-family: var(--font-family);
   height: 100%;
+  line-height: normal !important;
 }
 
 html.dragging * {
@@ -29,7 +30,7 @@ body {
 }
 
 .attachment .attachment-preview {
-  background-color: #EAEAEA;
+  background-color: #eaeaea;
   border: 0;
   color: #777;
   display: flex;
@@ -41,7 +42,7 @@ body {
 }
 
 .attachment .attachment-download {
-  background-color: #E0E0E0;
+  background-color: #e0e0e0;
   border: 0;
   color: #666;
   display: inline-block;
@@ -60,7 +61,7 @@ body {
   display: none;
 }
 
-temba-menu>div {
+temba-menu > div {
   display: none;
 }
 
@@ -74,13 +75,14 @@ temba-dialog {
 }
 
 temba-button {
-  --button-shadow: 0 0px 0px 1px rgba(0, 0, 0, 0.02), 0 1px 9px 0 rgba(0, 0, 0, 0.2);
+  --button-shadow: 0 0px 0px 1px rgba(0, 0, 0, 0.02),
+    0 1px 9px 0 rgba(0, 0, 0, 0.2);
 }
 
 temba-button.light {
-  --button-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.07) 0px 1px 1px 1px;
+  --button-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px,
+    rgba(0, 0, 0, 0.07) 0px 1px 1px 1px;
 }
-
 
 temba-button {
   --button-bg: var(--color-primary-dark);
@@ -90,11 +92,16 @@ temba-button {
 }
 
 temba-button:hover {
-  --button-bg-img: linear-gradient(to bottom, rgba(var(--primary-rgb), .1), transparent, transparent);
+  --button-bg-img: linear-gradient(
+    to bottom,
+    rgba(var(--primary-rgb), 0.1),
+    transparent,
+    transparent
+  );
 }
 
 temba-button.active {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .05));
+  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.05));
 }
 
 temba-button.light {
@@ -105,11 +112,15 @@ temba-button.light {
 }
 
 temba-button.light:hover {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .001));
+  --button-bg-img: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(0, 0, 0, 0.001)
+  );
 }
 
 temba-button.light.active {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .02));
+  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.02));
 }
 
 temba-select:focus {
@@ -138,7 +149,8 @@ temba-menu:defined {
   margin-left: 1em;
 }
 
-.list-buttons-container.visible {}
+.list-buttons-container.visible {
+}
 
 .spa-container {
   background: #f7f7f7;
@@ -147,7 +159,7 @@ temba-menu:defined {
 }
 
 .spa-container.loading .spa-content {
-  opacity: .3;
+  opacity: 0.3;
   pointer-events: none;
 }
 
@@ -159,14 +171,14 @@ temba-menu:defined {
 .widget-container.loading .folders,
 .widget-container.loading .spa-content,
 .widget-container.loading .org-chooser {
-  opacity: .3;
+  opacity: 0.3;
   pointer-events: none;
 }
 
 .org-chooser {
-  background: rgba(0, 0, 0, .02);
-  box-shadow: 0px 0px 15px 0px rgba(0, 0, 0, .1) inset;
-  color: rgba(0, 0, 0, .6);
+  background: rgba(0, 0, 0, 0.02);
+  box-shadow: 0px 0px 15px 0px rgba(0, 0, 0, 0.1) inset;
+  color: rgba(0, 0, 0, 0.6);
   --color-widget-border: transparent;
   --color-widget-bg: transparent;
   --temba-select-selected-padding: 0em;
@@ -196,7 +208,10 @@ temba-loading {
 
 .bg-gradient {
   background-repeat: no-repeat;
-  background-image: linear-gradient(rgb(255, 255, 255) 0%, rgb(236, 236, 236) 75%);
+  background-image: linear-gradient(
+    rgb(255, 255, 255) 0%,
+    rgb(236, 236, 236) 75%
+  );
 }
 
 .lp-frame .lp-nav-item {
@@ -241,7 +256,7 @@ temba-loading {
 }
 
 .object-list {
-  -webkit-transform: translate3d(0, 0, 0)
+  -webkit-transform: translate3d(0, 0, 0);
 }
 
 .button-action {
@@ -255,7 +270,6 @@ temba-loading {
   background: var(--color-primary-dark);
   color: #fff !important;
 }
-
 
 #gear-container .button-light {
   padding-top: 0.62em;
@@ -292,7 +306,7 @@ temba-menu {
 temba-menu.servicing {
   --primary-rgb: 191, 84, 155;
   --color-primary-dark: rgb(var(--primary-rgb));
-  --color-selection: rgba(var(--primary-rgb), .05);
+  --color-selection: rgba(var(--primary-rgb), 0.05);
 }
 
 .formax .formax-section.open {
@@ -301,7 +315,7 @@ temba-menu.servicing {
 }
 
 .servicing:hover .hover {
-  background: rgba(0, 0, 0, .2);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .spa-content {
