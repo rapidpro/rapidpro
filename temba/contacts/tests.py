@@ -3799,6 +3799,7 @@ class ContactImportTest(TembaTest):
             ("reserved_field_key.xlsx", "Header 'Field:HAS' is not a valid field name."),
             ("no_urn_or_uuid.xlsx", "Import files must contain either UUID or a URN header."),
             ("uuid_only.xlsx", "Import files must contain columns besides UUID."),
+            ("invalid.txt.xlsx", "Import file appears to be corrupted."),
         ]
 
         for imp_file, imp_error in bad_files:
