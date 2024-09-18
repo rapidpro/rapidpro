@@ -895,60 +895,11 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    def get_display(self, *, anonymize: bool, urn) -> dict:
-        return self.display(self._get_json(), anonymize=anonymize, channel=self.channel, urn=urn)
-
     @classmethod
-    def display(cls, data: dict, *, anonymize: bool, channel, urn) -> dict:
-        # add reference URLs to errors
-        for err in data["errors"]:
-            ext_code = err.get("ext_code")
-            err["ref_url"] = channel.type.get_error_ref_url(channel, ext_code) if ext_code else None
-
-        if anonymize:
-            cls._anonymize(data, channel, urn)
-
-        # out of an abundance of caution, check that we're not returning one of our own credential values
-        for log in data["http_logs"]:
-            for secret in channel.type.get_redact_values(channel):
-                assert secret not in log["url"] and secret not in log["request"] and secret not in log["response"]
-
-        return data
-
-    @classmethod
-    def _anonymize_value(cls, original: str, urn, redact_keys=()) -> str:
-        # if log doesn't have an associated URN then we don't know what to anonymize, so redact completely
-        if not original:
-            return ""
-        if not urn:
-            return original[:10] + cls.REDACT_MASK
-
-        if redact_keys:
-            redacted = redact.http_trace(original, urn.path, cls.REDACT_MASK, redact_keys)
-        else:
-            redacted = redact.text(original, urn.path, cls.REDACT_MASK)
-
-        # if nothing was redacted, don't risk returning sensitive information we didn't find
-        if original == redacted and original:
-            return original[:10] + cls.REDACT_MASK
-
-        return redacted
-
-    @classmethod
-    def _anonymize(cls, data: dict, channel, urn):
-        request_keys = channel.type.redact_request_keys
-        response_keys = channel.type.redact_response_keys
-
-        for http_log in data["http_logs"]:
-            http_log["url"] = cls._anonymize_value(http_log["url"], urn)
-            http_log["request"] = cls._anonymize_value(http_log["request"], urn, redact_keys=request_keys)
-            http_log["response"] = cls._anonymize_value(http_log.get("response", ""), urn, redact_keys=response_keys)
-
-        for err in data["errors"]:
-            err["message"] = cls._anonymize_value(err["message"], urn)
-
-    @classmethod
-    def get_logs(cls, uuids: list) -> list:
+    def get_by_uuid(cls, channel, uuids: list) -> list:
+        """
+        Get logs from DynamoDB and converts them to non-persistent instances of this class
+        """
         if not uuids:
             return []
 
@@ -961,30 +912,78 @@ class ChannelLog(models.Model):
         for log in resp["Responses"][dynamo.table_name(cls.DYNAMO_TABLE)]:
             data = dynamo.load_jsongz(log["DataGZ"]["B"])
             logs.append(
-                {
-                    "uuid": log["UUID"]["S"],
-                    "type": log["Type"]["S"],
-                    "http_logs": data["http_logs"],
-                    "errors": data["errors"],
-                    "elapsed_ms": int(log["ElapsedMS"]["N"]),
-                    "created_on": datetime.fromtimestamp(int(log["CreatedOn"]["N"]), tz=tzone.utc),
-                }
+                ChannelLog(
+                    uuid=log["UUID"]["S"],
+                    channel=channel,
+                    log_type=log["Type"]["S"],
+                    http_logs=data["http_logs"],
+                    errors=data["errors"],
+                    elapsed_ms=int(log["ElapsedMS"]["N"]),
+                    created_on=datetime.fromtimestamp(int(log["CreatedOn"]["N"]), tz=tzone.utc),
+                )
             )
 
-        return sorted(logs, key=lambda l: l["uuid"])
+        return sorted(logs, key=lambda l: l.uuid)
 
-    def _get_json(self):
+    def get_display(self, *, anonymize: bool, urn) -> dict:
         """
-        Get a database instance in the same JSON format we write to S3
+        Gets a dict representation of this log for display that is optionally anonymized
         """
-        return {
+
+        # add reference URLs to errors
+        errors = [e.copy() for e in self.errors or []]
+        for err in errors:
+            ext_code = err.get("ext_code")
+            err["ref_url"] = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
+
+        data = {
             "uuid": str(self.uuid),
             "type": self.log_type,
             "http_logs": [h.copy() for h in self.http_logs or []],
-            "errors": [e.copy() for e in self.errors or []],
+            "errors": errors,
             "elapsed_ms": self.elapsed_ms,
             "created_on": self.created_on.isoformat(),
         }
+
+        if anonymize:
+            self._anonymize(data, urn)
+
+        # out of an abundance of caution, check that we're not returning one of our own credential values
+        for log in data["http_logs"]:
+            for secret in self.channel.type.get_redact_values(self.channel):
+                assert secret not in log["url"] and secret not in log["request"] and secret not in log["response"]
+
+        return data
+
+    def _anonymize(self, data: dict, urn):
+        request_keys = self.channel.type.redact_request_keys
+        response_keys = self.channel.type.redact_response_keys
+
+        for http_log in data["http_logs"]:
+            http_log["url"] = self._anonymize_value(http_log["url"], urn)
+            http_log["request"] = self._anonymize_value(http_log["request"], urn, redact_keys=request_keys)
+            http_log["response"] = self._anonymize_value(http_log.get("response", ""), urn, redact_keys=response_keys)
+
+        for err in data["errors"]:
+            err["message"] = self._anonymize_value(err["message"], urn)
+
+    def _anonymize_value(self, original: str, urn, redact_keys=()) -> str:
+        # if log doesn't have an associated URN then we don't know what to anonymize, so redact completely
+        if not original:
+            return ""
+        if not urn:
+            return original[:10] + self.REDACT_MASK
+
+        if redact_keys:
+            redacted = redact.http_trace(original, urn.path, self.REDACT_MASK, redact_keys)
+        else:
+            redacted = redact.text(original, urn.path, self.REDACT_MASK)
+
+        # if nothing was redacted, don't risk returning sensitive information we didn't find
+        if original == redacted and original:
+            return original[:10] + self.REDACT_MASK
+
+        return redacted
 
     class Meta:
         indexes = [models.Index(name="channellogs_by_channel", fields=("channel", "-created_on"))]

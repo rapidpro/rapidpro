@@ -14,9 +14,9 @@
 {% endblock extra-style %}
 {% block content %}
   <div class="mt-4">
-    {% blocktrans trimmed %}
+    {% blocktrans trimmed with days=7 %}
       These are the logs which have no associated message or call. To access logs for a specific message or call, use the
-      link from the message or call itself. Logs are kept for 14 days.
+      link from the message or call itself. Logs are kept for {{ days }} days.
     {% endblocktrans %}
   </div>
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
@@ -31,7 +31,7 @@
         <div class="elapsed mx-2 text-right mr-4 flex-grow">
           <span>{{ obj.elapsed_ms|intcomma }}ms</span>
         </div>
-        <div style="text-align: right" nowrap="true" class="created_on whitespace-nowrap">{{ obj.created_on|datetime }}</div>
+        <div style="text-align: right" nowrap="true" class="created_on whitespace-nowrap">{{ obj.created_on|timedate }}</div>
       </div>
     {% endfor %}
   </div>
