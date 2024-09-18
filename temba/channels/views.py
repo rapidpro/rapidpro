@@ -932,9 +932,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
             logs = []
             for log in self.owner.get_logs():
-                logs.append(
-                    ChannelLog.display(log, anonymize=anonymize, channel=self.owner.channel, urn=self.owner.contact_urn)
-                )
+                logs.append(log.get_display(anonymize=anonymize, urn=self.owner.contact_urn))
 
             context["logs"] = logs
             return context
