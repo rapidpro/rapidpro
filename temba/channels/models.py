@@ -1,7 +1,7 @@
 import logging
 from abc import ABCMeta
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as tzone
 from enum import Enum
 from uuid import uuid4
 
@@ -13,7 +13,6 @@ from twilio.base.exceptions import TwilioRestException
 
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
-from django.core.files.storage import storages
 from django.db import models
 from django.db.models import Q, Sum
 from django.db.models.signals import pre_save
@@ -25,7 +24,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, dynamo, get_anonymous_user, on_transaction_commit, redact
 from temba.utils.models import (
     JSONAsTextField,
     LegacyUUIDMixin,
@@ -35,7 +34,6 @@ from temba.utils.models import (
     generate_uuid,
 )
 from temba.utils.text import generate_secret
-from temba.utils.uuid import is_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -850,6 +848,7 @@ class ChannelLog(models.Model):
     A log of an interaction with a channel
     """
 
+    DYNAMO_TABLE = "ChannelLogs"  # unprefixed table name
     REDACT_MASK = "*" * 8  # used to mask redacted values
 
     LOG_TYPE_UNKNOWN = "unknown"
@@ -949,24 +948,30 @@ class ChannelLog(models.Model):
             err["message"] = cls._anonymize_value(err["message"], urn)
 
     @classmethod
-    def get_logs(cls, channel, uuids: list) -> list:
-        # look for logs in the database
-        logs = {l.uuid: l._get_json() for l in cls.objects.filter(channel=channel, uuid__in=uuids)}
+    def get_logs(cls, uuids: list) -> list:
+        if not uuids:
+            return []
 
-        # and in storage
-        for log_uuid in uuids:
-            assert is_uuid(log_uuid), f"{log_uuid} is not a valid log UUID"
+        client = dynamo.get_client()
+        resp = client.batch_get_item(
+            RequestItems={dynamo.table_name(cls.DYNAMO_TABLE): {"Keys": [{"UUID": {"S": str(u)}} for u in uuids]}}
+        )
 
-            if log_uuid not in logs:
-                key = f"channels/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
-                try:
-                    log_file = storages["logs"].open(key)
-                    logs[log_uuid] = json.loads(log_file.read())
-                    log_file.close()
-                except Exception:
-                    logger.exception("unable to read log from storage", extra={"key": key})
+        logs = []
+        for log in resp["Responses"][dynamo.table_name(cls.DYNAMO_TABLE)]:
+            data = dynamo.load_jsongz(log["DataGZ"]["B"])
+            logs.append(
+                {
+                    "uuid": log["UUID"]["S"],
+                    "type": log["Type"]["S"],
+                    "http_logs": data["http_logs"],
+                    "errors": data["errors"],
+                    "elapsed_ms": int(log["ElapsedMS"]["N"]),
+                    "created_on": datetime.fromtimestamp(int(log["CreatedOn"]["N"]), tz=tzone.utc),
+                }
+            )
 
-        return sorted(logs.values(), key=lambda l: l["created_on"])
+        return sorted(logs, key=lambda l: l["uuid"])
 
     def _get_json(self):
         """

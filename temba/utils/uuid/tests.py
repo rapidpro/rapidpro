@@ -1,6 +1,6 @@
 from temba.tests.base import TembaTest
 
-from . import find_uuid, is_uuid
+from . import find_uuid, is_uuid, uuid7
 
 
 class UUIDTest(TembaTest):
@@ -18,3 +18,10 @@ class UUIDTest(TembaTest):
         self.assertEqual(
             "d749e4e9-2898-4e47-9418-7a89d9e51359", find_uuid("http://d749e4e9-2898-4e47-9418-7a89d9e51359/")
         )
+
+    def test_uuid7(self):
+        u1 = uuid7()
+        u2 = uuid7()
+        self.assertEqual(36, len(u1))
+        self.assertEqual(36, len(u2))
+        self.assertNotEqual(u1, u2)

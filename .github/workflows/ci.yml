@@ -69,7 +69,7 @@ jobs:
           sudo yarn global add less
           ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
           poetry run python manage.py migrate
-          poetry run python manage.py migrate_dynamo
+          poetry run python manage.py migrate_dynamo --testing
           # fetch, extract and start mailroom
           wget https://github.com/${{ github.repository_owner }}/mailroom/releases/download/v${{ env.mailroom-version }}/mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz
           tar -xvf mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz mailroom

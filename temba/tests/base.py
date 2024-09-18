@@ -1,5 +1,6 @@
 import copy
 import os
+from collections import namedtuple
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
@@ -30,8 +31,8 @@ from temba.msgs.models import Broadcast, Label, Msg, OptIn
 from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template
 from temba.tickets.models import Ticket, TicketEvent
-from temba.utils import json
-from temba.utils.uuid import UUID, uuid4
+from temba.utils import dynamo, json
+from temba.utils.uuid import UUID, uuid4, uuid7
 
 from .mailroom import (
     contact_urn_lookup,
@@ -557,26 +558,12 @@ class TembaTest(SmartminTest):
 
         return flow
 
-    def create_incoming_call(self, flow, contact, status=Call.STATUS_COMPLETED, error_reason=None, created_on=None):
+    def create_incoming_call(
+        self, flow, contact, status=Call.STATUS_COMPLETED, error_reason=None, created_on=None, logs=()
+    ):
         """
         Create something that looks like an incoming IVR call handled by mailroom
         """
-        log = ChannelLog.objects.create(
-            channel=self.channel,
-            log_type=ChannelLog.LOG_TYPE_IVR_START,
-            is_error=status in (Call.STATUS_FAILED, Call.STATUS_ERRORED),
-            http_logs=[
-                {
-                    "url": "https://acme-calls.com/reply",
-                    "status_code": 200,
-                    "request": 'POST /reply\r\n\r\n{"say": "Hello"}',
-                    "response": '{"status": "%s"}' % ("error" if status == Call.STATUS_FAILED else "OK"),
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
         call = Call.objects.create(
             org=self.org,
             channel=self.channel,
@@ -587,7 +574,7 @@ class TembaTest(SmartminTest):
             error_reason=error_reason,
             created_on=created_on or timezone.now(),
             duration=15,
-            log_uuids=[log.uuid],
+            log_uuids=[l.uuid for l in logs or []],
         )
         session = FlowSession.objects.create(
             uuid=uuid4(),
@@ -692,6 +679,26 @@ class TembaTest(SmartminTest):
             created_by=self.admin,
             modified_by=self.admin,
         )
+
+    def create_channel_log(self, log_type: str, *, http_logs=(), errors=()) -> dict:
+        uuid = uuid7()
+        created_on = timezone.now()
+        expires_on = created_on + timezone.timedelta(days=7)
+
+        client = dynamo.get_client()
+        client.put_item(
+            TableName=dynamo.table_name(ChannelLog.DYNAMO_TABLE),
+            Item={
+                "UUID": {"S": str(uuid)},
+                "Type": {"S": log_type},
+                "DataGZ": {"B": dynamo.dump_jsongz({"http_logs": http_logs, "errors": errors})},
+                "ElapsedMS": {"N": "12"},
+                "CreatedOn": {"N": str(int(created_on.timestamp()))},
+                "ExpiresOn": {"N": str(int(expires_on.timestamp()))},
+            },
+        )
+
+        return namedtuple("ChannelLog", ["uuid", "created_on"])(uuid, created_on)
 
     def create_channel_event(self, channel, urn, event_type, occurred_on=None, optin=None, extra=None):
         urn_obj = contact_urn_lookup(channel.org, urn)
