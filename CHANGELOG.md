@@ -1,3 +1,7 @@
+v9.3.42 (2024-09-18)
+-------------------------
+ * Cleanup how we read and anonymize channel logs
+
 v9.3.41 (2024-09-18)
 -------------------------
  * Limit SetRunResult category length in editor
