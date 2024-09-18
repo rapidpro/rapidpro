@@ -1,3 +1,9 @@
+v9.3.41 (2024-09-18)
+-------------------------
+ * Limit SetRunResult category length in editor
+ * Add --testing argument to migrate_dynamo command
+ * Start reading attached channel logs from DynamoDB instead of S3
+
 v9.3.40 (2024-09-17)
 -------------------------
  * Add INTERRUPTED as a status for flow starts
