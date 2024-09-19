@@ -185,9 +185,15 @@ class Broadcast(models.Model):
     """
 
     STATUS_QUEUED = "Q"
-    STATUS_SENT = "S"
+    STATUS_SENT = "S"  # deprecated
+    STATUS_COMPLETED = "C"
     STATUS_FAILED = "F"
-    STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
+    STATUS_CHOICES = (
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_SENT, "Sent"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_FAILED, "Failed"),
+    )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="broadcasts")
 

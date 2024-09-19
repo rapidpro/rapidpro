@@ -168,6 +168,7 @@ class BroadcastReadSerializer(ReadSerializer):
         "I": "queued",  # may exist in older data
         Broadcast.STATUS_QUEUED: "queued",
         Broadcast.STATUS_SENT: "sent",
+        Broadcast.STATUS_COMPLETED: "completed",
         Broadcast.STATUS_FAILED: "failed",
     }
 
