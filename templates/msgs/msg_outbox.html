@@ -7,35 +7,6 @@
 {% block message-list %}
   <table class="object-list list lined">
     <tbody>
-      {% for broadcast in queued_broadcasts %}
-        {% with translation=broadcast.get_translation %}
-          <tr>
-            <td style="width: 20px" class="value-icon">
-              <span class="glyph icon-bullhorn text-gray-500"></span>
-            </td>
-            <td class="value-recipient">
-              <div class="pt-1 inline-block">{% include "includes/recipients.html" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.urns %}</div>
-            </td>
-            <td class="w-full">
-              <div class="flex flex-wrap flex-end items-center justify-end">
-                <div class="flex-grow inline">
-                  <div class="value-text field_text">{{ translation.text }}</div>
-                </div>
-              </div>
-              {% if translation.attachments %}
-                <div style="margin-top: 5px" class="value-attachments">
-                  {% for attachment in translation.attachments %}
-                    {% attachment_button attachment %}
-                  {% endfor %}
-                </div>
-              {% endif %}
-            </td>
-            <td class="created_on">
-              <span class="time">{{ broadcast.created_on|timedate }}</span>
-            </td>
-          </tr>
-        {% endwith %}
-      {% endfor %}
       {% for object in object_list %}
         <tr>
           <td colspan="2" class="value-recipient">
@@ -66,7 +37,7 @@
           </td>
         </tr>
       {% endfor %}
-      {% if not object_list and not queued_broadcasts %}
+      {% if not object_list %}
         <tr class="empty_list">
           <td colspan="99">{% trans "No matching messages." %}</td>
         </tr>

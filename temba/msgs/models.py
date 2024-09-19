@@ -258,13 +258,6 @@ class Broadcast(models.Model):
         )
 
     @classmethod
-    def get_queued(cls, org):
-        """
-        Gets the queued broadcasts which will be prepended to the Outbox
-        """
-        return org.broadcasts.filter(status=cls.STATUS_QUEUED, schedule=None, is_active=True)
-
-    @classmethod
     def preview(cls, org, *, include: mailroom.Inclusions, exclude: mailroom.Exclusions) -> tuple[str, int]:
         """
         Requests a preview of the recipients of a broadcast created with the given inclusions/exclusions, returning a
@@ -358,12 +351,6 @@ class Broadcast(models.Model):
                 name="msgs_broadcasts_scheduled",
                 fields=["org", "-created_on"],
                 condition=Q(schedule__isnull=False, is_active=True),
-            ),
-            # used to fetch queued broadcasts for the Outbox
-            models.Index(
-                name="msgs_broadcasts_queued",
-                fields=["org", "-created_on"],
-                condition=Q(schedule__isnull=True, status="Q", is_active=True),
             ),
         ]
 
