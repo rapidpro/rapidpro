@@ -669,20 +669,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         msg4, msg3, msg2 = broadcast2.msgs.order_by("-id")
 
-        broadcast3 = self.create_broadcast(
-            self.admin, {"eng": {"text": "Pending broadcast"}}, contacts=[contact4], status="Q"
-        )
-        self.create_broadcast(
-            self.admin,
-            {"eng": {"text": "Scheduled broadcast"}},
-            contacts=[contact4],
-            schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
-        )
-
         response = self.assertListFetch(outbox_url, [self.admin], context_objects=[msg4, msg3, msg2, msg1])
-
-        # should see queued broadcast but not the scheduled one
-        self.assertEqual([broadcast3], list(response.context_data["queued_broadcasts"]))
 
         response = self.client.get(outbox_url + "?search=kevin")
         self.assertEqual([Msg.objects.get(contact=contact4)], list(response.context_data["object_list"]))
