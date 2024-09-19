@@ -1469,7 +1469,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 "Active",
                 "Archived",
                 "Globals",
-                ("History", ["Webhooks", "Flow Starts"]),
+                ("History", ["Starts", "Webhooks"]),
                 ("Labels", ["Important (0)"]),
             ],
         )
