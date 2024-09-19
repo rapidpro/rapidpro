@@ -1,3 +1,9 @@
+v9.3.43 (2024-09-19)
+-------------------------
+ * Add support broadcast status (C)COMPLETED
+ * Remove broadcasts from Outbox now that they have their own page
+ * Put starts before webhooks on flow history menu
+
 v9.3.42 (2024-09-18)
 -------------------------
  * Cleanup how we read and anonymize channel logs
