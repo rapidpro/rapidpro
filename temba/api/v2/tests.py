@@ -968,7 +968,7 @@ class EndpointsTest(APITest):
 
         bcast1 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 1"}}, urns=["twitter:franky"], status="Q")
         bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 2"}}, contacts=[self.joe], status="Q")
-        bcast3 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 3"}}, contacts=[self.frank], status="S")
+        bcast3 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 3"}}, contacts=[self.frank], status="C")
         bcast4 = self.create_broadcast(
             self.admin,
             {"eng": {"text": "Hello 4"}},

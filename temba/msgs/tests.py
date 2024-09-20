@@ -640,7 +640,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             {"eng": {"text": "How is it going?"}},
             contacts=[contact1],
-            status=Broadcast.STATUS_SENT,
+            status=Broadcast.STATUS_COMPLETED,
             msg_status=Msg.STATUS_INITIALIZING,
         )
         msg1 = broadcast1.msgs.get()

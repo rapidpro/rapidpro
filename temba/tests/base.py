@@ -463,7 +463,7 @@ class TembaTest(SmartminTest):
         urns=(),
         optin=None,
         exclude=None,
-        status=Broadcast.STATUS_SENT,
+        status=Broadcast.STATUS_COMPLETED,
         msg_status=Msg.STATUS_SENT,
         parent=None,
         schedule=None,
