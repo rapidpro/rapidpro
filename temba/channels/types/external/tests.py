@@ -59,7 +59,7 @@ class ExternalTypeTest(TembaTest):
             response.context["form"], "body", "Invalid JSON, make sure to remove quotes around variables"
         )
 
-        post_data["body"] = '{"from":{{from_no_plus}},"to":{{to_no_plus}},"text":{{text}} }'
+        post_data["body"] = '{"from":{{from_no_plus}},"to":{{to_no_plus}},"text":{{text}},"channel":{{channel}} }'
         response = self.client.post(url, post_data)
         channel = Channel.objects.get()
 
@@ -74,7 +74,7 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
         self.assertEqual(
-            '{"from":{{from_no_plus}},"to":{{to_no_plus}},"text":{{text}} }',
+            '{"from":{{from_no_plus}},"to":{{to_no_plus}},"text":{{text}},"channel":{{channel}} }',
             channel.config[ExternalType.CONFIG_SEND_BODY],
         )
         self.assertEqual("SENT", channel.config[ExternalType.CONFIG_MT_RESPONSE_CHECK])

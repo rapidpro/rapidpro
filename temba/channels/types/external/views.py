@@ -114,6 +114,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 "to_no_plus": "",
                 "id": "",
                 "quick_replies": "",
+                "channel": "",
             }
             replaced_body = ExternalType.replace_variables(
                 cleaned_data.get("body"), variables, content_type=content_type
