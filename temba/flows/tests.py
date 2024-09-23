@@ -5256,7 +5256,7 @@ class FlowStartTest(TembaTest):
         start.refresh_from_db()
         self.assertEqual(FlowStart.STATUS_INTERRUPTED, start.status)
         self.assertEqual(self.editor, start.modified_by)
-        self.assertIsNotNone(self.admin, start.modified_on)
+        self.assertIsNotNone(start.modified_on)
 
     @mock_mailroom
     def test_preview(self, mr_mocks):

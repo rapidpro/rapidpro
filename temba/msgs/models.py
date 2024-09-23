@@ -218,9 +218,9 @@ class Broadcast(models.Model):
     template = models.ForeignKey("templates.Template", null=True, on_delete=models.PROTECT)
     template_variables = ArrayField(models.TextField(), null=True)
 
-    created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
+    created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="+")
     created_on = models.DateTimeField(default=timezone.now)
-    modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_modifications")
+    modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="+")
     modified_on = models.DateTimeField(default=timezone.now)
 
     # used for scheduled broadcasts which are never actually sent themselves but spawn child broadcasts which are
@@ -305,6 +305,15 @@ class Broadcast(models.Model):
             return trans(self.translations[self.org.flow_languages[0]])
 
         return trans(self.translations[self.base_language])  # should always be a base language translation
+
+    def interrupt(self, user):
+        """
+        Interrupts this flow start
+        """
+
+        self.status = self.STATUS_INTERRUPTED
+        self.modified_by = user
+        self.save(update_fields=("status", "modified_by", "modified_on"))
 
     def delete(self, user, *, soft: bool):
         if soft:
