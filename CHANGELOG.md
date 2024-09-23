@@ -1,3 +1,8 @@
+v9.3.46 (2024-09-23)
+-------------------------
+ * Add progress field to broadcasts API endpoint
+ * Add Broadcast.interrupt(user)
+
 v9.3.45 (2024-09-23)
 -------------------------
  * Add PENDING/STARTED statuses and contact_count field to broadcasts
