@@ -966,16 +966,22 @@ class EndpointsTest(APITest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
-        bcast1 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 1"}}, urns=["twitter:franky"], status="Q")
-        bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 2"}}, contacts=[self.joe], status="Q")
-        bcast3 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 3"}}, contacts=[self.frank], status="C")
+        bcast1 = self.create_broadcast(
+            self.admin, {"eng": {"text": "Hello 1"}}, urns=["twitter:franky"], status=Broadcast.STATUS_PENDING
+        )
+        bcast2 = self.create_broadcast(
+            self.admin, {"eng": {"text": "Hello 2"}}, contacts=[self.joe], status=Broadcast.STATUS_PENDING
+        )
+        bcast3 = self.create_broadcast(
+            self.admin, {"eng": {"text": "Hello 3"}}, contacts=[self.frank], status=Broadcast.STATUS_COMPLETED
+        )
         bcast4 = self.create_broadcast(
             self.admin,
             {"eng": {"text": "Hello 4"}},
             urns=["twitter:franky"],
             contacts=[self.joe],
             groups=[reporters],
-            status="F",
+            status=Broadcast.STATUS_FAILED,
         )
         self.create_broadcast(
             self.admin,

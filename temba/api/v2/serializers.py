@@ -165,7 +165,6 @@ class ArchiveReadSerializer(ReadSerializer):
 
 class BroadcastReadSerializer(ReadSerializer):
     STATUSES = {
-        "Q": "pending",
         Broadcast.STATUS_PENDING: "pending",
         Broadcast.STATUS_STARTED: "started",
         Broadcast.STATUS_COMPLETED: "completed",
@@ -1082,6 +1081,7 @@ class FlowStartReadSerializer(ReadSerializer):
         FlowStart.STATUS_STARTING: "starting",
         FlowStart.STATUS_COMPLETE: "complete",
         FlowStart.STATUS_FAILED: "failed",
+        FlowStart.STATUS_INTERRUPTED: "interrupted",
     }
 
     flow = fields.FlowField()

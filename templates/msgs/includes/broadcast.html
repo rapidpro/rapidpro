@@ -59,7 +59,7 @@
     {% if not broadcast.schedule %}
       <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule text-center">
         <div class="inline-block align-bottom text-gray-700 flex">
-          {% if broadcast.status == "Q" or broadcast.status == "P" or broadcast.status == "S" %}
+          {% if broadcast.status == "P" or broadcast.status == "S" %}
             <temba-icon name="progress_spinner" spin class="mr-1">
             </temba-icon>
           {% endif %}

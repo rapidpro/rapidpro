@@ -1803,6 +1803,13 @@ class BroadcastTest(TembaTest):
         self.assertEqual("P", bcast2.status)
         self.assertTrue(bcast2.is_active)
 
+        bcast2.interrupt(self.editor)
+
+        bcast2.refresh_from_db()
+        self.assertEqual(Broadcast.STATUS_INTERRUPTED, bcast2.status)
+        self.assertEqual(self.editor, bcast2.modified_by)
+        self.assertIsNotNone(bcast2.modified_on)
+
         # create a broadcast that looks like it has been sent
         bcast3 = self.create_broadcast(self.admin, {"eng": {"text": "Hi everyone"}}, contacts=[self.kevin, self.lucy])
 
