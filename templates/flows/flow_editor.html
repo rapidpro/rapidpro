@@ -237,11 +237,9 @@
 {% block alert-messages %}
 {% endblock alert-messages %}
 {% block page-header %}
-  {% if active_start or messages or user_org.is_suspended %}
-    {% if active_start %}
-      <temba-flowstart-progress class="mb-4 -mt-2 -mx-2" uuid="{{ active_start.uuid }}">
-      </temba-flowstart-progress>
-    {% endif %}
+  {% if active_start %}
+    <temba-flowstart-progress class="mb-4 -mt-2 -mx-2" uuid="{{ active_start.uuid }}">
+    </temba-flowstart-progress>
   {% endif %}
   {{ block.super }}
 {% endblock page-header %}

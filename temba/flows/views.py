@@ -1578,7 +1578,7 @@ class FlowCRUDL(SmartCRUDL):
                     elif not template.is_approved():
                         warnings.append(_(f"Your message template {template.name} is not approved and cannot be sent."))
 
-            if flow.org.is_flow_starting():
+            if FlowStart.has_unfinished(flow.org):
                 warnings.append(self.warnings["already_starting"])
 
             return warnings

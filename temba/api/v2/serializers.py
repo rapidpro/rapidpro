@@ -1078,8 +1078,8 @@ class FlowRunReadSerializer(ReadSerializer):
 class FlowStartReadSerializer(ReadSerializer):
     STATUSES = {
         FlowStart.STATUS_PENDING: "pending",
-        FlowStart.STATUS_STARTING: "starting",
-        FlowStart.STATUS_COMPLETE: "complete",
+        FlowStart.STATUS_STARTED: "started",
+        FlowStart.STATUS_COMPLETED: "completed",
         FlowStart.STATUS_FAILED: "failed",
         FlowStart.STATUS_INTERRUPTED: "interrupted",
     }

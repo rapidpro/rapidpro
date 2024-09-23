@@ -3098,7 +3098,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
      * **flow** - the flow which was started (object).
      * **contacts** - the list of contacts that were started in the flow (objects).
      * **groups** - the list of groups that were started in the flow (objects).
-     * **status** - the status of this flow start.
+     * **status** - the status, one of `pending`, `started`, `completed`, `failed`, `interrupted`.
      * **progress** - the progress of this flow start (object).
      * **params** - the dictionary of extra parameters passed to the flow start (object).
      * **created_on** - the datetime when this flow start was created (datetime).
