@@ -462,7 +462,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         Returns whether this flow is already being started by a user
         """
         return (
-            self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING))
+            self.starts.filter(status__in=(FlowStart.STATUS_PENDING, FlowStart.STATUS_STARTED))
             .exclude(created_by=None)
             .first()
         )
@@ -1792,14 +1792,14 @@ class FlowStart(models.Model):
     EXCLUSION_NOT_SEEN_SINCE_DAYS = "not_seen_since_days"  # contacts not seen for more than this number of days
 
     STATUS_PENDING = "P"
-    STATUS_STARTING = "S"
-    STATUS_COMPLETE = "C"
+    STATUS_STARTED = "S"
+    STATUS_COMPLETED = "C"
     STATUS_FAILED = "F"
     STATUS_INTERRUPTED = "I"
     STATUS_CHOICES = (
         (STATUS_PENDING, "Pending"),
-        (STATUS_STARTING, "Starting"),
-        (STATUS_COMPLETE, "Complete"),
+        (STATUS_STARTED, "Started"),
+        (STATUS_COMPLETED, "Completed"),
         (STATUS_FAILED, "Failed"),
         (STATUS_INTERRUPTED, "Interrupted"),
     )
@@ -1892,8 +1892,12 @@ class FlowStart(models.Model):
 
         return preview.query, preview.total
 
-    def is_starting(self):
-        return self.status == self.STATUS_STARTING or self.status == self.STATUS_PENDING
+    def is_starting(self) -> bool:
+        return self.status in (self.STATUS_PENDING, self.STATUS_STARTED)
+
+    @classmethod
+    def has_unfinished(cls, org) -> bool:
+        return org.flow_starts.filter(status__in=(cls.STATUS_PENDING, cls.STATUS_STARTED)).exists()
 
     def async_start(self):
         on_transaction_commit(lambda: mailroom.queue_flow_start(self))

@@ -848,15 +848,6 @@ class Org(SmartModel):
 
         return SystemLabel.get_counts(self)[SystemLabel.TYPE_OUTBOX] >= 1_000_000
 
-    def is_flow_starting(self):
-        from temba.flows.models import FlowStart
-
-        return (
-            FlowStart.objects.filter(org=self, status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING))
-            .exclude(created_by=None)
-            .exists()
-        )
-
     def get_estimated_send_time(self, msg_count):
         """
         Estimates the time it will take to send the given number of messages

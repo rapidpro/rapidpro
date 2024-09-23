@@ -2290,10 +2290,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(404, response.status_code)
 
     @mock_mailroom
-    @patch("temba.flows.models.Org.is_flow_starting")
-    def test_preview_start(self, mr_mocks, mock_flow_is_starting):
-        mock_flow_is_starting.return_value = False
-
+    def test_preview_start(self, mr_mocks):
         flow = self.create_flow("Test")
         self.create_field("age", "Age")
         self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
@@ -2366,8 +2363,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.is_flagged = False
         self.org.save()
 
-        # trying to start again should fail because there is already a pending start for this flow
-        mock_flow_is_starting.return_value = True
+        # create a pending flow start to test warning
+        FlowStart.create(flow, self.admin, query="age > 30")
+
         mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
 
         response = self.client.post(
@@ -2391,7 +2389,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         preview_url = reverse("flows.flow_preview_start", args=[ivr_flow.id])
 
         # shouldn't be able to since we don't have a call channel
-        mock_flow_is_starting.return_value = False
+        self.org.flow_starts.all().delete()
         mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
 
         response = self.client.post(
@@ -5250,6 +5248,7 @@ class FlowStartTest(TembaTest):
         start = FlowStart.create(flow, self.admin, contacts=[contact])
 
         self.assertEqual(f'<FlowStart: id={start.id} flow="{start.flow.uuid}">', repr(start))
+        self.assertTrue(FlowStart.has_unfinished(self.org))
 
         start.interrupt(self.editor)
 
@@ -5257,6 +5256,7 @@ class FlowStartTest(TembaTest):
         self.assertEqual(FlowStart.STATUS_INTERRUPTED, start.status)
         self.assertEqual(self.editor, start.modified_by)
         self.assertIsNotNone(start.modified_on)
+        self.assertFalse(FlowStart.has_unfinished(self.org))
 
     @mock_mailroom
     def test_preview(self, mr_mocks):
