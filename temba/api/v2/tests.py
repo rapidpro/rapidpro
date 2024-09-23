@@ -1003,7 +1003,7 @@ class EndpointsTest(APITest):
                 "text": {"eng": "Hello 2"},
                 "attachments": {"eng": []},
                 "base_language": "eng",
-                "status": "queued",
+                "status": "pending",
                 "created_on": format_datetime(bcast2.created_on),
             },
             resp_json["results"][2],

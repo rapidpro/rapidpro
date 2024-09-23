@@ -224,7 +224,7 @@ class ScheduleTest(TembaTest):
             self.admin,
             {"eng": {"text": text}},
             contacts=[self.joe],
-            status=Broadcast.STATUS_QUEUED,
+            status=Broadcast.STATUS_PENDING,
             schedule=sched,
         )
 

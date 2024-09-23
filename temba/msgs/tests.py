@@ -30,7 +30,7 @@ from temba.msgs.views import ScheduleForm
 from temba.orgs.models import Export
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
+from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticket
 from temba.utils import s3
@@ -1800,7 +1800,7 @@ class BroadcastTest(TembaTest):
             contacts=[self.kevin, self.lucy],
             schedule=schedule,
         )
-        self.assertEqual("Q", bcast2.status)
+        self.assertEqual("P", bcast2.status)
         self.assertTrue(bcast2.is_active)
 
         # create a broadcast that looks like it has been sent
@@ -2554,7 +2554,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                     self.admin,
                     translations={"eng": {"text": text, "attachments": attachments}},
                     groups=[self.joe_and_frank],
-                    status=Msg.STATUS_QUEUED,
+                    status=Msg.STATUS_PENDING,
                     parent=broadcast,
                 )
             )
@@ -2868,7 +2868,7 @@ class SystemLabelTest(TembaTest):
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
-        self.create_broadcast(self.user, {"eng": {"text": "Broadcast 2"}}, contacts=[contact1, contact2], status="Q")
+        self.create_broadcast(self.user, {"eng": {"text": "Broadcast 2"}}, contacts=[contact1, contact2], status="P")
         self.create_broadcast(
             self.user,
             {"eng": {"text": "Broadcast 2"}},
@@ -3105,31 +3105,3 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.customer_support, choose_org=self.org)
         response = self.client.get(list_url)
         self.assertEqual([media2, media1], list(response.context["object_list"]))
-
-
-class TrimOldBroadcastsToNodesTest(MigrationTest):
-    app = "msgs"
-    migrate_from = "0267_broadcast_node_uuid"
-    migrate_to = "0268_trim_old_broadcasts_to_nodes"
-
-    def setUpBeforeMigration(self, apps):
-        def create_broadcast(status: str, num_contacts: int):
-            contacts = [self.create_contact(f"Contact {i}", urns=[]) for i in range(num_contacts)]
-            bcast = Broadcast.objects.create(
-                org=self.org,
-                translations={"und": {"text": "Hi"}},
-                base_language="und",
-                status=status,
-                created_by=self.admin,
-            )
-            bcast.contacts.add(*contacts)
-            return bcast
-
-        self.bcast1 = create_broadcast("P", 55)  # should be ignored because of status
-        self.bcast2 = create_broadcast("S", 45)  # should be ignored because of contact count
-        self.bcast3 = create_broadcast("S", 2005)  # requires 2 batches of deletes
-
-    def test_migration(self):
-        self.assertEqual(55, self.bcast1.contacts.count())
-        self.assertEqual(45, self.bcast2.contacts.count())
-        self.assertEqual(50, self.bcast3.contacts.count())  # trimmed
