@@ -507,6 +507,9 @@ class TembaTest(SmartminTest):
             contacts.update(group.contacts.all())
 
         if not schedule and status != Broadcast.STATUS_PENDING:
+            bcast.contact_count = len(contacts)
+            bcast.save(update_fields=("contact_count",))
+
             for contact in contacts:
                 translation = bcast.get_translation(contact)
                 self._create_msg(

@@ -793,6 +793,19 @@ class BroadcastMsgCount(SquashableModel):
     def get_count(cls, broadcast):
         return cls.sum(broadcast.counts.all())
 
+    @classmethod
+    def bulk_annotate(cls, broadcasts):
+        counts = (
+            cls.objects.filter(broadcast_id__in=[b.id for b in broadcasts])
+            .values("broadcast_id")
+            .order_by("broadcast_id")
+            .annotate(count=Sum("count"))
+        )
+        counts_by_bcast = {c["broadcast_id"]: c["count"] for c in counts}
+
+        for bcast in broadcasts:
+            bcast.msg_count = counts_by_bcast.get(bcast.id, 0)
+
 
 class SystemLabel:
     TYPE_INBOX = "I"
