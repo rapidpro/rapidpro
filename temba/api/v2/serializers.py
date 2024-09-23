@@ -165,11 +165,10 @@ class ArchiveReadSerializer(ReadSerializer):
 
 class BroadcastReadSerializer(ReadSerializer):
     STATUSES = {
-        "I": "queued",  # may exist in older data
         Broadcast.STATUS_QUEUED: "queued",
-        Broadcast.STATUS_SENT: "sent",
         Broadcast.STATUS_COMPLETED: "completed",
         Broadcast.STATUS_FAILED: "failed",
+        Broadcast.STATUS_INTERRUPTED: "interrupted",
     }
 
     urns = serializers.SerializerMethodField()
@@ -188,7 +187,7 @@ class BroadcastReadSerializer(ReadSerializer):
         return {lang: trans.get("attachments", []) for lang, trans in obj.translations.items()}
 
     def get_status(self, obj):
-        return self.STATUSES.get(obj.status, "sent")
+        return self.STATUSES[obj.status]
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:

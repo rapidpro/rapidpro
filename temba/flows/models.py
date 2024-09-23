@@ -1797,11 +1797,11 @@ class FlowStart(models.Model):
     STATUS_FAILED = "F"
     STATUS_INTERRUPTED = "I"
     STATUS_CHOICES = (
-        (STATUS_PENDING, _("Pending")),
-        (STATUS_STARTING, _("Starting")),
-        (STATUS_COMPLETE, _("Complete")),
-        (STATUS_FAILED, _("Failed")),
-        (STATUS_INTERRUPTED, _("Interrupted")),
+        (STATUS_PENDING, "Pending"),
+        (STATUS_STARTING, "Starting"),
+        (STATUS_COMPLETE, "Complete"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_INTERRUPTED, "Interrupted"),
     )
 
     TYPE_MANUAL = "M"
