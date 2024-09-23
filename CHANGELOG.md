@@ -1,3 +1,8 @@
+v9.3.44 (2024-09-23)
+-------------------------
+ * Validate channel variable in the body for EX channels
+ * Replace broadcast status S with C
+
 v9.3.43 (2024-09-19)
 -------------------------
  * Add support broadcast status (C)COMPLETED
