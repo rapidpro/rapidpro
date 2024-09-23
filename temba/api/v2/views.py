@@ -504,7 +504,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
      * **text** - the message text translations (dict of strings).
      * **attachments** - the attachment translations (dict of lists of strings).
      * **base_language** - the default translation language (string).
-     * **status** - the status, one of `queued`, `completed`, `failed`, `interrupted`.
+     * **status** - the status, one of `pending`, `started`, `completed`, `failed`, `interrupted`.
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
     Example:

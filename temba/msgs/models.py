@@ -184,18 +184,21 @@ class Broadcast(models.Model):
     messages sent from the same bundle together
     """
 
-    STATUS_QUEUED = "Q"
+    STATUS_PENDING = "P"
+    STATUS_STARTED = "S"
     STATUS_COMPLETED = "C"
     STATUS_FAILED = "F"
     STATUS_INTERRUPTED = "I"
     STATUS_CHOICES = (
-        (STATUS_QUEUED, "Queued"),
+        (STATUS_PENDING, "Pending"),
+        (STATUS_STARTED, "Started"),
         (STATUS_COMPLETED, "Completed"),
         (STATUS_FAILED, "Failed"),
         (STATUS_INTERRUPTED, "Interrupted"),
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="broadcasts")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING)
 
     # recipients of this broadcast
     groups = models.ManyToManyField(ContactGroup, related_name="addressed_broadcasts")
@@ -205,6 +208,9 @@ class Broadcast(models.Model):
     node_uuid = models.UUIDField(null=True)
     exclusions = models.JSONField(default=dict, null=True)
 
+    # number of contacts that will be started, only set when status becomes STARTING
+    contact_count = models.IntegerField(default=0, null=True)
+
     # message content
     translations = models.JSONField()  # text, attachments and quick replies by language
     base_language = models.CharField(max_length=3)  # ISO-639-3
@@ -212,7 +218,6 @@ class Broadcast(models.Model):
     template = models.ForeignKey("templates.Template", null=True, on_delete=models.PROTECT)
     template_variables = ArrayField(models.TextField(), null=True)
 
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
     created_on = models.DateTimeField(default=timezone.now)
     modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_modifications")

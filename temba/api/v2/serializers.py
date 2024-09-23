@@ -165,7 +165,9 @@ class ArchiveReadSerializer(ReadSerializer):
 
 class BroadcastReadSerializer(ReadSerializer):
     STATUSES = {
-        Broadcast.STATUS_QUEUED: "queued",
+        "Q": "pending",
+        Broadcast.STATUS_PENDING: "pending",
+        Broadcast.STATUS_STARTED: "started",
         Broadcast.STATUS_COMPLETED: "completed",
         Broadcast.STATUS_FAILED: "failed",
         Broadcast.STATUS_INTERRUPTED: "interrupted",
