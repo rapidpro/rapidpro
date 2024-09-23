@@ -996,20 +996,21 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor, self.admin],
             results=[bcast4, bcast3, bcast2, bcast1],
-            num_queries=NUM_BASE_SESSION_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 4,
         )
         resp_json = response.json()
 
         self.assertEqual(
             {
                 "id": bcast2.id,
+                "status": "pending",
+                "progress": {"total": -1, "started": 0},
                 "urns": [],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [],
                 "text": {"eng": "Hello 2"},
                 "attachments": {"eng": []},
                 "base_language": "eng",
-                "status": "pending",
                 "created_on": format_datetime(bcast2.created_on),
             },
             resp_json["results"][2],
@@ -1017,13 +1018,14 @@ class EndpointsTest(APITest):
         self.assertEqual(
             {
                 "id": bcast4.id,
+                "status": "failed",
+                "progress": {"total": 2, "started": 2},
                 "urns": ["twitter:franky"],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [{"uuid": reporters.uuid, "name": reporters.name}],
                 "text": {"eng": "Hello 4"},
                 "attachments": {"eng": []},
                 "base_language": "eng",
-                "status": "failed",
                 "created_on": format_datetime(bcast4.created_on),
             },
             resp_json["results"][0],

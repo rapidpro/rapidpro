@@ -20,7 +20,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.flows.models import Flow, FlowRun, FlowStart, FlowStartCount
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
+from temba.msgs.models import Broadcast, BroadcastMsgCount, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from temba.orgs.models import OrgMembership, User
 from temba.orgs.views import OrgPermsMixin
 from temba.tickets.models import Ticket, TicketCount, Topic
@@ -585,6 +585,9 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         )
 
         return self.filter_before_after(queryset, "created_on")
+
+    def prepare_for_serialization(self, object_list, using: str):
+        BroadcastMsgCount.bulk_annotate(object_list)
 
     @classmethod
     def get_read_explorer(cls):

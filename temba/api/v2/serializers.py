@@ -172,13 +172,14 @@ class BroadcastReadSerializer(ReadSerializer):
         Broadcast.STATUS_INTERRUPTED: "interrupted",
     }
 
+    status = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
     text = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
     base_language = fields.LanguageField()
-    status = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_text(self, obj):
@@ -190,6 +191,9 @@ class BroadcastReadSerializer(ReadSerializer):
     def get_status(self, obj):
         return self.STATUSES[obj.status]
 
+    def get_progress(self, obj):
+        return {"total": obj.contact_count or -1, "started": obj.msg_count}
+
     def get_urns(self, obj):
         if self.context["org"].is_anon:
             return None
@@ -198,7 +202,18 @@ class BroadcastReadSerializer(ReadSerializer):
 
     class Meta:
         model = Broadcast
-        fields = ("id", "urns", "contacts", "groups", "text", "attachments", "base_language", "status", "created_on")
+        fields = (
+            "id",
+            "status",
+            "progress",
+            "urns",
+            "contacts",
+            "groups",
+            "text",
+            "attachments",
+            "base_language",
+            "created_on",
+        )
 
 
 class BroadcastWriteSerializer(WriteSerializer):
