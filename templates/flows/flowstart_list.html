@@ -78,9 +78,12 @@
           </tr>
           {% if obj.is_starting %}
             <tr>
-              <td colspan="99" style="padding:0.5em;padding-top:0px;margin:0px;">
-                <temba-flowstart-progress id="{{ obj.id }}">
-                </temba-flowstart-progress>
+              <td colspan="99" style="padding:0px 1rem; padding-bottom:1rem;margin:0px;">
+                <temba-start-progress id="{{ obj.id }}"
+                                      interrupttitle="Interrupt Flow"
+                                      interruptendpoint="{% url 'flows.flowstart_interrupt' obj.id %}"
+                                      statusendpoint="{% url 'flows.flowstart_status' %}?id={{ obj.id }}">
+                </temba-start-progress>
               </td>
             </tr>
           {% endif %}

@@ -9,9 +9,9 @@
 {% endblock modal-extra-style %}
 {% block modal %}
   {% block delete-message %}
-    {% blocktrans trimmed with name=object.flow.name %}
-      Are you sure you want to interrupt starting <b>{{ name }}</b>?
-      Contacts who have already been started will continue in the flow.
+    {% blocktrans trimmed %}
+      Are you sure you want to interrupt this broadcast?
+      Contacts who already have messages in the outbox will still receive it.
     {% endblocktrans %}
   {% endblock delete-message %}
   {% block delete-form %}

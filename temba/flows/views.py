@@ -1917,13 +1917,8 @@ class FlowStartCRUDL(SmartCRUDL):
         default_template = "smartmin/delete_confirm.html"
         permission = "flows.flow_start"
         fields = ()
-        cancel_url = "@flows.flowstart_list"
         submit_button_name = _("Interrupt")
         success_url = "@flows.flowstart_list"
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            return context
 
         def post(self, request, *args, **kwargs):
             flow_start = self.get_object()
