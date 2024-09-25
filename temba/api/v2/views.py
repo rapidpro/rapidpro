@@ -3126,7 +3126,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                          {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
                     ],
                     "status": "complete",
-                    "progress": {"total": 10, "started": 5},
                     "params": {
                         "first_name": "Ryan",
                         "last_name": "Lewis"
@@ -3175,7 +3174,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                  {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Wanz"}
             ],
             "status": "pending",
-            "progress": {"total": -1, "started": 0},
             "params": {
                 "first_name": "Ryan",
                 "last_name": "Lewis"
