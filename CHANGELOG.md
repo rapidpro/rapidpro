@@ -1,3 +1,8 @@
+v9.3.47 (2024-09-25)
+-------------------------
+ * Re-introduce QUEUED status for FlowStarts and Broadcasts
+ * Remove progress field from flow starts endpoint docs
+
 v9.3.46 (2024-09-23)
 -------------------------
  * Add progress field to broadcasts API endpoint
