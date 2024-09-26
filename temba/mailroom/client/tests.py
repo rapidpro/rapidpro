@@ -561,6 +561,19 @@ class MailroomClientTest(TembaTest):
             },
         )
 
+    @patch("requests.post")
+    def test_org_deindex(self, mock_post):
+        mock_post.return_value = MockJsonResponse(200, {})
+        response = self.client.org_deindex(self.org)
+
+        self.assertEqual({}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/org/deindex",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={"org_id": self.org.id},
+        )
+
     def test_po_export(self):
         flow1 = self.create_flow("Flow 1")
         flow2 = self.create_flow("Flow 2")

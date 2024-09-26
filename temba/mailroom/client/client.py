@@ -243,6 +243,9 @@ class MailroomClient:
             },
         )
 
+    def org_deindex(self, org):
+        return self._request("org/deindex", {"org_id": org.id})
+
     def po_export(self, org, flows, language: str):
         return self._request(
             "po/export",
