@@ -354,7 +354,8 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             copy_def["nodes"][0]["router"]["cases"][0]["arguments"],
         )
 
-    def test_activity(self):
+    @mock_mailroom
+    def test_activity(self, mr_mocks):
         flow = self.get_flow("favorites_v13")
         flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]

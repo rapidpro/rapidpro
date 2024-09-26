@@ -137,6 +137,21 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_contact_deindex(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        mock_post.return_value = MockJsonResponse(200, {"deindexed": 2})
+        response = self.client.contact_deindex(self.org, [ann, bob])
+
+        self.assertEqual({"deindexed": 2}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/deindex",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={"org_id": self.org.id, "contact_ids": [ann.id, bob.id]},
+        )
+
+    @patch("requests.post")
     def test_contact_export(self, mock_post):
         group = self.create_group("Doctors", contacts=[])
         mock_post.return_value = MockJsonResponse(200, {"contact_ids": [123, 234]})
