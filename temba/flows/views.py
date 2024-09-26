@@ -1881,15 +1881,11 @@ class FlowStartCRUDL(SmartCRUDL):
 
             return context
 
-    class Status(OrgPermsMixin, SmartListView):
+    class Status(OrgPermsMixin, OrgFilterMixin, SmartListView):
         permission = "flows.flowstart_list"
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs)
-
-            if not self.request.user.is_staff:
-                qs = qs.filter(org=self.request.org)
-
             id = self.request.GET.get("id", None)
             if id:
                 qs = qs.filter(id=id)

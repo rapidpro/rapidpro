@@ -35,6 +35,7 @@ from temba.orgs.views import (
     DependencyUsagesModal,
     MenuMixin,
     ModalMixin,
+    OrgFilterMixin,
     OrgObjPermsMixin,
     OrgPermsMixin,
 )
@@ -719,14 +720,11 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Status(OrgPermsMixin, SmartListView):
+    class Status(OrgPermsMixin, OrgFilterMixin, SmartListView):
         permission = "msgs.broadcast_read"
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs)
-
-            if not self.request.user.is_staff:
-                qs = qs.filter(org=self.request.org)
 
             id = self.request.GET.get("id", None)
             if id:
