@@ -359,10 +359,15 @@ PERMISSIONS = {
     "contacts.contactgroup": ("menu",),
     "contacts.contactimport": ("preview",),
     "flows.flow": ("assets", "copy", "editor", "export", "menu", "results", "start"),
+    "flows.flowstart": ("interrupt", "status"),
     "flows.flowsession": ("json",),
     "globals.global": ("unused",),
     "locations.adminboundary": ("alias", "boundaries", "geometry"),
-    "msgs.broadcast": ("scheduled", "scheduled_read", "scheduled_delete"),
+    "msgs.broadcast": (
+        "scheduled",
+        "scheduled_read",
+        "scheduled_delete",
+    ),
     "msgs.msg": ("archive", "export", "label", "menu"),
     "orgs.export": ("download",),
     "orgs.org": (

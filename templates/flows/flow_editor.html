@@ -238,8 +238,12 @@
 {% endblock alert-messages %}
 {% block page-header %}
   {% if active_start %}
-    <temba-flowstart-progress class="mb-4 -mt-2 -mx-2" uuid="{{ active_start.uuid }}">
-    </temba-flowstart-progress>
+    <temba-start-progress class="mb-4 -mt-2 -mx-2"
+                          id="{{ active_start.id }}"
+                          interrupttitle="Interrupt Flow"
+                          interruptendpoint="{% url 'flows.flowstart_interrupt' active_start.id %}"
+                          statusendpoint="{% url 'flows.flowstart_status' %}?id={{ active_start.id }}">
+    </temba-start-progress>
   {% endif %}
   {{ block.super }}
 {% endblock page-header %}

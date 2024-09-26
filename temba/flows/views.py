@@ -1691,12 +1691,17 @@ class FlowCRUDL(SmartCRUDL):
                     urn = urn.get_display(org=org, international=True)
                 recipients.append({"id": contact.uuid, "name": contact.name, "urn": urn, "type": "contact"})
 
+            exclusions = settings.DEFAULT_EXCLUSIONS.copy()
+
+            if self.flow and self.flow.flow_type == Flow.TYPE_BACKGROUND:
+                del exclusions["in_a_flow"]
+
             return {
                 "contact_search": {
                     "recipients": recipients,
                     "advanced": False,
                     "query": "",
-                    "exclusions": settings.DEFAULT_EXCLUSIONS,
+                    "exclusions": exclusions,
                 },
                 "flow": self.flow.id if self.flow else None,
             }
@@ -1843,7 +1848,7 @@ class FlowLabelCRUDL(SmartCRUDL):
 
 class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
-    actions = ("list",)
+    actions = ("list", "interrupt", "status")
 
     class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, SmartListView):
         title = _("Flow Starts")
@@ -1875,3 +1880,52 @@ class FlowStartCRUDL(SmartCRUDL):
             FlowStartCount.bulk_annotate(context["object_list"])
 
             return context
+
+    class Status(OrgPermsMixin, OrgFilterMixin, SmartListView):
+        permission = "flows.flowstart_list"
+
+        def derive_queryset(self, **kwargs):
+            qs = super().derive_queryset(**kwargs)
+            id = self.request.GET.get("id", None)
+            if id:
+                qs = qs.filter(id=id)
+
+            status = self.request.GET.get("status", None)
+            if status:
+                qs = qs.filter(status=status)
+
+            return qs.order_by("-created_on")
+
+        def render_to_response(self, context, **response_kwargs):
+            # add run count
+            FlowStartCount.bulk_annotate(context["object_list"])
+
+            results = []
+            for obj in context["object_list"]:
+                # created_on as an iso date
+                results.append(
+                    {
+                        "id": obj.id,
+                        "status": obj.get_status_display(),
+                        "created_on": obj.created_on.isoformat(),
+                        "modified_on": obj.modified_on.isoformat(),
+                        "flow": {
+                            "name": obj.flow.name,
+                            "uuid": obj.flow.uuid,
+                        },
+                        "progress": {"total": obj.contact_count, "current": obj.run_count},
+                    }
+                )
+            return JsonResponse({"results": results})
+
+    class Interrupt(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        default_template = "smartmin/delete_confirm.html"
+        permission = "flows.flowstart_update"
+        fields = ()
+        submit_button_name = _("Interrupt")
+        success_url = "@flows.flowstart_list"
+
+        def post(self, request, *args, **kwargs):
+            flow_start = self.get_object()
+            flow_start.interrupt(self.request.user)
+            return super().post(request, *args, **kwargs)

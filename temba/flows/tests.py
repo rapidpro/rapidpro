@@ -5318,6 +5318,30 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(response.context["filtered"])
         self.assertEqual(response.context["url_params"], "?type=manual&")
 
+    def test_status(self):
+        flow = self.create_flow("Test Flow 1")
+        contact = self.create_contact("Bob", phone="+1234567890")
+        start = FlowStart.create(flow, self.admin, contacts=[contact])
+
+        status_url = f"{reverse('flows.flowstart_status')}?id={start.id}&status=P"
+        self.assertRequestDisallowed(status_url, [self.agent])
+        response = self.assertReadFetch(status_url, [self.editor, self.admin])
+
+        # status returns json
+        self.assertEqual("Pending", response.json()["results"][0]["status"])
+
+    def test_interrupt(self):
+        flow = self.create_flow("Test Flow 1")
+        contact = self.create_contact("Bob", phone="+1234567890")
+        start = FlowStart.create(flow, self.admin, contacts=[contact])
+
+        interrupt_url = reverse("flows.flowstart_interrupt", args=[start.id])
+        self.assertRequestDisallowed(interrupt_url, [None, self.user, self.agent])
+        self.requestView(interrupt_url, self.admin, post_data={})
+
+        start.refresh_from_db()
+        self.assertEqual(FlowStart.STATUS_INTERRUPTED, start.status)
+
 
 class AssetServerTest(TembaTest):
     def test_languages(self):

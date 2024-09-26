@@ -14,6 +14,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba.orgs.models import Org
 from temba.tests import TembaTest, matchers, override_brand
 from temba.utils import json, uuid
 from temba.utils.compose import compose_serialize
@@ -292,10 +293,28 @@ class CronsTest(TembaTest):
 
 class MiddlewareTest(TembaTest):
     def test_org(self):
+
+        self.other_org = Org.objects.create(
+            name="Other Org",
+            timezone=ZoneInfo("Africa/Kigali"),
+            flow_languages=["eng", "kin"],
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        self.other_org.initialize()
+
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))
 
         self.login(self.customer_support)
+
+        # our staff user doesn't have a default org
+        response = self.client.get(reverse("public.public_index"))
+        self.assertFalse(response.has_header("X-Temba-Org"))
+
+        # but they can specify an org to service as a header
+        response = self.client.get(reverse("public.public_index"), headers={"X-Temba-Service-Org": str(self.org.id)})
+        self.assertEqual(response["X-Temba-Org"], str(self.org.id))
 
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))
@@ -304,6 +323,12 @@ class MiddlewareTest(TembaTest):
 
         response = self.client.get(reverse("public.public_index"))
         self.assertEqual(response["X-Temba-Org"], str(self.org.id))
+
+        # non-staff can't specify a different org from there own
+        response = self.client.get(
+            reverse("public.public_index"), headers={"X-Temba-Service-Org": str(self.other_org.id)}
+        )
+        self.assertNotEqual(response["X-Temba-Org"], str(self.other_org.id))
 
     def test_redirect(self):
         self.assertNotRedirect(self.client.get(reverse("public.public_index")), None)
