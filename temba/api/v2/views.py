@@ -1175,8 +1175,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
 
     ## Listing Contacts
 
-    A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
-    only deleted contacts by passing the `deleted=true` parameter to your call.
+    A **GET** returns the list of contacts for your organization, in the order of last modified.
 
      * **uuid** - the UUID of the contact (string), filterable as `uuid`.
      * **name** - the name of the contact (string).
