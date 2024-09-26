@@ -370,6 +370,10 @@ class TestClient(MailroomClient):
         }
 
     @_client_method
+    def org_deindex(self, org):
+        return {}
+
+    @_client_method
     def ticket_assign(self, org, user, tickets, assignee):
         now = timezone.now()
         tickets = Ticket.objects.filter(org=org, id__in=[t.id for t in tickets]).exclude(assignee=assignee)

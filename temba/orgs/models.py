@@ -1398,6 +1398,9 @@ class Org(SmartModel):
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         delete_in_batches(self.system_labels.all())
 
+        # now that contacts are no longer in the database, we can start de-indexing them from search
+        mailroom.get_client().org_deindex(self)
+
         # save when we were actually deleted
         self.modified_on = timezone.now()
         self.deleted_on = timezone.now()
