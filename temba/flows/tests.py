@@ -5323,7 +5323,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         start = FlowStart.create(flow, self.admin, contacts=[contact])
 
         status_url = f"{reverse('flows.flowstart_status')}?id={start.id}&status=P"
-        self.assertRequestDisallowed(status_url, [None, self.user, self.agent])
+        self.assertRequestDisallowed(status_url, [self.agent])
         response = self.assertReadFetch(status_url, [self.editor, self.admin])
 
         # status returns json

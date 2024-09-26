@@ -1882,7 +1882,7 @@ class FlowStartCRUDL(SmartCRUDL):
             return context
 
     class Status(OrgPermsMixin, SmartListView):
-        permission = "flows.flowstart_read"
+        permission = "flows.flowstart_list"
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs)
