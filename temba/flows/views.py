@@ -1691,12 +1691,17 @@ class FlowCRUDL(SmartCRUDL):
                     urn = urn.get_display(org=org, international=True)
                 recipients.append({"id": contact.uuid, "name": contact.name, "urn": urn, "type": "contact"})
 
+            exclusions = settings.DEFAULT_EXCLUSIONS.copy()
+
+            if self.flow and self.flow.flow_type == Flow.TYPE_BACKGROUND:
+                del exclusions["in_a_flow"]
+
             return {
                 "contact_search": {
                     "recipients": recipients,
                     "advanced": False,
                     "query": "",
-                    "exclusions": settings.DEFAULT_EXCLUSIONS,
+                    "exclusions": exclusions,
                 },
                 "flow": self.flow.id if self.flow else None,
             }
@@ -1877,10 +1882,14 @@ class FlowStartCRUDL(SmartCRUDL):
             return context
 
     class Status(OrgPermsMixin, SmartListView):
-        permission = "flows.flow_start"
+        permission = "flows.flowstart_read"
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs)
+
+            if not self.request.user.is_staff:
+                qs = qs.filter(org=self.request.org)
+
             id = self.request.GET.get("id", None)
             if id:
                 qs = qs.filter(id=id)
@@ -1915,7 +1924,7 @@ class FlowStartCRUDL(SmartCRUDL):
 
     class Interrupt(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         default_template = "smartmin/delete_confirm.html"
-        permission = "flows.flow_start"
+        permission = "flows.flowstart_update"
         fields = ()
         submit_button_name = _("Interrupt")
         success_url = "@flows.flowstart_list"

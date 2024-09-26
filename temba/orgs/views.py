@@ -138,9 +138,7 @@ class OrgPermsMixin:
         self.args = args
         self.request = request
 
-        org = self.derive_org()
-
-        if self.get_user().is_staff and org:
+        if self.get_user().is_staff:
             return True
 
         if self.get_user().is_anonymous:

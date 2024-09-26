@@ -720,10 +720,14 @@ class BroadcastCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class Status(OrgPermsMixin, SmartListView):
-        permission = "msgs.broadcast_create"
+        permission = "msgs.broadcast_read"
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs)
+
+            if not self.request.user.is_staff:
+                qs = qs.filter(org=self.request.org)
+
             id = self.request.GET.get("id", None)
             if id:
                 qs = qs.filter(id=id)
@@ -751,7 +755,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
     class Interrupt(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         default_template = "smartmin/delete_confirm.html"
-        permission = "msgs.broadcast_create"
+        permission = "msgs.broadcast_update"
         fields = ()
         submit_button_name = _("Interrupt")
         success_url = "@msgs.broadcast_list"

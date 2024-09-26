@@ -2603,6 +2603,36 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertIsNone(broadcast.schedule)
         self.assertEqual(0, Schedule.objects.count())
 
+    def test_status(self):
+        broadcast = self.create_broadcast(
+            self.admin,
+            {"eng": {"text": "Daily reminder"}},
+            groups=[self.joe_and_frank],
+            status=Broadcast.STATUS_PENDING,
+        )
+
+        status_url = f"{reverse('msgs.broadcast_status')}?id={broadcast.id}&status=P"
+        self.assertRequestDisallowed(status_url, [None, self.user, self.agent])
+        response = self.assertReadFetch(status_url, [self.editor, self.admin])
+
+        # status returns json
+        self.assertEqual("Pending", response.json()["results"][0]["status"])
+
+    def test_interrupt(self):
+        broadcast = self.create_broadcast(
+            self.admin,
+            {"eng": {"text": "Daily reminder"}},
+            groups=[self.joe_and_frank],
+            status=Broadcast.STATUS_PENDING,
+        )
+
+        interrupt_url = reverse("msgs.broadcast_interrupt", args=[broadcast.id])
+        self.assertRequestDisallowed(interrupt_url, [None, self.user, self.agent])
+        self.requestView(interrupt_url, self.admin, post_data={})
+
+        broadcast.refresh_from_db()
+        self.assertEqual(Broadcast.STATUS_INTERRUPTED, broadcast.status)
+
 
 class LabelTest(TembaTest):
     def setUp(self):
