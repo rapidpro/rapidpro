@@ -184,13 +184,15 @@ class Broadcast(models.Model):
     messages sent from the same bundle together
     """
 
-    STATUS_PENDING = "P"
-    STATUS_STARTED = "S"
-    STATUS_COMPLETED = "C"
+    STATUS_PENDING = "P"  # exists in the database
+    STATUS_QUEUED = "Q"  # batch tasks created, count_count set
+    STATUS_STARTED = "S"  # first batch task started
+    STATUS_COMPLETED = "C"  # last batch task completed
     STATUS_FAILED = "F"
     STATUS_INTERRUPTED = "I"
     STATUS_CHOICES = (
         (STATUS_PENDING, "Pending"),
+        (STATUS_QUEUED, "Queued"),
         (STATUS_STARTED, "Started"),
         (STATUS_COMPLETED, "Completed"),
         (STATUS_FAILED, "Failed"),
@@ -199,6 +201,7 @@ class Broadcast(models.Model):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="broadcasts")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    contact_count = models.IntegerField(default=0, null=True)  # null until status is QUEUED
 
     # recipients of this broadcast
     groups = models.ManyToManyField(ContactGroup, related_name="addressed_broadcasts")
@@ -207,9 +210,6 @@ class Broadcast(models.Model):
     query = models.TextField(null=True)
     node_uuid = models.UUIDField(null=True)
     exclusions = models.JSONField(default=dict, null=True)
-
-    # number of contacts that will be started, only set when status becomes STARTING
-    contact_count = models.IntegerField(default=0, null=True)
 
     # message content
     translations = models.JSONField()  # text, attachments and quick replies by language

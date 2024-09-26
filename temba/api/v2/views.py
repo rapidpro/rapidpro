@@ -504,7 +504,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
      * **text** - the message text translations (dict of strings).
      * **attachments** - the attachment translations (dict of lists of strings).
      * **base_language** - the default translation language (string).
-     * **status** - the status, one of `pending`, `started`, `completed`, `failed`, `interrupted`.
+     * **status** - the status, one of `pending`, `queued`, `started`, `completed`, `failed`, `interrupted`.
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
     Example:
@@ -3101,7 +3101,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
      * **flow** - the flow which was started (object).
      * **contacts** - the list of contacts that were started in the flow (objects).
      * **groups** - the list of groups that were started in the flow (objects).
-     * **status** - the status, one of `pending`, `started`, `completed`, `failed`, `interrupted`.
+     * **status** - the status, one of `pending`, `queued`, `started`, `completed`, `failed`, `interrupted`.
      * **params** - the dictionary of extra parameters passed to the flow start (object).
      * **created_on** - the datetime when this flow start was created (datetime).
      * **modified_on** - the datetime when this flow start was modified (datetime).
@@ -3126,7 +3126,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                          {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
                     ],
                     "status": "complete",
-                    "progress": {"total": 10, "started": 5},
                     "params": {
                         "first_name": "Ryan",
                         "last_name": "Lewis"
@@ -3175,7 +3174,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                  {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Wanz"}
             ],
             "status": "pending",
-            "progress": {"total": -1, "started": 0},
             "params": {
                 "first_name": "Ryan",
                 "last_name": "Lewis"

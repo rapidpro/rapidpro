@@ -1791,13 +1791,15 @@ class FlowStart(models.Model):
     EXCLUSION_STARTED_PREVIOUSLY = "started_previously"  # contacts been in this flow in the last 90 days
     EXCLUSION_NOT_SEEN_SINCE_DAYS = "not_seen_since_days"  # contacts not seen for more than this number of days
 
-    STATUS_PENDING = "P"
-    STATUS_STARTED = "S"
-    STATUS_COMPLETED = "C"
+    STATUS_PENDING = "P"  # exists in the database
+    STATUS_QUEUED = "Q"  # batch tasks created, count_count set
+    STATUS_STARTED = "S"  # first batch task started
+    STATUS_COMPLETED = "C"  # last batch task completed
     STATUS_FAILED = "F"
     STATUS_INTERRUPTED = "I"
     STATUS_CHOICES = (
         (STATUS_PENDING, "Pending"),
+        (STATUS_QUEUED, "Queued"),
         (STATUS_STARTED, "Started"),
         (STATUS_COMPLETED, "Completed"),
         (STATUS_FAILED, "Failed"),
@@ -1821,7 +1823,8 @@ class FlowStart(models.Model):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts")
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
     start_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    contact_count = models.IntegerField(default=0, null=True)  # null until status is QUEUED
 
     # who to start
     groups = models.ManyToManyField(ContactGroup)
@@ -1829,9 +1832,6 @@ class FlowStart(models.Model):
     urns = ArrayField(models.TextField(), null=True)
     query = models.TextField(null=True)
     exclusions = models.JSONField(default=dict, null=True)
-
-    # number of contacts that will be started, only set when status becomes STARTING
-    contact_count = models.IntegerField(default=0, null=True)
 
     campaign_event = models.ForeignKey(
         "campaigns.CampaignEvent", null=True, on_delete=models.PROTECT, related_name="flow_starts"
