@@ -1,3 +1,11 @@
+v9.3.48 (2024-09-26)
+-------------------------
+ * Use 10th anniversary rp logo
+ * Explicitly de-index contacts when released
+ * Request de-indexing of contacts when hard deleting an org
+ * Switch to flowstart_list permission for status
+ * Add status and interrupt for broadcasts and starts
+
 v9.3.47 (2024-09-25)
 -------------------------
  * Re-introduce QUEUED status for FlowStarts and Broadcasts
