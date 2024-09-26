@@ -32,7 +32,7 @@ class OrgMiddleware:
 
     session_key = "org_id"
     header_name = "X-Temba-Org"
-    service_header_name = "HTTP_X_TEMBA_SERVICE_ORG"
+    service_header_name = "X-Temba-Service-Org"
     select_related = ("parent",)
 
     def __init__(self, get_response=None):
@@ -68,7 +68,7 @@ class OrgMiddleware:
 
         # staff users alternatively can pass a service header
         if user.is_staff:
-            org_id = request.META.get(self.service_header_name, org_id)
+            org_id = request.headers.get(self.service_header_name, org_id)
 
         if org_id:
             org = Org.objects.filter(is_active=True, id=org_id).select_related(*self.select_related).first()
