@@ -1,3 +1,7 @@
+v9.3.49 (2024-09-26)
+-------------------------
+ * Tweak deindexing a deleted contact
+
 v9.3.48 (2024-09-26)
 -------------------------
  * Use 10th anniversary rp logo
