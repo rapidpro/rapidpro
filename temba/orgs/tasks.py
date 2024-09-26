@@ -109,7 +109,7 @@ def delete_released_orgs():
 
     num_deleted, num_failed = 0, 0
 
-    for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None):
+    for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None).order_by("released_on"):
         start = timezone.now()
 
         try:

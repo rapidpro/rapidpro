@@ -1346,7 +1346,8 @@ class Org(SmartModel):
 
         # delete our contacts
         for contact in self.contacts.all():
-            contact.release(user, immediately=True)
+            # release synchronously and don't deindex as that will happen for the whole org
+            contact.release(user, immediately=True, deindex=False)
             contact.delete()
             counts["contacts"] += 1
 

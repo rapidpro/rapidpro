@@ -950,7 +950,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         other_org_contact.refresh_from_db()
         self.assertIsNotNone(other_org_contact.current_flow)
 
-    def test_delete(self):
+    @mock_mailroom
+    def test_delete(self, mr_mocks):
         contact = self.create_contact("Joe", phone="+593979000111")
         other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
 
@@ -973,6 +974,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         contact.refresh_from_db()
         self.assertFalse(contact.is_active)
+
+        self.assertEqual([call(self.org, [contact])], mr_mocks.calls["contact_deindex"])
 
         # can't delete contact in other org
         delete_url = reverse("contacts.contact_delete", args=[other_org_contact.id])
@@ -1675,7 +1678,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # create an deleted contact
         self.jim = self.create_contact(name="Jim")
-        self.jim.release(self.user)
+        self.jim.release(self.user, deindex=False)
 
         # create contact in other org
         self.other_org_contact = self.create_contact(name="Fred", phone="+250768111222", org=self.org2)

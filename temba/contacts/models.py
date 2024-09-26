@@ -1057,7 +1057,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
         self.refresh_from_db()
 
-    def release(self, user, *, immediately=False):
+    def release(self, user, *, immediately=False, deindex=True):
         """
         Releases this contact. Note that we clear all identifying data but don't hard delete the contact because we need
         to expose deleted contacts over the API to allow external systems to know that contacts have been deleted.
@@ -1091,6 +1091,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
             self.fields = None
             self.modified_by = user
             self.save(update_fields=("name", "is_active", "fields", "modified_by", "modified_on"))
+
+        if deindex:
+            mailroom.get_client().contact_deindex(self.org, [self])
 
         # the hard work of removing everything this contact owns can be given to a celery task
         if immediately:
