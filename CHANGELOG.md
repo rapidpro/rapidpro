@@ -1,3 +1,7 @@
+v9.3.50 (2024-09-27)
+-------------------------
+ * Add commas for broadcast message count
+
 v9.3.49 (2024-09-26)
 -------------------------
  * Tweak deindexing a deleted contact
