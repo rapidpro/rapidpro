@@ -1,3 +1,7 @@
+v9.3.51 (2024-09-27)
+-------------------------
+ * Update components with progress bar tweaks
+
 v9.3.50 (2024-09-27)
 -------------------------
  * Add commas for broadcast message count
