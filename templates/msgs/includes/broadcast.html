@@ -93,7 +93,7 @@
       <div class="flex flex-col bg-gray-100 text-sm schedule">
         <div class="text-gray-700 flex items-center flex-row px-2" style="min-height:2em">
           <div class="pr-4">
-            {% blocktrans count message_count=broadcast.get_message_count %}
+            {% blocktrans with message_count=broadcast.get_message_count|intcomma count counter=broadcast.get_message_count %}
              {{message_count}} message
           {% plural %}
              {{message_count}} messages
