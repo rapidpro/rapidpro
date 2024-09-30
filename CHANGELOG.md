@@ -1,3 +1,7 @@
+v9.3.52 (2024-09-30)
+-------------------------
+ * Add test_errors to mailroom client
+
 v9.3.51 (2024-09-27)
 -------------------------
  * Update components with progress bar tweaks
