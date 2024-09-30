@@ -330,6 +330,9 @@ class MailroomClient:
             },
         )
 
+    def test_errors(self, log, ret, panic):  # pragma: no cover
+        return self._request("test_errors", {"log": log, "ret": ret, "panic": panic})
+
     def _request(self, endpoint, payload=None, files=None, post=True, encode_json=False):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)
