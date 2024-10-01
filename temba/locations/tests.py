@@ -16,6 +16,37 @@ from .models import AdminBoundary, BoundaryAlias
 
 
 class LocationTest(TembaTest):
+    def test_aliases_update(self):
+        self.setUpLocations()
+
+        # make other workspace with the same locations
+        self.org2.country = self.country
+        self.org2.save(update_fields=("country",))
+
+        self.assertEqual(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org).count(), 1)
+        self.assertEqual(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org).get().name, "Kigari")
+        self.assertEqual(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org2).count(), 1)
+        self.assertEqual(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org2).get().name, "Chigali")
+
+        self.state1.update_aliases(self.org, self.admin, ["Kigari", "CapitalCity", "MVK"])
+        self.assertEqual(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org).count(), 3)
+        self.assertEqual(
+            list(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org).values_list("name", flat=True)),
+            ["Kigari", "CapitalCity", "MVK"],
+        )
+        self.assertEqual(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org2).get().name, "Chigali")
+
+        self.state1.update_aliases(self.org2, self.admin2, ["Chigali", "CapitalCity", "MVK"])
+        self.assertEqual(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org2).count(), 3)
+        self.assertEqual(
+            list(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org2).values_list("name", flat=True)),
+            ["Chigali", "CapitalCity", "MVK"],
+        )
+        self.assertEqual(
+            list(BoundaryAlias.objects.filter(boundary=self.state1, org=self.org).values_list("name", flat=True)),
+            ["Kigari", "CapitalCity", "MVK"],
+        )
+
     def test_boundaries(self):
         self.setUpLocations()
 
