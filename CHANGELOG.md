@@ -1,3 +1,7 @@
+v9.3.53 (2024-10-01)
+-------------------------
+ * Fix location aliases to only update in one workspace
+
 v9.3.52 (2024-09-30)
 -------------------------
  * Add test_errors to mailroom client
