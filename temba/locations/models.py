@@ -103,7 +103,7 @@ class AdminBoundary(MPTTModel, models.Model):
     def update_aliases(self, org, user, aliases: list):
         siblings = self.parent.children.all()
 
-        self.aliases.all().delete()  # delete any existing aliases
+        self.aliases.filter(org=org).delete()  # delete any existing aliases for this workspace
 
         for new_alias in aliases:
             assert new_alias and len(new_alias) < AdminBoundary.MAX_NAME_LEN
@@ -111,7 +111,7 @@ class AdminBoundary(MPTTModel, models.Model):
             # aliases are only allowed to exist on one boundary with same parent at a time
             BoundaryAlias.objects.filter(name=new_alias, boundary__in=siblings, org=org).delete()
 
-            BoundaryAlias.objects.create(boundary=self, org=org, name=new_alias, created_by=user, modified_by=user)
+            BoundaryAlias.create(org, user, self, new_alias)
 
     def release(self):
         for child_boundary in AdminBoundary.objects.filter(parent=self):  # pragma: no cover
