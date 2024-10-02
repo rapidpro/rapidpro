@@ -1589,6 +1589,9 @@ class FlowCRUDL(SmartCRUDL):
             exclude = mailroom.Exclusions(**payload.get("exclude", {}))
             flow = self.get_object()
 
+            if flow and flow.flow_type == Flow.TYPE_BACKGROUND:
+                exclude.in_a_flow = False
+
             try:
                 query, total = FlowStart.preview(flow, include=include, exclude=exclude)
             except mailroom.QueryValidationException as e:
