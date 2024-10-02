@@ -112,7 +112,7 @@ class GlobalCRUDL(SmartCRUDL):
         success_url = "@globals.global_list"
 
     class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
-        title = _("Manage Globals")
+        title = _("Globals")
         fields = ("name", "key", "value")
         search_fields = ("name__icontains", "key__icontains")
         default_order = ("key",)
@@ -122,7 +122,7 @@ class GlobalCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             if self.has_org_perm("globals.global_create"):
                 menu.add_modax(
-                    _("New Global"),
+                    _("New"),
                     "new-global",
                     reverse("globals.global_create"),
                     title=_("New Global"),

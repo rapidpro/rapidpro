@@ -101,7 +101,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(list(response.context["object_list"]), [self.global2])
 
         self.assertListFetch(unused_url, [self.user, self.editor, self.admin], context_objects=[self.global2])
-        self.assertContentMenu(list_url, self.admin, ["New Global"])
+        self.assertContentMenu(list_url, self.admin, ["New"])
 
     @override_settings(ORG_LIMIT_DEFAULTS={"globals": 4})
     def test_create(self):

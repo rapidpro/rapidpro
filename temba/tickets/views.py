@@ -26,6 +26,7 @@ from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
+from .forms import TopicForm
 from .models import (
     AllFolder,
     MineFolder,
@@ -43,45 +44,28 @@ from .models import (
 class TopicCRUDL(SmartCRUDL):
     model = Topic
     actions = ("create", "update", "delete")
-    slug_field = "uuid"
 
     class Create(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartCreateView):
-        class TopicForm(forms.ModelForm):
-            class Meta:
-                model = Topic
-                fields = ("name",)
-
         form_class = TopicForm
         success_url = "hide"
 
-        def pre_save(self, obj):
-            obj = super().pre_save(obj)
-            obj.org = self.request.org
-            return obj
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
+
+        def save(self, obj):
+            return Topic.create(self.request.org, self.request.user, obj.name)
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            def clean_name(self):
-                name = self.cleaned_data["name"]
-
-                if self.instance.is_system:
-                    raise forms.ValidationError(_("Cannot edit system topic"))
-
-                # make sure the name isn't already taken
-                existing = self.instance.org.topics.filter(is_active=True, name__iexact=name).first()
-                if existing and self.instance != existing:
-                    raise forms.ValidationError(_("Topic already exists, please try another name"))
-
-                return name
-
-            class Meta:
-                fields = ("name",)
-                model = Topic
-
+        form_class = TopicForm
         success_url = "hide"
         slug_url_kwarg = "uuid"
-        fields = ("name",)
-        form_class = Form
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "smartmin/delete_confirm.html"

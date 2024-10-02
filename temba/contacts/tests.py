@@ -3500,7 +3500,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, [self.user, self.editor, self.admin], context_objects=[self.age, self.gender, self.state]
         )
         self.assertContentMenu(list_url, self.user, [])
-        self.assertContentMenu(list_url, self.admin, ["New Field"])
+        self.assertContentMenu(list_url, self.admin, ["New"])
 
     def test_create_warnings(self):
         self.login(self.admin)
