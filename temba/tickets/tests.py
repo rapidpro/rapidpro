@@ -244,13 +244,31 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("tickets.topic_create")
 
         self.assertRequestDisallowed(create_url, [None, self.agent, self.user])
+
         self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name",))
 
+        # try to create with empty name
         self.assertCreateSubmit(
             create_url,
             self.admin,
             {"name": ""},
             form_errors={"name": "This field is required."},
+        )
+
+        # try to create with name that is already taken
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "general"},
+            form_errors={"name": "Topic with this name already exists."},
+        )
+
+        # try to create with name that is too long
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "X" * 65},
+            form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
         )
 
         self.assertCreateSubmit(
@@ -262,54 +280,52 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_update(self):
-        system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
-        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
+        topic = Topic.create(self.org, self.admin, "Hot Topic")
 
-        # can't edit a system topic
-        update_url = reverse("tickets.topic_update", args=[system_topic.uuid])
-        self.assertUpdateSubmit(
-            update_url,
-            self.admin,
-            {"name": "My Topic"},
-            form_errors={"name": "Cannot edit system topic"},
-            object_unchanged=system_topic,
-        )
+        update_url = reverse("tickets.topic_update", args=[topic.uuid])
 
-        # check permissions
         self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+
         self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=["name"])
 
-        # names must be unique
-        update_url = reverse("tickets.topic_update", args=[user_topic.uuid])
+        # names must be unique (case-insensitive)
         self.assertUpdateSubmit(
             update_url,
             self.admin,
-            {"name": "General"},
-            form_errors={"name": "Topic already exists, please try another name"},
-            object_unchanged=user_topic,
+            {"name": "general"},
+            form_errors={"name": "Topic with this name already exists."},
+            object_unchanged=topic,
         )
 
-        # edit successfully
-        self.assertUpdateSubmit(update_url, self.admin, {"name": "Boring Tickets"}, success_status=302)
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Boring"}, success_status=302)
 
-        user_topic.refresh_from_db()
-        self.assertEqual(user_topic.name, "Boring Tickets")
+        topic.refresh_from_db()
+        self.assertEqual(topic.name, "Boring")
+
+        # can't edit a system topic
+        with self.assertRaises(AssertionError):
+            self.requestView(reverse("tickets.topic_update", args=[self.org.default_ticket_topic.uuid]), self.admin)
 
     def test_delete(self):
-        system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
-        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
+        topic1 = Topic.create(self.org, self.admin, "Planes")
+        topic2 = Topic.create(self.org, self.admin, "Trains")
 
-        delete_url = reverse("tickets.topic_delete", args=[user_topic.uuid])
+        delete_url = reverse("tickets.topic_delete", args=[topic1.uuid])
+
         self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
 
         response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
         self.assertContains(response, "You are about to delete")
 
         # submit to delete it
-        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=user_topic, success_status=302)
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=topic1, success_status=302)
 
-        # we should have been redirected to the system topic
-        self.assertEqual(f"/ticket/{system_topic.uuid}/open/", response.url)
+        # other topic unafected
+        topic2.refresh_from_db()
+        self.assertTrue(topic2.is_active)
+
+        # we should have been redirected to the default topic
+        self.assertEqual(f"/ticket/{self.org.default_ticket_topic.uuid}/open/", response.url)
 
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):

@@ -1136,9 +1136,10 @@ class ContactFieldCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             if self.has_org_perm("contacts.contactfield_create"):
                 menu.add_modax(
-                    _("New Field"),
+                    _("New"),
                     "new-field",
                     f"{reverse('contacts.contactfield_create')}",
+                    title=_("New Field"),
                     on_submit="handleFieldUpdated()",
                     as_button=True,
                 )

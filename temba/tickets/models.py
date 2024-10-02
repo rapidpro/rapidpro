@@ -50,7 +50,7 @@ class Topic(TembaModel, DependencyMixin):
     @classmethod
     def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid topic name"
-        assert not org.topics.filter(name__iexact=name).exists()
+        assert not org.topics.filter(name__iexact=name).exists(), f"topic with name '{name}' already exists"
 
         return org.topics.create(name=name, created_by=user, modified_by=user)
 
