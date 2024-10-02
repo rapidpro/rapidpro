@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from temba.locations.models import AdminBoundary
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Shortcut
 
 
 class ModelAsJsonSerializer(serializers.BaseSerializer):
@@ -15,6 +16,14 @@ class LocationReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminBoundary
         fields = ("osm_id", "name", "path")
+
+
+class ShortcutReadSerializer(serializers.ModelSerializer):
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
+
+    class Meta:
+        model = Shortcut
+        fields = ("uuid", "name", "text", "modified_on")
 
 
 class TemplateReadSerializer(serializers.ModelSerializer):
