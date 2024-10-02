@@ -11,6 +11,7 @@ from smartmin.views import (
 
 from django import forms
 from django.db.models.aggregates import Max
+from django.db.models.functions import Lower
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -26,10 +27,11 @@ from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
-from .forms import TopicForm
+from .forms import ShortcutForm, TopicForm
 from .models import (
     AllFolder,
     MineFolder,
+    Shortcut,
     Ticket,
     TicketCount,
     TicketExport,
@@ -39,6 +41,60 @@ from .models import (
     UnassignedFolder,
     export_ticket_stats,
 )
+
+
+class ShortcutCRUDL(SmartCRUDL):
+    model = Shortcut
+    actions = ("create", "update", "delete", "list")
+
+    class Create(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartCreateView):
+        form_class = ShortcutForm
+        success_url = "@tickets.shortcut_list"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
+
+        def save(self, obj):
+            return Shortcut.create(self.request.org, self.request.user, obj.name, obj.text)
+
+    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+        form_class = ShortcutForm
+        success_url = "@tickets.shortcut_list"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
+
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        default_template = "smartmin/delete_confirm.html"
+        submit_button_name = _("Delete")
+        fields = ("id",)
+        cancel_url = "@tickets.shortcut_list"
+        redirect_url = "@tickets.shortcut_list"
+
+        def post(self, request, *args, **kwargs):
+            self.get_object().release(self.request.user)
+            redirect_url = self.get_redirect_url()
+            return HttpResponseRedirect(redirect_url)
+
+    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
+        menu_path = "/ticket/shortcuts"
+
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True).order_by(Lower("name"))
+
+        def build_content_menu(self, menu):
+            if self.has_org_perm("tickets.shortcut_create"):
+                menu.add_modax(
+                    _("New"),
+                    "new-shortcut",
+                    reverse("tickets.shortcut_create"),
+                    title=_("New Shortcut"),
+                    as_button=True,
+                )
 
 
 class TopicCRUDL(SmartCRUDL):
@@ -253,6 +309,15 @@ class TicketCRUDL(SmartCRUDL):
                 )
 
             menu.append(self.create_divider())
+            menu.append(
+                self.create_menu_item(
+                    menu_id="shortcuts",
+                    name=_("Shortcuts"),
+                    icon="shortcut",
+                    count=org.shortcuts.filter(is_active=True).count(),
+                    href="tickets.shortcut_list",
+                )
+            )
             menu.append(self.create_modax_button(_("Export"), "tickets.ticket_export", icon="export"))
             menu.append(
                 self.create_modax_button(_("New Topic"), "tickets.topic_create", icon="add", on_submit="refreshMenu()")

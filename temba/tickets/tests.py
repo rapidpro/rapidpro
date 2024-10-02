@@ -15,6 +15,7 @@ from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
 from .models import (
+    Shortcut,
     Team,
     Ticket,
     TicketCount,
@@ -236,10 +237,79 @@ class TicketTest(TembaTest):
         )
 
 
-class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
-    def setUp(self):
-        super().setUp()
+class ShortcutCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_create(self):
+        create_url = reverse("tickets.shortcut_create")
 
+        self.assertRequestDisallowed(create_url, [None, self.agent, self.user])
+
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name", "text"))
+
+        # try to create with empty values
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "", "text": ""},
+            form_errors={"name": "This field is required.", "text": "This field is required."},
+        )
+
+        # try to create with name that is already taken
+        Shortcut.create(self.org, self.admin, "Reboot", "Try switching it off and on again")
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "reboot", "text": "Have you tried..."},
+            form_errors={"name": "Shortcut with this name already exists."},
+        )
+
+        # try to create with name that is too long
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "X" * 65, "text": "x"},
+            form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Not Interested", "text": "We're not interested"},
+            new_obj_query=Shortcut.objects.filter(name="Not Interested", text="We're not interested", is_system=False),
+            success_status=302,
+        )
+
+    def test_delete(self):
+        shortcut1 = Shortcut.create(self.org, self.admin, "Planes", "Planes are...")
+        shortcut2 = Shortcut.create(self.org, self.admin, "Trains", "Trains are...")
+
+        delete_url = reverse("tickets.shortcut_delete", args=[shortcut1.id])
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
+        self.assertContains(response, "You are about to delete")
+
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=shortcut1, success_status=302)
+
+        # other shortcut unafected
+        shortcut2.refresh_from_db()
+        self.assertTrue(shortcut2.is_active)
+
+    def test_list(self):
+        shortcut1 = Shortcut.create(self.org, self.admin, "Planes", "Planes are...")
+        shortcut2 = Shortcut.create(self.org, self.admin, "Trains", "Trains are...")
+        Shortcut.create(self.org2, self.admin, "Cars", "Other org")
+
+        list_url = reverse("tickets.shortcut_list")
+
+        self.assertRequestDisallowed(list_url, [None, self.agent])
+
+        self.assertListFetch(list_url, [self.editor, self.admin], context_objects=[shortcut1, shortcut2])
+
+
+class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("tickets.topic_create")
 
@@ -419,7 +489,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertRequestDisallowed(menu_url, [None])
         self.assertPageMenu(
-            menu_url, self.admin, ["My Tickets (2)", "Unassigned (1)", "All (3)", "Export", "New Topic", "General (3)"]
+            menu_url,
+            self.admin,
+            ["My Tickets (2)", "Unassigned (1)", "All (3)", "Shortcuts (0)", "Export", "New Topic", "General (3)"],
         )
         self.assertPageMenu(menu_url, self.agent, ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (3)"])
 

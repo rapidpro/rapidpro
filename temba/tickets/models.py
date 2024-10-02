@@ -23,6 +23,31 @@ from temba.utils.uuid import uuid4
 logger = logging.getLogger(__name__)
 
 
+class Shortcut(TembaModel):
+    """
+    A canned response available from the ticketing interface.
+    """
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="shortcuts")
+    text = models.TextField()
+
+    @classmethod
+    def create(cls, org, user, name: str, text: str):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid shortcut name"
+        assert not org.shortcuts.filter(name__iexact=name).exists(), f"shortcut with name '{name}' already exists"
+
+        return org.shortcuts.create(name=name, text=text, created_by=user, modified_by=user)
+
+    def release(self, user):
+        self.is_active = False
+        self.name = self._deleted_name()
+        self.modified_by = user
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_shortcut_names")]
+
+
 class Topic(TembaModel, DependencyMixin):
     """
     The topic of a ticket which controls who can access that ticket.
