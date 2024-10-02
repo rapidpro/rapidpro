@@ -1,3 +1,8 @@
+v9.3.54 (2024-10-02)
+-------------------------
+ * Adjust background flow start preview to include all contacts in other flows
+ * Make template sync use consistent components order to avoid breaking flows variables
+
 v9.3.53 (2024-10-01)
 -------------------------
  * Fix location aliases to only update in one workspace
