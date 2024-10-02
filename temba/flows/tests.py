@@ -2292,7 +2292,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_preview_start(self, mr_mocks):
-        flow = self.create_flow("Test")
+        flow = self.create_flow("Test Flow")
         self.create_field("age", "Age")
         self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
         self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
@@ -2314,6 +2314,32 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             {
                 "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
+                "total": 100,
+                "send_time": 10.0,
+                "warnings": [],
+                "blockers": [],
+            },
+            response.json(),
+        )
+
+        mr_mocks.flow_start_preview(
+            query='age > 30 AND status = "active" AND history != "Test Flow" AND flow = ""', total=100
+        )
+        preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+
+        self.login(self.editor)
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True, "in_a_flow": True},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            {
+                "query": 'age > 30 AND status = "active" AND history != "Test Flow" AND flow = ""',
                 "total": 100,
                 "send_time": 10.0,
                 "warnings": [],
@@ -2391,7 +2417,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # shouldn't be able to since we don't have a call channel
         self.org.flow_starts.all().delete()
-        mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
+        mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "IVR Test"', total=100)
 
         response = self.client.post(
             preview_url,
@@ -2489,6 +2515,31 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             response.json()["blockers"][0],
             'To start this flow you need to <a href="/channels/channel/claim/">add a channel</a> to your workspace which will allow you to send messages to your contacts.',
+        )
+
+        flow = self.create_flow("Background Flow", flow_type=Flow.TYPE_BACKGROUND)
+        mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Background Flow"', total=100)
+        preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+
+        self.login(self.editor)
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True, "in_a_flow": True},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            {
+                "query": 'age > 30 AND status = "active" AND history != "Background Flow"',
+                "total": 100,
+                "send_time": 0.0,
+                "warnings": [],
+                "blockers": [],
+            },
+            response.json(),
         )
 
     @mock_mailroom
