@@ -279,6 +279,31 @@ class ShortcutCRUDLTest(TembaTest, CRUDLTestMixin):
             success_status=302,
         )
 
+    def test_update(self):
+        shortcut = Shortcut.create(self.org, self.admin, "Planes", "Planes are...")
+        Shortcut.create(self.org, self.admin, "Trains", "Trains are...")
+
+        update_url = reverse("tickets.shortcut_update", args=[shortcut.id])
+
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=["name", "text"])
+
+        # names must be unique (case-insensitive)
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "trains", "text": "Trains are..."},
+            form_errors={"name": "Shortcut with this name already exists."},
+            object_unchanged=shortcut,
+        )
+
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Cars", "text": "Cars are..."}, success_status=302)
+
+        shortcut.refresh_from_db()
+        self.assertEqual(shortcut.name, "Cars")
+        self.assertEqual(shortcut.text, "Cars are...")
+
     def test_delete(self):
         shortcut1 = Shortcut.create(self.org, self.admin, "Planes", "Planes are...")
         shortcut2 = Shortcut.create(self.org, self.admin, "Trains", "Trains are...")
