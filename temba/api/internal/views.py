@@ -8,6 +8,7 @@ from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.notifications.models import Notification
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Shortcut
 
 from ..models import APIPermission, SSLPermission
 from ..support import APISessionAuthentication, CreatedOnCursorPagination, ModifiedOnCursorPagination
@@ -83,6 +84,12 @@ class NotificationsEndpoint(ListAPIMixin, BaseEndpoint):
         Notification.mark_seen(self.request.org, self.request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ShortcutsEndpoint(ListAPIMixin, BaseEndpoint):
+    model = Shortcut
+    serializer_class = serializers.ShortcutReadSerializer
+    pagination_class = ModifiedOnCursorPagination
 
 
 class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
