@@ -150,6 +150,7 @@ class EndpointsTest(APITestMixin, TembaTest):
                     "modified_on": matchers.ISODate(),
                 },
             ],
+            num_queries=NUM_BASE_QUERIES + 1,
         )
 
     def test_templates(self):
