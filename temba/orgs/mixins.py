@@ -81,20 +81,6 @@ class OrgObjPermsMixin(OrgPermsMixin):
             )
 
 
-class OrgFilterMixin:
-    """
-    Simple mixin to filter a view's queryset by the request org
-    """
-
-    def derive_queryset(self, *args, **kwargs):
-        queryset = super().derive_queryset(*args, **kwargs)
-
-        if not self.request.user.is_authenticated:
-            return queryset.none()  # pragma: no cover
-        else:
-            return queryset.filter(org=self.request.org)
-
-
 class InferOrgMixin:
     """
     Mixin for view whose object is the current org

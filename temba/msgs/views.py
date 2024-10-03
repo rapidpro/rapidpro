@@ -20,9 +20,10 @@ from django.views.generic import RedirectView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.mailroom.client.types import Exclusions
-from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import Org
-from temba.orgs.views import BaseExportView, BaseMenuView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
+from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
+from temba.orgs.views_base import BaseListView, BaseMenuView
 from temba.schedules.views import ScheduleFormMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.utils import json, languages
@@ -704,8 +705,8 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Status(OrgPermsMixin, OrgFilterMixin, SmartListView):
-        permission = "msgs.broadcast_read"
+    class Status(BaseListView):
+        permission = "msgs.broadcast_list"
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs)

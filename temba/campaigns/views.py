@@ -1,4 +1,4 @@
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.contrib import messages
@@ -11,8 +11,9 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
-from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import BaseMenuView, ModalMixin
+from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import ModalMixin
+from temba.orgs.views_base import BaseListView, BaseMenuView
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
@@ -161,7 +162,7 @@ class CampaignCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class BaseList(SpaMixin, ContentMenuMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(SpaMixin, ContentMenuMixin, BulkActionMixin, BaseListView):
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"
         default_order = ("-modified_on",)
@@ -205,7 +206,7 @@ class CampaignCRUDL(SmartCRUDL):
             qs = qs.filter(is_active=True, is_archived=True)
             return qs
 
-    class Archive(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
+    class Archive(OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@campaigns.campaign_read"
         success_message = _("Campaign archived")
@@ -214,7 +215,7 @@ class CampaignCRUDL(SmartCRUDL):
             obj.apply_action_archive(self.request.user, Campaign.objects.filter(id=obj.id))
             return obj
 
-    class Activate(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
+    class Activate(OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@campaigns.campaign_read"
         success_message = _("Campaign activated")
