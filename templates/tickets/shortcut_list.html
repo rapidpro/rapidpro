@@ -1,0 +1,69 @@
+{% extends "smartmin/list.html" %}
+{% load smartmin temba i18n humanize %}
+
+{% block content %}
+  <div class="mb-4">
+    {% blocktrans trimmed %}
+      These are canned responses that agents can use to quickly reply to tickets.
+    {% endblocktrans %}
+  </div>
+  {% block pre-table %}
+    <temba-modax header="{{ _("Update Shortcut") |escapejs }}" id="update-shortcut">
+    </temba-modax>
+    <temba-modax header="{{ _("Delete Shortcut") |escapejs }}" id="delete-shortcut">
+    </temba-modax>
+  {% endblock pre-table %}
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow overflow-y-auto shadow">
+    <table class="list lined scrolled">
+      <tbody>
+        {% for obj in object_list %}
+          <tr onclick="showUpdateShortcutModal({{ obj.id }})" class="hover-linked update">
+            <td style="min-width: 50px">{{ obj.name }}</td>
+            <td>
+              <div class="break-all">{{ obj.text|truncatechars:100 }}</div>
+            </td>
+            <td class="w-10">
+              {% if org_perms.tickets.shortcut_delete %}
+                <div style="visibility:hidden"
+                     onclick="event.stopPropagation(); showDeleteShortcutModal({{ obj.id }});"
+                     class="pl-2 pt-1 delete-link linked text-gray-400">
+                  <temba-icon name="delete_small">
+                  </temba-icon>
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr class="empty_list">
+            <td colspan="99" class="text-center">{% trans "No shortcuts" %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showUpdateShortcutModal(id) {
+      var modax = document.querySelector('#update-shortcut');
+      modax.endpoint = `/shortcut/update/${id}/`;
+      modax.open = true;
+    }
+
+    function showDeleteShortcutModal(id) {
+      var modax = document.querySelector('#delete-shortcut');
+      modax.endpoint = `/shortcut/delete/${id}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    tr:hover .delete-link {
+      visibility: visible !important;
+    }
+  </style>
+{% endblock extra-style %}

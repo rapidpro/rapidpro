@@ -1,0 +1,9 @@
+{% extends "includes/modax.html" %}
+{% block modal-extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    #id_text {
+      --textarea-height: 110px;
+    }
+  </style>
+{% endblock modal-extra-style %}
