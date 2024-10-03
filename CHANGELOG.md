@@ -1,3 +1,11 @@
+v9.3.55 (2024-10-03)
+-------------------------
+ * Temporarily hide menu item for shortcuts
+ * Add pagination to flow starts and webhook logs pages
+ * Add internal API endpoint for fetching shortcuts
+ * Add model and CRUDL views for ticket shortcuts
+ * Fix topic create and update and tweak list pages for consistency
+
 v9.3.54 (2024-10-02)
 -------------------------
  * Adjust background flow start preview to include all contacts in other flows
