@@ -1069,7 +1069,11 @@ class UserCRUDL(SmartCRUDL):
             return super().form_valid(form)
 
 
-class MenuMixin(OrgPermsMixin):
+class BaseMenuView(OrgPermsMixin, SmartTemplateView):
+    """
+    Base view for the section menu views
+    """
+
     def create_divider(self):
         return {"type": "divider"}
 
@@ -1226,7 +1230,7 @@ class OrgCRUDL(SmartCRUDL):
 
     model = Org
 
-    class Menu(MenuMixin, InferOrgMixin, SmartTemplateView):
+    class Menu(BaseMenuView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)

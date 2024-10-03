@@ -21,7 +21,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import BaseExportView, MenuMixin, ModalMixin
+from temba.orgs.views import BaseExportView, BaseMenuView, ModalMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget
@@ -287,7 +287,7 @@ class TicketCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
 
-    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
+    class Menu(BaseMenuView):
         def derive_menu(self):
             org = self.request.org
             user = self.request.user

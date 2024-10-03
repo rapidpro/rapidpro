@@ -16,7 +16,7 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
 from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import MenuMixin
+from temba.orgs.views import BaseMenuView
 from temba.schedules.models import Schedule
 from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
@@ -196,7 +196,7 @@ class TriggerCRUDL(SmartCRUDL):
         "folder",
     )
 
-    class Menu(MenuMixin, SmartTemplateView):
+    class Menu(BaseMenuView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
