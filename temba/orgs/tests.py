@@ -12,7 +12,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.files.storage import default_storage
-from django.db.models import Model
+from django.db.models import F, Model
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -1492,7 +1492,7 @@ class OrgDeleteTest(TembaTest):
         self.assertOrgActive(self.org2, org2_content)
 
         # make it look like released orgs were released over a week ago
-        Org.objects.exclude(released_on=None).update(released_on=timezone.now() - timedelta(days=8))
+        Org.objects.exclude(released_on=None).update(released_on=F("released_on") - timedelta(days=8))
 
         delete_released_orgs()
 
