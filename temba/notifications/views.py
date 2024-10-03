@@ -2,7 +2,7 @@ from smartmin.views import SmartCRUDL, SmartListView
 
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.mixins import OrgPermsMixin
 from temba.utils.views import SpaMixin
 
 from .mixins import NotificationTargetMixin

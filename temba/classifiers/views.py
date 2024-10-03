@@ -5,7 +5,8 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import DependencyDeleteModal, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import Classifier

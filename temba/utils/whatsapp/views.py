@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.views import ChannelTypeMixin
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.mixins import OrgPermsMixin
 from temba.utils.views import PostOnlyMixin
 
 from .tasks import refresh_whatsapp_contacts

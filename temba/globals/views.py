@@ -5,7 +5,8 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartUpda
 from django import forms
 from django.urls import reverse
 
-from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin
 from temba.utils.fields import InputWidget
 from temba.utils.views import ContentMenuMixin, SpaMixin
 

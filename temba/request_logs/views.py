@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import str_to_bool
 from temba.utils.views import ContentMenuMixin, SpaMixin
 
