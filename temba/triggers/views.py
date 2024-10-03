@@ -15,8 +15,8 @@ from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views_base import BaseListView, BaseMenuView
+from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin

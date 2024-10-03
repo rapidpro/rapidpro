@@ -4,7 +4,7 @@ from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 
 from django.http import HttpResponseRedirect
 
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.views import SpaMixin
 
 from .models import Archive

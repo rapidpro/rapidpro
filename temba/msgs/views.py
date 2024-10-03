@@ -20,10 +20,10 @@ from django.views.generic import RedirectView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.mailroom.client.types import Exclusions
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import Org
 from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
-from temba.orgs.views_base import BaseListView, BaseMenuView
+from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.views import ScheduleFormMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.utils import json, languages

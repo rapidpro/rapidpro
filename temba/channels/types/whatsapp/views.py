@@ -10,8 +10,8 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.views import ChannelTypeMixin
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.views import ModalMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.text import truncate
 from temba.utils.views import ContentMenuMixin

@@ -35,8 +35,8 @@ from temba.contacts.models import URN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder

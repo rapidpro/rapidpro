@@ -72,9 +72,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .forms import SignupForm, SMTPForm
-from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin
-from .models import (
+from ..models import (
     BackupToken,
     DefinitionExport,
     Export,
@@ -86,7 +84,9 @@ from .models import (
     User,
     UserSettings,
 )
-from .views_base import BaseMenuView
+from .base import BaseMenuView
+from .forms import SignupForm, SMTPForm
+from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
