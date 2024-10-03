@@ -12,8 +12,8 @@ class BaseListView(OrgPermsMixin, SmartListView):
     Base list view for objects that belong to the current org
     """
 
-    def derive_queryset(self, *args, **kwargs):
-        queryset = super().derive_queryset(*args, **kwargs)
+    def derive_queryset(self, **kwargs):
+        queryset = super().derive_queryset(**kwargs)
 
         if not self.request.user.is_authenticated:
             return queryset.none()  # pragma: no cover

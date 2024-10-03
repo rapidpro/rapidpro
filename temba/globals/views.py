@@ -1,11 +1,12 @@
 from gettext import gettext as _
 
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartUpdateView
 
 from django import forms
 from django.urls import reverse
 
 from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin
+from temba.orgs.views.base import BaseListView
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.views import ContentMenuMixin, SpaMixin
@@ -112,7 +113,7 @@ class GlobalCRUDL(SmartCRUDL):
         cancel_url = "@globals.global_list"
         success_url = "@globals.global_list"
 
-    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
+    class List(SpaMixin, ContentMenuMixin, BaseListView):
         title = _("Globals")
         fields = ("name", "key", "value")
         search_fields = ("name__icontains", "key__icontains")

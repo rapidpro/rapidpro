@@ -21,7 +21,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import BaseExportView, ModalMixin
-from temba.orgs.views.base import BaseMenuView
+from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
@@ -82,11 +82,11 @@ class ShortcutCRUDL(SmartCRUDL):
             redirect_url = self.get_redirect_url()
             return HttpResponseRedirect(redirect_url)
 
-    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
+    class List(SpaMixin, ContentMenuMixin, BaseListView):
         menu_path = "/ticket/shortcuts"
 
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True).order_by(Lower("name"))
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True).order_by(Lower("name"))
 
         def build_content_menu(self, menu):
             if self.has_org_perm("tickets.shortcut_create"):
