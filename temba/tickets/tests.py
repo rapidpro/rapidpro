@@ -516,7 +516,15 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertPageMenu(
             menu_url,
             self.admin,
-            ["My Tickets (2)", "Unassigned (1)", "All (3)", "Shortcuts (0)", "Export", "New Topic", "General (3)"],
+            [
+                "My Tickets (2)",
+                "Unassigned (1)",
+                "All (3)",
+                # "Shortcuts (0)",
+                "Export",
+                "New Topic",
+                "General (3)",
+            ],
         )
         self.assertPageMenu(menu_url, self.agent, ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (3)"])
 

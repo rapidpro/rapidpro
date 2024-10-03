@@ -309,15 +309,15 @@ class TicketCRUDL(SmartCRUDL):
                 )
 
             menu.append(self.create_divider())
-            menu.append(
-                self.create_menu_item(
-                    menu_id="shortcuts",
-                    name=_("Shortcuts"),
-                    icon="shortcut",
-                    count=org.shortcuts.filter(is_active=True).count(),
-                    href="tickets.shortcut_list",
-                )
-            )
+            # menu.append(
+            #     self.create_menu_item(
+            #         menu_id="shortcuts",
+            #         name=_("Shortcuts"),
+            #         icon="shortcut",
+            #         count=org.shortcuts.filter(is_active=True).count(),
+            #         href="tickets.shortcut_list",
+            #     )
+            # )
             menu.append(self.create_modax_button(_("Export"), "tickets.ticket_export", icon="export"))
             menu.append(
                 self.create_modax_button(_("New Topic"), "tickets.topic_create", icon="add", on_submit="refreshMenu()")
