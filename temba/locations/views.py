@@ -8,9 +8,9 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.orgs.views import OrgPermsMixin, SpaMixin
+from temba.orgs.mixins import OrgPermsMixin
 from temba.utils import json
-from temba.utils.views import ContentMenuMixin
+from temba.utils.views import ContentMenuMixin, SpaMixin
 
 
 class BoundaryCRUDL(SmartCRUDL):

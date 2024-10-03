@@ -19,7 +19,8 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
-from temba.orgs.views import MenuMixin, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import MenuMixin, ModalMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin

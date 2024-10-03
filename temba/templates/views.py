@@ -1,6 +1,7 @@
 from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 
-from temba.orgs.views import DependencyUsagesModal, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyUsagesModal
 from temba.utils.views import SpaMixin
 
 from .models import Template, TemplateTranslation

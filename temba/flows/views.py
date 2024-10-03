@@ -34,16 +34,9 @@ from temba.contacts.models import URN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
+from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import (
-    BaseExportView,
-    DependencyDeleteModal,
-    MenuMixin,
-    ModalMixin,
-    OrgFilterMixin,
-    OrgObjPermsMixin,
-    OrgPermsMixin,
-)
+from temba.orgs.views import BaseExportView, DependencyDeleteModal, MenuMixin, ModalMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
 from temba.utils.fields import (
