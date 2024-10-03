@@ -1,3 +1,7 @@
+v9.3.56 (2024-10-03)
+-------------------------
+ * Cleanup some view mixins
+
 v9.3.55 (2024-10-03)
 -------------------------
  * Temporarily hide menu item for shortcuts
