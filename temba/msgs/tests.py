@@ -2612,8 +2612,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         status_url = f"{reverse('msgs.broadcast_status')}?id={broadcast.id}&status=P"
-        self.assertRequestDisallowed(status_url, [None, self.user, self.agent])
-        response = self.assertReadFetch(status_url, [self.editor, self.admin])
+        self.assertRequestDisallowed(status_url, [None, self.agent])
+        response = self.assertReadFetch(status_url, [self.user, self.editor, self.admin])
 
         # status returns json
         self.assertEqual("Pending", response.json()["results"][0]["status"])

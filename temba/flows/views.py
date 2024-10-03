@@ -34,9 +34,10 @@ from temba.contacts.models import URN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
-from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import BaseExportView, BaseMenuView, DependencyDeleteModal, ModalMixin
+from temba.orgs.views import BaseExportView, DependencyDeleteModal, ModalMixin
+from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
 from temba.utils.fields import (
@@ -665,7 +666,7 @@ class FlowCRUDL(SmartCRUDL):
                         match_type=Trigger.MATCH_FIRST_WORD,
                     )
 
-    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
+    class BaseList(SpaMixin, BulkActionMixin, ContentMenuMixin, BaseListView):
         permission = "flows.flow_list"
         title = _("Flows")
         refresh = 10000
@@ -1846,7 +1847,7 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list", "interrupt", "status")
 
-    class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, SmartListView):
+    class List(SpaMixin, BaseListView):
         title = _("Flow Starts")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
@@ -1877,7 +1878,7 @@ class FlowStartCRUDL(SmartCRUDL):
 
             return context
 
-    class Status(OrgPermsMixin, OrgFilterMixin, SmartListView):
+    class Status(BaseListView):
         permission = "flows.flowstart_list"
 
         def derive_queryset(self, **kwargs):

@@ -38,7 +38,6 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
 from django.utils.functional import cached_property
-from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
@@ -73,9 +72,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .forms import SignupForm, SMTPForm
-from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin
-from .models import (
+from ..models import (
     BackupToken,
     DefinitionExport,
     Export,
@@ -87,6 +84,9 @@ from .models import (
     User,
     UserSettings,
 )
+from .base import BaseMenuView
+from .forms import SignupForm, SMTPForm
+from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -1067,110 +1067,6 @@ class UserCRUDL(SmartCRUDL):
                 APIToken.create(self.request.org, self.request.user)
 
             return super().form_valid(form)
-
-
-class BaseMenuView(OrgPermsMixin, SmartTemplateView):
-    """
-    Base view for the section menu views
-    """
-
-    def create_divider(self):
-        return {"type": "divider"}
-
-    def create_space(self):  # pragma: no cover
-        return {"type": "space"}
-
-    def create_section(self, name, items=()):  # pragma: no cover
-        return {"id": slugify(name), "name": name, "type": "section", "items": items}
-
-    def create_list(self, name, href, type):
-        return {"id": name, "href": href, "type": type}
-
-    def create_modax_button(self, name, href, icon=None, on_submit=None):  # pragma: no cover
-        menu_item = {"id": slugify(name), "name": name, "type": "modax-button"}
-        if href:
-            if href[0] == "/":  # pragma: no cover
-                menu_item["href"] = href
-            elif self.has_org_perm(href):
-                menu_item["href"] = reverse(href)
-
-        if on_submit:
-            menu_item["on_submit"] = on_submit
-
-        if icon:  # pragma: no cover
-            menu_item["icon"] = icon
-
-        if "href" not in menu_item:  # pragma: no cover
-            return None
-
-        return menu_item
-
-    def create_menu_item(
-        self,
-        menu_id=None,
-        name=None,
-        icon=None,
-        avatar=None,
-        endpoint=None,
-        href=None,
-        count=None,
-        perm=None,
-        items=[],
-        inline=False,
-        bottom=False,
-        popup=False,
-        event=None,
-        posterize=False,
-        bubble=None,
-        mobile=False,
-    ):
-        if perm and not self.has_org_perm(perm):  # pragma: no cover
-            return
-
-        menu_item = {"name": name, "inline": inline}
-        menu_item["id"] = menu_id if menu_id else slugify(name)
-        menu_item["bottom"] = bottom
-        menu_item["popup"] = popup
-        menu_item["avatar"] = avatar
-        menu_item["posterize"] = posterize
-        menu_item["event"] = event
-        menu_item["mobile"] = mobile
-
-        if bubble:
-            menu_item["bubble"] = bubble
-
-        if icon:
-            menu_item["icon"] = icon
-
-        if count is not None:
-            menu_item["count"] = count
-
-        if endpoint:
-            if endpoint[0] == "/":  # pragma: no cover
-                menu_item["endpoint"] = endpoint
-            elif perm or self.has_org_perm(endpoint):
-                menu_item["endpoint"] = reverse(endpoint)
-
-        if href:
-            if href[0] == "/":
-                menu_item["href"] = href
-            elif perm or self.has_org_perm(href):
-                menu_item["href"] = reverse(href)
-
-        if items:  # pragma: no cover
-            menu_item["items"] = [item for item in items if item is not None]
-
-        # only include the menu item if we have somewhere to go
-        if "href" not in menu_item and "endpoint" not in menu_item and not inline and not popup and not event:
-            return None
-
-        return menu_item
-
-    def get_menu(self):
-        return [item for item in self.derive_menu() if item is not None]
-
-    def render_to_response(self, context, **response_kwargs):
-        return JsonResponse({"results": self.get_menu()})
 
 
 class InvitationMixin:

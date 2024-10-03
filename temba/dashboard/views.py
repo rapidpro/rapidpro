@@ -9,8 +9,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel, ChannelCount
-from temba.orgs.mixins import OrgPermsMixin
 from temba.orgs.models import Org
+from temba.orgs.views.mixins import OrgPermsMixin
 from temba.utils.views import SpaMixin
 
 flattened_colors = [

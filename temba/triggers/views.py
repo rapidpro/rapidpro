@@ -1,6 +1,6 @@
 from enum import Enum
 
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.functions import Upper
@@ -15,8 +15,8 @@ from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
-from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import BaseMenuView
+from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
@@ -243,7 +243,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             return menu
 
-    class Create(SpaMixin, FormaxMixin, OrgFilterMixin, OrgPermsMixin, SmartTemplateView):
+    class Create(SpaMixin, FormaxMixin, OrgPermsMixin, SmartTemplateView):
         title = _("New Trigger")
         menu_path = "/trigger/new-trigger"
 
@@ -425,7 +425,7 @@ class TriggerCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
-    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(SpaMixin, BulkActionMixin, BaseListView):
         """
         Base class for list views
         """

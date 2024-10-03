@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import URN, ContactURN
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.request_logs.models import HTTPLog
 from temba.utils.views import SpaMixin
 

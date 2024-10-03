@@ -1229,7 +1229,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can't archive campaign from other org
         response = self.client.post(reverse("campaigns.campaign_archive", args=[other_org_campaign.id]))
-        self.assertEqual(404, response.status_code)
+        self.assertEqual(302, response.status_code)
 
         # check object is unchanged
         other_org_campaign.refresh_from_db()
