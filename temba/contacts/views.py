@@ -4,15 +4,7 @@ from datetime import timedelta
 from urllib.parse import quote_plus
 
 import iso8601
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartListView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-    SmartView,
-)
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartReadView, SmartUpdateView, SmartView
 
 from django import forms
 from django.conf import settings
@@ -35,7 +27,7 @@ from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import User
-from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal, MenuMixin, ModalMixin
+from temba.orgs.views import BaseExportView, BaseMenuView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
 from temba.tickets.models import Ticket, Topic
 from temba.utils import json, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
@@ -197,7 +189,7 @@ class ContactCRUDL(SmartCRUDL):
         "history",
     )
 
-    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
+    class Menu(BaseMenuView):
         def render_to_response(self, context, **response_kwargs):
             org = self.request.org
             counts = Contact.get_status_counts(org)
@@ -856,28 +848,7 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("create", "update", "usages", "delete", "menu")
-
-    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
-        def derive_menu(self):
-            org = self.request.org
-
-            # order groups with smart (group_type=Q) before manual (group_type=M)
-            all_groups = ContactGroup.get_groups(org).order_by("-group_type", Upper("name"))
-            group_counts = ContactGroupCount.get_totals(all_groups)
-
-            menu = []
-            for g in all_groups:
-                menu.append(
-                    self.create_menu_item(
-                        menu_id=g.uuid,
-                        name=g.name,
-                        icon="loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
-                        count=group_counts[g],
-                        href=reverse("contacts.contact_filter", args=[g.uuid]),
-                    )
-                )
-            return menu
+    actions = ("create", "update", "usages", "delete")
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm

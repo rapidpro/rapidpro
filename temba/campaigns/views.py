@@ -1,12 +1,4 @@
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartListView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.contrib import messages
@@ -20,7 +12,7 @@ from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import MenuMixin, ModalMixin
+from temba.orgs.views import BaseMenuView, ModalMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
@@ -53,7 +45,7 @@ class CampaignCRUDL(SmartCRUDL):
     model = Campaign
     actions = ("create", "read", "update", "list", "archived", "archive", "activate", "menu")
 
-    class Menu(MenuMixin, SmartTemplateView):
+    class Menu(BaseMenuView):
         def derive_menu(self):
             org = self.request.org
 

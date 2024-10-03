@@ -5,15 +5,7 @@ from functools import cached_property
 from urllib.parse import quote_plus
 
 import magic
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartListView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.conf import settings
@@ -30,7 +22,7 @@ from temba.archives.models import Archive
 from temba.mailroom.client.types import Exclusions
 from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import Org
-from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal, MenuMixin, ModalMixin
+from temba.orgs.views import BaseExportView, BaseMenuView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
 from temba.schedules.views import ScheduleFormMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.utils import json, languages
@@ -760,7 +752,7 @@ class MsgCRUDL(SmartCRUDL):
     model = Msg
     actions = ("inbox", "flow", "archived", "menu", "outbox", "sent", "failed", "filter", "export", "legacy_inbox")
 
-    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+    class Menu(BaseMenuView):  # pragma: no cover
         def derive_menu(self):
             org = self.request.org
             counts = SystemLabel.get_counts(org)

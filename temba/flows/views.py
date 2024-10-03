@@ -36,7 +36,7 @@ from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
 from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import BaseExportView, DependencyDeleteModal, MenuMixin, ModalMixin
+from temba.orgs.views import BaseExportView, BaseMenuView, DependencyDeleteModal, ModalMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
 from temba.utils.fields import (
@@ -201,7 +201,7 @@ class FlowCRUDL(SmartCRUDL):
             initial_queryset = super().get_queryset()
             return initial_queryset.filter(is_active=True)
 
-    class Menu(MenuMixin, SmartTemplateView):
+    class Menu(BaseMenuView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
