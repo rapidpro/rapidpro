@@ -40,7 +40,7 @@ from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectWidget, TembaChoiceField
 from temba.utils.models import patch_queryset_count
 from temba.utils.models.es import IDSliceQuerySet
-from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalMixin, NonAtomicMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, NonAtomicMixin, SpaMixin
 
 from .forms import ContactGroupForm, CreateContactForm, UpdateContactForm
 from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
@@ -671,7 +671,7 @@ class ContactCRUDL(SmartCRUDL):
             except ContactGroup.DoesNotExist:
                 raise Http404("Group not found")
 
-    class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(NonAtomicMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         form_class = CreateContactForm
         submit_button_name = _("Create")
 
@@ -703,7 +703,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, NonAtomicMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "hide"
 
@@ -781,7 +781,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class OpenTicket(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class OpenTicket(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Opens a new ticket for this contact.
         """
@@ -838,7 +838,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.interrupt(self.request.user)
             return obj
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Delete this contact (can't be undone)
         """
@@ -856,7 +856,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
     actions = ("create", "update", "usages", "delete")
 
-    class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ComponentFormMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
         fields = ("name", "preselected_contacts", "group_query")
         success_url = "uuid@contacts.contact_filter"
@@ -890,7 +890,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Update(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactGroupForm
         fields = ("name",)
         success_url = "uuid@contacts.contact_filter"
@@ -1011,7 +1011,7 @@ class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
     actions = ("list", "create", "update", "update_priority", "delete", "usages")
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(ContactFieldForm):
             def clean(self):
                 super().clean()
@@ -1054,7 +1054,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             )
             return self.render_modal_response(form)
 
-    class Update(FieldLookupMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(FieldLookupMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.objects.filter(is_system=False)
         form_class = ContactFieldForm
         submit_button_name = _("Update")

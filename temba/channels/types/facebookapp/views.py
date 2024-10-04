@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.utils.text import truncate
-from temba.utils.views.mixins import ModalMixin
+from temba.utils.views.mixins import ModalFormMixin
 
 from ...models import Channel
 from ...views import ChannelTypeMixin, ClaimViewMixin
@@ -137,7 +137,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return super().form_valid(form)
 
 
-class RefreshToken(ChannelTypeMixin, ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+class RefreshToken(ChannelTypeMixin, ModalFormMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
         fb_user_id = forms.CharField(

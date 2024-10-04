@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import on_transaction_commit
 from temba.utils.fields import SelectMultipleWidget, TembaDateField
-from temba.utils.views.mixins import ModalMixin
+from temba.utils.views.mixins import ModalFormMixin
 
 from .mixins import DependencyMixin, OrgObjPermsMixin, OrgPermsMixin
 
@@ -137,7 +137,7 @@ class BaseMenuView(OrgPermsMixin, SmartTemplateView):
         return JsonResponse({"results": self.get_menu()})
 
 
-class BaseExportModal(ModalMixin, OrgPermsMixin, SmartFormView):
+class BaseExportModal(ModalFormMixin, OrgPermsMixin, SmartFormView):
     """
     Base modal view for exports
     """
@@ -262,7 +262,7 @@ class BaseUsagesModal(DependencyMixin, OrgObjPermsMixin, SmartReadView):
         return context
 
 
-class BaseDependencyDeleteModal(DependencyMixin, ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+class BaseDependencyDeleteModal(DependencyMixin, ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
     """
     Base view for delete modals of flow dependencies
     """

@@ -217,7 +217,7 @@ class ContextMenuMixin:
         return super().get(request, *args, **kwargs)
 
 
-class ModalMixin(SmartFormView):
+class ModalFormMixin(SmartFormView):
     """
     TODO rework this to be an actual mixin
     """

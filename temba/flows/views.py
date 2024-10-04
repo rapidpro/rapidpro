@@ -8,6 +8,7 @@ from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
     SmartDeleteView,
+    SmartFormView,
     SmartListView,
     SmartReadView,
     SmartTemplateView,
@@ -48,7 +49,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.text import slugify_with
-from temba.utils.views.mixins import ContextMenuMixin, ModalMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, SpaMixin, StaffOnlyMixin
 
 from .models import FlowLabel, FlowStartCount, FlowUserConflictException, FlowVersionConflictException, ResultsExport
 
@@ -156,7 +157,7 @@ class FlowRunCRUDL(SmartCRUDL):
     actions = ("delete",)
     model = FlowRun
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         fields = ("id",)
         success_message = None
 
@@ -387,7 +388,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return JsonResponse({"status": "failure", "description": error, "detail": detail}, status=400)
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
@@ -494,7 +495,7 @@ class FlowCRUDL(SmartCRUDL):
             # redirect to the newly created flow
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))
 
-    class Update(AllowOnlyActiveFlowMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(AllowOnlyActiveFlowMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class BaseForm(BaseFlowForm):
             class Meta:
                 model = Flow
@@ -987,7 +988,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class ExportTranslation(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
+    class ExportTranslation(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
             language = forms.ChoiceField(
                 required=False,
@@ -1603,7 +1604,7 @@ class FlowCRUDL(SmartCRUDL):
                 }
             )
 
-    class Start(OrgPermsMixin, ModalMixin):
+    class Start(ModalFormMixin, OrgPermsMixin, SmartFormView):
         class Form(forms.ModelForm):
             flow = TembaChoiceField(
                 queryset=Flow.objects.none(),
@@ -1789,7 +1790,7 @@ class FlowLabelCRUDL(SmartCRUDL):
     model = FlowLabel
     actions = ("create", "update", "delete")
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         fields = ("uuid",)
         success_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
@@ -1803,7 +1804,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             self.object.delete()
             return self.render_modal_response()
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm
         success_url = "uuid@flows.flow_filter"
 
@@ -1812,7 +1813,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "flows")
         form_class = FlowLabelForm
         submit_button_name = _("Create")
@@ -1914,7 +1915,7 @@ class FlowStartCRUDL(SmartCRUDL):
                 )
             return JsonResponse({"results": results})
 
-    class Interrupt(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Interrupt(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         default_template = "smartmin/delete_confirm.html"
         permission = "flows.flowstart_update"
         fields = ()

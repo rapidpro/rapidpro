@@ -18,7 +18,7 @@ from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
-from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Trigger
 
@@ -370,7 +370,7 @@ class TriggerCRUDL(SmartCRUDL):
     class CreateOptOut(BaseCreate):
         trigger_type = Trigger.TYPE_OPT_OUT
 
-    class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalFormMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         def get_form_class(self):
             return self.object.type.form
 
