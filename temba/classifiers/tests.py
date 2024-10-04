@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from temba.request_logs.models import HTTPLog
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .models import Classifier
 from .types.luis import LuisType

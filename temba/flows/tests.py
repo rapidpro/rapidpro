@@ -29,7 +29,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json, s3
 from temba.utils.uuid import uuid4
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .checks import mailroom_url
 from .models import (

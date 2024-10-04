@@ -48,7 +48,7 @@ from temba.tickets.models import TicketExport
 from temba.triggers.models import Trigger
 from temba.utils import json, languages
 from temba.utils.uuid import uuid4
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import (

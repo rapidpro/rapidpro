@@ -9,7 +9,7 @@ from temba.contacts.models import URN, ContactURN
 from temba.orgs.views.base import BaseListView
 from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.request_logs.models import HTTPLog
-from temba.utils.views import SpaMixin
+from temba.utils.views.mixins import SpaMixin
 
 
 class AirtimeCRUDL(SmartCRUDL):

@@ -6,7 +6,7 @@ from django.http import HttpResponseRedirect
 
 from temba.orgs.views.base import BaseListView
 from temba.orgs.views.mixins import OrgObjPermsMixin
-from temba.utils.views import SpaMixin
+from temba.utils.views.mixins import SpaMixin
 
 from .models import Archive
 

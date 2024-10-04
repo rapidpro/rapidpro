@@ -61,7 +61,7 @@ from temba.utils.fields import (
 )
 from temba.utils.text import generate_secret
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import (
+from temba.utils.views.mixins import (
     ComponentFormMixin,
     ContentMenuMixin,
     NonAtomicMixin,

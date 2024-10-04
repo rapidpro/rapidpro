@@ -36,7 +36,7 @@ from temba.tickets.models import Ticket
 from temba.utils import s3
 from temba.utils.compose import compose_deserialize_attachments, compose_serialize
 from temba.utils.fields import ContactSearchWidget
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .tasks import fail_old_android_messages, squash_msg_counts
 

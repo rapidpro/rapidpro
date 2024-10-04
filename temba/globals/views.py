@@ -9,7 +9,7 @@ from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, Modal
 from temba.orgs.views.base import BaseListView
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
-from temba.utils.views import ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
 
 from .models import Global
 

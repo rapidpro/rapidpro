@@ -13,10 +13,10 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin
 from temba.orgs.views.base import BaseListView, BaseMenuView
-from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
 
 from .models import Campaign, CampaignEvent
 
