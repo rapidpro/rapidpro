@@ -2,7 +2,7 @@ import logging
 from urllib.parse import quote, urlencode
 
 import requests
-from smartmin.views import SmartModelActionView, SmartModelFormView, SmartFormView
+from smartmin.views import SmartFormView, SmartModelActionView, SmartModelFormView
 
 from django import forms
 from django.conf import settings

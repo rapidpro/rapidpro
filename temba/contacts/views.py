@@ -26,8 +26,8 @@ from temba.channels.models import Channel
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import User
-from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal
-from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal
+from temba.orgs.views.base import BaseExportModal, BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket, Topic
 from temba.utils import json, on_transaction_commit
@@ -272,7 +272,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return JsonResponse({"results": menu})
 
-    class Export(BaseExportView):
+    class Export(BaseExportModal):
         export_type = ContactExport
         success_url = "@contacts.contact_list"
         size_limit = 1_000_000

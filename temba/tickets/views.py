@@ -20,8 +20,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import BaseExportView
-from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.base import BaseExportModal, BaseListView, BaseMenuView
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
@@ -526,7 +525,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
-    class Export(BaseExportView):
+    class Export(BaseExportModal):
         export_type = TicketExport
         success_url = "@tickets.ticket_list"
 

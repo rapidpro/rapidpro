@@ -21,8 +21,8 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.mailroom.client.types import Exclusions
 from temba.orgs.models import Org
-from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal
-from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal
+from temba.orgs.views.base import BaseExportModal, BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.views import ScheduleFormMixin
 from temba.templates.models import Template, TemplateTranslation
@@ -868,8 +868,8 @@ class MsgCRUDL(SmartCRUDL):
 
                 return menu
 
-    class Export(BaseExportView):
-        class Form(BaseExportView.Form):
+    class Export(BaseExportModal):
+        class Form(BaseExportModal.Form):
             LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
             SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 

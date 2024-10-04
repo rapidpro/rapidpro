@@ -1,8 +1,20 @@
-from smartmin.views import SmartListView, SmartTemplateView
+from datetime import timedelta
 
+from smartmin.views import SmartFormView, SmartListView, SmartTemplateView
+
+from django import forms
+from django.contrib import messages
+from django.db.models.functions import Lower
 from django.http import JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.text import slugify
+from django.utils.translation import gettext_lazy as _
+
+from temba.contacts.models import ContactField, ContactGroup
+from temba.utils import on_transaction_commit
+from temba.utils.fields import SelectMultipleWidget, TembaDateField
+from temba.utils.views.mixins import ModalMixin
 
 from .mixins import OrgPermsMixin
 
@@ -123,3 +135,114 @@ class BaseMenuView(OrgPermsMixin, SmartTemplateView):
 
     def render_to_response(self, context, **response_kwargs):
         return JsonResponse({"results": self.get_menu()})
+
+
+class BaseExportModal(ModalMixin, OrgPermsMixin, SmartFormView):
+    """
+    Base modal view for exports
+    """
+
+    class Form(forms.Form):
+        MAX_FIELDS_COLS = 10
+        MAX_GROUPS_COLS = 10
+
+        start_date = TembaDateField(label=_("Start Date"))
+        end_date = TembaDateField(label=_("End Date"))
+
+        with_fields = forms.ModelMultipleChoiceField(
+            ContactField.objects.none(),
+            required=False,
+            label=_("Fields"),
+            widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}),
+        )
+        with_groups = forms.ModelMultipleChoiceField(
+            ContactGroup.objects.none(),
+            required=False,
+            label=_("Groups"),
+            widget=SelectMultipleWidget(
+                attrs={"placeholder": _("Optional: Group memberships to include"), "searchable": True}
+            ),
+        )
+
+        def __init__(self, org, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            self.org = org
+            self.fields["with_fields"].queryset = ContactField.get_fields(org).order_by(Lower("name"))
+            self.fields["with_groups"].queryset = ContactGroup.get_groups(org=org, ready_only=True).order_by(
+                Lower("name")
+            )
+
+        def clean_with_fields(self):
+            data = self.cleaned_data["with_fields"]
+            if data and len(data) > self.MAX_FIELDS_COLS:
+                raise forms.ValidationError(_(f"You can only include up to {self.MAX_FIELDS_COLS} fields."))
+
+            return data
+
+        def clean_with_groups(self):
+            data = self.cleaned_data["with_groups"]
+            if data and len(data) > self.MAX_GROUPS_COLS:
+                raise forms.ValidationError(_(f"You can only include up to {self.MAX_GROUPS_COLS} groups."))
+
+            return data
+
+        def clean(self):
+            cleaned_data = super().clean()
+
+            start_date = cleaned_data.get("start_date")
+            end_date = cleaned_data.get("end_date")
+
+            if start_date and start_date > timezone.now().astimezone(self.org.timezone).date():
+                raise forms.ValidationError(_("Start date can't be in the future."))
+
+            if end_date and start_date and end_date < start_date:
+                raise forms.ValidationError(_("End date can't be before start date."))
+
+            return cleaned_data
+
+    form_class = Form
+    submit_button_name = _("Export")
+    success_message = _("We are preparing your export and you will get a notification when it is complete.")
+    export_type = None
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["org"] = self.request.org
+        return kwargs
+
+    def derive_initial(self):
+        initial = super().derive_initial()
+
+        # default to last 90 days in org timezone
+        end = timezone.now()
+        start = end - timedelta(days=90)
+
+        initial["end_date"] = end.date()
+        initial["start_date"] = start.date()
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["blocker"] = self.get_blocker()
+        return context
+
+    def get_blocker(self) -> str:
+        if self.export_type.has_recent_unfinished(self.request.org):
+            return "existing-export"
+
+        return ""
+
+    def form_valid(self, form):
+        if self.get_blocker():
+            return self.form_invalid(form)
+
+        user = self.request.user
+        org = self.request.org
+        export = self.create_export(org, user, form)
+
+        on_transaction_commit(lambda: export.start())
+
+        messages.info(self.request, self.success_message)
+
+        return self.render_modal_response(form)
