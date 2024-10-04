@@ -3,6 +3,7 @@ from urllib.parse import quote, urlencode
 
 import requests
 
+from django import forms
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
@@ -12,6 +13,7 @@ from django.utils.functional import cached_property
 
 from temba import __version__ as temba_version
 from temba.utils import json
+from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMultipleWidget, SelectWidget
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,45 @@ class StaffOnlyMixin:
 
     def has_permission(self, request, *args, **kwargs):
         return self.request.user.is_staff
+
+
+class ComponentFormMixin:
+    """
+    Mixin to replace form field controls with component based widgets
+    """
+
+    def customize_form_field(self, name, field):
+        attrs = field.widget.attrs if field.widget.attrs else {}
+
+        # don't replace the widget if it is already one of us
+        if isinstance(
+            field.widget,
+            (forms.widgets.HiddenInput, CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget, DateWidget),
+        ):
+            return field
+
+        if isinstance(field.widget, (forms.widgets.Textarea,)):
+            attrs["textarea"] = True
+            field.widget = InputWidget(attrs=attrs)
+        elif isinstance(field.widget, (forms.widgets.PasswordInput,)):  # pragma: needs cover
+            attrs["password"] = True
+            field.widget = InputWidget(attrs=attrs)
+        elif isinstance(
+            field.widget,
+            (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput),
+        ):
+            field.widget = InputWidget(attrs=attrs)
+        elif isinstance(field.widget, (forms.widgets.Select,)):
+            if isinstance(field, (forms.models.ModelMultipleChoiceField,)):
+                field.widget = SelectMultipleWidget(attrs)  # pragma: needs cover
+            else:
+                field.widget = SelectWidget(attrs)
+
+            field.widget.choices = field.choices
+        elif isinstance(field.widget, (forms.widgets.CheckboxInput,)):
+            field.widget = CheckboxWidget(attrs)
+
+        return field
 
 
 class ContentMenuMixin:
