@@ -14,7 +14,7 @@ from temba.orgs.views import ModalMixin
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.text import truncate
-from temba.utils.views import ContentMenuMixin
+from temba.utils.views.mixins import ContentMenuMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin

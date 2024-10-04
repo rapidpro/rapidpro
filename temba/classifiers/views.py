@@ -7,7 +7,8 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import DependencyDeleteModal
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views import ComponentFormMixin, SpaMixin
+from temba.utils.views.mixins import ContentMenuMixin
 
 from .models import Classifier
 

@@ -16,10 +16,11 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
 from temba.orgs.views.base import BaseListView, BaseMenuView
-from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views import ComponentFormMixin, SpaMixin
+from temba.utils.views.mixins import ContentMenuMixin
 
 from .models import Trigger
 

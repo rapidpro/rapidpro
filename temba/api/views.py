@@ -15,7 +15,7 @@ from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin
 from temba.utils.models import TembaModel
-from temba.utils.views import NonAtomicMixin
+from temba.utils.views.mixins import NonAtomicMixin
 
 from .models import APIToken, BulkActionFailure
 
