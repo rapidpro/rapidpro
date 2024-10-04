@@ -27,8 +27,8 @@ from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
-from temba.utils.views import ComponentFormMixin, SpaMixin
-from temba.utils.views.mixins import ContentMenuMixin
+from temba.utils.views import ComponentFormMixin
+from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
 
 from .forms import ShortcutForm, TopicForm
 from .models import (

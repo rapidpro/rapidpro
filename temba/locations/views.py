@@ -10,8 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.orgs.views.mixins import OrgPermsMixin
 from temba.utils import json
-from temba.utils.views import SpaMixin
-from temba.utils.views.mixins import ContentMenuMixin
+from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
 
 
 class BoundaryCRUDL(SmartCRUDL):

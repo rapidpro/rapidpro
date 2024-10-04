@@ -49,8 +49,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.text import slugify_with
-from temba.utils.views import SpaMixin
-from temba.utils.views.mixins import ContentMenuMixin, StaffOnlyMixin
+from temba.utils.views.mixins import ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
 from .models import FlowLabel, FlowStartCount, FlowUserConflictException, FlowVersionConflictException, ResultsExport
 

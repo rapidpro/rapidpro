@@ -19,8 +19,8 @@ from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
-from temba.utils.views import ComponentFormMixin, SpaMixin
-from temba.utils.views.mixins import ContentMenuMixin
+from temba.utils.views import ComponentFormMixin
+from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
 
 from .models import Trigger
 

@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.models import Channel, ChannelCount
 from temba.orgs.models import Org
 from temba.orgs.views.mixins import OrgPermsMixin
-from temba.utils.views import SpaMixin
+from temba.utils.views.mixins import SpaMixin
 
 flattened_colors = [
     "#335c81",

@@ -10,8 +10,7 @@ from temba.classifiers.models import Classifier
 from temba.orgs.views.base import BaseListView
 from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.utils import str_to_bool
-from temba.utils.views import SpaMixin
-from temba.utils.views.mixins import ContentMenuMixin
+from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
 
 from .models import HTTPLog
 

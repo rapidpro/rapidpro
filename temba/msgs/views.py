@@ -37,8 +37,7 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import SpaMixin
-from temba.utils.views.mixins import ContentMenuMixin, NonAtomicMixin, PostOnlyMixin, StaffOnlyMixin
+from temba.utils.views.mixins import ContentMenuMixin, NonAtomicMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
 from temba.utils.views.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel

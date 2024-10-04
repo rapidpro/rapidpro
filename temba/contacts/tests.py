@@ -35,7 +35,7 @@ from temba.tickets.models import Ticket, TicketCount, Topic
 from temba.triggers.models import Trigger
 from temba.utils import json, s3
 from temba.utils.dates import datetime_to_timestamp
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .models import (
     URN,

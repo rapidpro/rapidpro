@@ -41,8 +41,8 @@ from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import ComponentFormMixin, SpaMixin
-from temba.utils.views.mixins import ContentMenuMixin
+from temba.utils.views import ComponentFormMixin
+from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
 
 from .models import Channel, ChannelCount, ChannelLog
 

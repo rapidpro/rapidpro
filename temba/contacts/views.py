@@ -35,8 +35,8 @@ from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectWidget, TembaChoiceField
 from temba.utils.models import patch_queryset_count
 from temba.utils.models.es import IDSliceQuerySet
-from temba.utils.views import ComponentFormMixin, SpaMixin
-from temba.utils.views.mixins import ContentMenuMixin, NonAtomicMixin
+from temba.utils.views import ComponentFormMixin
+from temba.utils.views.mixins import ContentMenuMixin, NonAtomicMixin, SpaMixin
 
 from .forms import ContactGroupForm, CreateContactForm, UpdateContactForm
 from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
