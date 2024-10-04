@@ -1,4 +1,4 @@
-from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
+from smartmin.views import SmartCRUDL, SmartReadView
 
 from django.db.models import Prefetch
 from django.urls import reverse
@@ -6,7 +6,8 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import URN, ContactURN
-from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.base import BaseListView
+from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.request_logs.models import HTTPLog
 from temba.utils.views import SpaMixin
 
@@ -15,7 +16,7 @@ class AirtimeCRUDL(SmartCRUDL):
     model = AirtimeTransfer
     actions = ("list", "read")
 
-    class List(SpaMixin, OrgPermsMixin, SmartListView):
+    class List(SpaMixin, BaseListView):
         menu_path = "/settings/workspace"
         title = _("Recent Airtime Transfers")
         fields = ("status", "contact", "recipient", "currency", "actual_amount", "created_on")
@@ -38,9 +39,6 @@ class AirtimeCRUDL(SmartCRUDL):
                 return reverse("contacts.contact_read", args=[obj.contact.uuid])
 
             return super().lookup_field_link(context, field, obj)
-
-        def derive_queryset(self, **kwargs):
-            return AirtimeTransfer.objects.filter(org=self.derive_org())
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

@@ -5,7 +5,7 @@ from functools import cached_property
 from urllib.parse import quote_plus
 
 import magic
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.conf import settings
@@ -43,7 +43,7 @@ from temba.utils.wizard import SmartWizardUpdateView, SmartWizardView
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
 
 
-class SystemLabelView(SpaMixin, OrgPermsMixin, SmartListView):
+class SystemLabelView(SpaMixin, BaseListView):
     """
     Base class for views backed by a system label or message label queryset
     """
@@ -1174,9 +1174,9 @@ class MediaCRUDL(SmartCRUDL):
                 }
             )
 
-    class List(StaffOnlyMixin, OrgPermsMixin, SmartListView):
+    class List(StaffOnlyMixin, BaseListView):
         fields = ("url", "content_type", "size", "created_by", "created_on")
         default_order = ("-created_on",)
 
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(org=self.request.org, original=None)
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(original=None)

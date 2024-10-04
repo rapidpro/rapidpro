@@ -27,7 +27,7 @@ from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import User
 from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
-from temba.orgs.views.base import BaseMenuView
+from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket, Topic
 from temba.utils import json, on_transaction_commit
@@ -1093,7 +1093,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
-    class List(ContentMenuMixin, SpaMixin, OrgPermsMixin, SmartListView):
+    class List(SpaMixin, ContentMenuMixin, BaseListView):
         menu_path = "/contact/fields"
         title = _("Fields")
         default_order = "name"
@@ -1109,8 +1109,8 @@ class ContactFieldCRUDL(SmartCRUDL):
                     as_button=True,
                 )
 
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True, is_system=False)
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True, is_system=False)
 
     class Usages(FieldLookupMixin, DependencyUsagesModal):
         permission = "contacts.contactfield_read"
