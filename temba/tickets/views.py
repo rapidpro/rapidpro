@@ -27,7 +27,7 @@ from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
-from temba.utils.views.mixins import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, SpaMixin
 
 from .forms import ShortcutForm, TopicForm
 from .models import (
@@ -82,7 +82,7 @@ class ShortcutCRUDL(SmartCRUDL):
             redirect_url = self.get_redirect_url()
             return HttpResponseRedirect(redirect_url)
 
-    class List(SpaMixin, ContentMenuMixin, BaseListView):
+    class List(SpaMixin, ContextMenuMixin, BaseListView):
         menu_path = "/ticket/shortcuts"
 
         def derive_queryset(self, **kwargs):
@@ -170,7 +170,7 @@ class TicketCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
         success_url = "hide"
 
-    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
+    class List(SpaMixin, ContextMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
@@ -341,7 +341,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return menu
 
-    class Folder(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
+    class Folder(ContextMenuMixin, OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"
         paginate_by = 25
 

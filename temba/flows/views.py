@@ -49,7 +49,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.text import slugify_with
-from temba.utils.views.mixins import ContentMenuMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views.mixins import ContextMenuMixin, SpaMixin, StaffOnlyMixin
 
 from .models import FlowLabel, FlowStartCount, FlowUserConflictException, FlowVersionConflictException, ResultsExport
 
@@ -666,7 +666,7 @@ class FlowCRUDL(SmartCRUDL):
                         match_type=Trigger.MATCH_FIRST_WORD,
                     )
 
-    class BaseList(SpaMixin, BulkActionMixin, ContentMenuMixin, BaseListView):
+    class BaseList(SpaMixin, BulkActionMixin, ContextMenuMixin, BaseListView):
         permission = "flows.flow_list"
         title = _("Flows")
         refresh = 10000
@@ -849,7 +849,7 @@ class FlowCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             return qs.filter(org=self.request.org, labels=self.label, is_archived=False).order_by("-created_on")
 
-    class Editor(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Editor(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def derive_menu_path(self):
@@ -1365,7 +1365,7 @@ class FlowCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             return JsonResponse({"counts": self.get_object().get_category_counts()})
 
-    class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def build_content_menu(self, menu):

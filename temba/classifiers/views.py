@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import DependencyDeleteModal
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views.mixins import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, SpaMixin
 
 from .models import Classifier
 
@@ -48,7 +48,7 @@ class ClassifierCRUDL(SmartCRUDL):
         success_url = "@orgs.org_workspace"
         success_message = _("Your classifier has been deleted.")
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 

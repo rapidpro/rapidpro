@@ -14,7 +14,7 @@ from temba.orgs.views import ModalMixin
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.text import truncate
-from temba.utils.views.mixins import ContentMenuMixin
+from temba.utils.views.mixins import ContextMenuMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -220,7 +220,7 @@ class ClearSessionToken(ChannelTypeMixin, OrgPermsMixin, SmartTemplateView):
         return JsonResponse({})
 
 
-class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class RequestCode(ChannelTypeMixin, ModalMixin, ContextMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         pass
 
@@ -284,7 +284,7 @@ class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMix
                 )
 
 
-class VerifyCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class VerifyCode(ChannelTypeMixin, ModalMixin, ContextMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         code = forms.CharField(
             min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()

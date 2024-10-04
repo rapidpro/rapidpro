@@ -35,7 +35,7 @@ from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectWidget, TembaChoiceField
 from temba.utils.models import patch_queryset_count
 from temba.utils.models.es import IDSliceQuerySet
-from temba.utils.views.mixins import ComponentFormMixin, ContentMenuMixin, NonAtomicMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, NonAtomicMixin, SpaMixin
 
 from .forms import ContactGroupForm, CreateContactForm, UpdateContactForm
 from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
@@ -313,7 +313,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return JsonResponse({"results": results, "more": False, "total": len(results), "err": "nil"})
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
         select_related = ("current_flow",)
@@ -499,7 +499,7 @@ class ContactCRUDL(SmartCRUDL):
             }
             return JsonResponse(summary)
 
-    class List(ContentMenuMixin, ContactListView):
+    class List(ContextMenuMixin, ContactListView):
         title = _("Active")
         system_group = ContactGroup.TYPE_DB_ACTIVE
         menu_path = "/contact/active"
@@ -552,7 +552,7 @@ class ContactCRUDL(SmartCRUDL):
             context["contact_fields"] = ContactField.get_fields(org).order_by("-show_in_table", "-priority", "id")[0:6]
             return context
 
-    class Blocked(ContentMenuMixin, ContactListView):
+    class Blocked(ContextMenuMixin, ContactListView):
         title = _("Blocked")
         system_group = ContactGroup.TYPE_DB_BLOCKED
 
@@ -568,7 +568,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Stopped(ContentMenuMixin, ContactListView):
+    class Stopped(ContextMenuMixin, ContactListView):
         title = _("Stopped")
         template_name = "contacts/contact_stopped.html"
         system_group = ContactGroup.TYPE_DB_STOPPED
@@ -585,7 +585,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Archived(ContentMenuMixin, ContactListView):
+    class Archived(ContextMenuMixin, ContactListView):
         title = _("Archived")
         template_name = "contacts/contact_archived.html"
         system_group = ContactGroup.TYPE_DB_ARCHIVED
@@ -611,7 +611,7 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contact_delete"):
                 menu.add_js("contacts_delete_all", _("Delete All"))
 
-    class Filter(OrgObjPermsMixin, ContentMenuMixin, ContactListView):
+    class Filter(OrgObjPermsMixin, ContextMenuMixin, ContactListView):
         template_name = "contacts/contact_filter.html"
 
         def build_content_menu(self, menu):
@@ -1093,7 +1093,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
-    class List(SpaMixin, ContentMenuMixin, BaseListView):
+    class List(SpaMixin, ContextMenuMixin, BaseListView):
         menu_path = "/contact/fields"
         title = _("Fields")
         default_order = "name"

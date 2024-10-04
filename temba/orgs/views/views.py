@@ -63,7 +63,7 @@ from temba.utils.text import generate_secret
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views.mixins import (
     ComponentFormMixin,
-    ContentMenuMixin,
+    ContextMenuMixin,
     NonAtomicMixin,
     NoNavMixin,
     PostOnlyMixin,
@@ -492,7 +492,7 @@ class UserCRUDL(SmartCRUDL):
         "send_verification_email",
     )
 
-    class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
+    class Read(StaffOnlyMixin, ContextMenuMixin, SpaMixin, SmartReadView):
         fields = ("email", "date_joined")
         menu_path = "/staff/users/all"
 
@@ -541,7 +541,7 @@ class UserCRUDL(SmartCRUDL):
             context["filters"] = self.filters
             return context
 
-    class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, ContentMenuMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, ContextMenuMixin, SmartUpdateView):
         class Form(UserUpdateForm):
             groups = forms.ModelMultipleChoiceField(
                 widget=SelectMultipleWidget(
@@ -1038,7 +1038,7 @@ class UserCRUDL(SmartCRUDL):
         def derive_formax_sections(self, formax, context):
             formax.add_section("profile", reverse("orgs.user_edit"), icon="user")
 
-    class Tokens(SpaMixin, InferUserMixin, ContentMenuMixin, OrgPermsMixin, SmartUpdateView):
+    class Tokens(SpaMixin, InferUserMixin, ContextMenuMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             new = forms.BooleanField(required=False)
 
@@ -1580,7 +1580,7 @@ class OrgCRUDL(SmartCRUDL):
             context["from_email_custom"] = from_email_custom
             return context
 
-    class Read(StaffOnlyMixin, SpaMixin, ContentMenuMixin, SmartReadView):
+    class Read(StaffOnlyMixin, SpaMixin, ContextMenuMixin, SmartReadView):
         def build_content_menu(self, menu):
             obj = self.get_object()
             if not obj.is_active:
@@ -1806,7 +1806,7 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class ManageAccounts(SpaMixin, InferOrgMixin, ContentMenuMixin, OrgPermsMixin, SmartUpdateView):
+    class ManageAccounts(SpaMixin, InferOrgMixin, ContextMenuMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -2015,7 +2015,7 @@ class OrgCRUDL(SmartCRUDL):
             switch_to_org(self.request, None)
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
-    class SubOrgs(SpaMixin, ContentMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
+    class SubOrgs(SpaMixin, ContextMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
         title = _("Workspaces")
         menu_path = "/settings/workspaces"
 
@@ -2483,7 +2483,7 @@ class OrgCRUDL(SmartCRUDL):
             context["prometheus_url"] = f"https://{org.branding['domain']}/mr/org/{org.uuid}/metrics"
             return context
 
-    class Workspace(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+    class Workspace(SpaMixin, FormaxMixin, ContextMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")
         menu_path = "/settings/workspace"
 
@@ -2804,7 +2804,7 @@ class ExportCRUDL(SmartCRUDL):
     model = Export
     actions = ("download",)
 
-    class Download(SpaMixin, ContentMenuMixin, NotificationTargetMixin, OrgObjPermsMixin, SmartReadView):
+    class Download(SpaMixin, ContextMenuMixin, NotificationTargetMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         menu_path = "/settings/workspace"
         title = _("Export")

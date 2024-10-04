@@ -37,7 +37,7 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views.mixins import ContentMenuMixin, NonAtomicMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views.mixins import ContextMenuMixin, NonAtomicMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
 from temba.utils.views.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
@@ -78,7 +78,7 @@ class SystemLabelView(SpaMixin, BaseListView):
         return context
 
 
-class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
+class MsgListView(ContextMenuMixin, BulkActionMixin, SystemLabelView):
     """
     Base class for message list views with message folders and labels listed by the side
     """
@@ -559,7 +559,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class ScheduledRead(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
+    class ScheduledRead(SpaMixin, ContextMenuMixin, OrgObjPermsMixin, SmartReadView):
         title = _("Broadcast")
         menu_path = "/msg/broadcasts"
 

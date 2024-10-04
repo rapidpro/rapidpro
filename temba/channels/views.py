@@ -41,7 +41,7 @@ from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder
 from temba.utils.models import patch_queryset_count
-from temba.utils.views.mixins import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, SpaMixin
 
 from .models import Channel, ChannelCount, ChannelLog
 
@@ -473,7 +473,7 @@ class ChannelCRUDL(SmartCRUDL):
         "facebook_whitelist",
     )
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, NotificationTargetMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, NotificationTargetMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 

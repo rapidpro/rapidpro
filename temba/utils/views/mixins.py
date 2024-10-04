@@ -114,14 +114,14 @@ class ComponentFormMixin:
         return field
 
 
-class ContentMenuMixin:
+class ContextMenuMixin:
     """
-    Mixin for views that have a content menu (hamburger icon with dropdown items)
+    Mixin for views that have a context menu (hamburger icon with dropdown items)
     """
 
     class Menu:
         """
-        Utility for building content menus
+        Utility for building the menus
         """
 
         def __init__(self):

@@ -10,7 +10,7 @@ from temba.classifiers.models import Classifier
 from temba.orgs.views.base import BaseListView
 from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.utils import str_to_bool
-from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, SpaMixin
 
 from .models import HTTPLog
 
@@ -58,7 +58,7 @@ class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
     actions = ("webhooks", "channel", "classifier", "read")
 
-    class Webhooks(SpaMixin, ContentMenuMixin, BaseListView):
+    class Webhooks(SpaMixin, ContextMenuMixin, BaseListView):
         default_order = ("-created_on",)
         select_related = ("flow",)
         fields = ("flow", "url", "status_code", "request_time", "created_on")
@@ -81,7 +81,7 @@ class HTTPLogCRUDL(SmartCRUDL):
             else:
                 menu.add_link(_("Errors"), f'{reverse("request_logs.httplog_webhooks")}?error=1')
 
-    class Channel(ContentMenuMixin, BaseObjLogsView):
+    class Channel(ContextMenuMixin, BaseObjLogsView):
         source_field = "channel"
         source_url = "uuid@channels.channel_read"
         title = _("Template Fetch Logs")

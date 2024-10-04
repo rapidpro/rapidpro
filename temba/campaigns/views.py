@@ -16,7 +16,7 @@ from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
-from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, SpaMixin
 
 from .models import Campaign, CampaignEvent
 
@@ -108,7 +108,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         menu_path = "/campaign/active"
 
@@ -162,7 +162,7 @@ class CampaignCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class BaseList(SpaMixin, ContentMenuMixin, BulkActionMixin, BaseListView):
+    class BaseList(SpaMixin, ContextMenuMixin, BulkActionMixin, BaseListView):
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"
         default_order = ("-modified_on",)
@@ -475,7 +475,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         "This is a background flow. When it triggers, it will run it for all contacts without interruption."
     )
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<campaign_uuid>[0-9a-f-]+)/(?P<pk>\d+)/$" % (path, action)

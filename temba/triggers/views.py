@@ -19,7 +19,7 @@ from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
-from temba.utils.views.mixins import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, SpaMixin
 
 from .models import Trigger
 
@@ -464,7 +464,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_archived=False)
 
-    class Archived(ContentMenuMixin, BaseList):
+    class Archived(ContextMenuMixin, BaseList):
         """
         Archived triggers of all types
         """

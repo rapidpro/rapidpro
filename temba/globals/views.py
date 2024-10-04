@@ -9,7 +9,7 @@ from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, Modal
 from temba.orgs.views.base import BaseListView
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
-from temba.utils.views.mixins import ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, SpaMixin
 
 from .models import Global
 
@@ -113,7 +113,7 @@ class GlobalCRUDL(SmartCRUDL):
         cancel_url = "@globals.global_list"
         success_url = "@globals.global_list"
 
-    class List(SpaMixin, ContentMenuMixin, BaseListView):
+    class List(SpaMixin, ContextMenuMixin, BaseListView):
         title = _("Globals")
         fields = ("name", "key", "value")
         search_fields = ("name__icontains", "key__icontains")
