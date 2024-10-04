@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
-from temba.orgs.views import OrgObjPermsMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.utils.models import TembaModel
 from temba.utils.views.mixins import ModalMixin, NonAtomicMixin
 

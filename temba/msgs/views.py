@@ -21,8 +21,13 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.mailroom.client.types import Exclusions
 from temba.orgs.models import Org
-from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal
-from temba.orgs.views.base import BaseExportModal, BaseListView, BaseMenuView
+from temba.orgs.views.base import (
+    BaseDependencyDeleteModal,
+    BaseExportModal,
+    BaseListView,
+    BaseMenuView,
+    BaseUsagesModal,
+)
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.views import ScheduleFormMixin
 from temba.templates.models import Template, TemplateTranslation
@@ -1132,10 +1137,10 @@ class LabelCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Usages(DependencyUsagesModal):
+    class Usages(BaseUsagesModal):
         permission = "msgs.label_read"
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "@msgs.msg_inbox"
         success_url = "@msgs.msg_inbox"
         success_message = _("Your label has been deleted.")

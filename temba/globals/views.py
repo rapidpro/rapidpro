@@ -5,8 +5,7 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartUpdateView
 from django import forms
 from django.urls import reverse
 
-from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal
-from temba.orgs.views.base import BaseListView
+from temba.orgs.views.base import BaseDependencyDeleteModal, BaseListView, BaseUsagesModal
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.views.mixins import ContextMenuMixin, ModalMixin, SpaMixin
@@ -109,7 +108,7 @@ class GlobalCRUDL(SmartCRUDL):
             kwargs["org"] = self.derive_org()
             return kwargs
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "@globals.global_list"
         success_url = "@globals.global_list"
 
@@ -154,5 +153,5 @@ class GlobalCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(usage_count=0)
 
-    class Usages(DependencyUsagesModal):
+    class Usages(BaseUsagesModal):
         permission = "globals.global_read"

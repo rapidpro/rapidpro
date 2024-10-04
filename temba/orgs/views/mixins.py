@@ -212,3 +212,22 @@ class BulkActionMixin:
         args = [label] if label else []
 
         model_func(user, objects, *args)
+
+
+class DependencyMixin:
+    dependent_order = {"campaign_event": ("relative_to__name",), "trigger": ("trigger_type", "created_on")}
+    dependent_select_related = {"campaign_event": ("campaign", "relative_to")}
+
+    def get_dependents(self, obj) -> dict:
+        dependents = {}
+        for type_key, type_qs in obj.get_dependents().items():
+            # only include dependency types which we have at least one dependent of
+            if type_qs.exists():
+                type_qs = type_qs.order_by(*self.dependent_order.get(type_key, ("name",)))
+
+                type_select_related = self.dependent_select_related.get(type_key, ())
+                if type_select_related:
+                    type_qs = type_qs.select_related(*type_select_related)
+
+                dependents[type_key] = type_qs
+        return dependents

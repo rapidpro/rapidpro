@@ -1,11 +1,11 @@
 from datetime import timedelta
 
-from smartmin.views import SmartFormView, SmartListView, SmartTemplateView
+from smartmin.views import SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
 
 from django import forms
 from django.contrib import messages
 from django.db.models.functions import Lower
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -16,7 +16,7 @@ from temba.utils import on_transaction_commit
 from temba.utils.fields import SelectMultipleWidget, TembaDateField
 from temba.utils.views.mixins import ModalMixin
 
-from .mixins import OrgPermsMixin
+from .mixins import DependencyMixin, OrgObjPermsMixin, OrgPermsMixin
 
 
 class BaseListView(OrgPermsMixin, SmartListView):
@@ -246,3 +246,62 @@ class BaseExportModal(ModalMixin, OrgPermsMixin, SmartFormView):
         messages.info(self.request, self.success_message)
 
         return self.render_modal_response(form)
+
+
+class BaseUsagesModal(DependencyMixin, OrgObjPermsMixin, SmartReadView):
+    """
+    Base view for usage modals of flow dependencies
+    """
+
+    slug_url_kwarg = "uuid"
+    template_name = "orgs/dependency_usages_modal.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["dependents"] = self.get_dependents(self.object)
+        return context
+
+
+class BaseDependencyDeleteModal(DependencyMixin, ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    """
+    Base view for delete modals of flow dependencies
+    """
+
+    slug_url_kwarg = "uuid"
+    fields = ("uuid",)
+    submit_button_name = _("Delete")
+    template_name = "orgs/dependency_delete_modal.html"
+
+    # warnings for soft dependencies
+    type_warnings = {
+        "flow": _("these may not work as expected"),  # always soft
+        "campaign_event": _("these will be removed"),  # soft for fields and flows
+        "trigger": _("these will be removed"),  # soft for flows
+    }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # get dependents and sort by soft vs hard
+        all_dependents = self.get_dependents(self.object)
+        soft_dependents = {}
+        hard_dependents = {}
+        for type_key, type_qs in all_dependents.items():
+            if type_key in self.object.soft_dependent_types:
+                soft_dependents[type_key] = type_qs
+            else:
+                hard_dependents[type_key] = type_qs
+
+        context["soft_dependents"] = soft_dependents
+        context["hard_dependents"] = hard_dependents
+        context["type_warnings"] = self.type_warnings
+        return context
+
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object()
+        obj.release(request.user)
+
+        messages.info(request, self.derive_success_message())
+        response = HttpResponse()
+        response["Temba-Success"] = self.get_success_url()
+        return response

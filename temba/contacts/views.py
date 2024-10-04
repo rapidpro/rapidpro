@@ -26,8 +26,13 @@ from temba.channels.models import Channel
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import User
-from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal
-from temba.orgs.views.base import BaseExportModal, BaseListView, BaseMenuView
+from temba.orgs.views.base import (
+    BaseDependencyDeleteModal,
+    BaseExportModal,
+    BaseListView,
+    BaseMenuView,
+    BaseUsagesModal,
+)
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket, Topic
 from temba.utils import json, on_transaction_commit
@@ -913,10 +918,10 @@ class ContactGroupCRUDL(SmartCRUDL):
                 obj.update_query(obj.query)
             return obj
 
-    class Usages(DependencyUsagesModal):
+    class Usages(BaseUsagesModal):
         permission = "contacts.contactgroup_read"
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "uuid@contacts.contact_filter"
         success_url = "@contacts.contact_list"
 
@@ -1072,7 +1077,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             super().form_valid(form)
             return self.render_modal_response(form)
 
-    class Delete(FieldLookupMixin, DependencyDeleteModal):
+    class Delete(FieldLookupMixin, BaseDependencyDeleteModal):
         cancel_url = "@contacts.contactfield_list"
         success_url = "hide"
 
@@ -1112,7 +1117,7 @@ class ContactFieldCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(is_active=True, is_system=False)
 
-    class Usages(FieldLookupMixin, DependencyUsagesModal):
+    class Usages(FieldLookupMixin, BaseUsagesModal):
         permission = "contacts.contactfield_read"
         queryset = ContactField.user_fields
 
