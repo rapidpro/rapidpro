@@ -14,8 +14,6 @@ from smartmin.views import (
     SmartDeleteView,
     SmartFormView,
     SmartListView,
-    SmartModelActionView,
-    SmartModelFormView,
     SmartReadView,
     SmartTemplateView,
     SmartUpdateView,
@@ -29,7 +27,6 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.db.models.functions import Lower
 from django.forms import ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -64,6 +61,7 @@ from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views.mixins import (
     ComponentFormMixin,
     ContextMenuMixin,
+    ModalMixin,
     NonAtomicMixin,
     NoNavMixin,
     PostOnlyMixin,
@@ -111,60 +109,6 @@ def check_login(request):
         return HttpResponseRedirect(settings.LOGIN_REDIRECT_URL)
     else:
         return HttpResponseRedirect(settings.LOGIN_URL)
-
-
-class ModalMixin(SmartFormView):
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        if "HTTP_X_PJAX" in self.request.META and "HTTP_X_FORMAX" not in self.request.META:  # pragma: no cover
-            context["base_template"] = "smartmin/modal.html"
-            context["is_modal"] = True
-        if "success_url" in kwargs:  # pragma: no cover
-            context["success_url"] = kwargs["success_url"]
-
-        pairs = [quote(k) + "=" + quote(v) for k, v in self.request.GET.items() if k != "_"]
-        context["action_url"] = self.request.path + "?" + ("&".join(pairs))
-
-        return context
-
-    def render_modal_response(self, form=None):
-        success_url = self.get_success_url()
-        response = self.render_to_response(
-            self.get_context_data(
-                form=form,
-                success_url=self.get_success_url(),
-                success_script=getattr(self, "success_script", None),
-            )
-        )
-
-        response["Temba-Success"] = success_url
-        return response
-
-    def form_valid(self, form):
-        if isinstance(form, forms.ModelForm):
-            self.object = form.save(commit=False)
-
-        try:
-            if isinstance(self, SmartModelFormView):
-                self.object = self.pre_save(self.object)
-                self.save(self.object)
-                self.object = self.post_save(self.object)
-
-            elif isinstance(self, SmartModelActionView):
-                self.execute_action()
-
-            messages.success(self.request, self.derive_success_message())
-
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                return self.render_modal_response(form)
-
-        except (IntegrityError, ValueError, ValidationError) as e:
-            message = getattr(e, "message", str(e).capitalize())
-            self.form.add_error(None, message)
-            return self.render_to_response(self.get_context_data(form=form))
 
 
 class IntegrationViewMixin(OrgPermsMixin):

@@ -21,7 +21,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.mailroom.client.types import Exclusions
 from temba.orgs.models import Org
-from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
+from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal
 from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.views import ScheduleFormMixin
@@ -37,7 +37,14 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views.mixins import ContextMenuMixin, NonAtomicMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views.mixins import (
+    ContextMenuMixin,
+    ModalMixin,
+    NonAtomicMixin,
+    PostOnlyMixin,
+    SpaMixin,
+    StaffOnlyMixin,
+)
 from temba.utils.views.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel

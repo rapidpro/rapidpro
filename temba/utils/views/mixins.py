@@ -2,10 +2,13 @@ import logging
 from urllib.parse import quote, urlencode
 
 import requests
+from smartmin.views import SmartModelActionView, SmartModelFormView, SmartFormView
 
 from django import forms
 from django.conf import settings
-from django.db import transaction
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -212,6 +215,64 @@ class ContextMenuMixin:
             return JsonResponse({"items": self._get_content_menu()})
 
         return super().get(request, *args, **kwargs)
+
+
+class ModalMixin(SmartFormView):
+    """
+    TODO rework this to be an actual mixin
+    """
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "HTTP_X_PJAX" in self.request.META and "HTTP_X_FORMAX" not in self.request.META:  # pragma: no cover
+            context["base_template"] = "smartmin/modal.html"
+            context["is_modal"] = True
+        if "success_url" in kwargs:  # pragma: no cover
+            context["success_url"] = kwargs["success_url"]
+
+        pairs = [quote(k) + "=" + quote(v) for k, v in self.request.GET.items() if k != "_"]
+        context["action_url"] = self.request.path + "?" + ("&".join(pairs))
+
+        return context
+
+    def render_modal_response(self, form=None):
+        success_url = self.get_success_url()
+        response = self.render_to_response(
+            self.get_context_data(
+                form=form,
+                success_url=self.get_success_url(),
+                success_script=getattr(self, "success_script", None),
+            )
+        )
+
+        response["Temba-Success"] = success_url
+        return response
+
+    def form_valid(self, form):
+        if isinstance(form, forms.ModelForm):
+            self.object = form.save(commit=False)
+
+        try:
+            if isinstance(self, SmartModelFormView):
+                self.object = self.pre_save(self.object)
+                self.save(self.object)
+                self.object = self.post_save(self.object)
+
+            elif isinstance(self, SmartModelActionView):
+                self.execute_action()
+
+            messages.success(self.request, self.derive_success_message())
+
+            if "HTTP_X_PJAX" not in self.request.META:
+                return HttpResponseRedirect(self.get_success_url())
+            else:  # pragma: no cover
+                return self.render_modal_response(form)
+
+        except (IntegrityError, ValueError, ValidationError) as e:
+            message = getattr(e, "message", str(e).capitalize())
+            self.form.add_error(None, message)
+            return self.render_to_response(self.get_context_data(form=form))
 
 
 class SpaMixin:

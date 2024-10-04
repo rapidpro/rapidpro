@@ -6,8 +6,9 @@ from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.orgs.views import OrgObjPermsMixin
 from temba.utils.text import truncate
+from temba.utils.views.mixins import ModalMixin
 
 from ...models import Channel
 from ...views import ChannelTypeMixin, ClaimViewMixin

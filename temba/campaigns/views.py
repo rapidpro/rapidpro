@@ -11,12 +11,11 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
-from temba.orgs.views import ModalMixin
 from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
-from temba.utils.views.mixins import ContextMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalMixin, SpaMixin
 
 from .models import Campaign, CampaignEvent
 
