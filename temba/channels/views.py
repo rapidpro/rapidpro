@@ -35,13 +35,13 @@ from temba.contacts.models import URN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import DependencyDeleteModal, ModalMixin
+from temba.orgs.views.base import BaseDependencyDeleteModal
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder
 from temba.utils.models import patch_queryset_count
-from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalMixin, SpaMixin
 
 from .models import Channel, ChannelCount, ChannelLog
 
@@ -699,7 +699,7 @@ class ChannelCRUDL(SmartCRUDL):
                 default_error = dict(message=_("An error occured contacting the Facebook API"))
                 raise ValidationError(response_json.get("error", default_error)["message"])
 
-    class Delete(DependencyDeleteModal, SpaMixin):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "uuid@channels.channel_read"
         success_url = "@orgs.org_workspace"
         success_message = _("Your channel has been removed.")

@@ -21,8 +21,13 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.mailroom.client.types import Exclusions
 from temba.orgs.models import Org
-from temba.orgs.views import BaseExportView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
-from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.base import (
+    BaseDependencyDeleteModal,
+    BaseExportModal,
+    BaseListView,
+    BaseMenuView,
+    BaseUsagesModal,
+)
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.views import ScheduleFormMixin
 from temba.templates.models import Template, TemplateTranslation
@@ -37,7 +42,14 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views.mixins import ContextMenuMixin, NonAtomicMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views.mixins import (
+    ContextMenuMixin,
+    ModalMixin,
+    NonAtomicMixin,
+    PostOnlyMixin,
+    SpaMixin,
+    StaffOnlyMixin,
+)
 from temba.utils.views.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
@@ -861,8 +873,8 @@ class MsgCRUDL(SmartCRUDL):
 
                 return menu
 
-    class Export(BaseExportView):
-        class Form(BaseExportView.Form):
+    class Export(BaseExportModal):
+        class Form(BaseExportModal.Form):
             LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
             SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
@@ -1125,10 +1137,10 @@ class LabelCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Usages(DependencyUsagesModal):
+    class Usages(BaseUsagesModal):
         permission = "msgs.label_read"
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "@msgs.msg_inbox"
         success_url = "@msgs.msg_inbox"
         success_message = _("Your label has been deleted.")

@@ -1,7 +1,6 @@
 from smartmin.views import SmartCRUDL, SmartReadView
 
-from temba.orgs.views import DependencyUsagesModal
-from temba.orgs.views.base import BaseListView
+from temba.orgs.views.base import BaseListView, BaseUsagesModal
 from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.utils.views.mixins import SpaMixin
 
@@ -52,5 +51,5 @@ class TemplateCRUDL(SmartCRUDL):
             context["status_icons"] = self.status_icons
             return context
 
-    class Usages(DependencyUsagesModal):
+    class Usages(BaseUsagesModal):
         permission = "templates.template_read"

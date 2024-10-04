@@ -14,8 +14,6 @@ from smartmin.views import (
     SmartDeleteView,
     SmartFormView,
     SmartListView,
-    SmartModelActionView,
-    SmartModelFormView,
     SmartReadView,
     SmartTemplateView,
     SmartUpdateView,
@@ -29,7 +27,6 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.db.models.functions import Lower
 from django.forms import ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -43,7 +40,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
-from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
@@ -57,13 +53,13 @@ from temba.utils.fields import (
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
-    TembaDateField,
 )
 from temba.utils.text import generate_secret
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views.mixins import (
     ComponentFormMixin,
     ContextMenuMixin,
+    ModalMixin,
     NonAtomicMixin,
     NoNavMixin,
     PostOnlyMixin,
@@ -113,60 +109,6 @@ def check_login(request):
         return HttpResponseRedirect(settings.LOGIN_URL)
 
 
-class ModalMixin(SmartFormView):
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        if "HTTP_X_PJAX" in self.request.META and "HTTP_X_FORMAX" not in self.request.META:  # pragma: no cover
-            context["base_template"] = "smartmin/modal.html"
-            context["is_modal"] = True
-        if "success_url" in kwargs:  # pragma: no cover
-            context["success_url"] = kwargs["success_url"]
-
-        pairs = [quote(k) + "=" + quote(v) for k, v in self.request.GET.items() if k != "_"]
-        context["action_url"] = self.request.path + "?" + ("&".join(pairs))
-
-        return context
-
-    def render_modal_response(self, form=None):
-        success_url = self.get_success_url()
-        response = self.render_to_response(
-            self.get_context_data(
-                form=form,
-                success_url=self.get_success_url(),
-                success_script=getattr(self, "success_script", None),
-            )
-        )
-
-        response["Temba-Success"] = success_url
-        return response
-
-    def form_valid(self, form):
-        if isinstance(form, forms.ModelForm):
-            self.object = form.save(commit=False)
-
-        try:
-            if isinstance(self, SmartModelFormView):
-                self.object = self.pre_save(self.object)
-                self.save(self.object)
-                self.object = self.post_save(self.object)
-
-            elif isinstance(self, SmartModelActionView):
-                self.execute_action()
-
-            messages.success(self.request, self.derive_success_message())
-
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                return self.render_modal_response(form)
-
-        except (IntegrityError, ValueError, ValidationError) as e:
-            message = getattr(e, "message", str(e).capitalize())
-            self.form.add_error(None, message)
-            return self.render_to_response(self.get_context_data(form=form))
-
-
 class IntegrationViewMixin(OrgPermsMixin):
     permission = "orgs.org_manage_integrations"
     integration_type = None
@@ -200,84 +142,6 @@ class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormV
     def form_valid(self, form):
         response = self.render_to_response(self.get_context_data(form=form))
         response["REDIRECT"] = self.get_success_url()
-        return response
-
-
-class DependencyModalMixin(OrgObjPermsMixin):
-    dependent_order = {"campaign_event": ("relative_to__name",), "trigger": ("trigger_type", "created_on")}
-    dependent_select_related = {"campaign_event": ("campaign", "relative_to")}
-
-    def get_dependents(self, obj) -> dict:
-        dependents = {}
-        for type_key, type_qs in obj.get_dependents().items():
-            # only include dependency types which we have at least one dependent of
-            if type_qs.exists():
-                type_qs = type_qs.order_by(*self.dependent_order.get(type_key, ("name",)))
-
-                type_select_related = self.dependent_select_related.get(type_key, ())
-                if type_select_related:
-                    type_qs = type_qs.select_related(*type_select_related)
-
-                dependents[type_key] = type_qs
-        return dependents
-
-
-class DependencyUsagesModal(DependencyModalMixin, SmartReadView):
-    """
-    Base view for usage modals of flow dependencies
-    """
-
-    slug_url_kwarg = "uuid"
-    template_name = "orgs/dependency_usages_modal.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["dependents"] = self.get_dependents(self.object)
-        return context
-
-
-class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
-    """
-    Base view for delete modals of flow dependencies
-    """
-
-    slug_url_kwarg = "uuid"
-    fields = ("uuid",)
-    submit_button_name = _("Delete")
-    template_name = "orgs/dependency_delete_modal.html"
-
-    # warnings for soft dependencies
-    type_warnings = {
-        "flow": _("these may not work as expected"),  # always soft
-        "campaign_event": _("these will be removed"),  # soft for fields and flows
-        "trigger": _("these will be removed"),  # soft for flows
-    }
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # get dependents and sort by soft vs hard
-        all_dependents = self.get_dependents(self.object)
-        soft_dependents = {}
-        hard_dependents = {}
-        for type_key, type_qs in all_dependents.items():
-            if type_key in self.object.soft_dependent_types:
-                soft_dependents[type_key] = type_qs
-            else:
-                hard_dependents[type_key] = type_qs
-
-        context["soft_dependents"] = soft_dependents
-        context["hard_dependents"] = hard_dependents
-        context["type_warnings"] = self.type_warnings
-        return context
-
-    def post(self, request, *args, **kwargs):
-        obj = self.get_object()
-        obj.release(request.user)
-
-        messages.info(request, self.derive_success_message())
-        response = HttpResponse()
-        response["Temba-Success"] = self.get_success_url()
         return response
 
 
@@ -2831,114 +2695,3 @@ class ExportCRUDL(SmartCRUDL):
 
         def get_notification_scope(self) -> tuple[str, str]:
             return "export:finished", self.get_object().get_notification_scope()
-
-
-class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
-    """
-    Base modal view for exports
-    """
-
-    class Form(forms.Form):
-        MAX_FIELDS_COLS = 10
-        MAX_GROUPS_COLS = 10
-
-        start_date = TembaDateField(label=_("Start Date"))
-        end_date = TembaDateField(label=_("End Date"))
-
-        with_fields = forms.ModelMultipleChoiceField(
-            ContactField.objects.none(),
-            required=False,
-            label=_("Fields"),
-            widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}),
-        )
-        with_groups = forms.ModelMultipleChoiceField(
-            ContactGroup.objects.none(),
-            required=False,
-            label=_("Groups"),
-            widget=SelectMultipleWidget(
-                attrs={"placeholder": _("Optional: Group memberships to include"), "searchable": True}
-            ),
-        )
-
-        def __init__(self, org, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-
-            self.org = org
-            self.fields["with_fields"].queryset = ContactField.get_fields(org).order_by(Lower("name"))
-            self.fields["with_groups"].queryset = ContactGroup.get_groups(org=org, ready_only=True).order_by(
-                Lower("name")
-            )
-
-        def clean_with_fields(self):
-            data = self.cleaned_data["with_fields"]
-            if data and len(data) > self.MAX_FIELDS_COLS:
-                raise forms.ValidationError(_(f"You can only include up to {self.MAX_FIELDS_COLS} fields."))
-
-            return data
-
-        def clean_with_groups(self):
-            data = self.cleaned_data["with_groups"]
-            if data and len(data) > self.MAX_GROUPS_COLS:
-                raise forms.ValidationError(_(f"You can only include up to {self.MAX_GROUPS_COLS} groups."))
-
-            return data
-
-        def clean(self):
-            cleaned_data = super().clean()
-
-            start_date = cleaned_data.get("start_date")
-            end_date = cleaned_data.get("end_date")
-
-            if start_date and start_date > timezone.now().astimezone(self.org.timezone).date():
-                raise forms.ValidationError(_("Start date can't be in the future."))
-
-            if end_date and start_date and end_date < start_date:
-                raise forms.ValidationError(_("End date can't be before start date."))
-
-            return cleaned_data
-
-    form_class = Form
-    submit_button_name = _("Export")
-    success_message = _("We are preparing your export and you will get a notification when it is complete.")
-    export_type = None
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["org"] = self.request.org
-        return kwargs
-
-    def derive_initial(self):
-        initial = super().derive_initial()
-
-        # default to last 90 days in org timezone
-        end = timezone.now()
-        start = end - timedelta(days=90)
-
-        initial["end_date"] = end.date()
-        initial["start_date"] = start.date()
-        return initial
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["blocker"] = self.get_blocker()
-        return context
-
-    def get_blocker(self) -> str:
-        if self.export_type.has_recent_unfinished(self.request.org):
-            return "existing-export"
-
-        return ""
-
-    def form_valid(self, form):
-        if self.get_blocker():
-            return self.form_invalid(form)
-
-        user = self.request.user
-        org = self.request.org
-        export = self.create_export(org, user, form)
-
-        on_transaction_commit(lambda: export.start())
-
-        messages.info(self.request, self.success_message)
-
-        return self.render_modal_response(form)

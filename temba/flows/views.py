@@ -35,8 +35,7 @@ from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowSta
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import BaseExportView, DependencyDeleteModal, ModalMixin
-from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.base import BaseDependencyDeleteModal, BaseExportModal, BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
@@ -49,7 +48,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.text import slugify_with
-from temba.utils.views.mixins import ContextMenuMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalMixin, SpaMixin, StaffOnlyMixin
 
 from .models import FlowLabel, FlowStartCount, FlowUserConflictException, FlowVersionConflictException, ResultsExport
 
@@ -482,7 +481,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "uuid@flows.flow_editor"
         success_url = "@flows.flow_list"
 
@@ -1153,8 +1152,8 @@ class FlowCRUDL(SmartCRUDL):
         def derive_initial(self):
             return {"language": self.po_info.language_code if self.po_info else ""}
 
-    class ExportResults(BaseExportView):
-        class Form(BaseExportView.Form):
+    class ExportResults(BaseExportModal):
+        class Form(BaseExportModal.Form):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.none(), required=True, widget=forms.MultipleHiddenInput()
             )

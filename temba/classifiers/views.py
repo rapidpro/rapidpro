@@ -5,7 +5,7 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import DependencyDeleteModal
+from temba.orgs.views.base import BaseDependencyDeleteModal
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, SpaMixin
 
@@ -43,7 +43,7 @@ class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
     actions = ("read", "connect", "delete", "sync")
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "uuid@classifiers.classifier_read"
         success_url = "@orgs.org_workspace"
         success_message = _("Your classifier has been deleted.")
