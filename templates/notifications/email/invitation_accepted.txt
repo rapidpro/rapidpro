@@ -1,0 +1,6 @@
+{% extends "notifications/email/base.html" %}
+{% load i18n %}
+
+{% block notification-body %}
+{% blocktrans with email=notification.data.email %}User {{ email }} accepted an invitation to join your workspace.{% endblocktrans %}
+{% endblock notification-body %}

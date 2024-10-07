@@ -7,14 +7,19 @@ from django.utils import timezone
 from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ResultsExport
 from temba.msgs.models import MessageExport
-from temba.orgs.models import OrgRole
+from temba.orgs.models import Invitation, OrgRole
 from temba.tests import CRUDLTestMixin, TembaTest, matchers
 from temba.tickets.models import TicketExport
 
 from .incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
 from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notification_counts, trim_notifications
-from .types.builtin import ExportFinishedNotificationType, UserEmailNotificationType, UserPasswordNotificationType
+from .types.builtin import (
+    ExportFinishedNotificationType,
+    InvitationAcceptedNotificationType,
+    UserEmailNotificationType,
+    UserPasswordNotificationType,
+)
 
 
 class IncidentTest(TembaTest):
@@ -498,6 +503,31 @@ class NotificationTest(TembaTest):
         self.assertEqual("[Nyaruka] Your password has been changed", mail.outbox[0].subject)
         self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
         self.assertIn("Your password has been changed.", mail.outbox[0].body)
+
+    def test_invitation_accepted(self):
+        invitation = Invitation.objects.create(
+            org=self.org, email="bob@nyaruka.com", created_by=self.admin, modified_by=self.admin
+        )
+
+        InvitationAcceptedNotificationType.create(invitation)
+
+        self.assert_notifications(
+            expected_json={
+                "type": "invitation:accepted",
+                "created_on": matchers.ISODate(),
+                "target_url": None,
+                "is_seen": True,
+            },
+            expected_users={self.admin},
+            email=True,
+        )
+
+        send_notification_emails()
+
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual("[Nyaruka] New user joined your workspace", mail.outbox[0].subject)
+        self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())  # previous address
+        self.assertIn("User bob@nyaruka.com accepted an invitation to join your workspace.", mail.outbox[0].body)
 
     def test_get_unseen_count(self):
         imp = ContactImport.objects.create(

@@ -2145,9 +2145,7 @@ class OrgCRUDL(SmartCRUDL):
             return None
 
         def save(self, obj):
-            obj.add_user(self.request.user, self.invitation.role)
-
-            self.invitation.release()
+            self.invitation.accept(self.request.user)
 
             switch_to_org(self.request, obj)
 
