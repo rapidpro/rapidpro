@@ -218,7 +218,7 @@ class ClearSessionToken(ChannelTypeMixin, OrgPermsMixin, SmartTemplateView):
         return JsonResponse({})
 
 
-class RequestCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView):
+class RequestCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView, SmartFormView):
     class Form(forms.Form):
         pass
 
@@ -277,7 +277,7 @@ class RequestCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView):
                 )
 
 
-class VerifyCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView):
+class VerifyCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView, SmartFormView):
     class Form(forms.Form):
         code = forms.CharField(
             min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()
