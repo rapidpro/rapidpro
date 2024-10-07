@@ -5,7 +5,7 @@ from functools import cached_property
 from urllib.parse import quote_plus
 
 import magic
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.conf import settings
@@ -55,7 +55,7 @@ from temba.utils.views.wizard import SmartWizardUpdateView, SmartWizardView
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
 
 
-class SystemLabelView(SpaMixin, BaseListView):
+class SystemLabelView(BaseListView):
     """
     Base class for views backed by a system label or message label queryset
     """
@@ -717,7 +717,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Status(BaseListView):
+    class Status(OrgPermsMixin, SmartListView):
         permission = "msgs.broadcast_list"
 
         def derive_queryset(self, **kwargs):

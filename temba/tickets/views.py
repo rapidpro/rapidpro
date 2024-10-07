@@ -1,13 +1,6 @@
 from datetime import timedelta
 
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartListView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCRUDL, SmartDeleteView, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
@@ -20,7 +13,14 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views.base import BaseExportModal, BaseListView, BaseMenuView
+from temba.orgs.views.base import (
+    BaseCreateModal,
+    BaseDeleteModal,
+    BaseExportModal,
+    BaseListView,
+    BaseMenuView,
+    BaseUpdateModal,
+)
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
@@ -48,40 +48,22 @@ class ShortcutCRUDL(SmartCRUDL):
     model = Shortcut
     actions = ("create", "update", "delete", "list")
 
-    class Create(ComponentFormMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
+    class Create(BaseCreateModal):
         form_class = ShortcutForm
         success_url = "@tickets.shortcut_list"
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
 
         def save(self, obj):
             return Shortcut.create(self.request.org, self.request.user, obj.name, obj.text)
 
-    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(BaseUpdateModal):
         form_class = ShortcutForm
         success_url = "@tickets.shortcut_list"
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
-        default_template = "smartmin/delete_confirm.html"
-        submit_button_name = _("Delete")
-        fields = ("id",)
+    class Delete(BaseDeleteModal):
         cancel_url = "@tickets.shortcut_list"
         redirect_url = "@tickets.shortcut_list"
 
-        def post(self, request, *args, **kwargs):
-            self.get_object().release(self.request.user)
-            redirect_url = self.get_redirect_url()
-            return HttpResponseRedirect(redirect_url)
-
-    class List(SpaMixin, ContextMenuMixin, BaseListView):
+    class List(ContextMenuMixin, BaseListView):
         menu_path = "/ticket/shortcuts"
 
         def derive_queryset(self, **kwargs):
@@ -102,27 +84,17 @@ class TopicCRUDL(SmartCRUDL):
     model = Topic
     actions = ("create", "update", "delete")
 
-    class Create(ComponentFormMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
+    class Create(BaseCreateModal):
         form_class = TopicForm
         success_url = "hide"
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
 
         def save(self, obj):
             return Topic.create(self.request.org, self.request.user, obj.name)
 
-    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(BaseUpdateModal):
         form_class = TopicForm
         success_url = "hide"
         slug_url_kwarg = "uuid"
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
 
     class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "smartmin/delete_confirm.html"

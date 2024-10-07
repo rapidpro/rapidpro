@@ -1,11 +1,19 @@
 from datetime import timedelta
 
-from smartmin.views import SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
+from smartmin.views import (
+    SmartCreateView,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+)
 
 from django import forms
 from django.contrib import messages
 from django.db.models.functions import Lower
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -14,23 +22,64 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import on_transaction_commit
 from temba.utils.fields import SelectMultipleWidget, TembaDateField
-from temba.utils.views.mixins import ModalFormMixin
+from temba.utils.views.mixins import ComponentFormMixin, ModalFormMixin, SpaMixin
 
 from .mixins import DependencyMixin, OrgObjPermsMixin, OrgPermsMixin
 
 
-class BaseListView(OrgPermsMixin, SmartListView):
+class BaseCreateModal(ComponentFormMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
+    """
+    Base create modal view
+    """
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["org"] = self.request.org
+        return kwargs
+
+    def pre_save(self, obj):
+        obj = super().pre_save(obj)
+        obj.org = self.request.org
+        return obj
+
+
+class BaseUpdateModal(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    """
+    Base update modal view
+    """
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["org"] = self.request.org
+        return kwargs
+
+    def derive_queryset(self, **kwargs):
+        return super().derive_queryset(**kwargs).filter(org=self.request.org, is_active=True)
+
+
+class BaseDeleteModal(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
+    default_template = "smartmin/delete_confirm.html"
+    submit_button_name = _("Delete")
+    fields = ("id",)
+
+    def post(self, request, *args, **kwargs):
+        self.get_object().release(self.request.user)
+        redirect_url = self.get_redirect_url()
+        return HttpResponseRedirect(redirect_url)
+
+
+class BaseListView(SpaMixin, OrgPermsMixin, SmartListView):
     """
     Base list view for objects that belong to the current org
     """
 
     def derive_queryset(self, **kwargs):
-        queryset = super().derive_queryset(**kwargs)
+        qs = super().derive_queryset(**kwargs)
 
         if not self.request.user.is_authenticated:
-            return queryset.none()  # pragma: no cover
+            return qs.none()  # pragma: no cover
         else:
-            return queryset.filter(org=self.request.org)
+            return qs.filter(org=self.request.org)
 
 
 class BaseMenuView(OrgPermsMixin, SmartTemplateView):

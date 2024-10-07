@@ -8,7 +8,7 @@ from django.urls import reverse
 from temba.orgs.views.base import BaseDependencyDeleteModal, BaseListView, BaseUsagesModal
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
-from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin
 
 from .models import Global
 
@@ -112,7 +112,7 @@ class GlobalCRUDL(SmartCRUDL):
         cancel_url = "@globals.global_list"
         success_url = "@globals.global_list"
 
-    class List(SpaMixin, ContextMenuMixin, BaseListView):
+    class List(ContextMenuMixin, BaseListView):
         title = _("Globals")
         fields = ("name", "key", "value")
         search_fields = ("name__icontains", "key__icontains")
