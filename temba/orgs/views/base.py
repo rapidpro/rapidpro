@@ -57,15 +57,15 @@ class BaseUpdateModal(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, Smar
         return super().derive_queryset(**kwargs).filter(org=self.request.org, is_active=True)
 
 
-class BaseDeleteModal(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
+class BaseDeleteModal(OrgObjPermsMixin, SmartDeleteView):
     default_template = "smartmin/delete_confirm.html"
     submit_button_name = _("Delete")
     fields = ("id",)
 
     def post(self, request, *args, **kwargs):
         self.get_object().release(self.request.user)
-        redirect_url = self.get_redirect_url()
-        return HttpResponseRedirect(redirect_url)
+
+        return HttpResponseRedirect(self.get_redirect_url())
 
 
 class BaseListView(SpaMixin, OrgPermsMixin, SmartListView):
