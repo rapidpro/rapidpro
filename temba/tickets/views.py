@@ -69,7 +69,7 @@ class ShortcutCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(is_active=True).order_by(Lower("name"))
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("tickets.shortcut_create"):
                 menu.add_modax(
                     _("New"),
@@ -212,7 +212,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return context
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             # we only support dynamic content menus
             if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
                 return
@@ -328,7 +328,7 @@ class TicketCRUDL(SmartCRUDL):
                 raise Http404()
             return folder
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             # we only support dynamic content menus
             if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
                 return

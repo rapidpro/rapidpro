@@ -194,7 +194,7 @@ class ContextMenuMixin:
         context = super().get_context_data(**kwargs)
 
         # does the page have a content menu?
-        context["has_content_menu"] = len(self._get_content_menu()) > 0
+        context["has_context_menu"] = len(self._get_context_menu()) > 0
 
         # does the page have a search query?
         if "search" in self.request.GET:
@@ -202,17 +202,17 @@ class ContextMenuMixin:
 
         return context
 
-    def _get_content_menu(self):
+    def _get_context_menu(self):
         menu = self.Menu()
-        self.build_content_menu(menu)
+        self.build_context_menu(menu)
         return menu.as_items()
 
-    def build_content_menu(self, menu: Menu):  # pragma: no cover
+    def build_context_menu(self, menu: Menu):  # pragma: no cover
         pass
 
     def get(self, request, *args, **kwargs):
         if "HTTP_TEMBA_CONTENT_MENU" in self.request.META:
-            return JsonResponse({"items": self._get_content_menu()})
+            return JsonResponse({"items": self._get_context_menu()})
 
         return super().get(request, *args, **kwargs)
 

@@ -139,7 +139,7 @@ class MsgListView(ContextMenuMixin, BulkActionMixin, SystemLabelView):
 
         return context
 
-    def build_content_menu(self, menu):
+    def build_context_menu(self, menu):
         if self.has_org_perm("msgs.broadcast_create"):
             menu.add_modax(
                 _("Send"), "send-message", reverse("msgs.broadcast_create"), title=_("New Broadcast"), as_button=True
@@ -340,7 +340,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 .prefetch_related("groups", "contacts")
             )
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_create"):
                 menu.add_modax(
                     _("Send"),
@@ -361,7 +361,7 @@ class BroadcastCRUDL(SmartCRUDL):
             "-created_on",
         )
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_create"):
                 menu.add_modax(
                     _("Send"),
@@ -583,7 +583,7 @@ class BroadcastCRUDL(SmartCRUDL):
             context["send_history"] = self.get_object().children.order_by("-created_on")
             return context
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if self.has_org_perm("msgs.broadcast_update") and obj.schedule.next_fire:
@@ -1013,7 +1013,7 @@ class MsgCRUDL(SmartCRUDL):
         def derive_title(self, *args, **kwargs):
             return self.label.name
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("msgs.msg_update"):
                 menu.add_modax(
                     _("Edit"),

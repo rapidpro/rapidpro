@@ -120,7 +120,7 @@ class GlobalCRUDL(SmartCRUDL):
         paginate_by = 250
         menu_path = "/flow/globals"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("globals.global_create"):
                 menu.add_modax(
                     _("New"),

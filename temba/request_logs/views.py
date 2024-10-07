@@ -75,7 +75,7 @@ class HTTPLogCRUDL(SmartCRUDL):
                 qs = qs.filter(is_error=True)
             return qs
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if str_to_bool(self.request.GET.get("error")):
                 menu.add_link(_("All logs"), reverse("request_logs.httplog_webhooks"))
             else:

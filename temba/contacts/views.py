@@ -332,7 +332,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_queryset(self):
             return Contact.objects.filter(is_active=True)
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if self.has_org_perm("contacts.contact_update"):
@@ -517,7 +517,7 @@ class ContactCRUDL(SmartCRUDL):
                 actions += ("start-flow",)
             return actions
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             search = self.request.GET.get("search")
 
             # define save search conditions
@@ -564,7 +564,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_bulk_actions(self):
             return ("restore", "archive") if self.has_org_perm("contacts.contact_update") else ()
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
@@ -581,7 +581,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_bulk_actions(self):
             return ("restore", "archive") if self.has_org_perm("contacts.contact_update") else ()
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
@@ -609,7 +609,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
@@ -619,7 +619,7 @@ class ContactCRUDL(SmartCRUDL):
     class Filter(OrgObjPermsMixin, ContextMenuMixin, ContactListView):
         template_name = "contacts/contact_filter.html"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
                 menu.add_modax(_("Edit"), "edit-group", reverse("contacts.contactgroup_update", args=[self.group.id]))
 
@@ -1103,7 +1103,7 @@ class ContactFieldCRUDL(SmartCRUDL):
         title = _("Fields")
         default_order = "name"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("contacts.contactfield_create"):
                 menu.add_modax(
                     _("New"),
