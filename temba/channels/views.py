@@ -35,13 +35,13 @@ from temba.contacts.models import URN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import DependencyDeleteModal, ModalMixin
+from temba.orgs.views.base import BaseDependencyDeleteModal
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Channel, ChannelCount, ChannelLog
 
@@ -473,7 +473,7 @@ class ChannelCRUDL(SmartCRUDL):
         "facebook_whitelist",
     )
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, NotificationTargetMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, NotificationTargetMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
@@ -486,7 +486,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_notification_scope(self) -> tuple:
             return "incident:started", str(self.object.id)
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             for item in obj.type.menu_items:
@@ -663,7 +663,7 @@ class ChannelCRUDL(SmartCRUDL):
                 encoder=EpochEncoder,
             )
 
-    class FacebookWhitelist(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+    class FacebookWhitelist(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartModelActionView):
         class DomainForm(forms.Form):
             whitelisted_domain = forms.URLField(
                 required=True,
@@ -699,7 +699,7 @@ class ChannelCRUDL(SmartCRUDL):
                 default_error = dict(message=_("An error occured contacting the Facebook API"))
                 raise ValidationError(response_json.get("error", default_error)["message"])
 
-    class Delete(DependencyDeleteModal, SpaMixin):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "uuid@channels.channel_read"
         success_url = "@orgs.org_workspace"
         success_message = _("Your channel has been removed.")
@@ -733,7 +733,7 @@ class ChannelCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         def derive_title(self):
             return _("%s Channel") % self.object.type.name
 

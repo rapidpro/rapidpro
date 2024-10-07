@@ -1,11 +1,11 @@
 from gettext import gettext as _
 
-from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
+from smartmin.views import SmartCRUDL, SmartReadView
 
 from django.http import HttpResponseRedirect
 
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import SpaMixin
+from temba.orgs.views.base import BaseListView
+from temba.orgs.views.mixins import OrgObjPermsMixin
 
 from .models import Archive
 
@@ -15,19 +15,17 @@ class ArchiveCRUDL(SmartCRUDL):
     actions = ("read", "run", "message")
     permissions = True
 
-    class BaseList(SpaMixin, OrgPermsMixin, SmartListView):
+    class BaseList(BaseListView):
         title = _("Archive")
         fields = ("url", "start_date", "period", "record_count", "size")
         default_order = ("-start_date", "-period", "archive_type")
         paginate_by = 250
 
-        def get_queryset(self, **kwargs):
-            queryset = super().get_queryset(**kwargs)
+        def derive_queryset(self, **kwargs):
+            queryset = super().derive_queryset(**kwargs)
 
             # filter by our archive type
-            return queryset.filter(org=self.request.org, archive_type=self.get_archive_type()).exclude(
-                rollup_id__isnull=False
-            )
+            return queryset.filter(archive_type=self.get_archive_type()).exclude(rollup_id__isnull=False)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

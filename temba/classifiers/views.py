@@ -5,9 +5,9 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import DependencyDeleteModal
-from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.orgs.views.base import BaseDependencyDeleteModal
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, SpaMixin
 
 from .models import Classifier
 
@@ -43,19 +43,19 @@ class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
     actions = ("read", "connect", "delete", "sync")
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "uuid@classifiers.classifier_read"
         success_url = "@orgs.org_workspace"
         success_message = _("Your classifier has been deleted.")
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def derive_menu_path(self):
             return f"/settings/classifiers/{self.get_object().uuid}"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             menu.add_link(_("Log"), reverse("request_logs.httplog_classifier", args=[obj.uuid]))

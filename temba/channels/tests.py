@@ -30,7 +30,7 @@ from temba.tests.crudl import StaffRedirect
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.models import generate_uuid
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .models import Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (

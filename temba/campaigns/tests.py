@@ -14,7 +14,7 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import DefinitionExport, Org
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .models import Campaign, CampaignEvent, EventFire
 from .tasks import trim_event_fires
@@ -1229,7 +1229,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can't archive campaign from other org
         response = self.client.post(reverse("campaigns.campaign_archive", args=[other_org_campaign.id]))
-        self.assertEqual(404, response.status_code)
+        self.assertEqual(302, response.status_code)
 
         # check object is unchanged
         other_org_campaign.refresh_from_db()

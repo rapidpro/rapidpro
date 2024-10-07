@@ -13,9 +13,9 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.utils.models import TembaModel
-from temba.utils.views import NonAtomicMixin
+from temba.utils.views.mixins import ModalFormMixin, NonAtomicMixin
 
 from .models import APIToken, BulkActionFailure
 
@@ -280,7 +280,7 @@ class APITokenCRUDL(SmartCRUDL):
     model = APIToken
     actions = ("delete",)
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         slug_url_kwarg = "key"
         fields = ("key",)
         cancel_url = "@orgs.user_tokens"

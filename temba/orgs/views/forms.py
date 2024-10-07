@@ -10,7 +10,7 @@ from temba.utils.email import EmailSender, is_valid_address, make_smtp_url, pars
 from temba.utils.fields import InputWidget
 from temba.utils.timezones import TimeZoneFormField
 
-from .models import Org, User
+from ..models import Org, User
 
 
 class SignupForm(forms.ModelForm):

@@ -1,8 +1,8 @@
-from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
+from smartmin.views import SmartCRUDL, SmartReadView
 
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import DependencyUsagesModal
-from temba.utils.views import SpaMixin
+from temba.orgs.views.base import BaseListView, BaseUsagesModal
+from temba.orgs.views.mixins import OrgObjPermsMixin
+from temba.utils.views.mixins import SpaMixin
 
 from .models import Template, TemplateTranslation
 
@@ -11,7 +11,7 @@ class TemplateCRUDL(SmartCRUDL):
     model = Template
     actions = ("list", "read", "usages")
 
-    class List(SpaMixin, OrgPermsMixin, SmartListView):
+    class List(BaseListView):
         default_order = ("-created_on",)
 
         def derive_menu_path(self):
@@ -51,5 +51,5 @@ class TemplateCRUDL(SmartCRUDL):
             context["status_icons"] = self.status_icons
             return context
 
-    class Usages(DependencyUsagesModal):
+    class Usages(BaseUsagesModal):
         permission = "templates.template_read"

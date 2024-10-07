@@ -13,7 +13,7 @@ from temba.apks.models import Apk
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user, json
 from temba.utils.text import generate_secret
-from temba.utils.views import NoNavMixin, SpaMixin
+from temba.utils.views.mixins import NoNavMixin, SpaMixin
 
 
 class IndexView(NoNavMixin, SmartTemplateView):

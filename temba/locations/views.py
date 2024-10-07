@@ -8,16 +8,16 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.orgs.mixins import OrgPermsMixin
+from temba.orgs.views.mixins import OrgPermsMixin
 from temba.utils import json
-from temba.utils.views import ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, SpaMixin
 
 
 class BoundaryCRUDL(SmartCRUDL):
     actions = ("alias", "geometry", "boundaries")
     model = AdminBoundary
 
-    class Alias(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartReadView):
+    class Alias(SpaMixin, OrgPermsMixin, ContextMenuMixin, SmartReadView):
         menu_path = "/settings/workspace"
 
         @classmethod

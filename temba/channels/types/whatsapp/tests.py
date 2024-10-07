@@ -8,7 +8,7 @@ from django.urls import reverse
 
 from temba.request_logs.models import HTTPLog
 from temba.tests import MockJsonResponse, MockResponse, TembaTest
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from ...models import Channel
 from .type import WhatsAppType

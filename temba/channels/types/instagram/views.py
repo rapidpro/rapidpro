@@ -8,7 +8,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin
 from temba.utils.text import truncate
 
 from ...models import Channel
@@ -167,7 +167,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return super().form_valid(form)
 
 
-class RefreshToken(ChannelTypeMixin, ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+class RefreshToken(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView, SmartFormView):
     class Form(forms.Form):
         user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
         fb_user_id = forms.CharField(
@@ -182,6 +182,9 @@ class RefreshToken(ChannelTypeMixin, ModalMixin, OrgObjPermsMixin, SmartModelAct
     fields = ()
     template_name = "channels/types/instagram/refresh_token.html"
     title = _("Reconnect Instagram Business Account")
+
+    def derive_menu_path(self):
+        return f"/settings/channels/{self.get_object().uuid}"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

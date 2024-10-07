@@ -1,13 +1,6 @@
 from datetime import timedelta
 
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartListView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCRUDL, SmartDeleteView, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
@@ -20,13 +13,20 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import BaseExportView, BaseMenuView, ModalMixin
+from temba.orgs.views.base import (
+    BaseCreateModal,
+    BaseDeleteModal,
+    BaseExportModal,
+    BaseListView,
+    BaseMenuView,
+    BaseUpdateModal,
+)
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
-from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .forms import ShortcutForm, TopicForm
 from .models import (
@@ -48,46 +48,28 @@ class ShortcutCRUDL(SmartCRUDL):
     model = Shortcut
     actions = ("create", "update", "delete", "list")
 
-    class Create(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartCreateView):
+    class Create(BaseCreateModal):
         form_class = ShortcutForm
         success_url = "@tickets.shortcut_list"
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
 
         def save(self, obj):
             return Shortcut.create(self.request.org, self.request.user, obj.name, obj.text)
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(BaseUpdateModal):
         form_class = ShortcutForm
         success_url = "@tickets.shortcut_list"
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        default_template = "smartmin/delete_confirm.html"
-        submit_button_name = _("Delete")
-        fields = ("id",)
+    class Delete(BaseDeleteModal):
         cancel_url = "@tickets.shortcut_list"
         redirect_url = "@tickets.shortcut_list"
 
-        def post(self, request, *args, **kwargs):
-            self.get_object().release(self.request.user)
-            redirect_url = self.get_redirect_url()
-            return HttpResponseRedirect(redirect_url)
-
-    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
+    class List(ContextMenuMixin, BaseListView):
         menu_path = "/ticket/shortcuts"
 
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True).order_by(Lower("name"))
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True).order_by(Lower("name"))
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("tickets.shortcut_create"):
                 menu.add_modax(
                     _("New"),
@@ -102,29 +84,19 @@ class TopicCRUDL(SmartCRUDL):
     model = Topic
     actions = ("create", "update", "delete")
 
-    class Create(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartCreateView):
+    class Create(BaseCreateModal):
         form_class = TopicForm
         success_url = "hide"
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
 
         def save(self, obj):
             return Topic.create(self.request.org, self.request.user, obj.name)
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(BaseUpdateModal):
         form_class = TopicForm
         success_url = "hide"
         slug_url_kwarg = "uuid"
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "smartmin/delete_confirm.html"
         submit_button_name = _("Delete")
         slug_url_kwarg = "uuid"
@@ -151,7 +123,7 @@ class TicketCRUDL(SmartCRUDL):
     model = Ticket
     actions = ("list", "update", "folder", "note", "menu", "export_stats", "export")
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -169,7 +141,7 @@ class TicketCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
         success_url = "hide"
 
-    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
+    class List(SpaMixin, ContextMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
@@ -240,7 +212,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return context
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             # we only support dynamic content menus
             if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
                 return
@@ -342,7 +314,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return menu
 
-    class Folder(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
+    class Folder(ContextMenuMixin, OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"
         paginate_by = 25
 
@@ -358,7 +330,7 @@ class TicketCRUDL(SmartCRUDL):
                 raise Http404()
             return folder
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             # we only support dynamic content menus
             if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
                 return
@@ -491,7 +463,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return JsonResponse(results)
 
-    class Note(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Note(ModalFormMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Creates a note for this contact
         """
@@ -527,7 +499,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
-    class Export(BaseExportView):
+    class Export(BaseExportModal):
         export_type = TicketExport
         success_url = "@tickets.ticket_list"
 

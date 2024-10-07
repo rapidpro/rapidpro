@@ -8,6 +8,7 @@ from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
     SmartDeleteView,
+    SmartFormView,
     SmartListView,
     SmartReadView,
     SmartTemplateView,
@@ -34,9 +35,9 @@ from temba.contacts.models import URN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
-from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import BaseExportView, BaseMenuView, DependencyDeleteModal, ModalMixin
+from temba.orgs.views.base import BaseDependencyDeleteModal, BaseExportModal, BaseListView, BaseMenuView
+from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
 from temba.utils.fields import (
@@ -48,7 +49,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.text import slugify_with
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, SpaMixin, StaffOnlyMixin
 
 from .models import FlowLabel, FlowStartCount, FlowUserConflictException, FlowVersionConflictException, ResultsExport
 
@@ -156,7 +157,7 @@ class FlowRunCRUDL(SmartCRUDL):
     actions = ("delete",)
     model = FlowRun
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         fields = ("id",)
         success_message = None
 
@@ -387,7 +388,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return JsonResponse({"status": "failure", "description": error, "detail": detail}, status=400)
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
@@ -481,7 +482,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "uuid@flows.flow_editor"
         success_url = "@flows.flow_list"
 
@@ -494,7 +495,7 @@ class FlowCRUDL(SmartCRUDL):
             # redirect to the newly created flow
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))
 
-    class Update(AllowOnlyActiveFlowMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(AllowOnlyActiveFlowMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class BaseForm(BaseFlowForm):
             class Meta:
                 model = Flow
@@ -665,7 +666,7 @@ class FlowCRUDL(SmartCRUDL):
                         match_type=Trigger.MATCH_FIRST_WORD,
                     )
 
-    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
+    class BaseList(BulkActionMixin, ContextMenuMixin, BaseListView):
         permission = "flows.flow_list"
         title = _("Flows")
         refresh = 10000
@@ -756,7 +757,7 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             ]
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("flows.flow_create"):
                 menu.add_modax(
                     _("New Flow"),
@@ -807,7 +808,7 @@ class FlowCRUDL(SmartCRUDL):
         def derive_menu_path(self):
             return f"/flow/labels/{self.label.uuid}"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("flows.flow_update"):
                 menu.add_modax(
                     _("Edit"),
@@ -848,7 +849,7 @@ class FlowCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             return qs.filter(org=self.request.org, labels=self.label, is_archived=False).order_by("-created_on")
 
-    class Editor(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Editor(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def derive_menu_path(self):
@@ -900,7 +901,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return features
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if obj.flow_type != Flow.TYPE_SURVEY and self.has_org_perm("flows.flow_start") and not obj.is_archived:
@@ -987,7 +988,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class ExportTranslation(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
+    class ExportTranslation(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
             language = forms.ChoiceField(
                 required=False,
@@ -1152,8 +1153,8 @@ class FlowCRUDL(SmartCRUDL):
         def derive_initial(self):
             return {"language": self.po_info.language_code if self.po_info else ""}
 
-    class ExportResults(BaseExportView):
-        class Form(BaseExportView.Form):
+    class ExportResults(BaseExportModal):
+        class Form(BaseExportModal.Form):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.none(), required=True, widget=forms.MultipleHiddenInput()
             )
@@ -1364,10 +1365,10 @@ class FlowCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             return JsonResponse({"counts": self.get_object().get_category_counts()})
 
-    class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if self.has_org_perm("flows.flow_results"):
@@ -1603,7 +1604,7 @@ class FlowCRUDL(SmartCRUDL):
                 }
             )
 
-    class Start(OrgPermsMixin, ModalMixin):
+    class Start(ModalFormMixin, OrgPermsMixin, SmartFormView):
         class Form(forms.ModelForm):
             flow = TembaChoiceField(
                 queryset=Flow.objects.none(),
@@ -1789,7 +1790,7 @@ class FlowLabelCRUDL(SmartCRUDL):
     model = FlowLabel
     actions = ("create", "update", "delete")
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         fields = ("uuid",)
         success_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
@@ -1803,7 +1804,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             self.object.delete()
             return self.render_modal_response()
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm
         success_url = "uuid@flows.flow_filter"
 
@@ -1812,7 +1813,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "flows")
         form_class = FlowLabelForm
         submit_button_name = _("Create")
@@ -1846,7 +1847,7 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list", "interrupt", "status")
 
-    class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, SmartListView):
+    class List(BaseListView):
         title = _("Flow Starts")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
@@ -1877,7 +1878,7 @@ class FlowStartCRUDL(SmartCRUDL):
 
             return context
 
-    class Status(OrgPermsMixin, OrgFilterMixin, SmartListView):
+    class Status(OrgPermsMixin, SmartListView):
         permission = "flows.flowstart_list"
 
         def derive_queryset(self, **kwargs):
@@ -1914,7 +1915,7 @@ class FlowStartCRUDL(SmartCRUDL):
                 )
             return JsonResponse({"results": results})
 
-    class Interrupt(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Interrupt(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         default_template = "smartmin/delete_confirm.html"
         permission = "flows.flowstart_update"
         fields = ()

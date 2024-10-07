@@ -20,9 +20,15 @@ from django.views.generic import RedirectView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.mailroom.client.types import Exclusions
-from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.orgs.models import Org
-from temba.orgs.views import BaseExportView, BaseMenuView, DependencyDeleteModal, DependencyUsagesModal, ModalMixin
+from temba.orgs.views.base import (
+    BaseDependencyDeleteModal,
+    BaseExportModal,
+    BaseListView,
+    BaseMenuView,
+    BaseUsagesModal,
+)
+from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.views import ScheduleFormMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.utils import json, languages
@@ -36,13 +42,20 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, NonAtomicMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
-from temba.utils.wizard import SmartWizardUpdateView, SmartWizardView
+from temba.utils.views.mixins import (
+    ContextMenuMixin,
+    ModalFormMixin,
+    NonAtomicMixin,
+    PostOnlyMixin,
+    SpaMixin,
+    StaffOnlyMixin,
+)
+from temba.utils.views.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
 
 
-class SystemLabelView(SpaMixin, OrgPermsMixin, SmartListView):
+class SystemLabelView(BaseListView):
     """
     Base class for views backed by a system label or message label queryset
     """
@@ -77,7 +90,7 @@ class SystemLabelView(SpaMixin, OrgPermsMixin, SmartListView):
         return context
 
 
-class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
+class MsgListView(ContextMenuMixin, BulkActionMixin, SystemLabelView):
     """
     Base class for message list views with message folders and labels listed by the side
     """
@@ -126,7 +139,7 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
 
         return context
 
-    def build_content_menu(self, menu):
+    def build_context_menu(self, menu):
         if self.has_org_perm("msgs.broadcast_create"):
             menu.add_modax(
                 _("Send"), "send-message", reverse("msgs.broadcast_create"), title=_("New Broadcast"), as_button=True
@@ -327,7 +340,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 .prefetch_related("groups", "contacts")
             )
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_create"):
                 menu.add_modax(
                     _("Send"),
@@ -348,7 +361,7 @@ class BroadcastCRUDL(SmartCRUDL):
             "-created_on",
         )
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_create"):
                 menu.add_modax(
                     _("Send"),
@@ -558,7 +571,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class ScheduledRead(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
+    class ScheduledRead(SpaMixin, ContextMenuMixin, OrgObjPermsMixin, SmartReadView):
         title = _("Broadcast")
         menu_path = "/msg/broadcasts"
 
@@ -570,7 +583,7 @@ class BroadcastCRUDL(SmartCRUDL):
             context["send_history"] = self.get_object().children.order_by("-created_on")
             return context
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if self.has_org_perm("msgs.broadcast_update") and obj.schedule.next_fire:
@@ -589,7 +602,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     title=_("Delete Broadcast"),
                 )
 
-    class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class ScheduledDelete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "broadcast_scheduled_delete.html"
         cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
@@ -651,7 +664,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 }
             )
 
-    class ToNode(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
+    class ToNode(NonAtomicMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             text = forms.CharField(
                 widget=CompletionTextarea(
@@ -704,8 +717,8 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Status(OrgPermsMixin, OrgFilterMixin, SmartListView):
-        permission = "msgs.broadcast_read"
+    class Status(OrgPermsMixin, SmartListView):
+        permission = "msgs.broadcast_list"
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs)
@@ -735,7 +748,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 )
             return JsonResponse({"results": results})
 
-    class Interrupt(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Interrupt(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         default_template = "smartmin/delete_confirm.html"
         permission = "msgs.broadcast_update"
         fields = ()
@@ -860,8 +873,8 @@ class MsgCRUDL(SmartCRUDL):
 
                 return menu
 
-    class Export(BaseExportView):
-        class Form(BaseExportView.Form):
+    class Export(BaseExportModal):
+        class Form(BaseExportModal.Form):
             LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
             SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
@@ -1000,7 +1013,7 @@ class MsgCRUDL(SmartCRUDL):
         def derive_title(self, *args, **kwargs):
             return self.label.name
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("msgs.msg_update"):
                 menu.add_modax(
                     _("Edit"),
@@ -1090,7 +1103,7 @@ class LabelCRUDL(SmartCRUDL):
     model = Label
     actions = ("create", "update", "usages", "delete")
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "messages")
         success_url = "uuid@msgs.msg_filter"
         form_class = LabelForm
@@ -1114,7 +1127,7 @@ class LabelCRUDL(SmartCRUDL):
 
             return obj
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = LabelForm
         success_url = "uuid@msgs.msg_filter"
         title = _("Update Label")
@@ -1124,10 +1137,10 @@ class LabelCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Usages(DependencyUsagesModal):
+    class Usages(BaseUsagesModal):
         permission = "msgs.label_read"
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "@msgs.msg_inbox"
         success_url = "@msgs.msg_inbox"
         success_message = _("Your label has been deleted.")
@@ -1173,9 +1186,9 @@ class MediaCRUDL(SmartCRUDL):
                 }
             )
 
-    class List(StaffOnlyMixin, OrgPermsMixin, SmartListView):
+    class List(StaffOnlyMixin, BaseListView):
         fields = ("url", "content_type", "size", "created_by", "created_on")
         default_order = ("-created_on",)
 
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(org=self.request.org, original=None)
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(original=None)

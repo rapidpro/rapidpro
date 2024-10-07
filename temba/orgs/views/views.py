@@ -14,8 +14,6 @@ from smartmin.views import (
     SmartDeleteView,
     SmartFormView,
     SmartListView,
-    SmartModelActionView,
-    SmartModelFormView,
     SmartReadView,
     SmartTemplateView,
     SmartUpdateView,
@@ -29,7 +27,6 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.db.models.functions import Lower
 from django.forms import ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -38,13 +35,11 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
 from django.utils.functional import cached_property
-from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
-from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
@@ -58,13 +53,13 @@ from temba.utils.fields import (
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
-    TembaDateField,
 )
 from temba.utils.text import generate_secret
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import (
+from temba.utils.views.mixins import (
     ComponentFormMixin,
-    ContentMenuMixin,
+    ContextMenuMixin,
+    ModalFormMixin,
     NonAtomicMixin,
     NoNavMixin,
     PostOnlyMixin,
@@ -73,9 +68,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .forms import SignupForm, SMTPForm
-from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin
-from .models import (
+from ..models import (
     BackupToken,
     DefinitionExport,
     Export,
@@ -87,6 +80,9 @@ from .models import (
     User,
     UserSettings,
 )
+from .base import BaseMenuView
+from .forms import SignupForm, SMTPForm
+from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -111,60 +107,6 @@ def check_login(request):
         return HttpResponseRedirect(settings.LOGIN_REDIRECT_URL)
     else:
         return HttpResponseRedirect(settings.LOGIN_URL)
-
-
-class ModalMixin(SmartFormView):
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        if "HTTP_X_PJAX" in self.request.META and "HTTP_X_FORMAX" not in self.request.META:  # pragma: no cover
-            context["base_template"] = "smartmin/modal.html"
-            context["is_modal"] = True
-        if "success_url" in kwargs:  # pragma: no cover
-            context["success_url"] = kwargs["success_url"]
-
-        pairs = [quote(k) + "=" + quote(v) for k, v in self.request.GET.items() if k != "_"]
-        context["action_url"] = self.request.path + "?" + ("&".join(pairs))
-
-        return context
-
-    def render_modal_response(self, form=None):
-        success_url = self.get_success_url()
-        response = self.render_to_response(
-            self.get_context_data(
-                form=form,
-                success_url=self.get_success_url(),
-                success_script=getattr(self, "success_script", None),
-            )
-        )
-
-        response["Temba-Success"] = success_url
-        return response
-
-    def form_valid(self, form):
-        if isinstance(form, forms.ModelForm):
-            self.object = form.save(commit=False)
-
-        try:
-            if isinstance(self, SmartModelFormView):
-                self.object = self.pre_save(self.object)
-                self.save(self.object)
-                self.object = self.post_save(self.object)
-
-            elif isinstance(self, SmartModelActionView):
-                self.execute_action()
-
-            messages.success(self.request, self.derive_success_message())
-
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                return self.render_modal_response(form)
-
-        except (IntegrityError, ValueError, ValidationError) as e:
-            message = getattr(e, "message", str(e).capitalize())
-            self.form.add_error(None, message)
-            return self.render_to_response(self.get_context_data(form=form))
 
 
 class IntegrationViewMixin(OrgPermsMixin):
@@ -200,84 +142,6 @@ class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormV
     def form_valid(self, form):
         response = self.render_to_response(self.get_context_data(form=form))
         response["REDIRECT"] = self.get_success_url()
-        return response
-
-
-class DependencyModalMixin(OrgObjPermsMixin):
-    dependent_order = {"campaign_event": ("relative_to__name",), "trigger": ("trigger_type", "created_on")}
-    dependent_select_related = {"campaign_event": ("campaign", "relative_to")}
-
-    def get_dependents(self, obj) -> dict:
-        dependents = {}
-        for type_key, type_qs in obj.get_dependents().items():
-            # only include dependency types which we have at least one dependent of
-            if type_qs.exists():
-                type_qs = type_qs.order_by(*self.dependent_order.get(type_key, ("name",)))
-
-                type_select_related = self.dependent_select_related.get(type_key, ())
-                if type_select_related:
-                    type_qs = type_qs.select_related(*type_select_related)
-
-                dependents[type_key] = type_qs
-        return dependents
-
-
-class DependencyUsagesModal(DependencyModalMixin, SmartReadView):
-    """
-    Base view for usage modals of flow dependencies
-    """
-
-    slug_url_kwarg = "uuid"
-    template_name = "orgs/dependency_usages_modal.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["dependents"] = self.get_dependents(self.object)
-        return context
-
-
-class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
-    """
-    Base view for delete modals of flow dependencies
-    """
-
-    slug_url_kwarg = "uuid"
-    fields = ("uuid",)
-    submit_button_name = _("Delete")
-    template_name = "orgs/dependency_delete_modal.html"
-
-    # warnings for soft dependencies
-    type_warnings = {
-        "flow": _("these may not work as expected"),  # always soft
-        "campaign_event": _("these will be removed"),  # soft for fields and flows
-        "trigger": _("these will be removed"),  # soft for flows
-    }
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # get dependents and sort by soft vs hard
-        all_dependents = self.get_dependents(self.object)
-        soft_dependents = {}
-        hard_dependents = {}
-        for type_key, type_qs in all_dependents.items():
-            if type_key in self.object.soft_dependent_types:
-                soft_dependents[type_key] = type_qs
-            else:
-                hard_dependents[type_key] = type_qs
-
-        context["soft_dependents"] = soft_dependents
-        context["hard_dependents"] = hard_dependents
-        context["type_warnings"] = self.type_warnings
-        return context
-
-    def post(self, request, *args, **kwargs):
-        obj = self.get_object()
-        obj.release(request.user)
-
-        messages.info(request, self.derive_success_message())
-        response = HttpResponse()
-        response["Temba-Success"] = self.get_success_url()
         return response
 
 
@@ -492,11 +356,11 @@ class UserCRUDL(SmartCRUDL):
         "send_verification_email",
     )
 
-    class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
+    class Read(StaffOnlyMixin, ContextMenuMixin, SpaMixin, SmartReadView):
         fields = ("email", "date_joined")
         menu_path = "/staff/users/all"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
             menu.add_modax(
                 _("Edit"),
@@ -541,7 +405,7 @@ class UserCRUDL(SmartCRUDL):
             context["filters"] = self.filters
             return context
 
-    class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, ContentMenuMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, ModalFormMixin, ComponentFormMixin, ContextMenuMixin, SmartUpdateView):
         class Form(UserUpdateForm):
             groups = forms.ModelMultipleChoiceField(
                 widget=SelectMultipleWidget(
@@ -580,7 +444,7 @@ class UserCRUDL(SmartCRUDL):
 
             return obj
 
-    class Delete(StaffOnlyMixin, SpaMixin, ModalMixin, SmartDeleteView):
+    class Delete(StaffOnlyMixin, ModalFormMixin, SmartDeleteView):
         fields = ("id",)
         permission = "orgs.user_update"
         submit_button_name = _("Delete")
@@ -1038,7 +902,7 @@ class UserCRUDL(SmartCRUDL):
         def derive_formax_sections(self, formax, context):
             formax.add_section("profile", reverse("orgs.user_edit"), icon="user")
 
-    class Tokens(SpaMixin, InferUserMixin, ContentMenuMixin, OrgPermsMixin, SmartUpdateView):
+    class Tokens(SpaMixin, InferUserMixin, ContextMenuMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             new = forms.BooleanField(required=False)
 
@@ -1052,7 +916,7 @@ class UserCRUDL(SmartCRUDL):
         success_url = "@orgs.user_tokens"
         token_limit = 3
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.request.user.get_api_tokens(self.request.org).count() < self.token_limit:
                 menu.add_url_post(_("New Token"), reverse("orgs.user_tokens") + "?new=1", as_button=True)
 
@@ -1067,110 +931,6 @@ class UserCRUDL(SmartCRUDL):
                 APIToken.create(self.request.org, self.request.user)
 
             return super().form_valid(form)
-
-
-class BaseMenuView(OrgPermsMixin, SmartTemplateView):
-    """
-    Base view for the section menu views
-    """
-
-    def create_divider(self):
-        return {"type": "divider"}
-
-    def create_space(self):  # pragma: no cover
-        return {"type": "space"}
-
-    def create_section(self, name, items=()):  # pragma: no cover
-        return {"id": slugify(name), "name": name, "type": "section", "items": items}
-
-    def create_list(self, name, href, type):
-        return {"id": name, "href": href, "type": type}
-
-    def create_modax_button(self, name, href, icon=None, on_submit=None):  # pragma: no cover
-        menu_item = {"id": slugify(name), "name": name, "type": "modax-button"}
-        if href:
-            if href[0] == "/":  # pragma: no cover
-                menu_item["href"] = href
-            elif self.has_org_perm(href):
-                menu_item["href"] = reverse(href)
-
-        if on_submit:
-            menu_item["on_submit"] = on_submit
-
-        if icon:  # pragma: no cover
-            menu_item["icon"] = icon
-
-        if "href" not in menu_item:  # pragma: no cover
-            return None
-
-        return menu_item
-
-    def create_menu_item(
-        self,
-        menu_id=None,
-        name=None,
-        icon=None,
-        avatar=None,
-        endpoint=None,
-        href=None,
-        count=None,
-        perm=None,
-        items=[],
-        inline=False,
-        bottom=False,
-        popup=False,
-        event=None,
-        posterize=False,
-        bubble=None,
-        mobile=False,
-    ):
-        if perm and not self.has_org_perm(perm):  # pragma: no cover
-            return
-
-        menu_item = {"name": name, "inline": inline}
-        menu_item["id"] = menu_id if menu_id else slugify(name)
-        menu_item["bottom"] = bottom
-        menu_item["popup"] = popup
-        menu_item["avatar"] = avatar
-        menu_item["posterize"] = posterize
-        menu_item["event"] = event
-        menu_item["mobile"] = mobile
-
-        if bubble:
-            menu_item["bubble"] = bubble
-
-        if icon:
-            menu_item["icon"] = icon
-
-        if count is not None:
-            menu_item["count"] = count
-
-        if endpoint:
-            if endpoint[0] == "/":  # pragma: no cover
-                menu_item["endpoint"] = endpoint
-            elif perm or self.has_org_perm(endpoint):
-                menu_item["endpoint"] = reverse(endpoint)
-
-        if href:
-            if href[0] == "/":
-                menu_item["href"] = href
-            elif perm or self.has_org_perm(href):
-                menu_item["href"] = reverse(href)
-
-        if items:  # pragma: no cover
-            menu_item["items"] = [item for item in items if item is not None]
-
-        # only include the menu item if we have somewhere to go
-        if "href" not in menu_item and "endpoint" not in menu_item and not inline and not popup and not event:
-            return None
-
-        return menu_item
-
-    def get_menu(self):
-        return [item for item in self.derive_menu() if item is not None]
-
-    def render_to_response(self, context, **response_kwargs):
-        return JsonResponse({"results": self.get_menu()})
 
 
 class InvitationMixin:
@@ -1684,8 +1444,8 @@ class OrgCRUDL(SmartCRUDL):
             context["from_email_custom"] = from_email_custom
             return context
 
-    class Read(StaffOnlyMixin, SpaMixin, ContentMenuMixin, SmartReadView):
-        def build_content_menu(self, menu):
+    class Read(StaffOnlyMixin, SpaMixin, ContextMenuMixin, SmartReadView):
+        def build_context_menu(self, menu):
             obj = self.get_object()
             if not obj.is_active:
                 return
@@ -1801,7 +1561,7 @@ class OrgCRUDL(SmartCRUDL):
                 return reverse("orgs.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
-    class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, ModalFormMixin, ComponentFormMixin, SmartUpdateView):
         ACTION_FLAG = "flag"
         ACTION_UNFLAG = "unflag"
         ACTION_SUSPEND = "suspend"
@@ -1887,7 +1647,7 @@ class OrgCRUDL(SmartCRUDL):
             obj.limits = cleaned_data["limits"]
             return obj
 
-    class DeleteChild(SpaMixin, OrgObjPermsMixin, ModalMixin, SmartDeleteView):
+    class DeleteChild(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = "@orgs.org_sub_orgs"
         success_url = "@orgs.org_sub_orgs"
         fields = ("id",)
@@ -1910,7 +1670,7 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class ManageAccounts(SpaMixin, InferOrgMixin, ContentMenuMixin, OrgPermsMixin, SmartUpdateView):
+    class ManageAccounts(SpaMixin, InferOrgMixin, ContextMenuMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -2021,7 +1781,7 @@ class OrgCRUDL(SmartCRUDL):
             if Org.FEATURE_USERS not in request.org.features:
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
 
         def get_form_kwargs(self):
@@ -2066,7 +1826,7 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             pass
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             menu.add_modax(
                 _("Invite"),
                 "invite-create",
@@ -2119,11 +1879,11 @@ class OrgCRUDL(SmartCRUDL):
             switch_to_org(self.request, None)
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
-    class SubOrgs(SpaMixin, ContentMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
+    class SubOrgs(SpaMixin, ContextMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
         title = _("Workspaces")
         menu_path = "/settings/workspaces"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             org = self.get_object()
 
             enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
@@ -2147,7 +1907,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Create(NonAtomicMixin, SpaMixin, OrgPermsMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class Create(NonAtomicMixin, ModalFormMixin, InferOrgMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             TYPE_CHILD = "child"
             TYPE_NEW = "new"
@@ -2587,7 +2347,7 @@ class OrgCRUDL(SmartCRUDL):
             context["prometheus_url"] = f"https://{org.branding['domain']}/mr/org/{org.uuid}/metrics"
             return context
 
-    class Workspace(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+    class Workspace(SpaMixin, FormaxMixin, ContextMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")
         menu_path = "/settings/workspace"
 
@@ -2629,7 +2389,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_exclude(self):
             return ["language"] if len(settings.LANGUAGES) == 1 else []
 
-    class EditSubOrg(SpaMixin, ModalMixin, Edit):
+    class EditSubOrg(SpaMixin, ModalFormMixin, Edit):
         success_url = "@orgs.org_sub_orgs"
 
         def get_success_url(self):
@@ -2778,7 +2538,7 @@ class InvitationCRUDL(SmartCRUDL):
     model = Invitation
     actions = ("create",)
 
-    class Create(SpaMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             ROLE_CHOICES = [(r.code, r.display) for r in (OrgRole.AGENT, OrgRole.EDITOR, OrgRole.ADMINISTRATOR)]
 
@@ -2908,7 +2668,7 @@ class ExportCRUDL(SmartCRUDL):
     model = Export
     actions = ("download",)
 
-    class Download(SpaMixin, ContentMenuMixin, NotificationTargetMixin, OrgObjPermsMixin, SmartReadView):
+    class Download(SpaMixin, ContextMenuMixin, NotificationTargetMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         menu_path = "/settings/workspace"
         title = _("Export")
@@ -2921,7 +2681,7 @@ class ExportCRUDL(SmartCRUDL):
 
             return super().get(request, *args, **kwargs)
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             menu.add_js("export_download", _("Download"), as_button=True)
 
         def get_template_names(self):
@@ -2935,114 +2695,3 @@ class ExportCRUDL(SmartCRUDL):
 
         def get_notification_scope(self) -> tuple[str, str]:
             return "export:finished", self.get_object().get_notification_scope()
-
-
-class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
-    """
-    Base modal view for exports
-    """
-
-    class Form(forms.Form):
-        MAX_FIELDS_COLS = 10
-        MAX_GROUPS_COLS = 10
-
-        start_date = TembaDateField(label=_("Start Date"))
-        end_date = TembaDateField(label=_("End Date"))
-
-        with_fields = forms.ModelMultipleChoiceField(
-            ContactField.objects.none(),
-            required=False,
-            label=_("Fields"),
-            widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}),
-        )
-        with_groups = forms.ModelMultipleChoiceField(
-            ContactGroup.objects.none(),
-            required=False,
-            label=_("Groups"),
-            widget=SelectMultipleWidget(
-                attrs={"placeholder": _("Optional: Group memberships to include"), "searchable": True}
-            ),
-        )
-
-        def __init__(self, org, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-
-            self.org = org
-            self.fields["with_fields"].queryset = ContactField.get_fields(org).order_by(Lower("name"))
-            self.fields["with_groups"].queryset = ContactGroup.get_groups(org=org, ready_only=True).order_by(
-                Lower("name")
-            )
-
-        def clean_with_fields(self):
-            data = self.cleaned_data["with_fields"]
-            if data and len(data) > self.MAX_FIELDS_COLS:
-                raise forms.ValidationError(_(f"You can only include up to {self.MAX_FIELDS_COLS} fields."))
-
-            return data
-
-        def clean_with_groups(self):
-            data = self.cleaned_data["with_groups"]
-            if data and len(data) > self.MAX_GROUPS_COLS:
-                raise forms.ValidationError(_(f"You can only include up to {self.MAX_GROUPS_COLS} groups."))
-
-            return data
-
-        def clean(self):
-            cleaned_data = super().clean()
-
-            start_date = cleaned_data.get("start_date")
-            end_date = cleaned_data.get("end_date")
-
-            if start_date and start_date > timezone.now().astimezone(self.org.timezone).date():
-                raise forms.ValidationError(_("Start date can't be in the future."))
-
-            if end_date and start_date and end_date < start_date:
-                raise forms.ValidationError(_("End date can't be before start date."))
-
-            return cleaned_data
-
-    form_class = Form
-    submit_button_name = _("Export")
-    success_message = _("We are preparing your export and you will get a notification when it is complete.")
-    export_type = None
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["org"] = self.request.org
-        return kwargs
-
-    def derive_initial(self):
-        initial = super().derive_initial()
-
-        # default to last 90 days in org timezone
-        end = timezone.now()
-        start = end - timedelta(days=90)
-
-        initial["end_date"] = end.date()
-        initial["start_date"] = start.date()
-        return initial
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["blocker"] = self.get_blocker()
-        return context
-
-    def get_blocker(self) -> str:
-        if self.export_type.has_recent_unfinished(self.request.org):
-            return "existing-export"
-
-        return ""
-
-    def form_valid(self, form):
-        if self.get_blocker():
-            return self.form_invalid(form)
-
-        user = self.request.user
-        org = self.request.org
-        export = self.create_export(org, user, form)
-
-        on_transaction_commit(lambda: export.start())
-
-        messages.info(self.request, self.success_message)
-
-        return self.render_modal_response(form)

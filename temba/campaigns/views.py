@@ -1,4 +1,4 @@
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.contrib import messages
@@ -11,11 +11,11 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
-from temba.orgs.mixins import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import BaseMenuView, ModalMixin
+from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Campaign, CampaignEvent
 
@@ -72,7 +72,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             return menu
 
-    class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         fields = ("name", "group")
         form_class = CampaignForm
 
@@ -107,14 +107,14 @@ class CampaignCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         menu_path = "/campaign/active"
 
         def derive_title(self):
             return self.object.name
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if obj.is_archived:
@@ -146,7 +146,7 @@ class CampaignCRUDL(SmartCRUDL):
                 if self.has_org_perm("campaigns.campaign_archive"):
                     menu.add_url_post(_("Archive"), reverse("campaigns.campaign_archive", args=[obj.id]))
 
-    class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "group")
         form_class = CampaignForm
         success_url = "uuid@campaigns.campaign_read"
@@ -161,7 +161,7 @@ class CampaignCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class BaseList(SpaMixin, ContentMenuMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(ContextMenuMixin, BulkActionMixin, BaseListView):
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"
         default_order = ("-modified_on",)
@@ -184,7 +184,7 @@ class CampaignCRUDL(SmartCRUDL):
             qs = qs.filter(is_active=True, is_archived=False)
             return qs
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("campaigns.campaign_create"):
                 menu.add_modax(
                     _("New Campaign"),
@@ -205,7 +205,7 @@ class CampaignCRUDL(SmartCRUDL):
             qs = qs.filter(is_active=True, is_archived=True)
             return qs
 
-    class Archive(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
+    class Archive(OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@campaigns.campaign_read"
         success_message = _("Campaign archived")
@@ -214,7 +214,7 @@ class CampaignCRUDL(SmartCRUDL):
             obj.apply_action_archive(self.request.user, Campaign.objects.filter(id=obj.id))
             return obj
 
-    class Activate(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
+    class Activate(OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@campaigns.campaign_read"
         success_message = _("Campaign activated")
@@ -474,7 +474,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         "This is a background flow. When it triggers, it will run it for all contacts without interruption."
     )
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<campaign_uuid>[0-9a-f-]+)/(?P<pk>\d+)/$" % (path, action)
@@ -512,7 +512,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             return context
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if self.has_org_perm("campaigns.campaignevent_update") and not obj.campaign.is_archived:
@@ -531,7 +531,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                     title=_("Delete Event"),
                 )
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "smartmin/delete_confirm.html"
         submit_button_name = _("Delete")
         fields = ("uuid",)
@@ -552,7 +552,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_cancel_url(self):  # pragma: needs cover
             return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
 
-    class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = CampaignEventForm
         default_fields = [
             "event_type",
@@ -651,7 +651,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_success_url(self):
             return reverse("campaigns.campaignevent_read", args=[self.object.campaign.uuid, self.object.pk])
 
-    class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         default_fields = [
             "event_type",
             "flow_to_start",

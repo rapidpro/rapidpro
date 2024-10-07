@@ -1,6 +1,6 @@
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartUpdateView
 
-from temba.utils.views import StaffOnlyMixin
+from temba.utils.views.mixins import StaffOnlyMixin
 
 from .models import Apk
 

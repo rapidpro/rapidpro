@@ -10,11 +10,9 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.views import ChannelTypeMixin
-from temba.orgs.mixins import OrgObjPermsMixin, OrgPermsMixin
-from temba.orgs.views import ModalMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.text import truncate
-from temba.utils.views import ContentMenuMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -220,7 +218,7 @@ class ClearSessionToken(ChannelTypeMixin, OrgPermsMixin, SmartTemplateView):
         return JsonResponse({})
 
 
-class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class RequestCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView, SmartFormView):
     class Form(forms.Form):
         pass
 
@@ -240,11 +238,6 @@ class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMix
 
     def derive_menu_path(self):
         return f"/settings/channels/{self.get_object().uuid}"
-
-    def build_content_menu(self, menu):
-        obj = self.get_object()
-
-        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -284,7 +277,7 @@ class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMix
                 )
 
 
-class VerifyCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class VerifyCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView, SmartFormView):
     class Form(forms.Form):
         code = forms.CharField(
             min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()
@@ -298,11 +291,6 @@ class VerifyCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixi
     template_name = "channels/types/whatsapp/verify_code.html"
     title = _("Verify Number")
     submit_button_name = _("Verify Number")
-
-    def build_content_menu(self, menu):
-        obj = self.get_object()
-
-        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_queryset(self):
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type=self.channel_type.code)
