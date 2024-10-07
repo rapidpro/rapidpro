@@ -486,7 +486,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_notification_scope(self) -> tuple:
             return "incident:started", str(self.object.id)
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             for item in obj.type.menu_items:

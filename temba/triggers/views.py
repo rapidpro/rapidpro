@@ -472,7 +472,7 @@ class TriggerCRUDL(SmartCRUDL):
         title = _("Archived")
         menu_path = "/trigger/archived"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             menu.add_js("triggers_delete_all", _("Delete All"))
 
         def get_queryset(self, *args, **kwargs):

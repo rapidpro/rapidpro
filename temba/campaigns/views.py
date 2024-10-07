@@ -114,7 +114,7 @@ class CampaignCRUDL(SmartCRUDL):
         def derive_title(self):
             return self.object.name
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if obj.is_archived:
@@ -184,7 +184,7 @@ class CampaignCRUDL(SmartCRUDL):
             qs = qs.filter(is_active=True, is_archived=False)
             return qs
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("campaigns.campaign_create"):
                 menu.add_modax(
                     _("New Campaign"),
@@ -512,7 +512,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             return context
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if self.has_org_perm("campaigns.campaignevent_update") and not obj.campaign.is_archived:

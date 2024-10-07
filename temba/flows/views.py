@@ -757,7 +757,7 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             ]
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("flows.flow_create"):
                 menu.add_modax(
                     _("New Flow"),
@@ -808,7 +808,7 @@ class FlowCRUDL(SmartCRUDL):
         def derive_menu_path(self):
             return f"/flow/labels/{self.label.uuid}"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("flows.flow_update"):
                 menu.add_modax(
                     _("Edit"),
@@ -901,7 +901,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return features
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if obj.flow_type != Flow.TYPE_SURVEY and self.has_org_perm("flows.flow_start") and not obj.is_archived:
@@ -1368,7 +1368,7 @@ class FlowCRUDL(SmartCRUDL):
     class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             if self.has_org_perm("flows.flow_results"):

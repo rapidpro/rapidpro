@@ -55,7 +55,7 @@ class ClassifierCRUDL(SmartCRUDL):
         def derive_menu_path(self):
             return f"/settings/classifiers/{self.get_object().uuid}"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             menu.add_link(_("Log"), reverse("request_logs.httplog_classifier", args=[obj.uuid]))

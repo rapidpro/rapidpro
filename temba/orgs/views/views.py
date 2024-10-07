@@ -360,7 +360,7 @@ class UserCRUDL(SmartCRUDL):
         fields = ("email", "date_joined")
         menu_path = "/staff/users/all"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
             menu.add_modax(
                 _("Edit"),
@@ -916,7 +916,7 @@ class UserCRUDL(SmartCRUDL):
         success_url = "@orgs.user_tokens"
         token_limit = 3
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.request.user.get_api_tokens(self.request.org).count() < self.token_limit:
                 menu.add_url_post(_("New Token"), reverse("orgs.user_tokens") + "?new=1", as_button=True)
 
@@ -1445,7 +1445,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class Read(StaffOnlyMixin, SpaMixin, ContextMenuMixin, SmartReadView):
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
             if not obj.is_active:
                 return
@@ -1781,7 +1781,7 @@ class OrgCRUDL(SmartCRUDL):
             if Org.FEATURE_USERS not in request.org.features:
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
 
         def get_form_kwargs(self):
@@ -1826,7 +1826,7 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             pass
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             menu.add_modax(
                 _("Invite"),
                 "invite-create",
@@ -1883,7 +1883,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Workspaces")
         menu_path = "/settings/workspaces"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             org = self.get_object()
 
             enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
@@ -2681,7 +2681,7 @@ class ExportCRUDL(SmartCRUDL):
 
             return super().get(request, *args, **kwargs)
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             menu.add_js("export_download", _("Download"), as_button=True)
 
         def get_template_names(self):
