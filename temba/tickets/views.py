@@ -26,7 +26,7 @@ from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
-from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .forms import ShortcutForm, TopicForm
 from .models import (
@@ -48,7 +48,7 @@ class ShortcutCRUDL(SmartCRUDL):
     model = Shortcut
     actions = ("create", "update", "delete", "list")
 
-    class Create(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartCreateView):
+    class Create(ComponentFormMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         form_class = ShortcutForm
         success_url = "@tickets.shortcut_list"
 
@@ -60,7 +60,7 @@ class ShortcutCRUDL(SmartCRUDL):
         def save(self, obj):
             return Shortcut.create(self.request.org, self.request.user, obj.name, obj.text)
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ShortcutForm
         success_url = "@tickets.shortcut_list"
 
@@ -69,7 +69,7 @@ class ShortcutCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "smartmin/delete_confirm.html"
         submit_button_name = _("Delete")
         fields = ("id",)
@@ -102,7 +102,7 @@ class TopicCRUDL(SmartCRUDL):
     model = Topic
     actions = ("create", "update", "delete")
 
-    class Create(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartCreateView):
+    class Create(ComponentFormMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         form_class = TopicForm
         success_url = "hide"
 
@@ -114,7 +114,7 @@ class TopicCRUDL(SmartCRUDL):
         def save(self, obj):
             return Topic.create(self.request.org, self.request.user, obj.name)
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = TopicForm
         success_url = "hide"
         slug_url_kwarg = "uuid"
@@ -124,7 +124,7 @@ class TopicCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "smartmin/delete_confirm.html"
         submit_button_name = _("Delete")
         slug_url_kwarg = "uuid"
@@ -151,7 +151,7 @@ class TicketCRUDL(SmartCRUDL):
     model = Ticket
     actions = ("list", "update", "folder", "note", "menu", "export_stats", "export")
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -489,7 +489,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return JsonResponse(results)
 
-    class Note(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Note(ModalFormMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Creates a note for this contact
         """

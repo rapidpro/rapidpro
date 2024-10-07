@@ -44,7 +44,7 @@ from temba.utils.fields import (
 from temba.utils.models import patch_queryset_count
 from temba.utils.views.mixins import (
     ContextMenuMixin,
-    ModalMixin,
+    ModalFormMixin,
     NonAtomicMixin,
     PostOnlyMixin,
     SpaMixin,
@@ -602,7 +602,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     title=_("Delete Broadcast"),
                 )
 
-    class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class ScheduledDelete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "broadcast_scheduled_delete.html"
         cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
@@ -664,7 +664,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 }
             )
 
-    class ToNode(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
+    class ToNode(NonAtomicMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             text = forms.CharField(
                 widget=CompletionTextarea(
@@ -748,7 +748,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 )
             return JsonResponse({"results": results})
 
-    class Interrupt(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Interrupt(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         default_template = "smartmin/delete_confirm.html"
         permission = "msgs.broadcast_update"
         fields = ()
@@ -1103,7 +1103,7 @@ class LabelCRUDL(SmartCRUDL):
     model = Label
     actions = ("create", "update", "usages", "delete")
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "messages")
         success_url = "uuid@msgs.msg_filter"
         form_class = LabelForm
@@ -1127,7 +1127,7 @@ class LabelCRUDL(SmartCRUDL):
 
             return obj
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = LabelForm
         success_url = "uuid@msgs.msg_filter"
         title = _("Update Label")

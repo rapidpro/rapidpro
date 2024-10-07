@@ -15,7 +15,7 @@ from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
-from temba.utils.views.mixins import ContextMenuMixin, ModalMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Campaign, CampaignEvent
 
@@ -72,7 +72,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             return menu
 
-    class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         fields = ("name", "group")
         form_class = CampaignForm
 
@@ -146,7 +146,7 @@ class CampaignCRUDL(SmartCRUDL):
                 if self.has_org_perm("campaigns.campaign_archive"):
                     menu.add_url_post(_("Archive"), reverse("campaigns.campaign_archive", args=[obj.id]))
 
-    class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "group")
         form_class = CampaignForm
         success_url = "uuid@campaigns.campaign_read"
@@ -531,7 +531,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                     title=_("Delete Event"),
                 )
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "smartmin/delete_confirm.html"
         submit_button_name = _("Delete")
         fields = ("uuid",)
@@ -552,7 +552,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_cancel_url(self):  # pragma: needs cover
             return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
 
-    class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = CampaignEventForm
         default_fields = [
             "event_type",
@@ -651,7 +651,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_success_url(self):
             return reverse("campaigns.campaignevent_read", args=[self.object.campaign.uuid, self.object.pk])
 
-    class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         default_fields = [
             "event_type",
             "flow_to_start",

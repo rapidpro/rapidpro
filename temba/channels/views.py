@@ -41,7 +41,7 @@ from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder
 from temba.utils.models import patch_queryset_count
-from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Channel, ChannelCount, ChannelLog
 
@@ -663,7 +663,7 @@ class ChannelCRUDL(SmartCRUDL):
                 encoder=EpochEncoder,
             )
 
-    class FacebookWhitelist(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+    class FacebookWhitelist(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartModelActionView):
         class DomainForm(forms.Form):
             whitelisted_domain = forms.URLField(
                 required=True,
@@ -733,7 +733,7 @@ class ChannelCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         def derive_title(self):
             return _("%s Channel") % self.object.type.name
 

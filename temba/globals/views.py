@@ -8,7 +8,7 @@ from django.urls import reverse
 from temba.orgs.views.base import BaseDependencyDeleteModal, BaseListView, BaseUsagesModal
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
-from temba.utils.views.mixins import ContextMenuMixin, ModalMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Global
 
@@ -79,7 +79,7 @@ class GlobalCRUDL(SmartCRUDL):
     model = Global
     actions = ("create", "update", "delete", "list", "unused", "usages")
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         form_class = CreateGlobalForm
         submit_button_name = _("Create")
 
@@ -99,7 +99,7 @@ class GlobalCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateGlobalForm
         submit_button_name = _("Update")
 

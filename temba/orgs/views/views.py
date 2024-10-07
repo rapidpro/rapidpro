@@ -59,7 +59,7 @@ from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views.mixins import (
     ComponentFormMixin,
     ContextMenuMixin,
-    ModalMixin,
+    ModalFormMixin,
     NonAtomicMixin,
     NoNavMixin,
     PostOnlyMixin,
@@ -405,7 +405,7 @@ class UserCRUDL(SmartCRUDL):
             context["filters"] = self.filters
             return context
 
-    class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, ContextMenuMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, ModalFormMixin, ComponentFormMixin, ContextMenuMixin, SmartUpdateView):
         class Form(UserUpdateForm):
             groups = forms.ModelMultipleChoiceField(
                 widget=SelectMultipleWidget(
@@ -444,7 +444,7 @@ class UserCRUDL(SmartCRUDL):
 
             return obj
 
-    class Delete(StaffOnlyMixin, SpaMixin, ModalMixin, SmartDeleteView):
+    class Delete(StaffOnlyMixin, ModalFormMixin, SmartDeleteView):
         fields = ("id",)
         permission = "orgs.user_update"
         submit_button_name = _("Delete")
@@ -1561,7 +1561,7 @@ class OrgCRUDL(SmartCRUDL):
                 return reverse("orgs.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
-    class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, ModalFormMixin, ComponentFormMixin, SmartUpdateView):
         ACTION_FLAG = "flag"
         ACTION_UNFLAG = "unflag"
         ACTION_SUSPEND = "suspend"
@@ -1647,7 +1647,7 @@ class OrgCRUDL(SmartCRUDL):
             obj.limits = cleaned_data["limits"]
             return obj
 
-    class DeleteChild(SpaMixin, OrgObjPermsMixin, ModalMixin, SmartDeleteView):
+    class DeleteChild(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = "@orgs.org_sub_orgs"
         success_url = "@orgs.org_sub_orgs"
         fields = ("id",)
@@ -1907,7 +1907,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Create(NonAtomicMixin, SpaMixin, OrgPermsMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class Create(NonAtomicMixin, ModalFormMixin, InferOrgMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             TYPE_CHILD = "child"
             TYPE_NEW = "new"
@@ -2389,7 +2389,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_exclude(self):
             return ["language"] if len(settings.LANGUAGES) == 1 else []
 
-    class EditSubOrg(SpaMixin, ModalMixin, Edit):
+    class EditSubOrg(SpaMixin, ModalFormMixin, Edit):
         success_url = "@orgs.org_sub_orgs"
 
         def get_success_url(self):
@@ -2538,7 +2538,7 @@ class InvitationCRUDL(SmartCRUDL):
     model = Invitation
     actions = ("create",)
 
-    class Create(SpaMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             ROLE_CHOICES = [(r.code, r.display) for r in (OrgRole.AGENT, OrgRole.EDITOR, OrgRole.ADMINISTRATOR)]
 
