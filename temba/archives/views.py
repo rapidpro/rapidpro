@@ -6,7 +6,6 @@ from django.http import HttpResponseRedirect
 
 from temba.orgs.views.base import BaseListView
 from temba.orgs.views.mixins import OrgObjPermsMixin
-from temba.utils.views.mixins import SpaMixin
 
 from .models import Archive
 
@@ -16,7 +15,7 @@ class ArchiveCRUDL(SmartCRUDL):
     actions = ("read", "run", "message")
     permissions = True
 
-    class BaseList(SpaMixin, BaseListView):
+    class BaseList(BaseListView):
         title = _("Archive")
         fields = ("url", "start_date", "period", "record_count", "size")
         default_order = ("-start_date", "-period", "archive_type")

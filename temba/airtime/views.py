@@ -16,7 +16,7 @@ class AirtimeCRUDL(SmartCRUDL):
     model = AirtimeTransfer
     actions = ("list", "read")
 
-    class List(SpaMixin, BaseListView):
+    class List(BaseListView):
         menu_path = "/settings/workspace"
         title = _("Recent Airtime Transfers")
         fields = ("status", "contact", "recipient", "currency", "actual_amount", "created_on")

@@ -666,7 +666,7 @@ class FlowCRUDL(SmartCRUDL):
                         match_type=Trigger.MATCH_FIRST_WORD,
                     )
 
-    class BaseList(SpaMixin, BulkActionMixin, ContextMenuMixin, BaseListView):
+    class BaseList(BulkActionMixin, ContextMenuMixin, BaseListView):
         permission = "flows.flow_list"
         title = _("Flows")
         refresh = 10000
@@ -1847,7 +1847,7 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list", "interrupt", "status")
 
-    class List(SpaMixin, BaseListView):
+    class List(BaseListView):
         title = _("Flow Starts")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
@@ -1878,7 +1878,7 @@ class FlowStartCRUDL(SmartCRUDL):
 
             return context
 
-    class Status(BaseListView):
+    class Status(OrgPermsMixin, SmartListView):
         permission = "flows.flowstart_list"
 
         def derive_queryset(self, **kwargs):
