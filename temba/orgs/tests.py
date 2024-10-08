@@ -136,8 +136,10 @@ class InvitationTest(TembaTest):
         self.assertEqual("RapidPro Invitation", mail.outbox[0].subject)
         self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", mail.outbox[0].body)
 
-        invitation.release()
+        user = User.create("invitededitor@nyaruka.com", "Bob", "", "Qwerty123", "en-US")
+        invitation.accept(user)
 
+        self.assertEqual(1, self.admin.notifications.count())
         self.assertFalse(invitation.is_active)
 
     def test_expire_task(self):
