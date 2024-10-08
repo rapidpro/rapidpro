@@ -1,3 +1,7 @@
+v9.3.60 (2024-10-08)
+-------------------------
+ * Improve invitation emails
+
 v9.3.59 (2024-10-08)
 -------------------------
  * Fix not creating invitation accepted notifications in case of new user signup
