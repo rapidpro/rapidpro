@@ -1,3 +1,7 @@
+v9.3.61 (2024-10-08)
+-------------------------
+ * Move staff only rg and user views to new staff app
+
 v9.3.60 (2024-10-08)
 -------------------------
  * Improve invitation emails
