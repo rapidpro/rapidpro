@@ -279,6 +279,7 @@ INSTALLED_APPS = (
     "temba.locations",
     "temba.airtime",
     "temba.sql",
+    "temba.staff",
 )
 
 # don't let smartmin auto create django messages for create and update submissions

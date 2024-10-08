@@ -37,6 +37,7 @@ urlpatterns += [
     re_path(r"^", include("temba.tickets.urls")),
     re_path(r"^", include("temba.triggers.urls")),
     re_path(r"^", include("temba.orgs.urls")),
+    re_path(r"^staff/", include("temba.staff.urls")),
     re_path(r"^relayers/relayer/sync/(\d+)/$", sync, {}, "sync"),
     re_path(r"^relayers/relayer/register/$", register, {}, "register"),
     re_path(r"^imports/", include("smartmin.csv_imports.urls")),

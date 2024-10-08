@@ -37,7 +37,7 @@
         <div class="flex flex-col">
           {% for user in user_role.users %}
             <div class="user">
-              <a href="{% url "orgs.user_update" user.id %}">{{ user.email }}</a>
+              <a href="{% url "staff.user_update" user.id %}">{{ user.email }}</a>
             </div>
           {% endfor %}
         </div>
