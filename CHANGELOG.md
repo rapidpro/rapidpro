@@ -1,3 +1,7 @@
+v9.3.59 (2024-10-08)
+-------------------------
+ * Fix not creating invitation accepted notifications in case of new user signup
+
 v9.3.58 (2024-10-08)
 -------------------------
  * Use mailroom to trigger android channel sync
