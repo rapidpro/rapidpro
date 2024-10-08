@@ -1,3 +1,9 @@
+v9.3.58 (2024-10-08)
+-------------------------
+ * Use mailroom to trigger android channel sync
+ * Add new notification type for when an invitation to join a workspace is accepted
+ * More refactoring of modal views
+
 v9.3.57 (2024-10-04)
 -------------------------
  * More view refactoring
