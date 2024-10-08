@@ -1,3 +1,4 @@
-from .views import UserCRUDL
+from .views import OrgCRUDL, UserCRUDL
 
-urlpatterns = UserCRUDL().as_urlpatterns()
+urlpatterns = OrgCRUDL().as_urlpatterns()
+urlpatterns += UserCRUDL().as_urlpatterns()
