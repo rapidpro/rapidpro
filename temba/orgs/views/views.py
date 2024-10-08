@@ -35,7 +35,6 @@ from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
@@ -846,10 +845,10 @@ class InvitationMixin:
 
 
 class OrgCRUDL(SmartCRUDL):
+    model = Org
     actions = (
         "signup",
         "start",
-        "read",
         "edit",
         "edit_sub_org",
         "join",
@@ -860,9 +859,7 @@ class OrgCRUDL(SmartCRUDL):
         "delete_child",
         "manage_accounts",
         "manage_accounts_sub_org",
-        "manage",
         "menu",
-        "update",
         "country",
         "languages",
         "sub_orgs",
@@ -874,8 +871,6 @@ class OrgCRUDL(SmartCRUDL):
         "flow_smtp",
         "workspace",
     )
-
-    model = Org
 
     class Menu(BaseMenuView):
         @classmethod
@@ -1027,7 +1022,7 @@ class OrgCRUDL(SmartCRUDL):
                         menu_id="workspaces",
                         name=_("Workspaces"),
                         icon="workspace",
-                        href=reverse("orgs.org_manage"),
+                        href=reverse("staff.org_list"),
                     ),
                     self.create_menu_item(
                         menu_id="users",
@@ -1331,209 +1326,6 @@ class OrgCRUDL(SmartCRUDL):
             context["from_email_custom"] = from_email_custom
             return context
 
-    class Read(StaffOnlyMixin, SpaMixin, ContextMenuMixin, SmartReadView):
-        def build_context_menu(self, menu):
-            obj = self.get_object()
-            if not obj.is_active:
-                return
-
-            menu.add_modax(
-                _("Edit"),
-                "update-workspace",
-                reverse("orgs.org_update", args=[obj.id]),
-                title=_("Edit Workspace"),
-                as_button=True,
-                on_submit="handleWorkspaceUpdated()",
-            )
-
-            if not obj.is_flagged:
-                menu.add_url_post(_("Flag"), f"{reverse('orgs.org_update', args=[obj.id])}?action=flag")
-            else:
-                menu.add_url_post(_("Unflag"), f"{reverse('orgs.org_update', args=[obj.id])}?action=unflag")
-
-            if not obj.is_child:
-                if not obj.is_suspended:
-                    menu.add_url_post(_("Suspend"), f"{reverse('orgs.org_update', args=[obj.id])}?action=suspend")
-                else:
-                    menu.add_url_post(_("Unsuspend"), f"{reverse('orgs.org_update', args=[obj.id])}?action=unsuspend")
-
-            if not obj.is_verified:
-                menu.add_url_post(_("Verify"), f"{reverse('orgs.org_update', args=[obj.id])}?action=verify")
-
-            menu.new_group()
-            menu.add_url_post(
-                _("Service"),
-                f'{reverse("orgs.org_service")}?other_org={obj.id}&next={reverse("msgs.msg_inbox", args=[])}',
-            )
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.get_object()
-
-            users_roles = []
-            for role in OrgRole:
-                role_users = list(org.get_users(roles=[role]).values("id", "email"))
-                if role_users:
-                    users_roles.append(dict(role_display=role.display_plural, users=role_users))
-
-            context["users_roles"] = users_roles
-            context["children"] = Org.objects.filter(parent=org, is_active=True).order_by("-created_on", "name")
-            return context
-
-    class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
-        fields = ("name", "owner", "timezone", "created_on")
-        default_order = ("-created_on",)
-        search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
-        link_fields = ("name", "owner")
-        filters = (
-            ("all", _("All"), dict(), ("-created_on",)),
-            ("anon", _("Anonymous"), dict(is_anon=True, is_suspended=False), None),
-            ("flagged", _("Flagged"), dict(is_flagged=True, is_suspended=False), None),
-            ("suspended", _("Suspended"), dict(is_suspended=True), None),
-            ("verified", _("Verified"), dict(config__verified=True, is_suspended=False), None),
-        )
-
-        @csrf_exempt
-        def dispatch(self, *args, **kwargs):
-            return super().dispatch(*args, **kwargs)
-
-        def get_filter(self):
-            obj_filter = self.request.GET.get("filter", "all")
-            for filter in self.filters:
-                if filter[0] == obj_filter:
-                    return filter
-
-        def derive_title(self):
-            filter = self.get_filter()
-            if filter:
-                return filter[1]
-            return super().derive_title()
-
-        def derive_menu_path(self):
-            return f"/staff/{self.request.GET.get('filter', 'all')}"
-
-        def get_owner(self, obj):
-            owner = obj.get_owner()
-            return f"{owner.name} ({owner.email})"
-
-        def derive_queryset(self, **kwargs):
-            qs = super().derive_queryset(**kwargs).filter(is_active=True)
-            filter = self.get_filter()
-            if filter:
-                _, _, filter_kwargs, ordering = filter
-                qs = qs.filter(**filter_kwargs)
-                if ordering:
-                    qs = qs.order_by(*ordering)
-                else:
-                    qs = qs.order_by(*self.default_order)
-            else:
-                qs = qs.filter(is_suspended=False).order_by(*self.default_order)
-
-            return qs
-
-        def derive_ordering(self):
-            # we do this in derive queryset for simplicity
-            return None
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["filter"] = self.request.GET.get("filter", "all")
-            context["filters"] = self.filters
-            return context
-
-        def lookup_field_link(self, context, field, obj):
-            if field == "owner":
-                owner = obj.get_owner()
-                return reverse("staff.user_update", args=[owner.pk])
-            return super().lookup_field_link(context, field, obj)
-
-    class Update(StaffOnlyMixin, ModalFormMixin, ComponentFormMixin, SmartUpdateView):
-        ACTION_FLAG = "flag"
-        ACTION_UNFLAG = "unflag"
-        ACTION_SUSPEND = "suspend"
-        ACTION_UNSUSPEND = "unsuspend"
-        ACTION_VERIFY = "verify"
-
-        class Form(forms.ModelForm):
-            features = forms.MultipleChoiceField(
-                choices=Org.FEATURES_CHOICES, widget=SelectMultipleWidget(), required=False
-            )
-
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.limits_rows = []
-                self.add_limits_fields(org)
-
-            def clean(self):
-                super().clean()
-
-                limits = dict()
-                for row in self.limits_rows:
-                    if self.cleaned_data.get(row["limit_field_key"]):
-                        limits[row["limit_type"]] = self.cleaned_data.get(row["limit_field_key"])
-
-                self.cleaned_data["limits"] = limits
-
-                return self.cleaned_data
-
-            def add_limits_fields(self, org: Org):
-                for limit_type in settings.ORG_LIMIT_DEFAULTS.keys():
-                    field = forms.IntegerField(
-                        label=limit_type.capitalize(),
-                        required=False,
-                        initial=org.limits.get(limit_type),
-                        widget=forms.TextInput(attrs={"placeholder": _("Limit")}),
-                    )
-                    field_key = f"{limit_type}_limit"
-
-                    self.fields.update(OrderedDict([(field_key, field)]))
-                    self.limits_rows.append({"limit_type": limit_type, "limit_field_key": field_key})
-
-            class Meta:
-                model = Org
-                fields = ("name", "features", "is_anon")
-
-        form_class = Form
-        success_url = "hide"
-
-        def derive_title(self):
-            return None
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.get_object()
-            return kwargs
-
-        def post(self, request, *args, **kwargs):
-            if "action" in request.POST:
-                action = request.POST["action"]
-                obj = self.get_object()
-
-                if action == self.ACTION_FLAG:
-                    obj.flag()
-                elif action == self.ACTION_UNFLAG:
-                    obj.unflag()
-                elif action == self.ACTION_SUSPEND:
-                    obj.suspend()
-                elif action == self.ACTION_UNSUSPEND:
-                    obj.unsuspend()
-                elif action == self.ACTION_VERIFY:
-                    obj.verify()
-
-                return HttpResponseRedirect(reverse("orgs.org_read", args=[obj.id]))
-
-            return super().post(request, *args, **kwargs)
-
-        def pre_save(self, obj):
-            obj = super().pre_save(obj)
-
-            cleaned_data = self.form.cleaned_data
-
-            obj.limits = cleaned_data["limits"]
-            return obj
-
     class DeleteChild(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = "@orgs.org_sub_orgs"
         success_url = "@orgs.org_sub_orgs"
@@ -1764,7 +1556,7 @@ class OrgCRUDL(SmartCRUDL):
         # invalid form login 'logs out' the user from the org and takes them to the org manage page
         def form_invalid(self, form):
             switch_to_org(self.request, None)
-            return HttpResponseRedirect(reverse("orgs.org_manage"))
+            return HttpResponseRedirect(reverse("staff.org_list"))
 
     class SubOrgs(SpaMixin, ContextMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
         title = _("Workspaces")
@@ -1878,7 +1670,7 @@ class OrgCRUDL(SmartCRUDL):
 
             if not org:
                 if user.is_staff:
-                    return HttpResponseRedirect(reverse("orgs.org_manage"))
+                    return HttpResponseRedirect(reverse("staff.org_list"))
 
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
 
@@ -1911,7 +1703,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 elif user_orgs.count() == 0:
                     if user.is_staff:
-                        return HttpResponseRedirect(reverse("orgs.org_manage"))
+                        return HttpResponseRedirect(reverse("staff.org_list"))
 
                     # for regular users, if there's no orgs, log them out with a message
                     messages.info(request, _("No workspaces for this account, please contact your administrator."))

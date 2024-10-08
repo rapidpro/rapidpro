@@ -48,7 +48,6 @@ from temba.tickets.models import TicketExport
 from temba.triggers.models import Trigger
 from temba.utils import json, languages
 from temba.utils.uuid import uuid4
-from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import (
@@ -1822,34 +1821,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = self.client.get(menu_url).json()["results"]
         self.assertEqual("tomato", menu[8]["bubble"])
 
-    def test_read(self):
-        read_url = reverse("orgs.org_read", args=[self.org.id])
-
-        # make our second org a child
-        self.org2.parent = self.org
-        self.org2.save()
-
-        response = self.assertStaffOnly(read_url)
-
-        # we should have a child in our context
-        self.assertEqual(1, len(response.context["children"]))
-
-        # we should have options to flag and suspend
-        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Flag", "Suspend", "Verify", "-", "Service"])
-
-        # flag and content menu option should be inverted
-        self.org.flag()
-        self.org.suspend()
-
-        self.assertContentMenu(
-            read_url, self.customer_support, ["Edit", "Unflag", "Unsuspend", "Verify", "-", "Service"]
-        )
-
-        # no menu for inactive orgs
-        self.org.is_active = False
-        self.org.save()
-        self.assertContentMenu(read_url, self.customer_support, [])
-
     def test_workspace(self):
         workspace_url = reverse("orgs.org_workspace")
 
@@ -2832,7 +2803,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(self.requestView(start_url, self.agent), "/ticket/")
 
         # now try as customer support
-        self.assertRedirect(self.requestView(start_url, self.customer_support), "/org/manage/")
+        self.assertRedirect(self.requestView(start_url, self.customer_support), "/staff/org/")
 
         # if org isn't set, we redirect instead to choose view
         self.client.logout()
@@ -2867,7 +2838,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "No workspaces for this account, please contact your administrator.")
 
         # unless they are staff
-        self.assertRedirect(self.requestView(choose_url, self.customer_support), "/org/manage/")
+        self.assertRedirect(self.requestView(choose_url, self.customer_support), "/staff/org/")
 
         # turn editor into a multi-org user
         self.org2.add_user(self.editor, OrgRole.EDITOR)
@@ -2958,107 +2929,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         child.refresh_from_db()
         self.assertFalse(child.is_active)
 
-    def test_administration(self):
-        self.setUpLocations()
-
-        manage_url = reverse("orgs.org_manage")
-        update_url = reverse("orgs.org_update", args=[self.org.id])
-
-        self.assertStaffOnly(manage_url)
-        self.assertStaffOnly(update_url)
-
-        def assertOrgFilter(query: str, expected_orgs: list):
-            response = self.client.get(manage_url + query)
-            self.assertIsNotNone(response.headers.get(TEMBA_MENU_SELECTION, None))
-            self.assertEqual(expected_orgs, list(response.context["object_list"]))
-
-        assertOrgFilter("", [self.org2, self.org])
-        assertOrgFilter("?filter=all", [self.org2, self.org])
-        assertOrgFilter("?filter=xxxx", [self.org2, self.org])
-        assertOrgFilter("?filter=flagged", [])
-        assertOrgFilter("?filter=anon", [])
-        assertOrgFilter("?filter=suspended", [])
-        assertOrgFilter("?filter=verified", [])
-
-        self.org.flag()
-
-        assertOrgFilter("?filter=flagged", [self.org])
-
-        self.org2.verify()
-
-        assertOrgFilter("?filter=verified", [self.org2])
-
-        # and can go to our org
-        response = self.client.get(update_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            [
-                "name",
-                "features",
-                "is_anon",
-                "channels_limit",
-                "fields_limit",
-                "globals_limit",
-                "groups_limit",
-                "labels_limit",
-                "teams_limit",
-                "topics_limit",
-                "loc",
-            ],
-            list(response.context["form"].fields.keys()),
-        )
-
-        # make some changes to our org
-        response = self.client.post(
-            update_url,
-            {
-                "name": "Temba II",
-                "features": ["new_orgs"],
-                "is_anon": False,
-                "channels_limit": 20,
-                "fields_limit": 300,
-                "globals_limit": "",
-                "groups_limit": 400,
-                "labels_limit": "",
-                "teams_limit": "",
-                "topics_limit": "",
-            },
-        )
-        self.assertEqual(302, response.status_code)
-
-        self.org.refresh_from_db()
-        self.assertEqual("Temba II", self.org.name)
-        self.assertEqual(["new_orgs"], self.org.features)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
-        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_CHANNELS), 20)
-
-        # flag org
-        self.client.post(update_url, {"action": "flag"})
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_flagged)
-
-        # unflag org
-        self.client.post(update_url, {"action": "unflag"})
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_flagged)
-
-        # suspend org
-        self.client.post(update_url, {"action": "suspend"})
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_suspended)
-
-        # unsuspend org
-        self.client.post(update_url, {"action": "unsuspend"})
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_suspended)
-
-        # verify
-        self.client.post(update_url, {"action": "verify"})
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_verified)
-
     def test_urn_schemes(self):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)
@@ -3136,7 +3006,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # posting invalid org just redirects back to manage page
         response = self.client.post(service_url, {"other_org": 325253256})
-        self.assertRedirect(response, "/org/manage/")
+        self.assertRedirect(response, "/staff/org/")
 
         # then service our org
         response = self.client.get(service_url, {"other_org": self.org.id})
@@ -3170,7 +3040,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # stop servicing
         response = self.client.post(service_url, {})
-        self.assertRedirect(response, "/org/manage/")
+        self.assertRedirect(response, "/staff/org/")
         self.assertIsNone(self.client.session["org_id"])
         self.assertFalse(self.client.session["servicing"])
 
