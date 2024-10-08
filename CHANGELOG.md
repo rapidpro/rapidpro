@@ -1,3 +1,7 @@
+v9.3.62 (2024-10-08)
+-------------------------
+ * Fix double character rendering on autogrow inputs
+
 v9.3.61 (2024-10-08)
 -------------------------
  * Move staff only rg and user views to new staff app
