@@ -1,12 +1,15 @@
 {% extends "email_base.html" %}
-{% load tz i18n %}
+{% load i18n %}
 
 {% block body %}
   <p>
-    {% blocktrans trimmed with org=org.name domain=branding.domain brand=branding.name secret=invitation.secret %}
-      You've been invited to join {{ brand }} as a member of {{ org }}.
-      <br />
-      To accept the invitation, <a href='https://{{ domain }}/org/join/{{ secret }}/'>click here</a>.
+    {% blocktrans trimmed with org=org.name %}
+      You've been invited to join the <b>{{ org }}</b> workspace.
+    {% endblocktrans %}
+  </p>
+  <p>
+    {% blocktrans trimmed with domain=branding.domain secret=invitation.secret %}
+      <a href="https://{{ domain }}/org/join/{{ secret }}/">Click here</a> to accept the invitation.
     {% endblocktrans %}
   </p>
 {% endblock body %}
