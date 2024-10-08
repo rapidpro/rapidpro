@@ -2169,6 +2169,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         invitation.refresh_from_db()
         self.assertFalse(invitation.is_active)
 
+        self.assertEqual(1, self.admin.notifications.filter(notification_type="invitation:accepted").count())
+        self.assertEqual(2, self.org.get_users(roles=[OrgRole.EDITOR]).count())
+
     def test_join_accept(self):
         # only authenticated users can access page
         response = self.client.get(reverse("orgs.org_join_accept", args=["invalid"]))
@@ -2210,6 +2213,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         invitation.refresh_from_db()
         self.assertFalse(invitation.is_active)
+
+        self.assertEqual(1, self.admin.notifications.filter(notification_type="invitation:accepted").count())
+        self.assertEqual(2, self.org.get_users(roles=[OrgRole.EDITOR]).count())
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
