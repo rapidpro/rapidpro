@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django_redis import get_redis_connection
 
@@ -71,7 +72,8 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
-    def test_queue_interrupt_channel(self):
+    @patch("temba.channels.models.Channel.trigger_sync")
+    def test_queue_interrupt_channel(self, mock_trigger_sync):
         self.channel.release(self.admin)
 
         self.assert_org_queued(self.org)

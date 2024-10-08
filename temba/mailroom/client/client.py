@@ -67,6 +67,9 @@ class MailroomClient:
             },
         )
 
+    def android_sync(self, channel):
+        return self._request("android/sync", {"channel_id": channel.id})
+
     def contact_create(self, org, user, contact: ContactSpec) -> Contact:
         resp = self._request("contact/create", {"org_id": org.id, "user_id": user.id, "contact": asdict(contact)})
 

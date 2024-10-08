@@ -1006,7 +1006,3 @@ WHATSAPP_FACEBOOK_BUSINESS_ID = os.environ.get("WHATSAPP_FACEBOOK_BUSINESS_ID", 
 #
 # You need to change these to real addresses to work with these.
 IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
-
-# Android clients FCM config
-ANDROID_FCM_PROJECT_ID = os.environ.get("ANDROID_FCM_PROJECT_ID", "")
-ANDROID_CREDENTIALS_FILE = os.environ.get("ANDROID_CREDENTIALS_FILE", "")
