@@ -6,8 +6,8 @@ import iso8601
 import pyotp
 from django_redis import get_redis_connection
 from packaging.version import Version
-from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
-from smartmin.users.views import Login, UserUpdateForm
+from smartmin.users.models import FailedLogin, RecoveryToken
+from smartmin.users.views import Login
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -23,13 +23,12 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
-from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.db.models.functions import Lower
 from django.forms import ModelChoiceField
-from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -44,7 +43,7 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
-from temba.utils import analytics, get_anonymous_user, json, languages, on_transaction_commit, str_to_bool
+from temba.utils import analytics, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.email import EmailSender, parse_smtp_url
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
@@ -340,11 +339,7 @@ class InferUserMixin:
 class UserCRUDL(SmartCRUDL):
     model = User
     actions = (
-        "list",
-        "update",
         "edit",
-        "delete",
-        "read",
         "forget",
         "recover",
         "two_factor_enable",
@@ -355,114 +350,6 @@ class UserCRUDL(SmartCRUDL):
         "verify_email",
         "send_verification_email",
     )
-
-    class Read(StaffOnlyMixin, ContextMenuMixin, SpaMixin, SmartReadView):
-        fields = ("email", "date_joined")
-        menu_path = "/staff/users/all"
-
-        def build_context_menu(self, menu):
-            obj = self.get_object()
-            menu.add_modax(
-                _("Edit"),
-                "user-update",
-                reverse("orgs.user_update", args=[obj.id]),
-                title=_("Edit User"),
-                as_button=True,
-            )
-
-            menu.add_modax(
-                _("Delete"),
-                "user-delete",
-                reverse("orgs.user_delete", args=[obj.id]),
-                title=_("Delete User"),
-            )
-
-    class List(StaffOnlyMixin, SpaMixin, SmartListView):
-        fields = ("email", "name", "date_joined")
-        ordering = ("-date_joined",)
-        search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
-        filters = (("all", _("All")), ("beta", _("Beta")), ("staff", _("Staff")))
-
-        def derive_menu_path(self):
-            return f"/staff/users/{self.request.GET.get('filter', 'all')}"
-
-        @csrf_exempt
-        def dispatch(self, *args, **kwargs):
-            return super().dispatch(*args, **kwargs)
-
-        def derive_queryset(self, **kwargs):
-            qs = super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
-            obj_filter = self.request.GET.get("filter")
-            if obj_filter == "beta":
-                qs = qs.filter(groups__name="Beta")
-            elif obj_filter == "staff":
-                qs = qs.filter(is_staff=True)
-            return qs
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["filter"] = self.request.GET.get("filter", "all")
-            context["filters"] = self.filters
-            return context
-
-    class Update(StaffOnlyMixin, ModalFormMixin, ComponentFormMixin, ContextMenuMixin, SmartUpdateView):
-        class Form(UserUpdateForm):
-            groups = forms.ModelMultipleChoiceField(
-                widget=SelectMultipleWidget(
-                    attrs={"placeholder": _("Optional: Select permissions groups."), "searchable": True}
-                ),
-                queryset=Group.objects.all(),
-                required=False,
-            )
-
-            class Meta:
-                model = User
-                fields = ("email", "new_password", "first_name", "last_name", "groups")
-                help_texts = {"new_password": _("You can reset the user's password by entering a new password here")}
-
-        form_class = Form
-        success_message = "User updated successfully."
-        title = "Update User"
-
-        def pre_save(self, obj):
-            obj.username = obj.email
-            return obj
-
-        def post_save(self, obj):
-            """
-            Make sure our groups are up-to-date
-            """
-            if "groups" in self.form.cleaned_data:
-                obj.groups.clear()
-                for group in self.form.cleaned_data["groups"]:
-                    obj.groups.add(group)
-
-            # if a new password was set, reset our failed logins
-            if "new_password" in self.form.cleaned_data and self.form.cleaned_data["new_password"]:
-                FailedLogin.objects.filter(username__iexact=self.object.username).delete()
-                PasswordHistory.objects.create(user=obj, password=obj.password)
-
-            return obj
-
-    class Delete(StaffOnlyMixin, ModalFormMixin, SmartDeleteView):
-        fields = ("id",)
-        permission = "orgs.user_update"
-        submit_button_name = _("Delete")
-        cancel_url = "@orgs.user_list"
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["owned_orgs"] = self.get_object().get_owned_orgs()
-            return context
-
-        def post(self, request, *args, **kwargs):
-            user = self.get_object()
-            user.release(self.request.user)
-
-            messages.info(request, self.derive_success_message())
-            response = HttpResponse()
-            response["Temba-Success"] = reverse("orgs.user_list")
-            return response
 
     class Forget(SmartFormView):
         class Form(forms.Form):
@@ -1146,7 +1033,7 @@ class OrgCRUDL(SmartCRUDL):
                         menu_id="users",
                         name=_("Users"),
                         icon="users",
-                        href=reverse("orgs.user_list"),
+                        href=reverse("staff.user_list"),
                     ),
                 ]
 
@@ -1558,7 +1445,7 @@ class OrgCRUDL(SmartCRUDL):
         def lookup_field_link(self, context, field, obj):
             if field == "owner":
                 owner = obj.get_owner()
-                return reverse("orgs.user_update", args=[owner.pk])
+                return reverse("staff.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
     class Update(StaffOnlyMixin, ModalFormMixin, ComponentFormMixin, SmartUpdateView):
