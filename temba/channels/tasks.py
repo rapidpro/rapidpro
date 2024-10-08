@@ -13,17 +13,10 @@ from temba.utils.analytics import track
 from temba.utils.crons import cron_task
 from temba.utils.models import delete_in_batches
 
-from .android import sync
 from .models import Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .types.android import AndroidType
 
 logger = logging.getLogger(__name__)
-
-
-@shared_task
-def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
-    channel = Channel.objects.filter(id=channel_id).first()
-    sync.sync_channel_fcm(cloud_registration_id, channel)
 
 
 @cron_task()

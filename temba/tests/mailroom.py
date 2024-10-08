@@ -187,6 +187,9 @@ class TestClient(MailroomClient):
         )
         return {"id": msg.id, "duplicate": False}
 
+    def android_sync(self, channel):
+        return {"id": channel.id}
+
     @_client_method
     def contact_create(self, org, user, contact: mailroom.ContactSpec):
         status = {v: k for k, v in Contact.ENGINE_STATUSES.items()}[contact.status]

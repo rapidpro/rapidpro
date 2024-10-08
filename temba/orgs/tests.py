@@ -670,7 +670,8 @@ class UserTest(TembaTest):
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.is_active)
 
-    def test_release(self):
+    @mock_mailroom
+    def test_release(self, mr_mocks):
         token = APIToken.create(self.org, self.admin)
 
         # admin doesn't "own" any orgs
@@ -3383,7 +3384,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("", self.editor.last_name)
         self.assertEqual({alphas}, set(self.editor.groups.all()))
 
-    def test_delete(self):
+    @mock_mailroom
+    def test_delete(self, mr_mocks):
         delete_url = reverse("orgs.user_delete", args=[self.editor.id])
 
         # this is a customer support only view

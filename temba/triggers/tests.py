@@ -12,6 +12,7 @@ from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests.mailroom import mock_mailroom
 from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .models import Trigger
@@ -567,7 +568,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # the archived trigger not counted
         self.assertPageMenu(menu_url, self.user, ["Active (1)", "Archived (1)", "Messages (1)"])
 
-    def test_create(self):
+    @mock_mailroom
+    def test_create(self, mr_mocks):
         create_url = reverse("triggers.trigger_create")
         create_new_convo_url = reverse("triggers.trigger_create_new_conversation")
         create_inbound_call_url = reverse("triggers.trigger_create_inbound_call")
