@@ -2110,9 +2110,7 @@ class OrgCRUDL(SmartCRUDL):
             user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
             login(self.request, user)
 
-            obj.add_user(user, self.invitation.role)
-
-            self.invitation.release()
+            self.invitation.accept(user)
 
     class JoinAccept(NoNavMixin, InvitationMixin, SmartUpdateView):
         """
