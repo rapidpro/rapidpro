@@ -263,6 +263,14 @@ class ShortcutCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"name": "Shortcut with this name already exists."},
         )
 
+        # try to create with name that has invalid characters
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "\\reboot", "text": "x"},
+            form_errors={"name": "Cannot contain the character: \\"},
+        )
+
         # try to create with name that is too long
         self.assertCreateSubmit(
             create_url,
