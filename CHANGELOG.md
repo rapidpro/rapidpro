@@ -1,3 +1,8 @@
+v9.3.63 (2024-10-09)
+-------------------------
+ * Create status groups with invalid names to avoid conflicts with real group names
+ * Bump django from 5.1 to 5.1.1
+
 v9.3.62 (2024-10-08)
 -------------------------
  * Fix double character rendering on autogrow inputs
