@@ -5250,44 +5250,31 @@ class ContactExportTest(TembaTest):
             assertReimport(export)
 
 
-class BackfillProxyFieldsTest(MigrationTest):
+class FixStatusGroupNamesTest(MigrationTest):
     app = "contacts"
-    migrate_from = "0188_contactfield_is_proxy_alter_contactfield_is_system"
-    migrate_to = "0189_backfill_proxy_fields"
-
-    OLD_SYSTEM_FIELDS = [
-        {"key": "id", "name": "ID", "value_type": "N"},
-        {"key": "name", "name": "Name", "value_type": "T"},
-        {"key": "created_on", "name": "Created On", "value_type": "D"},
-        {"key": "language", "name": "Language", "value_type": "T"},
-        {"key": "last_seen_on", "name": "Last Seen On", "value_type": "D"},
-    ]
+    migrate_from = "0192_alter_contactnote_text"
+    migrate_to = "0193_fix_status_group_names"
 
     def setUpBeforeMigration(self, apps):
-        # make org 1 look like an org with the old system fields
-        self.org.fields.all().delete()
+        # make org 1 look like an org with the old system groups
+        self.org.groups.filter(group_type=ContactGroup.TYPE_DB_ACTIVE).update(name="Active")
+        self.org.groups.filter(group_type=ContactGroup.TYPE_DB_BLOCKED).update(name="Blocked")
+        self.org.groups.filter(group_type=ContactGroup.TYPE_DB_STOPPED).update(name="Stopped")
+        self.org.groups.filter(group_type=ContactGroup.TYPE_DB_ARCHIVED).update(name="Archived")
 
-        for spec in self.OLD_SYSTEM_FIELDS:
-            self.org.fields.create(
-                is_system=True,
-                key=spec["key"],
-                name=spec["name"],
-                value_type=spec["value_type"],
-                show_in_table=False,
-                created_by=self.org.created_by,
-                modified_by=self.org.modified_by,
-            )
+        self.group1 = self.create_group("Active Contacts", contacts=[])
 
     def test_migration(self):
-        self.assertEqual(
-            {"created_on", "last_seen_on"}, set(self.org.fields.filter(is_system=True).values_list("key", flat=True))
-        )
-        self.assertEqual(
-            {"created_on", "last_seen_on"}, set(self.org.fields.filter(is_proxy=True).values_list("key", flat=True))
-        )
-        self.assertEqual(
-            {"created_on", "last_seen_on"}, set(self.org2.fields.filter(is_system=True).values_list("key", flat=True))
-        )
-        self.assertEqual(
-            {"created_on", "last_seen_on"}, set(self.org2.fields.filter(is_proxy=True).values_list("key", flat=True))
-        )
+        self.assertEqual("\\Active", self.org.groups.get(group_type=ContactGroup.TYPE_DB_ACTIVE).name)
+        self.assertEqual("\\Blocked", self.org.groups.get(group_type=ContactGroup.TYPE_DB_BLOCKED).name)
+        self.assertEqual("\\Stopped", self.org.groups.get(group_type=ContactGroup.TYPE_DB_STOPPED).name)
+        self.assertEqual("\\Archived", self.org.groups.get(group_type=ContactGroup.TYPE_DB_ARCHIVED).name)
+
+        self.assertEqual("\\Active", self.org2.groups.get(group_type=ContactGroup.TYPE_DB_ACTIVE).name)
+        self.assertEqual("\\Blocked", self.org2.groups.get(group_type=ContactGroup.TYPE_DB_BLOCKED).name)
+        self.assertEqual("\\Stopped", self.org2.groups.get(group_type=ContactGroup.TYPE_DB_STOPPED).name)
+        self.assertEqual("\\Archived", self.org2.groups.get(group_type=ContactGroup.TYPE_DB_ARCHIVED).name)
+
+        # check user group unaffected
+        self.group1.refresh_from_db()
+        self.assertEqual("Active Contacts", self.group1.name)
