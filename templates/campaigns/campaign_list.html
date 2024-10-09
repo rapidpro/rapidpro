@@ -23,18 +23,11 @@
   </script>
 {% endblock extra-script %}
 {% block content %}
-  <div class="page-title"></div>
-  <div class="flex">
-    <div class="flex-grow self-end items-end">
-      <div class="flex flex-col">
-        <form method="get" action="{{ request.path }}" id="search-form">
-          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-          </temba-textinput>
-          <input type="submit" class="hide">
-        </form>
-      </div>
-    </div>
-  </div>
+  <form method="get" action="{{ request.path }}" id="search-form">
+    <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+    </temba-textinput>
+    <input type="submit" class="hide">
+  </form>
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
   <div class="flex-grow overflow-y-auto shadow">
     <table class="list lined selectable scrolled">
@@ -62,7 +55,7 @@
           </tr>
         {% empty %}
           <tr class="empty_list">
-            <td colspan="99">{% trans "No matching campaigns" %}</td>
+            <td colspan="99" class="text-center">{% trans "No campaigns" %}</td>
           </tr>
         {% endfor %}
         {% block extra-rows %}

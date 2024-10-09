@@ -15,14 +15,11 @@
     </temba-modax>
   {% endif %}
   {% if org_has_flows %}
-    {% if view.search_fields %}
-      <form method="get" action="{{ request.path }}" class="mb-4" id="search-form">
-        <temba-textinput type="text" placeholder="{% trans "Search" %}" name="search" value="{{ search }}">
-        </temba-textinput>
-        {% if request.REQUEST.status %}<input type="hidden" name="status" value="{{ request.REQUEST.status }}">{% endif %}
-        <input type="submit" class="hide">
-      </form>
-    {% endif %}
+    <form method="get" action="{{ request.path }}" id="search-form">
+      <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+      </temba-textinput>
+      <input type="submit" class="hide">
+    </form>
     <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
     <div class="flex-grow overflow-y-auto shadow">
       <table class="relative list object-list lined selectable scrolled">
@@ -104,7 +101,7 @@
             </tr>
           {% empty %}
             <tr class="empty_list">
-              <td colspan="99">{% trans "No matching flows." %}</td>
+              <td colspan="99" class="text-center">{% trans "No flows" %}</td>
             </tr>
           {% endfor %}
         </tbody>
