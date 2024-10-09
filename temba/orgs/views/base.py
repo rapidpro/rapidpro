@@ -58,9 +58,13 @@ class BaseUpdateModal(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, Smar
 
 
 class BaseDeleteModal(OrgObjPermsMixin, SmartDeleteView):
-    default_template = "smartmin/delete_confirm.html"
-    submit_button_name = _("Delete")
     fields = ("id",)
+    submit_button_name = _("Delete")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["submit_button_name"] = self.submit_button_name
+        return context
 
     def post(self, request, *args, **kwargs):
         self.get_object().release(self.request.user)
