@@ -2477,7 +2477,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         sample_flows = set(org.flows.values_list("name", flat=True))
 
         self.assertEqual({"created_on", "last_seen_on"}, system_fields)
-        self.assertEqual({"Active", "Archived", "Blocked", "Stopped", "Open Tickets"}, system_groups)
+        self.assertEqual({"\\Active", "\\Archived", "\\Blocked", "\\Stopped", "Open Tickets"}, system_groups)
         self.assertEqual(
             {"Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"},
             sample_flows,

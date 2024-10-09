@@ -10,17 +10,11 @@
       {% endblocktrans %}
     </temba-alert>
   {% endif %}
-  <div class="flex">
-    <div class="flex-grow self-end items-end">
-      <div class="flex flex-col">
-        <form method="get" action="{{ request.path }}" id="search-form">
-          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-          </temba-textinput>
-          <input type="submit" class="hide">
-        </form>
-      </div>
-    </div>
-  </div>
+  <form method="get" action="{{ request.path }}" id="search-form">
+    <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+    </temba-textinput>
+    <input type="submit" class="hide">
+  </form>
   {% block pre-table %}
     <temba-modax header="{{ _("Update User") |escapejs }}" -temba-redirected="refreshUsers" id="update-user">
     </temba-modax>

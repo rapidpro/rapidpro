@@ -3686,9 +3686,6 @@ class EndpointsTest(APITest):
         # try to create another group with same name
         self.assertPost(endpoint_url, self.admin, {"name": "reporters"}, errors={"name": "This field must be unique."})
 
-        # try to create another group with same name as a system group..
-        self.assertPost(endpoint_url, self.admin, {"name": "blocked"}, errors={"name": "This field must be unique."})
-
         # it's fine if a group in another org has that name
         self.assertPost(endpoint_url, self.admin, {"name": "Spammers"}, status=201)
 

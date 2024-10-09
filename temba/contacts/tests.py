@@ -1349,10 +1349,6 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(url, {"name": "Customers"})
         self.assertFormError(response.context["form"], "name", "Already used by another group.")
 
-        # try to create with name that's already taken by a system group
-        response = self.client.post(url, {"name": "blocked"})
-        self.assertFormError(response.context["form"], "name", "Already used by another group.")
-
         # create with valid name (that will be trimmed)
         response = self.client.post(url, {"name": "first  "})
         self.assertNoFormErrors(response)
@@ -5017,7 +5013,7 @@ class ContactExportTest(TembaTest):
         contact5 = self.create_contact("George", urns=["tel:+1234567777"], status=Contact.STATUS_STOPPED)
 
         # export a specified status group of contacts (Stopped)
-        sheets, export = self._export(self.org.groups.get(name="Stopped"), with_groups=[group1])
+        sheets, export = self._export(self.org.groups.get(group_type="S"), with_groups=[group1])
         self.assertExcelSheet(
             sheets[0],
             [
