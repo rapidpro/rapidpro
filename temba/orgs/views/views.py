@@ -340,7 +340,7 @@ class UserCRUDL(SmartCRUDL):
     actions = (
         "list",
         "update",
-        "remove",
+        "delete",
         "edit",
         "forget",
         "recover",
@@ -390,7 +390,7 @@ class UserCRUDL(SmartCRUDL):
             role = forms.ChoiceField(
                 choices=[(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)],
                 required=True,
-                label=" ",
+                label=_("Role"),
                 widget=SelectWidget(),
             )
 
@@ -413,14 +413,20 @@ class UserCRUDL(SmartCRUDL):
             self.request.org.add_user(obj, role)
             return obj
 
-    class Remove(OrgObjPermsMixin, SmartDeleteView):
+    class Delete(OrgObjPermsMixin, SmartDeleteView):
         permission = "orgs.user_update"
         fields = ("id",)
+        submit_button_name = _("Remove")
         cancel_url = "@orgs.user_list"
         redirect_url = "@orgs.user_list"
 
         def get_object_org(self):
             return self.request.org
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["submit_button_name"] = self.submit_button_name
+            return context
 
         def post(self, request, *args, **kwargs):
             self.request.org.remove_user(self.get_object())

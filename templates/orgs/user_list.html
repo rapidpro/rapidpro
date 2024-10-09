@@ -10,17 +10,17 @@
       {% endblocktrans %}
     </temba-alert>
   {% endif %}
+  {% block pre-table %}
+    <temba-modax header="{{ _("Update User") |escapejs }}" -temba-redirected="refreshUsers" id="update-user">
+    </temba-modax>
+    <temba-modax header="{{ _("Remove User") |escapejs }}" -temba-redirected="refreshUsers" id="delete-user">
+    </temba-modax>
+  {% endblock pre-table %}
   <form method="get" action="{{ request.path }}" id="search-form">
     <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
     </temba-textinput>
     <input type="submit" class="hide">
   </form>
-  {% block pre-table %}
-    <temba-modax header="{{ _("Update User") |escapejs }}" -temba-redirected="refreshUsers" id="update-user">
-    </temba-modax>
-    <temba-modax header="{{ _("Remove User") |escapejs }}" -temba-redirected="refreshUsers" id="remove-user">
-    </temba-modax>
-  {% endblock pre-table %}
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
   <div class="flex-grow overflow-y-auto shadow">
     <table class="list lined scrolled">
@@ -40,7 +40,7 @@
             <td>{{ obj.role.display }}</td>
             <td class="w-10">
               <div style="visibility:hidden"
-                   onclick="event.stopPropagation(); showRemoveUserModal({{ obj.id }});"
+                   onclick="event.stopPropagation(); showDeleteUserModal({{ obj.id }});"
                    class="pl-2 pt-1 delete-link linked text-gray-400">
                 <temba-icon name="delete_small">
                 </temba-icon>
@@ -65,9 +65,9 @@
       modax.open = true;
     }
 
-    function showRemoveUserModal(id) {
-      var modax = document.querySelector('#remove-user');
-      modax.endpoint = `/user/remove/${id}/`;
+    function showDeleteUserModal(id) {
+      var modax = document.querySelector('#delete-user');
+      modax.endpoint = `/user/delete/${id}/`;
       modax.open = true;
     }
   </script>
