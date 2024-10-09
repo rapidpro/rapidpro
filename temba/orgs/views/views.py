@@ -338,6 +338,9 @@ class InferUserMixin:
 class UserCRUDL(SmartCRUDL):
     model = User
     actions = (
+        "list",
+        "update",
+        "remove",
         "edit",
         "forget",
         "recover",
@@ -349,6 +352,80 @@ class UserCRUDL(SmartCRUDL):
         "verify_email",
         "send_verification_email",
     )
+
+    class List(SpaMixin, ContextMenuMixin, OrgPermsMixin, SmartListView):
+        title = _("Users")
+        menu_path = "/settings/users"
+        search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
+
+        def pre_process(self, request, *args, **kwargs):
+            if Org.FEATURE_USERS not in request.org.features:
+                return HttpResponseRedirect(reverse("orgs.org_workspace"))
+
+        def build_context_menu(self, menu):
+            menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
+
+        def derive_queryset(self, **kwargs):
+            return (
+                super()
+                .derive_queryset(**kwargs)
+                .filter(id__in=self.request.org.get_users().values_list("id", flat=True))
+                .order_by(Lower("email"))
+            )
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            has_viewers = False
+            for user in context["object_list"]:
+                user.role = self.request.org.get_user_role(user)
+                if user.role == OrgRole.VIEWER:
+                    has_viewers = True
+
+            context["has_viewers"] = has_viewers
+            return context
+
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            role = forms.ChoiceField(
+                choices=[(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)],
+                required=True,
+                label=" ",
+                widget=SelectWidget(),
+            )
+
+            class Meta:
+                model = User
+                fields = ("role",)
+
+        form_class = Form
+
+        def get_object_org(self):
+            return self.request.org
+
+        def derive_initial(self):
+            # viewers default to editors
+            role = self.request.org.get_user_role(self.object)
+            return {"role": OrgRole.EDITOR.code if role == OrgRole.VIEWER else role.code}
+
+        def save(self, obj):
+            role = OrgRole.from_code(self.form.cleaned_data["role"])
+            self.request.org.add_user(obj, role)
+            return obj
+
+    class Remove(OrgObjPermsMixin, SmartDeleteView):
+        permission = "orgs.user_update"
+        fields = ("id",)
+        cancel_url = "@orgs.user_list"
+        redirect_url = "@orgs.user_list"
+
+        def get_object_org(self):
+            return self.request.org
+
+        def post(self, request, *args, **kwargs):
+            self.request.org.remove_user(self.get_object())
+
+            return HttpResponseRedirect(self.get_redirect_url())
 
     class Forget(SmartFormView):
         class Form(forms.Form):

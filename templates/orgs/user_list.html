@@ -1,0 +1,88 @@
+{% extends "smartmin/list.html" %}
+{% load smartmin temba i18n %}
+
+{% block content %}
+  {% if has_viewers %}
+    <temba-alert level="warning" class="mb-4">
+      {% blocktrans trimmed with cutoff="2024-12-31"|day %}
+        The <i>Viewer</i> role for users is being removed. Please update any users with that role or remove from your
+        workspace. After <b>{{ cutoff }}</b> these users will no longer be able to access the workspace.
+      {% endblocktrans %}
+    </temba-alert>
+  {% endif %}
+  <div class="flex">
+    <div class="flex-grow self-end items-end">
+      <div class="flex flex-col">
+        <form method="get" action="{{ request.path }}" id="search-form">
+          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+          </temba-textinput>
+          <input type="submit" class="hide">
+        </form>
+      </div>
+    </div>
+  </div>
+  {% block pre-table %}
+    <temba-modax header="{{ _("Update User") |escapejs }}" -temba-redirected="refreshUsers" id="update-user">
+    </temba-modax>
+    <temba-modax header="{{ _("Remove User") |escapejs }}" -temba-redirected="refreshUsers" id="remove-user">
+    </temba-modax>
+  {% endblock pre-table %}
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow overflow-y-auto shadow">
+    <table class="list lined scrolled">
+      <thead>
+        <tr>
+          <th>{% trans "Email" %}</th>
+          <th>{% trans "Name" %}</th>
+          <th>{% trans "Role" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for obj in object_list %}
+          <tr onclick="showUpdateUserModal({{ obj.id }})" class="hover-linked update">
+            <td>{{ obj.email }}</td>
+            <td>{{ obj.name }}</td>
+            <td>{{ obj.role.display }}</td>
+            <td class="w-10">
+              <div style="visibility:hidden"
+                   onclick="event.stopPropagation(); showRemoveUserModal({{ obj.id }});"
+                   class="pl-2 pt-1 delete-link linked text-gray-400">
+                <temba-icon name="delete_small">
+                </temba-icon>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr class="empty_list">
+            <td colspan="99" class="text-center">{% trans "No users" %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showUpdateUserModal(id) {
+      var modax = document.querySelector('#update-user');
+      modax.endpoint = `/user/update/${id}/`;
+      modax.open = true;
+    }
+
+    function showRemoveUserModal(id) {
+      var modax = document.querySelector('#remove-user');
+      modax.endpoint = `/user/remove/${id}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    tr:hover .delete-link {
+      visibility: visible !important;
+    }
+  </style>
+{% endblock extra-style %}
