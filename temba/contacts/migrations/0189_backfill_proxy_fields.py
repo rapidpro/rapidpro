@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def backfill_proxy_fields(apps, schema_editor):
+def backfill_proxy_fields(apps, schema_editor):  # pragma: no cover
     ContactField = apps.get_model("contacts", "ContactField")
 
     # delete all old system fields that weren't usable
@@ -17,12 +17,8 @@ def backfill_proxy_fields(apps, schema_editor):
     ContactField.objects.filter(is_system=True, key__in=("created_on", "last_seen_on")).update(is_proxy=True)
 
 
-def reverse(apps, schema_editor):
-    pass
-
-
 class Migration(migrations.Migration):
 
     dependencies = [("contacts", "0188_contactfield_is_proxy_alter_contactfield_is_system")]
 
-    operations = [migrations.RunPython(backfill_proxy_fields, reverse)]
+    operations = [migrations.RunPython(backfill_proxy_fields, migrations.RunPython.noop)]
