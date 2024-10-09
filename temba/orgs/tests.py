@@ -3134,6 +3134,23 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class UserCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("orgs.user_list")
+
+        # nobody can access if users feature not enabled
+        self.requestView(list_url, self.admin, expected_status=302)
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
+
+        self.assertListFetch(list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user])
+
+        # can search by name or email
+        self.assertListFetch(list_url + "?search=andy", [self.admin], context_objects=[self.admin])
+        self.assertListFetch(list_url + "?search=editor@nyaruka.com", [self.admin], context_objects=[self.editor])
+
     def test_account(self):
         self.login(self.agent)
 

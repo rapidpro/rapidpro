@@ -58,8 +58,8 @@ class BaseUpdateModal(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, Smar
 
 
 class BaseDeleteModal(OrgObjPermsMixin, SmartDeleteView):
-    submit_button_name = _("Delete")
     fields = ("id",)
+    submit_button_name = _("Delete")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
