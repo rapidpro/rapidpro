@@ -10,22 +10,6 @@
       might change later.
     {% endblocktrans %}
   </div>
-  <div class="flex">
-    <div class="flex-grow self-end items-end">
-      <div class="flex flex-col">
-        <form method="get" action="{{ request.path }}" id="search-form">
-          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-          </temba-textinput>
-          <input type="submit" class="hide">
-        </form>
-        {% if search_error %}
-          <div class="mb-4 ml-2">
-            <span class="search-error">{{ search_error }}</span>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
   {% block pre-table %}
     <temba-modax header="{{ _("Update Global") |escapejs }}" -temba-redirected="refreshGlobals" id="update-global">
     </temba-modax>
@@ -34,6 +18,11 @@
     <temba-modax header="{{ _("Usages") |escapejs }}" id="usages-global">
     </temba-modax>
   {% endblock pre-table %}
+  <form method="get" action="{{ request.path }}" id="search-form">
+    <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+    </temba-textinput>
+    <input type="submit" class="hide">
+  </form>
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
   <div class="flex-grow overflow-y-auto shadow">
     <table class="list lined scrolled">
@@ -75,15 +64,7 @@
           </tr>
         {% empty %}
           <tr class="empty_list">
-            <td colspan="99">
-              {% if search %}
-                {% blocktrans trimmed with search=search %}
-                  No globals found for {{ search }}
-                {% endblocktrans %}
-              {% else %}
-                {% trans "No globals" %}
-              {% endif %}
-            </td>
+            <td colspan="99" class="text-center">{% trans "No globals" %}</td>
           </tr>
         {% endfor %}
       </tbody>

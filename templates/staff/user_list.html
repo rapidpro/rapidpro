@@ -6,12 +6,8 @@
 {% endblock page-header %}
 {% block pre-table %}
   <form method="get" id="search-form">
-    <div class="flex mb-4 items-center">
-      <div class="search-box flex-grow">
-        <temba-textinput name="search" value="{{ search }}" placeholder="Search Users">
-        </temba-textinput>
-        <input type="submit" value="Submit" class="hidden">
-      </div>
-    </div>
+    <temba-textinput name="search" value="{{ search }}" placeholder="Search">
+    </temba-textinput>
+    <input type="submit" value="Submit" class="hidden">
   </form>
 {% endblock pre-table %}
