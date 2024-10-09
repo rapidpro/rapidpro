@@ -23,13 +23,9 @@
   </style>
 {% endblock extra-style %}
 {% block pre-table %}
-  <div class="flex mb-4 items-center">
-    <div class="search-box flex-grow">
-      <form method="get" id="search-form">
-        <temba-textinput name="search" value="{{ search }}" placeholder="Search Workspaces">
-        </temba-textinput>
-        <input type="submit" value="Submit" class="hidden">
-      </form>
-    </div>
-  </div>
+  <form method="get" id="search-form">
+    <temba-textinput name="search" value="{{ search }}" placeholder="Search">
+    </temba-textinput>
+    <input type="submit" value="Submit" class="hidden">
+  </form>
 {% endblock pre-table %}
