@@ -1,3 +1,7 @@
+v9.3.65 (2024-10-10)
+-------------------------
+ * Add mixin for views that require a feature
+
 v9.3.64 (2024-10-09)
 -------------------------
  * Fix modal for deleting a shortcut
