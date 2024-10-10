@@ -1,3 +1,25 @@
+v9.3.62 (2024-10-08)
+-------------------------
+ * Fix double character rendering on autogrow inputs
+
+v9.3.61 (2024-10-08)
+-------------------------
+ * Move staff only rg and user views to new staff app
+
+v9.3.60 (2024-10-08)
+-------------------------
+ * Improve invitation emails
+
+v9.3.59 (2024-10-08)
+-------------------------
+ * Fix not creating invitation accepted notifications in case of new user signup
+
+v9.3.58 (2024-10-08)
+-------------------------
+ * Use mailroom to trigger android channel sync
+ * Add new notification type for when an invitation to join a workspace is accepted
+ * More refactoring of modal views
+
 v9.3.57 (2024-10-04)
 -------------------------
  * More view refactoring

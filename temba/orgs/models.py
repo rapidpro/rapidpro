@@ -1505,7 +1505,7 @@ class Invitation(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="invitations")
     email = models.EmailField()
     secret = models.CharField(max_length=64, unique=True)
-    user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.VIEWER.code)
+    user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.EDITOR.code)
 
     def save(self, *args, **kwargs):
         if not self.secret:
@@ -1525,6 +1525,15 @@ class Invitation(SmartModel):
             "orgs/email/invitation_email",
             {"org": self.org, "invitation": self},
         )
+
+    def accept(self, user):
+        from temba.notifications.types.builtin import InvitationAcceptedNotificationType
+
+        self.org.add_user(user, self.role)
+
+        InvitationAcceptedNotificationType.create(self)
+
+        self.release()
 
     def release(self):
         self.is_active = False

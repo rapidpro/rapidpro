@@ -165,7 +165,7 @@ class Notification(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
-    notification_type = models.CharField(max_length=16)
+    notification_type = models.CharField(max_length=32)
     medium = models.CharField(max_length=2)
 
     # The scope is what we maintain uniqueness of unseen notifications for within an org. For some notification types,
@@ -182,6 +182,7 @@ class Notification(models.Model):
     export = models.ForeignKey(Export, null=True, on_delete=models.PROTECT, related_name="notifications")
     contact_import = models.ForeignKey(ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications")
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
+    data = models.JSONField(null=True, default=dict)
 
     @classmethod
     def create_all(cls, org, notification_type: str, *, scope: str, users, medium: str = MEDIUM_UI, **kwargs):

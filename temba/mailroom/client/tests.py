@@ -81,6 +81,23 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_android_sync(self, mock_post):
+        mock_post.return_value = MockJsonResponse(200, {"id": 12345})
+        response = self.client.android_sync(
+            channel=self.channel,
+        )
+
+        self.assertEqual({"id": 12345}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/android/sync",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
+                "channel_id": self.channel.id,
+            },
+        )
+
+    @patch("requests.post")
     def test_contact_create(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         bob = self.create_contact("Bob", urns=["tel:+12340000002"])
