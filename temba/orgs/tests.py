@@ -118,13 +118,7 @@ class OrgContextProcessorTest(TembaTest):
 
 class InvitationTest(TembaTest):
     def test_model(self):
-        invitation = Invitation.objects.create(
-            org=self.org,
-            user_group="E",
-            email="invitededitor@nyaruka.com",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
+        invitation = Invitation.create(self.org, self.admin, "invitededitor@nyaruka.com", OrgRole.EDITOR)
 
         self.assertEqual(OrgRole.EDITOR, invitation.role)
 
@@ -1561,12 +1555,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save(update_fields=("features",))
 
         # create invitations
-        invitation1 = Invitation.objects.create(
-            org=self.org, email="norkans7@gmail.com", user_group="A", created_by=self.admin, modified_by=self.admin
-        )
-        invitation2 = Invitation.objects.create(
-            org=self.org, email="bob@tickets.com", user_group="T", created_by=self.admin, modified_by=self.admin
-        )
+        invitation1 = Invitation.create(self.org, self.admin, "norkans7@gmail.com", OrgRole.ADMINISTRATOR)
+        invitation2 = Invitation.create(self.org, self.admin, "bob@tickets.com", OrgRole.AGENT)
 
         # add a second editor to the org
         editor2 = self.create_user("editor2@nyaruka.com", first_name="Edwina")
@@ -2001,13 +1991,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("orgs.org_join", args=["invalid"]))
         self.assertRedirect(response, reverse("public.public_index"))
 
-        invitation = Invitation.objects.create(
-            org=self.org,
-            user_group="E",
-            email="edwin@nyaruka.com",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
+        invitation = Invitation.create(self.org, self.admin, "edwin@nyaruka.com", OrgRole.EDITOR)
 
         join_url = reverse("orgs.org_join", args=[invitation.secret])
         join_signup_url = reverse("orgs.org_join_signup", args=[invitation.secret])
@@ -2034,13 +2018,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, len(self.client.session.keys()))
 
         # invitation with mismatching case email
-        invitation2 = Invitation.objects.create(
-            org=self.org2,
-            user_group="E",
-            email="eDwin@nyaruka.com",
-            created_by=self.admin2,
-            modified_by=self.admin2,
-        )
+        invitation2 = Invitation.create(self.org2, self.admin, "eDwin@nyaruka.com", OrgRole.EDITOR)
 
         join_accept_url = reverse("orgs.org_join_accept", args=[invitation2.secret])
         join_url = reverse("orgs.org_join", args=[invitation2.secret])
@@ -2062,13 +2040,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("orgs.org_join_signup", args=["invalid"]))
         self.assertRedirect(response, reverse("public.public_index"))
 
-        invitation = Invitation.objects.create(
-            org=self.org,
-            user_group="A",
-            email="administrator@trileet.com",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
+        invitation = Invitation.create(self.org, self.admin, "administrator@trileet.com", OrgRole.ADMINISTRATOR)
 
         join_signup_url = reverse("orgs.org_join_signup", args=[invitation.secret])
         join_url = reverse("orgs.org_join", args=[invitation.secret])
@@ -2077,13 +2049,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(join_signup_url)
         self.assertRedirect(response, join_url)
 
-        invitation = Invitation.objects.create(
-            org=self.org,
-            user_group="E",
-            email="edwin@nyaruka.com",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
+        invitation = Invitation.create(self.org, self.admin, "edwin@nyaruka.com", OrgRole.EDITOR)
 
         join_signup_url = reverse("orgs.org_join_signup", args=[invitation.secret])
         join_url = reverse("orgs.org_join", args=[invitation.secret])
@@ -2116,13 +2082,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("orgs.org_join_accept", args=["invalid"]))
         self.assertRedirect(response, reverse("public.public_index"))
 
-        invitation = Invitation.objects.create(
-            org=self.org,
-            user_group="E",
-            email="edwin@nyaruka.com",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
+        invitation = Invitation.create(self.org, self.admin, "edwin@nyaruka.com", OrgRole.EDITOR)
 
         join_accept_url = reverse("orgs.org_join_accept", args=[invitation.secret])
         join_url = reverse("orgs.org_join", args=[invitation.secret])
@@ -3438,13 +3398,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, forget_url, status_code=301)
 
         FailedLogin.objects.create(username="admin@nyaruka.com")
-        invitation = Invitation.objects.create(
-            org=self.org,
-            user_group="A",
-            email="invited@nyaruka.com",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
+        invitation = Invitation.create(self.org, self.admin, "invited@nyaruka.com", OrgRole.ADMINISTRATOR)
 
         # no login required to access
         response = self.client.get(forget_url)
@@ -4371,8 +4325,29 @@ class BulkExportTest(TembaTest):
 
 
 class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("orgs.invitation_list")
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(list_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
+
+        inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
+        inv2 = Invitation.create(self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT)
+
+        self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
+
     def test_create(self):
         create_url = reverse("orgs.invitation_create")
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(create_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
         self.org.save(update_fields=("features",))
@@ -4442,6 +4417,31 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         # view can't create invitations in other orgs
         response = self.client.get(create_url + f"?org={self.org2.id}")
         self.assertEqual(404, response.status_code)
+
+    def test_delete(self):
+        inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
+        inv2 = Invitation.create(self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT)
+
+        delete_url = reverse("orgs.invitation_delete", args=[inv1.id])
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(delete_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent])
+
+        response = self.assertDeleteFetch(delete_url, [self.admin], as_modal=True)
+        self.assertContains(
+            response, "You are about to cancel the invitation sent to <b>bob@nyaruka.com</b>. Are you sure?"
+        )
+
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=inv1)
+
+        self.assertRedirect(response, reverse("orgs.invitation_list"))
+        self.assertEqual({inv2}, set(self.org.invitations.filter(is_active=True)))
 
 
 class BackupTokenTest(TembaTest):

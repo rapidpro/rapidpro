@@ -684,6 +684,7 @@ GROUP_PERMISSIONS = {
 # extra permissions that only apply to API requests (wildcard notation not supported here)
 API_PERMISSIONS = {
     "Editors": ("orgs.user_list",),
+    "Viewers": ("orgs.user_list",),
     "Agents": (
         "contacts.contact_create",
         "contacts.contact_list",

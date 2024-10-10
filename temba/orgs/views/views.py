@@ -78,7 +78,7 @@ from ..models import (
     User,
     UserSettings,
 )
-from .base import BaseMenuView
+from .base import BaseDeleteModal, BaseListView, BaseMenuView
 from .forms import SignupForm, SMTPForm
 from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin, RequireFeatureMixin
 
@@ -2310,9 +2310,26 @@ class OrgCRUDL(SmartCRUDL):
 
 class InvitationCRUDL(SmartCRUDL):
     model = Invitation
-    actions = ("create",)
+    actions = ("list", "create", "delete")
 
-    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
+    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+        require_feature = Org.FEATURE_USERS
+        title = _("Invitations")
+        menu_path = "/settings/users"
+        default_order = ("-created_on",)
+
+        def build_context_menu(self, menu):
+            menu.add_modax(_("New"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
+
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["validity_days"] = settings.INVITATION_VALIDITY.days
+            return context
+
+    class Create(RequireFeatureMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             ROLE_CHOICES = [(r.code, r.display) for r in (OrgRole.AGENT, OrgRole.EDITOR, OrgRole.ADMINISTRATOR)]
 
@@ -2342,6 +2359,7 @@ class InvitationCRUDL(SmartCRUDL):
                 fields = ("email", "role")
 
         form_class = Form
+        require_feature = Org.FEATURE_USERS
         title = ""
         submit_button_name = _("Send")
         success_url = "@orgs.org_manage_accounts"
@@ -2363,20 +2381,20 @@ class InvitationCRUDL(SmartCRUDL):
             context["validity_days"] = settings.INVITATION_VALIDITY.days
             return context
 
-        def pre_save(self, obj):
-            org = self.get_dest_org()
-
-            assert Org.FEATURE_USERS in org.features
-
-            obj.org = org
-            obj.user_group = self.form.cleaned_data["role"]
-
-            return super().pre_save(obj)
+        def save(self, obj):
+            self.object = Invitation.create(
+                self.get_dest_org(), self.request.user, obj.email, OrgRole.from_code(self.form.cleaned_data["role"])
+            )
 
         def post_save(self, obj):
             obj.send()
 
             return super().post_save(obj)
+
+    class Delete(RequireFeatureMixin, BaseDeleteModal):
+        require_feature = Org.FEATURE_USERS
+        cancel_url = "@orgs.invitation_list"
+        redirect_url = "@orgs.invitation_list"
 
 
 class OrgImportCRUDL(SmartCRUDL):
