@@ -2207,7 +2207,7 @@ class InvitationCRUDL(SmartCRUDL):
     model = Invitation
     actions = ("create",)
 
-    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
+    class Create(RequireFeatureMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             ROLE_CHOICES = [(r.code, r.display) for r in (OrgRole.AGENT, OrgRole.EDITOR, OrgRole.ADMINISTRATOR)]
 
@@ -2237,6 +2237,7 @@ class InvitationCRUDL(SmartCRUDL):
                 fields = ("email", "role")
 
         form_class = Form
+        require_feature = Org.FEATURE_USERS
         title = ""
         submit_button_name = _("Send")
         success_url = "@orgs.org_manage_accounts"
@@ -2258,15 +2259,10 @@ class InvitationCRUDL(SmartCRUDL):
             context["validity_days"] = settings.INVITATION_VALIDITY.days
             return context
 
-        def pre_save(self, obj):
-            org = self.get_dest_org()
-
-            assert Org.FEATURE_USERS in org.features
-
-            obj.org = org
-            obj.user_group = self.form.cleaned_data["role"]
-
-            return super().pre_save(obj)
+        def save(self, obj):
+            self.object = Invitation.create(
+                self.get_dest_org(), self.request.user, obj.email, OrgRole.from_code(self.form.cleaned_data["role"])
+            )
 
         def post_save(self, obj):
             obj.send()
