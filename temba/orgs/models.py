@@ -1507,6 +1507,10 @@ class Invitation(SmartModel):
     secret = models.CharField(max_length=64, unique=True)
     user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.EDITOR.code)
 
+    @classmethod
+    def create(cls, org, user, email: str, role: OrgRole):
+        return cls.objects.create(org=org, email=email, user_group=role.code, created_by=user, modified_by=user)
+
     def save(self, *args, **kwargs):
         if not self.secret:
             self.secret = generate_secret(64)
@@ -1535,10 +1539,11 @@ class Invitation(SmartModel):
 
         self.release()
 
-    def release(self):
+    def release(self, user=None):
         self.is_active = False
         self.modified_on = timezone.now()
-        self.save(update_fields=("is_active", "modified_on"))
+        self.modified_by = user or self.modified_by
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
 
 class BackupToken(models.Model):
