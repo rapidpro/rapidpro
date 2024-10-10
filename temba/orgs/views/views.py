@@ -80,7 +80,7 @@ from ..models import (
 )
 from .base import BaseMenuView
 from .forms import SignupForm, SMTPForm
-from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin
+from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin, RequireFeatureMixin
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -1432,7 +1432,9 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class ManageAccounts(SpaMixin, InferOrgMixin, ContextMenuMixin, OrgPermsMixin, SmartUpdateView):
+    class ManageAccounts(
+        SpaMixin, InferOrgMixin, RequireFeatureMixin, ContextMenuMixin, OrgPermsMixin, SmartUpdateView
+    ):
         class AccountsForm(forms.ModelForm):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1538,10 +1540,7 @@ class OrgCRUDL(SmartCRUDL):
         success_url = "@orgs.org_manage_accounts"
         title = _("Users")
         menu_path = "/settings/users"
-
-        def pre_process(self, request, *args, **kwargs):
-            if Org.FEATURE_USERS not in request.org.features:
-                return HttpResponseRedirect(reverse("orgs.org_workspace"))
+        require_feature = Org.FEATURE_USERS
 
         def build_context_menu(self, menu):
             menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
@@ -1669,7 +1668,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Create(NonAtomicMixin, ModalFormMixin, InferOrgMixin, OrgPermsMixin, SmartCreateView):
+    class Create(NonAtomicMixin, RequireFeatureMixin, ModalFormMixin, InferOrgMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             TYPE_CHILD = "child"
             TYPE_NEW = "new"
@@ -1690,12 +1689,7 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("type", "name", "timezone")
 
         form_class = Form
-
-        def pre_process(self, request, *args, **kwargs):
-            # if org has neither feature then redirect
-            features = self.request.org.features
-            if Org.FEATURE_NEW_ORGS not in features and Org.FEATURE_CHILD_ORGS not in features:
-                return HttpResponseRedirect(reverse("orgs.org_workspace"))
+        require_feature = (Org.FEATURE_NEW_ORGS, Org.FEATURE_CHILD_ORGS)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

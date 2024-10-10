@@ -87,9 +87,23 @@ class OrgObjPermsMixin(OrgPermsMixin):
             )
 
 
+class RequireFeatureMixin:
+    """
+    Mixin for views that require that the org has a feature enabled
+    """
+
+    require_feature = None  # feature or tuple of features (requires any of them)
+
+    def pre_process(self, request, *args, **kwargs):
+        require_any = self.require_feature if isinstance(self.require_feature, tuple) else (self.require_feature,)
+
+        if set(request.org.features).isdisjoint(require_any):
+            return HttpResponseRedirect(reverse("orgs.org_workspace"))
+
+
 class InferOrgMixin:
     """
-    Mixin for view whose object is the current org
+    Mixin for views whose object is the current request org
     """
 
     @classmethod

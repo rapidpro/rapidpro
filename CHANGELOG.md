@@ -1,3 +1,9 @@
+v9.3.64 (2024-10-09)
+-------------------------
+ * Fix modal for deleting a shortcut
+ * Tweak list view templates for consistency
+ * Data migration to tweak names of existing status groups
+
 v9.3.63 (2024-10-09)
 -------------------------
  * Create status groups with invalid names to avoid conflicts with real group names
