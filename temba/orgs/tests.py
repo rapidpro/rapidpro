@@ -3138,7 +3138,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("orgs.user_list")
 
         # nobody can access if users feature not enabled
-        self.requestView(list_url, self.admin, expected_status=302)
+        response = self.requestView(list_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         self.org.features = [Org.FEATURE_USERS]
         self.org.save(update_fields=("features",))
@@ -3150,6 +3151,89 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         # can search by name or email
         self.assertListFetch(list_url + "?search=andy", [self.admin], context_objects=[self.admin])
         self.assertListFetch(list_url + "?search=editor@nyaruka.com", [self.admin], context_objects=[self.editor])
+
+    def test_update(self):
+        update_url = reverse("orgs.user_update", args=[self.agent.id])
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(update_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(update_url, [None, self.user, self.editor, self.agent])
+
+        self.assertUpdateFetch(update_url, [self.admin], form_fields={"role": "T"})
+
+        # role field for viewers defaults to editor
+        update_url = reverse("orgs.user_update", args=[self.user.id])
+
+        self.assertUpdateFetch(update_url, [self.admin], form_fields={"role": "E"})
+
+        response = self.assertUpdateSubmit(update_url, self.admin, {"role": "E"})
+        self.assertRedirect(response, reverse("orgs.user_list"))
+
+        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+
+        # try updating ourselves...
+        update_url = reverse("orgs.user_update", args=[self.admin.id])
+
+        # can't be updated because no other admins
+        response = self.assertUpdateSubmit(update_url, self.admin, {"role": "E"}, object_unchanged=self.admin)
+        self.assertRedirect(response, reverse("orgs.user_list"))
+        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+
+        # add another admin to workspace and try again
+        self.org.add_user(self.admin2, OrgRole.ADMINISTRATOR)
+
+        response = self.assertUpdateSubmit(update_url, self.admin, {"role": "E"}, object_unchanged=self.admin)
+        self.assertRedirect(response, reverse("orgs.org_start"))  # no longer have access to user list page
+
+        self.assertEqual({self.user, self.editor, self.admin}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual({self.admin2}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+
+    def test_delete(self):
+        delete_url = reverse("orgs.user_delete", args=[self.agent.id])
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(delete_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent])
+
+        response = self.assertDeleteFetch(delete_url, [self.admin], as_modal=True)
+        self.assertContains(
+            response, "You are about to remove the user <b>Agnes</b> from your workspace. Are you sure?"
+        )
+
+        # submitting the delete doesn't actually delete the user - only removes them from the org
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_unchanged=self.agent)
+
+        self.assertRedirect(response, reverse("orgs.user_list"))
+        self.assertEqual({self.user, self.editor, self.admin}, set(self.org.get_users()))
+
+        # try deleting ourselves..
+        delete_url = reverse("orgs.user_delete", args=[self.admin.id])
+
+        # can't be removed because no other admins
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_unchanged=self.admin)
+        self.assertRedirect(response, reverse("orgs.user_list"))
+        self.assertEqual({self.user, self.editor, self.admin}, set(self.org.get_users()))
+
+        # add another admin to workspace and try again
+        self.org.add_user(self.admin2, OrgRole.ADMINISTRATOR)
+
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_unchanged=self.admin)
+
+        # this time we could remove ourselves
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_unchanged=self.admin)
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+        self.assertEqual({self.user, self.editor, self.admin2}, set(self.org.get_users()))
 
     def test_account(self):
         self.login(self.agent)

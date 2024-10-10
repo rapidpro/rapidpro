@@ -353,14 +353,11 @@ class UserCRUDL(SmartCRUDL):
         "send_verification_email",
     )
 
-    class List(SpaMixin, ContextMenuMixin, OrgPermsMixin, SmartListView):
+    class List(SpaMixin, RequireFeatureMixin, ContextMenuMixin, OrgPermsMixin, SmartListView):
+        require_feature = Org.FEATURE_USERS
         title = _("Users")
         menu_path = "/settings/users"
         search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
-
-        def pre_process(self, request, *args, **kwargs):
-            if Org.FEATURE_USERS not in request.org.features:
-                return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
         def build_context_menu(self, menu):
             menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
@@ -385,7 +382,7 @@ class UserCRUDL(SmartCRUDL):
             context["has_viewers"] = has_viewers
             return context
 
-    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(RequireFeatureMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             role = forms.ChoiceField(
                 choices=[(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)],
@@ -399,22 +396,36 @@ class UserCRUDL(SmartCRUDL):
                 fields = ("role",)
 
         form_class = Form
+        require_feature = Org.FEATURE_USERS
 
         def get_object_org(self):
             return self.request.org
 
         def derive_initial(self):
+            org = self.get_object_org()
+
             # viewers default to editors
-            role = self.request.org.get_user_role(self.object)
+            role = org.get_user_role(self.object)
             return {"role": OrgRole.EDITOR.code if role == OrgRole.VIEWER else role.code}
 
         def save(self, obj):
+            org = self.get_object_org()
             role = OrgRole.from_code(self.form.cleaned_data["role"])
+
+            # don't update if user is the last administrator and role is being changed to something else
+            has_other_admins = org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=obj.id).exists()
+            if role != OrgRole.ADMINISTRATOR and not has_other_admins:
+                return obj
+
             self.request.org.add_user(obj, role)
             return obj
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
+        def get_success_url(self):
+            return reverse("orgs.user_list") if self.has_org_perm("orgs.user_list") else reverse("orgs.org_start")
+
+    class Delete(RequireFeatureMixin, OrgObjPermsMixin, SmartDeleteView):
         permission = "orgs.user_update"
+        require_feature = Org.FEATURE_USERS
         fields = ("id",)
         submit_button_name = _("Remove")
         cancel_url = "@orgs.user_list"
@@ -429,9 +440,20 @@ class UserCRUDL(SmartCRUDL):
             return context
 
         def post(self, request, *args, **kwargs):
-            self.request.org.remove_user(self.get_object())
+            org = self.get_object_org()
+            user = self.get_object()
+
+            # only actually remove user if they're not the last administator
+            if org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=user.id).exists():
+                org.remove_user(user)
 
             return HttpResponseRedirect(self.get_redirect_url())
+
+        def get_redirect_url(self):
+            still_in_org = self.get_object_org().has_user(self.request.user) or self.request.user.is_staff
+
+            # if current user no longer belongs to this org, redirect to org chooser
+            return reverse("orgs.user_list") if still_in_org else reverse("orgs.org_choose")
 
     class Forget(SmartFormView):
         class Form(forms.Form):
