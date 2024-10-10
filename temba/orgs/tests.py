@@ -1680,42 +1680,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
         self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.AGENT])))
 
-    def test_manage_children(self):
-        children_url = reverse("orgs.org_sub_orgs")
-
-        # give our org the multi users feature
-        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
-        self.org.save()
-
-        # add a sub org
-        child = Org.objects.create(
-            name="Child Workspace",
-            timezone=ZoneInfo("US/Pacific"),
-            flow_languages=["eng"],
-            created_by=self.admin,
-            modified_by=self.admin,
-            parent=self.org,
-        )
-        child.initialize()
-        child.add_user(self.admin, OrgRole.ADMINISTRATOR)
-
-        child_accounts_url = reverse("orgs.org_manage_accounts_sub_org") + f"?org={child.id}"
-
-        self.assertRequestDisallowed(children_url, [None, self.user, self.editor, self.agent])
-        response = self.assertListFetch(children_url, [self.admin], choose_org=self.org)
-        self.assertContains(response, "Child Workspace")
-        self.assertContains(response, child_accounts_url)
-
-        # only admin for parent can see account page for child
-        self.assertRequestDisallowed(child_accounts_url, [None, self.user, self.editor, self.agent, self.admin2])
-
-        self.assertUpdateFetch(
-            child_accounts_url,
-            [self.admin],
-            form_fields=[f"user_{self.admin.id}_role", f"user_{self.admin.id}_remove"],
-            choose_org=self.org,
-        )
-
     def test_menu(self):
         menu_url = reverse("orgs.org_menu")
 
@@ -2701,17 +2665,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"
-        child1_accounts_url = reverse("orgs.org_manage_accounts_sub_org") + f"?org={child1.id}"
-
         self.assertContains(response, "Child Org 1")
-        self.assertContains(response, child1_accounts_url)
-
-        # we can also access the manage accounts page
-        response = self.client.get(child1_accounts_url)
-        self.assertEqual(200, response.status_code)
-
-        response = self.client.get(child1_accounts_url, HTTP_TEMBA_SPA=1)
-        self.assertContains(response, child1.name)
 
         # edit our sub org's details
         response = self.client.post(
@@ -4274,27 +4228,6 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
             {"email": "newguy@nyaruka.com", "role": "E"},
             form_errors={"email": "User has already been invited to this workspace."},
         )
-
-        # view can create invitations in child orgs
-        child1 = self.org.create_new(self.admin, "Child 1", tzone.utc, as_child=True)
-        child1.features = [Org.FEATURE_USERS]
-        child1.save(update_fields=("features",))
-
-        self.org.create_new(self.admin, "Child 2", tzone.utc, as_child=True)
-
-        self.assertCreateSubmit(
-            create_url + f"?org={child1.id}",
-            self.admin,
-            {"email": "newguy@nyaruka.com", "role": "A"},
-            new_obj_query=Invitation.objects.filter(org=child1, email="newguy@nyaruka.com", user_group="A").exclude(
-                secret=None
-            ),
-        )
-        self.assertEqual(2, len(mail.outbox))
-
-        # view can't create invitations in other orgs
-        response = self.client.get(create_url + f"?org={self.org2.id}")
-        self.assertEqual(404, response.status_code)
 
 
 class BackupTokenTest(TembaTest):
