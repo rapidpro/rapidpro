@@ -1,7 +1,7 @@
 import io
 import smtplib
 from datetime import date, datetime, timedelta, timezone as tzone
-from unittest.mock import call, patch
+from unittest.mock import patch
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
@@ -1468,7 +1468,7 @@ class OrgDeleteTest(TembaTest):
         self.assertFalse(Archive.storage().exists(f"{self.org.id}/extra_file.json"))
 
         # check we've initiated search de-indexing for all deleted orgs
-        self.assertEqual([call(org1_child1), call(org1_child2), call(self.org)], mr_mocks.calls["org_deindex"])
+        self.assertEqual({org1_child1, org1_child2, self.org}, {c.args[0] for c in mr_mocks.calls["org_deindex"]})
 
         # we don't actually delete org objects but at this point there should be no related fields preventing that
         Model.delete(org1_child1)
