@@ -1035,7 +1035,7 @@ class OrgCRUDL(SmartCRUDL):
                             name=_("Invitations"),
                             icon="invitations",
                             href="orgs.invitation_list",
-                            count=org.invitations.count(),
+                            count=org.invitations.filter(is_active=True).count(),
                         )
                     )
 
