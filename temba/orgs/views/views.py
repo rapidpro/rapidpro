@@ -396,6 +396,9 @@ class UserCRUDL(SmartCRUDL):
         def get_object_org(self):
             return self.request.org
 
+        def get_queryset(self):
+            return self.request.org.get_users()
+
         def derive_initial(self):
             # viewers default to editors
             role = self.request.org.get_user_role(self.object)
@@ -425,6 +428,9 @@ class UserCRUDL(SmartCRUDL):
 
         def get_object_org(self):
             return self.request.org
+
+        def get_queryset(self):
+            return self.request.org.get_users()
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
