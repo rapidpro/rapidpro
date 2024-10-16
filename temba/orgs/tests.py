@@ -4205,7 +4205,7 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             self.admin,
             {"email": "newguy@nyaruka.com", "role": "A"},
-            new_obj_query=Invitation.objects.filter(org=self.org, email="newguy@nyaruka.com", user_group="A").exclude(
+            new_obj_query=Invitation.objects.filter(org=self.org, email="newguy@nyaruka.com", role_code="A").exclude(
                 secret=None
             ),
         )

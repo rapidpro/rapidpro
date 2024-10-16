@@ -1,3 +1,7 @@
+v9.3.70 (2024-10-16)
+-------------------------
+ * Data migration to set Invitation.role_code
+
 v9.3.69 (2024-10-16)
 -------------------------
  * Fix how we model team membership so that users can belong to different teams in different workspaces
