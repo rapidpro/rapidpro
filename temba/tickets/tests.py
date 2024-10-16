@@ -1315,8 +1315,8 @@ class TeamTest(TembaTest):
     def test_create(self):
         team1 = Team.create(self.org, self.admin, "Sales")
         agent2 = self.create_user("tickets@nyaruka.com")
-        self.org.add_user(self.agent, OrgRole.AGENT, team1)
-        self.org.add_user(agent2, OrgRole.AGENT, team1)
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
+        self.org.add_user(agent2, OrgRole.AGENT, team=team1)
 
         self.assertEqual("Sales", team1.name)
         self.assertEqual("Sales", str(team1))
@@ -1334,7 +1334,7 @@ class TeamTest(TembaTest):
 
     def test_release(self):
         team1 = Team.create(self.org, self.admin, "Sales")
-        self.org.add_user(self.agent, OrgRole.AGENT, team1)
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
 
         team1.release(self.admin)
 
@@ -1347,8 +1347,8 @@ class TeamTest(TembaTest):
 class TicketDailyCountTest(TembaTest):
     def test_model(self):
         sales = Team.create(self.org, self.admin, "Sales")
-        self.org.add_user(self.agent, OrgRole.AGENT, sales)
-        self.org.add_user(self.editor, OrgRole.AGENT, sales)
+        self.org.add_user(self.agent, OrgRole.AGENT, team=sales)
+        self.org.add_user(self.editor, OrgRole.AGENT, team=sales)
 
         self._record_opening(self.org, date(2022, 4, 30))
         self._record_opening(self.org, date(2022, 5, 3))

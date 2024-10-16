@@ -1060,7 +1060,7 @@ class Org(SmartModel):
         """
         return self.users.filter(id=user.id).exists()
 
-    def add_user(self, user: User, role: OrgRole, team=None):
+    def add_user(self, user: User, role: OrgRole, *, team=None):
         """
         Adds the given user to this org with the given role
         """
