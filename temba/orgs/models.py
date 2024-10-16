@@ -337,9 +337,6 @@ class UserSettings(models.Model):
     email_verification_secret = models.CharField(max_length=64, db_index=True)
     avatar = models.ImageField(upload_to=UploadToIdPathAndRename("avatars/"), storage=public_file_storage, null=True)
 
-    # deprecated
-    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
-
 
 @receiver(post_save, sender=User)
 def on_user_post_save(sender, instance: User, created: bool, *args, **kwargs):
@@ -1507,21 +1504,12 @@ class Invitation(SmartModel):
     role_code = models.CharField(max_length=1, choices=OrgRole.choices(), default=OrgRole.EDITOR.code)
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
 
-    # deprecated, use role_code instead
-    user_group = models.CharField(max_length=1, choices=OrgRole.choices(), default=OrgRole.EDITOR.code)
-
     @classmethod
     def create(cls, org, user, email: str, role: OrgRole, team=None):
         assert not team or org == team.org
 
         return cls.objects.create(
-            org=org,
-            email=email,
-            role_code=role.code,
-            team=team,
-            user_group=role.code,
-            created_by=user,
-            modified_by=user,
+            org=org, email=email, role_code=role.code, team=team, created_by=user, modified_by=user
         )
 
     def save(self, *args, **kwargs):
@@ -1532,7 +1520,7 @@ class Invitation(SmartModel):
 
     @property
     def role(self):
-        return OrgRole.from_code(self.role_code or self.user_group)
+        return OrgRole.from_code(self.role_code)
 
     def send(self):
         sender = EmailSender.from_email_type(self.org.branding, "notifications")

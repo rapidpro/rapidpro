@@ -138,7 +138,7 @@ class InvitationTest(TembaTest):
     def test_expire_task(self):
         invitation1 = Invitation.objects.create(
             org=self.org,
-            user_group="E",
+            role_code="E",
             email="neweditor@nyaruka.com",
             created_by=self.admin,
             created_on=timezone.now() - timedelta(days=31),
@@ -146,7 +146,7 @@ class InvitationTest(TembaTest):
         )
         invitation2 = Invitation.objects.create(
             org=self.org,
-            user_group="T",
+            role_code="T",
             email="newagent@nyaruka.com",
             created_by=self.admin,
             created_on=timezone.now() - timedelta(days=29),
