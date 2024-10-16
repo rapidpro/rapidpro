@@ -1,3 +1,9 @@
+v9.3.66 (2024-10-16)
+-------------------------
+ * Fix displaying the channel log missing HTTP response
+ * Fix claim number to display non field errors
+ * Remove support for user management of sub-orgs without switching to those orgs
+
 v9.3.65 (2024-10-10)
 -------------------------
  * Add mixin for views that require a feature
