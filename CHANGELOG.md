@@ -1,3 +1,7 @@
+v9.3.69 (2024-10-16)
+-------------------------
+ * Fix how we model team membership so that users can belong to different teams in different workspaces
+
 v9.3.68 (2024-10-16)
 -------------------------
  * Tweak user update and delete forms to return 404 for users not in the current org
