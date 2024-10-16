@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.contacts.models import Contact
-from temba.orgs.models import DependencyMixin, Export, ExportType, Org, User, UserSettings
+from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgMembership, User
 from temba.utils import chunk_list
 from temba.utils.dates import date_range
 from temba.utils.export import MultiSheetExporter
@@ -418,11 +418,11 @@ class Team(TembaModel):
         return org.teams.create(name=name, created_by=user, modified_by=user)
 
     def get_users(self):
-        return User.objects.filter(settings__team=self)
+        return self.org.users.filter(orgmembership__team=self)
 
     def release(self, user):
         # remove all users from this team
-        UserSettings.objects.filter(team=self).update(team=None)
+        OrgMembership.objects.filter(org=self.org, team=self).update(team=None)
 
         self.name = self._deleted_name()
         self.is_active = False

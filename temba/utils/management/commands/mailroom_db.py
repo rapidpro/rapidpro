@@ -272,9 +272,7 @@ class Command(BaseCommand):
             user = User.objects.create_user(
                 u["email"], u["email"], USER_PASSWORD, first_name=u["first_name"], last_name=u["last_name"]
             )
-            org.add_user(user, OrgRole.from_code(u["role"]))
-            if u.get("team"):
-                user.set_team(Team.objects.get(name=u["team"]))
+            org.add_user(user, OrgRole.from_code(u["role"]), org.teams.get(name=u["team"]))
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

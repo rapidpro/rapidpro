@@ -379,12 +379,7 @@ class UserCRUDL(SmartCRUDL):
 
     class Update(RequireFeatureMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
-            role = forms.ChoiceField(
-                choices=[(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)],
-                required=True,
-                label=_("Role"),
-                widget=SelectWidget(),
-            )
+            role = forms.ChoiceField(choices=OrgRole.choices(), required=True, label=_("Role"), widget=SelectWidget())
 
             class Meta:
                 model = User
@@ -2147,11 +2142,9 @@ class InvitationCRUDL(SmartCRUDL):
 
     class Create(RequireFeatureMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
-            ROLE_CHOICES = [(r.code, r.display) for r in (OrgRole.AGENT, OrgRole.EDITOR, OrgRole.ADMINISTRATOR)]
-
             email = forms.EmailField(widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}))
             role = forms.ChoiceField(
-                choices=ROLE_CHOICES, initial=OrgRole.EDITOR.code, label=_("Role"), widget=SelectWidget()
+                choices=OrgRole.choices(), initial=OrgRole.EDITOR.code, label=_("Role"), widget=SelectWidget()
             )
 
             def __init__(self, org, *args, **kwargs):

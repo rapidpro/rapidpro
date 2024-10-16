@@ -203,13 +203,6 @@ class User(AuthUser):
                 owned_orgs.append(org)
         return owned_orgs
 
-    def set_team(self, team):
-        """
-        Sets the ticketing team for this user
-        """
-        self.settings.team = team
-        self.settings.save(update_fields=("team",))
-
     def record_auth(self):
         """
         Records that this user authenticated
@@ -327,7 +320,6 @@ class UserSettings(models.Model):
     STATUS_UNVERIFIED = "U"
     STATUS_VERIFIED = "V"
     STATUS_FAILING = "F"
-
     STATUS_CHOICES = (
         (STATUS_UNVERIFIED, _("Unverified")),
         (STATUS_VERIFIED, _("Verified")),
@@ -336,7 +328,6 @@ class UserSettings(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="settings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
-    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)
@@ -345,6 +336,9 @@ class UserSettings(models.Model):
     email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
     email_verification_secret = models.CharField(max_length=64, db_index=True)
     avatar = models.ImageField(upload_to=UploadToIdPathAndRename("avatars/"), storage=public_file_storage, null=True)
+
+    # deprecated
+    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
 
 
 @receiver(post_save, sender=User)
@@ -399,6 +393,10 @@ class OrgRole(Enum):
     @cached_property
     def api_permissions(self) -> set:
         return set(settings.API_PERMISSIONS.get(self.group_name, ()))
+
+    @classmethod
+    def choices(cls):
+        return [(r.code, r.display) for r in cls if r != cls.VIEWER]
 
     def has_perm(self, permission: str) -> bool:
         """
@@ -1062,17 +1060,19 @@ class Org(SmartModel):
         """
         return self.users.filter(id=user.id).exists()
 
-    def add_user(self, user: User, role: OrgRole):
+    def add_user(self, user: User, role: OrgRole, team=None):
         """
         Adds the given user to this org with the given role
         """
 
         assert role in OrgRole, f"invalid role: {role}"
+        assert role == OrgRole.AGENT or not team, "only agent users can be assigned to a team"
+        assert not team or team.org == self, "team must belong to this org"
 
         if self.has_user(user):  # remove user from any existing roles
             self.remove_user(user)
 
-        self.users.add(user, through_defaults={"role_code": role.code})
+        self.users.add(user, through_defaults={"role_code": role.code, "team": team})
         self._user_role_cache[user] = role
 
     def remove_user(self, user: User):
@@ -1436,6 +1436,7 @@ class OrgMembership(models.Model):
     org = models.ForeignKey(Org, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     role_code = models.CharField(max_length=1)
+    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
 
     @property
     def role(self):
@@ -1500,16 +1501,28 @@ class Invitation(SmartModel):
     An invitation to an e-mail address to join an org as a specific role.
     """
 
-    ROLE_CHOICES = [(r.code, r.display) for r in OrgRole]
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="invitations")
     email = models.EmailField()
     secret = models.CharField(max_length=64, unique=True)
-    user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.EDITOR.code)
+    role_code = models.CharField(max_length=1, choices=OrgRole.choices(), default=OrgRole.EDITOR.code)
+    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
+
+    # deprecated, use role_code instead
+    user_group = models.CharField(max_length=1, choices=OrgRole.choices(), default=OrgRole.EDITOR.code)
 
     @classmethod
-    def create(cls, org, user, email: str, role: OrgRole):
-        return cls.objects.create(org=org, email=email, user_group=role.code, created_by=user, modified_by=user)
+    def create(cls, org, user, email: str, role: OrgRole, team=None):
+        assert not team or org == team.org
+
+        return cls.objects.create(
+            org=org,
+            email=email,
+            role_code=role.code,
+            team=team,
+            user_group=role.code,
+            created_by=user,
+            modified_by=user,
+        )
 
     def save(self, *args, **kwargs):
         if not self.secret:
@@ -1519,7 +1532,7 @@ class Invitation(SmartModel):
 
     @property
     def role(self):
-        return OrgRole.from_code(self.user_group)
+        return OrgRole.from_code(self.role_code or self.user_group)
 
     def send(self):
         sender = EmailSender.from_email_type(self.org.branding, "notifications")
