@@ -2944,6 +2944,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateFetch(update_url, [self.admin], form_fields={"role": "T"})
 
+        # check can't update user not in the current org
+        self.assertRequestDisallowed(reverse("orgs.user_update", args=[self.admin2.id]), [self.admin])
+
         # role field for viewers defaults to editor
         update_url = reverse("orgs.user_update", args=[self.user.id])
 
@@ -2983,6 +2986,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save(update_fields=("features",))
 
         self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent])
+
+        # check can't delete user not in the current org
+        self.assertRequestDisallowed(reverse("orgs.user_delete", args=[self.admin2.id]), [self.admin])
 
         response = self.assertDeleteFetch(delete_url, [self.admin], as_modal=True)
         self.assertContains(
