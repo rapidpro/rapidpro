@@ -1,3 +1,7 @@
+v9.3.68 (2024-10-16)
+-------------------------
+ * Tweak user update and delete forms to return 404 for users not in the current org
+
 v9.3.67 (2024-10-16)
 -------------------------
  * New CRUDL views for org users and invitations
