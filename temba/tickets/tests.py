@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
-from temba.orgs.models import Export
+from temba.orgs.models import Export, OrgMembership, OrgRole
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
@@ -1314,14 +1314,15 @@ class TopicTest(TembaTest):
 class TeamTest(TembaTest):
     def test_create(self):
         team1 = Team.create(self.org, self.admin, "Sales")
-        self.admin.set_team(team1)
-        self.agent.set_team(team1)
+        agent2 = self.create_user("tickets@nyaruka.com")
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
+        self.org.add_user(agent2, OrgRole.AGENT, team=team1)
 
         self.assertEqual("Sales", team1.name)
         self.assertEqual("Sales", str(team1))
         self.assertEqual(f'<Team: id={team1.id} name="Sales">', repr(team1))
 
-        self.assertEqual({self.admin, self.agent}, set(team1.get_users()))
+        self.assertEqual({self.agent, agent2}, set(team1.get_users()))
 
         # try to create with invalid name
         with self.assertRaises(AssertionError):
@@ -1333,8 +1334,7 @@ class TeamTest(TembaTest):
 
     def test_release(self):
         team1 = Team.create(self.org, self.admin, "Sales")
-        self.admin.set_team(team1)
-        self.agent.set_team(team1)
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
 
         team1.release(self.admin)
 
@@ -1347,8 +1347,8 @@ class TeamTest(TembaTest):
 class TicketDailyCountTest(TembaTest):
     def test_model(self):
         sales = Team.create(self.org, self.admin, "Sales")
-        self.agent.set_team(sales)
-        self.editor.set_team(sales)
+        self.org.add_user(self.agent, OrgRole.AGENT, team=sales)
+        self.org.add_user(self.editor, OrgRole.AGENT, team=sales)
 
         self._record_opening(self.org, date(2022, 4, 30))
         self._record_opening(self.org, date(2022, 5, 3))
@@ -1443,9 +1443,11 @@ class TicketDailyCountTest(TembaTest):
 
     def _record_reply(self, org, user, d: date):
         TicketDailyCount.objects.create(count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}", day=d, count=1)
-        if user.settings.team:
+
+        team = OrgMembership.objects.get(org=org, user=user).team
+        if team:
             TicketDailyCount.objects.create(
-                count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{user.settings.team.id}", day=d, count=1
+                count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{team.id}", day=d, count=1
             )
         TicketDailyCount.objects.create(
             count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
