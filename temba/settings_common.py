@@ -385,7 +385,6 @@ PERMISSIONS = {
         "join_accept",
         "join",
         "languages",
-        "manage_accounts",
         "manage_integrations",
         "manage",
         "menu",
@@ -495,7 +494,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_export",
         "orgs.org_flow_smtp",
         "orgs.org_languages",
-        "orgs.org_manage_accounts",
         "orgs.org_manage_integrations",
         "orgs.org_menu",
         "orgs.org_prometheus",
@@ -506,6 +504,7 @@ GROUP_PERMISSIONS = {
         "orgs.orgimport.*",
         "orgs.user_list",
         "orgs.user_tokens",
+        "orgs.user_update",
         "request_logs.httplog_list",
         "request_logs.httplog_read",
         "request_logs.httplog_webhooks",
@@ -587,7 +586,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_resthooks",
         "orgs.org_workspace",
         "orgs.orgimport.*",
-        "orgs.user_list",
         "orgs.user_tokens",
         "request_logs.httplog_webhooks",
         "templates.template_list",
@@ -654,7 +652,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_menu",
         "orgs.org_read",
         "orgs.org_workspace",
-        "orgs.user_list",
         "templates.template_list",
         "templates.template_read",
         "tickets.ticket_export",
@@ -682,6 +679,8 @@ GROUP_PERMISSIONS = {
 
 # extra permissions that only apply to API requests (wildcard notation not supported here)
 API_PERMISSIONS = {
+    "Editors": ("orgs.user_list",),
+    "Viewers": ("orgs.user_list",),
     "Agents": (
         "contacts.contact_create",
         "contacts.contact_list",
@@ -693,7 +692,7 @@ API_PERMISSIONS = {
         "msgs.msg_create",
         "orgs.org_read",
         "orgs.user_list",
-    )
+    ),
 }
 
 # -----------------------------------------------------------------------------------

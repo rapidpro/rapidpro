@@ -78,7 +78,7 @@ from ..models import (
     User,
     UserSettings,
 )
-from .base import BaseMenuView
+from .base import BaseDeleteModal, BaseListView, BaseMenuView
 from .forms import SignupForm, SMTPForm
 from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin, RequireFeatureMixin
 
@@ -338,6 +338,9 @@ class InferUserMixin:
 class UserCRUDL(SmartCRUDL):
     model = User
     actions = (
+        "list",
+        "update",
+        "delete",
         "edit",
         "forget",
         "recover",
@@ -349,6 +352,99 @@ class UserCRUDL(SmartCRUDL):
         "verify_email",
         "send_verification_email",
     )
+
+    class List(SpaMixin, RequireFeatureMixin, ContextMenuMixin, OrgPermsMixin, SmartListView):
+        require_feature = Org.FEATURE_USERS
+        title = _("Users")
+        menu_path = "/settings/users"
+        search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
+
+        def derive_queryset(self, **kwargs):
+            return (
+                super()
+                .derive_queryset(**kwargs)
+                .filter(id__in=self.request.org.get_users().values_list("id", flat=True))
+                .order_by(Lower("email"))
+            )
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            for user in context["object_list"]:
+                user.role = self.request.org.get_user_role(user)
+
+            context["has_viewers"] = self.request.org.get_users(roles=[OrgRole.VIEWER]).exists()
+            context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
+            return context
+
+    class Update(RequireFeatureMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            role = forms.ChoiceField(
+                choices=[(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)],
+                required=True,
+                label=_("Role"),
+                widget=SelectWidget(),
+            )
+
+            class Meta:
+                model = User
+                fields = ("role",)
+
+        form_class = Form
+        require_feature = Org.FEATURE_USERS
+
+        def get_object_org(self):
+            return self.request.org
+
+        def derive_initial(self):
+            # viewers default to editors
+            role = self.request.org.get_user_role(self.object)
+            return {"role": OrgRole.EDITOR.code if role == OrgRole.VIEWER else role.code}
+
+        def save(self, obj):
+            role = OrgRole.from_code(self.form.cleaned_data["role"])
+
+            # don't update if user is the last administrator and role is being changed to something else
+            has_other_admins = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=obj.id).exists()
+            if role != OrgRole.ADMINISTRATOR and not has_other_admins:
+                return obj
+
+            self.request.org.add_user(obj, role)
+            return obj
+
+        def get_success_url(self):
+            return reverse("orgs.user_list") if self.has_org_perm("orgs.user_list") else reverse("orgs.org_start")
+
+    class Delete(RequireFeatureMixin, OrgObjPermsMixin, SmartDeleteView):
+        permission = "orgs.user_update"
+        require_feature = Org.FEATURE_USERS
+        fields = ("id",)
+        submit_button_name = _("Remove")
+        cancel_url = "@orgs.user_list"
+        redirect_url = "@orgs.user_list"
+
+        def get_object_org(self):
+            return self.request.org
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["submit_button_name"] = self.submit_button_name
+            return context
+
+        def post(self, request, *args, **kwargs):
+            user = self.get_object()
+
+            # only actually remove user if they're not the last administator
+            if self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=user.id).exists():
+                self.request.org.remove_user(user)
+
+            return HttpResponseRedirect(self.get_redirect_url())
+
+        def get_redirect_url(self):
+            still_in_org = self.request.org.has_user(self.request.user) or self.request.user.is_staff
+
+            # if current user no longer belongs to this org, redirect to org chooser
+            return reverse("orgs.user_list") if still_in_org else reverse("orgs.org_choose")
 
     class Forget(SmartFormView):
         class Form(forms.Form):
@@ -857,7 +953,6 @@ class OrgCRUDL(SmartCRUDL):
         "grant",
         "choose",
         "delete_child",
-        "manage_accounts",
         "menu",
         "country",
         "languages",
@@ -923,21 +1018,27 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.has_org_perm("orgs.org_manage_accounts") and Org.FEATURE_USERS in org.features:
-                    menu.append(
-                        self.create_menu_item(
-                            name=_("Users"),
-                            icon="users",
-                            href="orgs.org_manage_accounts",
-                            count=org.users.count(),
-                        )
-                    )
-
                 menu.append(self.create_menu_item(name=_("Resthooks"), icon="resthooks", href="orgs.org_resthooks"))
 
                 if self.has_org_perm("notifications.incident_list"):
                     menu.append(
                         self.create_menu_item(name=_("Incidents"), icon="incidents", href="notifications.incident_list")
+                    )
+
+                if Org.FEATURE_USERS in org.features and self.has_org_perm("orgs.user_list"):
+                    menu.append(self.create_divider())
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Users"), icon="users", href="orgs.user_list", count=org.users.count()
+                        )
+                    )
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Invitations"),
+                            icon="invitations",
+                            href="orgs.invitation_list",
+                            count=org.invitations.count(),
+                        )
                     )
 
                 menu.append(self.create_divider())
@@ -1347,155 +1448,6 @@ class OrgCRUDL(SmartCRUDL):
             self.object = self.get_object()
             self.object.release(request.user)
             return self.render_modal_response()
-
-    class ManageAccounts(
-        SpaMixin, InferOrgMixin, RequireFeatureMixin, ContextMenuMixin, OrgPermsMixin, SmartUpdateView
-    ):
-        class AccountsForm(forms.ModelForm):
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.org = org
-                self.user_rows = []
-                self.invite_rows = []
-                self.add_per_user_fields(org)
-                self.add_per_invite_fields(org)
-
-            def add_per_user_fields(self, org: Org):
-                role_choices = [(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)]
-                role_choices_inc_viewer = role_choices + [(OrgRole.VIEWER.code, OrgRole.VIEWER.display)]
-
-                for user in org.users.order_by("email"):
-                    role = org.get_user_role(user)
-
-                    role_field = forms.ChoiceField(
-                        choices=role_choices_inc_viewer if role == OrgRole.VIEWER else role_choices,
-                        required=True,
-                        initial=role.code,
-                        label=" ",
-                        widget=SelectWidget(),
-                    )
-                    remove_field = forms.BooleanField(
-                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True})
-                    )
-
-                    self.fields.update(
-                        OrderedDict([(f"user_{user.id}_role", role_field), (f"user_{user.id}_remove", remove_field)])
-                    )
-                    self.user_rows.append(
-                        {"user": user, "role_field": f"user_{user.id}_role", "remove_field": f"user_{user.id}_remove"}
-                    )
-
-            def add_per_invite_fields(self, org: Org):
-                for invite in org.invitations.filter(is_active=True).order_by("email"):
-                    role_field = forms.ChoiceField(
-                        choices=[(r.code, r.display) for r in (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT)],
-                        required=True,
-                        initial=invite.role.code,
-                        label=" ",
-                        widget=SelectWidget(),
-                        disabled=True,
-                    )
-                    remove_field = forms.BooleanField(
-                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True})
-                    )
-
-                    self.fields.update(
-                        OrderedDict(
-                            [(f"invite_{invite.id}_role", role_field), (f"invite_{invite.id}_remove", remove_field)]
-                        )
-                    )
-                    self.invite_rows.append(
-                        {
-                            "invite": invite,
-                            "role_field": f"invite_{invite.id}_role",
-                            "remove_field": f"invite_{invite.id}_remove",
-                        }
-                    )
-
-            def get_submitted_roles(self) -> dict:
-                """
-                Returns a dict of users to roles from the current form data. None role means removal.
-                """
-                roles = {}
-
-                for row in self.user_rows:
-                    role = self.cleaned_data.get(row["role_field"])
-                    remove = self.cleaned_data.get(row["remove_field"])
-                    roles[row["user"]] = OrgRole.from_code(role) if not remove else None
-                return roles
-
-            def get_submitted_invite_removals(self) -> list:
-                """
-                Returns a list of invites to be removed.
-                """
-                invites = []
-                for row in self.invite_rows:
-                    if self.cleaned_data[row["remove_field"]]:
-                        invites.append(row["invite"])
-                return invites
-
-            def clean(self):
-                super().clean()
-
-                new_roles = self.get_submitted_roles()
-                has_admin = False
-                for new_role in new_roles.values():
-                    if new_role == OrgRole.ADMINISTRATOR:
-                        has_admin = True
-                        break
-
-                if not has_admin:
-                    raise forms.ValidationError(_("A workspace must have at least one administrator."))
-
-            class Meta:
-                model = Invitation
-                fields = ()
-
-        form_class = AccountsForm
-        success_url = "@orgs.org_manage_accounts"
-        title = _("Users")
-        menu_path = "/settings/users"
-        require_feature = Org.FEATURE_USERS
-
-        def build_context_menu(self, menu):
-            menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.get_object()
-            return kwargs
-
-        def post_save(self, obj):
-            obj = super().post_save(obj)
-            org = self.get_object()
-
-            # delete any invitations which have been checked for removal
-            for invite in self.form.get_submitted_invite_removals():
-                org.invitations.filter(id=invite.id).delete()
-
-            # update org users with new roles
-            for user, new_role in self.form.get_submitted_roles().items():
-                if not new_role:
-                    org.remove_user(user)
-                elif org.get_user_role(user) != new_role:
-                    org.add_user(user, new_role)
-
-            return obj
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            org = self.get_object()
-            context["org"] = org
-            context["has_invites"] = org.invitations.filter(is_active=True).exists()
-            context["has_viewers"] = org.get_users(roles=[OrgRole.VIEWER]).exists()
-            return context
-
-        def get_success_url(self):
-            still_in_org = self.get_object().has_user(self.request.user) or self.request.user.is_staff
-
-            # if current user no longer belongs to this org, redirect to org chooser
-            return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
 
     class Service(StaffOnlyMixin, SmartFormView):
         class ServiceForm(forms.Form):
@@ -2168,7 +2120,24 @@ class OrgCRUDL(SmartCRUDL):
 
 class InvitationCRUDL(SmartCRUDL):
     model = Invitation
-    actions = ("create",)
+    actions = ("list", "create", "delete")
+
+    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+        require_feature = Org.FEATURE_USERS
+        title = _("Invitations")
+        menu_path = "/settings/invitations"
+        default_order = ("-created_on",)
+
+        def build_context_menu(self, menu):
+            menu.add_modax(_("New"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
+
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["validity_days"] = settings.INVITATION_VALIDITY.days
+            return context
 
     class Create(RequireFeatureMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
@@ -2203,7 +2172,7 @@ class InvitationCRUDL(SmartCRUDL):
         require_feature = Org.FEATURE_USERS
         title = ""
         submit_button_name = _("Send")
-        success_url = "@orgs.org_manage_accounts"
+        success_url = "@orgs.invitation_list"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2224,6 +2193,11 @@ class InvitationCRUDL(SmartCRUDL):
             obj.send()
 
             return super().post_save(obj)
+
+    class Delete(RequireFeatureMixin, BaseDeleteModal):
+        require_feature = Org.FEATURE_USERS
+        cancel_url = "@orgs.invitation_list"
+        redirect_url = "@orgs.invitation_list"
 
 
 class OrgImportCRUDL(SmartCRUDL):

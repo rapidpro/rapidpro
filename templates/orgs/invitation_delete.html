@@ -1,0 +1,8 @@
+{% extends "includes/modax.html" %}
+{% load i18n %}
+
+{% block fields %}
+  {% blocktrans trimmed with email=object.email %}
+    You are about to cancel the invitation sent to <b>{{ email }}</b>. Are you sure?
+  {% endblocktrans %}
+{% endblock fields %}

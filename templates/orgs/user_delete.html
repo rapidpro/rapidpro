@@ -1,0 +1,8 @@
+{% extends "includes/modax.html" %}
+{% load i18n %}
+
+{% block fields %}
+  {% blocktrans trimmed %}
+    You are about to remove the user <b>{{ object }}</b> from your workspace. Are you sure?
+  {% endblocktrans %}
+{% endblock fields %}

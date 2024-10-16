@@ -92,21 +92,21 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertTrue(perms["orgs"]["org_country"])
-        self.assertTrue(perms["orgs"]["org_manage_accounts"])
+        self.assertTrue(perms["orgs"]["user_list"])
         self.assertTrue(perms["orgs"]["org_delete_child"])
 
         perms = RolePermsWrapper(OrgRole.EDITOR)
 
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertTrue(perms["contacts"]["contact_update"])
-        self.assertFalse(perms["orgs"]["org_manage_accounts"])
+        self.assertFalse(perms["orgs"]["user_list"])
         self.assertFalse(perms["orgs"]["org_delete_child"])
 
         perms = RolePermsWrapper(OrgRole.VIEWER)
 
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertFalse(perms["contacts"]["contact_update"])
-        self.assertFalse(perms["orgs"]["org_manage_accounts"])
+        self.assertFalse(perms["orgs"]["user_list"])
         self.assertFalse(perms["orgs"]["org_delete_child"])
 
         self.assertFalse(perms["msgs"]["foo"])  # no blow up if perm doesn't exist
@@ -1543,143 +1543,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_manage_accounts(self):
-        accounts_url = reverse("orgs.org_manage_accounts")
-        settings_url = reverse("orgs.org_workspace")
-
-        # nobody can access if we don't have users feature
-        self.login(self.admin)
-        self.assertRedirect(self.client.get(accounts_url), settings_url)
-
-        self.org.features = [Org.FEATURE_USERS]
-        self.org.save(update_fields=("features",))
-
-        # create invitations
-        invitation1 = Invitation.create(self.org, self.admin, "norkans7@gmail.com", OrgRole.ADMINISTRATOR)
-        invitation2 = Invitation.create(self.org, self.admin, "bob@tickets.com", OrgRole.AGENT)
-
-        # add a second editor to the org
-        editor2 = self.create_user("editor2@nyaruka.com", first_name="Edwina")
-        self.org.add_user(editor2, OrgRole.EDITOR)
-
-        # only admins can access
-        self.assertRequestDisallowed(accounts_url, [None, self.user, self.editor])
-
-        # order should be users by email, then invitations by email
-        expected_fields = []
-        for user in self.org.users.order_by("email"):
-            expected_fields.extend([f"user_{user.id}_role", f"user_{user.id}_remove"])
-        for inv in self.org.invitations.order_by("email"):
-            expected_fields.extend([f"invite_{inv.id}_role", f"invite_{inv.id}_remove"])
-
-        response = self.assertUpdateFetch(accounts_url, [self.admin], form_fields=expected_fields)
-
-        self.assertEqual("A", response.context["form"].fields[f"user_{self.admin.id}_role"].initial)
-        self.assertEqual("E", response.context["form"].fields[f"user_{self.editor.id}_role"].initial)
-        self.assertEqual("V", response.context["form"].fields[f"user_{self.user.id}_role"].initial)
-        self.assertEqual("T", response.context["form"].fields[f"user_{self.agent.id}_role"].initial)
-
-        # only a user which is already a viewer has the option to stay a viewer
-        self.assertEqual(
-            [("A", "Administrator"), ("E", "Editor"), ("T", "Agent")],
-            response.context["form"].fields[f"user_{self.admin.id}_role"].choices,
-        )
-        self.assertEqual(
-            [("A", "Administrator"), ("E", "Editor"), ("T", "Agent"), ("V", "Viewer")],
-            response.context["form"].fields[f"user_{self.user.id}_role"].choices,
-        )
-
-        self.assertContains(response, "norkans7@gmail.com")
-
-        # give users an API token
-        APIToken.create(self.org, self.admin)
-        APIToken.create(self.org, self.editor)
-        APIToken.create(self.org, editor2)
-
-        # leave admin, editor and agent as is, but change user to an editor too, and remove the second editor
-        response = self.assertUpdateSubmit(
-            accounts_url,
-            self.admin,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{editor2.id}_role": "E",
-                f"user_{editor2.id}_remove": "1",
-                f"user_{self.agent.id}_role": "T",
-            },
-        )
-        self.assertRedirect(response, reverse("orgs.org_manage_accounts"))
-
-        self.assertEqual({self.admin, self.agent, self.editor, self.user}, set(self.org.users.all()))
-        self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
-        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
-
-        # pretend our first invite was acted on
-        invitation1.release()
-
-        # no longer appears in list
-        response = self.client.get(accounts_url)
-        self.assertNotContains(response, "norkans7@gmail.com")
-
-        # try to remove ourselves as admin
-        response = self.assertUpdateSubmit(
-            accounts_url,
-            self.admin,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.admin.id}_remove": "1",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-            },
-            form_errors={"__all__": "A workspace must have at least one administrator."},
-            object_unchanged=self.org,
-        )
-
-        # try to downgrade ourselves to an editor
-        response = self.assertUpdateSubmit(
-            accounts_url,
-            self.admin,
-            {
-                f"user_{self.admin.id}_role": "E",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-            },
-            form_errors={"__all__": "A workspace must have at least one administrator."},
-            object_unchanged=self.org,
-        )
-
-        # finally upgrade agent to admin, downgrade editor to agent, remove ourselves entirely and remove last invite
-        response = self.assertUpdateSubmit(
-            accounts_url,
-            self.admin,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.admin.id}_remove": "1",
-                f"user_{self.editor.id}_role": "T",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "A",
-                f"invite_{invitation2.id}_remove": "1",
-            },
-        )
-
-        # we should be redirected to chooser page
-        self.assertRedirect(response, reverse("orgs.org_choose"))
-
-        self.assertEqual(0, self.org.invitations.filter(is_active=True).count())
-
-        # and removed from this org
-        self.org.refresh_from_db()
-        self.assertEqual(set(self.org.users.all()), {self.agent, self.editor, self.user})
-        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
-        self.assertEqual({self.user}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.AGENT])))
-
     def test_menu(self):
         menu_url = reverse("orgs.org_menu")
 
@@ -1825,9 +1688,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "Workspaces (1)",
                 "Dashboard",
                 "Account",
-                "Users (4)",
                 "Resthooks",
                 "Incidents",
+                "Users (4)",
+                "Invitations (0)",
                 "Export",
                 "Import",
                 ("Channels", ["New Channel", "Test Channel"]),
@@ -3048,6 +2912,107 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class UserCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("orgs.user_list")
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(list_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
+
+        self.assertListFetch(list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user])
+
+        # can search by name or email
+        self.assertListFetch(list_url + "?search=andy", [self.admin], context_objects=[self.admin])
+        self.assertListFetch(list_url + "?search=editor@nyaruka.com", [self.admin], context_objects=[self.editor])
+
+    def test_update(self):
+        update_url = reverse("orgs.user_update", args=[self.agent.id])
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(update_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(update_url, [None, self.user, self.editor, self.agent])
+
+        self.assertUpdateFetch(update_url, [self.admin], form_fields={"role": "T"})
+
+        # role field for viewers defaults to editor
+        update_url = reverse("orgs.user_update", args=[self.user.id])
+
+        self.assertUpdateFetch(update_url, [self.admin], form_fields={"role": "E"})
+
+        response = self.assertUpdateSubmit(update_url, self.admin, {"role": "E"})
+        self.assertRedirect(response, reverse("orgs.user_list"))
+
+        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+
+        # try updating ourselves...
+        update_url = reverse("orgs.user_update", args=[self.admin.id])
+
+        # can't be updated because no other admins
+        response = self.assertUpdateSubmit(update_url, self.admin, {"role": "E"}, object_unchanged=self.admin)
+        self.assertRedirect(response, reverse("orgs.user_list"))
+        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+
+        # add another admin to workspace and try again
+        self.org.add_user(self.admin2, OrgRole.ADMINISTRATOR)
+
+        response = self.assertUpdateSubmit(update_url, self.admin, {"role": "E"}, object_unchanged=self.admin)
+        self.assertRedirect(response, reverse("orgs.org_start"))  # no longer have access to user list page
+
+        self.assertEqual({self.user, self.editor, self.admin}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual({self.admin2}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+
+    def test_delete(self):
+        delete_url = reverse("orgs.user_delete", args=[self.agent.id])
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(delete_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent])
+
+        response = self.assertDeleteFetch(delete_url, [self.admin], as_modal=True)
+        self.assertContains(
+            response, "You are about to remove the user <b>Agnes</b> from your workspace. Are you sure?"
+        )
+
+        # submitting the delete doesn't actually delete the user - only removes them from the org
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_unchanged=self.agent)
+
+        self.assertRedirect(response, reverse("orgs.user_list"))
+        self.assertEqual({self.user, self.editor, self.admin}, set(self.org.get_users()))
+
+        # try deleting ourselves..
+        delete_url = reverse("orgs.user_delete", args=[self.admin.id])
+
+        # can't be removed because no other admins
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_unchanged=self.admin)
+        self.assertRedirect(response, reverse("orgs.user_list"))
+        self.assertEqual({self.user, self.editor, self.admin}, set(self.org.get_users()))
+
+        # add another admin to workspace and try again
+        self.org.add_user(self.admin2, OrgRole.ADMINISTRATOR)
+
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_unchanged=self.admin)
+
+        # this time we could remove ourselves
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_unchanged=self.admin)
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+        self.assertEqual({self.user, self.editor, self.admin2}, set(self.org.get_users()))
+
     def test_account(self):
         self.login(self.agent)
 
@@ -4178,8 +4143,29 @@ class BulkExportTest(TembaTest):
 
 
 class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("orgs.invitation_list")
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(list_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
+
+        inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
+        inv2 = Invitation.create(self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT)
+
+        self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
+
     def test_create(self):
         create_url = reverse("orgs.invitation_create")
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(create_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
         self.org.save(update_fields=("features",))
@@ -4228,6 +4214,31 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
             {"email": "newguy@nyaruka.com", "role": "E"},
             form_errors={"email": "User has already been invited to this workspace."},
         )
+
+    def test_delete(self):
+        inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
+        inv2 = Invitation.create(self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT)
+
+        delete_url = reverse("orgs.invitation_delete", args=[inv1.id])
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(delete_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent])
+
+        response = self.assertDeleteFetch(delete_url, [self.admin], as_modal=True)
+        self.assertContains(
+            response, "You are about to cancel the invitation sent to <b>bob@nyaruka.com</b>. Are you sure?"
+        )
+
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=inv1)
+
+        self.assertRedirect(response, reverse("orgs.invitation_list"))
+        self.assertEqual({inv2}, set(self.org.invitations.filter(is_active=True)))
 
 
 class BackupTokenTest(TembaTest):
