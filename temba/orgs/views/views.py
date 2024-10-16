@@ -359,9 +359,6 @@ class UserCRUDL(SmartCRUDL):
         menu_path = "/settings/users"
         search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
 
-        def build_context_menu(self, menu):
-            menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
-
         def derive_queryset(self, **kwargs):
             return (
                 super()
@@ -402,18 +399,15 @@ class UserCRUDL(SmartCRUDL):
             return self.request.org
 
         def derive_initial(self):
-            org = self.get_object_org()
-
             # viewers default to editors
-            role = org.get_user_role(self.object)
+            role = self.request.org.get_user_role(self.object)
             return {"role": OrgRole.EDITOR.code if role == OrgRole.VIEWER else role.code}
 
         def save(self, obj):
-            org = self.get_object_org()
             role = OrgRole.from_code(self.form.cleaned_data["role"])
 
             # don't update if user is the last administrator and role is being changed to something else
-            has_other_admins = org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=obj.id).exists()
+            has_other_admins = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=obj.id).exists()
             if role != OrgRole.ADMINISTRATOR and not has_other_admins:
                 return obj
 
@@ -440,17 +434,16 @@ class UserCRUDL(SmartCRUDL):
             return context
 
         def post(self, request, *args, **kwargs):
-            org = self.get_object_org()
             user = self.get_object()
 
             # only actually remove user if they're not the last administator
-            if org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=user.id).exists():
-                org.remove_user(user)
+            if self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=user.id).exists():
+                self.request.org.remove_user(user)
 
             return HttpResponseRedirect(self.get_redirect_url())
 
         def get_redirect_url(self):
-            still_in_org = self.get_object_org().has_user(self.request.user) or self.request.user.is_staff
+            still_in_org = self.request.org.has_user(self.request.user) or self.request.user.is_staff
 
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse("orgs.user_list") if still_in_org else reverse("orgs.org_choose")
@@ -1027,18 +1020,27 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.has_org_perm("orgs.user_list") and Org.FEATURE_USERS in org.features:
-                    menu.append(
-                        self.create_menu_item(
-                            name=_("Users"), icon="users", href="orgs.user_list", count=org.users.count()
-                        )
-                    )
-
                 menu.append(self.create_menu_item(name=_("Resthooks"), icon="resthooks", href="orgs.org_resthooks"))
 
                 if self.has_org_perm("notifications.incident_list"):
                     menu.append(
                         self.create_menu_item(name=_("Incidents"), icon="incidents", href="notifications.incident_list")
+                    )
+
+                if Org.FEATURE_USERS in org.features and self.has_org_perm("orgs.user_list"):
+                    menu.append(self.create_divider())
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Users"), icon="users", href="orgs.user_list", count=org.users.count()
+                        )
+                    )
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Invitations"),
+                            icon="invitations",
+                            href="orgs.invitation_list",
+                            count=org.invitations.count(),
+                        )
                     )
 
                 menu.append(self.create_divider())
@@ -2125,7 +2127,7 @@ class InvitationCRUDL(SmartCRUDL):
     class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
         require_feature = Org.FEATURE_USERS
         title = _("Invitations")
-        menu_path = "/settings/users"
+        menu_path = "/settings/invitations"
         default_order = ("-created_on",)
 
         def build_context_menu(self, menu):
