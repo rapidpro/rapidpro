@@ -84,13 +84,7 @@
                 <div onclick="editWorkspace(event)" data-id="{{ org.id }}" class="linked">{{ org.name }}</div>
               {% endif %}
             </td>
-            <td style="text-align:right">
-              {% if manage_users %}
-                <a href="{% url 'orgs.org_manage_accounts_sub_org' %}?org={{ org.id }}" class="linked">{{ org.users.all|length }}</a>
-              {% else %}
-                {{ org.users.all|length }}
-              {% endif %}
-            </td>
+            <td style="text-align:right">{{ org.users.all|length }}</td>
             <td style="text-align:right">{{ org.get_contact_count|intcomma }}</td>
             <td style="text-align:right">{{ org.created_on|day }}</td>
             <td class="w-2">

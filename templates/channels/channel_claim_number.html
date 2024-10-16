@@ -49,9 +49,13 @@
       <script type="text/javascript">
         document.location.href = '{% url 'orgs.org_upgrade_plan' %}?from=twilio'
       </script>
-    {% else %}
+    {% elif form.errors.phone_number %}
       <temba-alert level="error" class="my-4">
         {{ form.errors.phone_number }}
+      </temba-alert>
+    {% elif form.non_field_errors %}
+      <temba-alert level="error" class="my-4">
+        {{ form.non_field_errors }}
       </temba-alert>
     {% endif %}
   {% endif %}

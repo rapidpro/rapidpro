@@ -963,7 +963,6 @@ class OrgCRUDL(SmartCRUDL):
         "choose",
         "delete_child",
         "manage_accounts",
-        "manage_accounts_sub_org",
         "menu",
         "country",
         "languages",
@@ -1603,34 +1602,6 @@ class OrgCRUDL(SmartCRUDL):
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
 
-    class ManageAccountsSubOrg(ManageAccounts):
-        menu_path = "/settings/workspaces"
-
-        def pre_process(self, request, *args, **kwargs):
-            pass
-
-        def build_context_menu(self, menu):
-            menu.add_modax(
-                _("Invite"),
-                "invite-create",
-                reverse("orgs.invitation_create") + f"?org={self.target_org.id}",
-                as_button=True,
-            )
-
-        def derive_title(self):
-            return self.target_org.name
-
-        def get_object(self, *args, **kwargs):
-            return self.target_org
-
-        @cached_property
-        def target_org(self):
-            return get_object_or_404(self.request.org.children.filter(id=int(self.request.GET.get("org", 0))))
-
-        def get_success_url(self):  # pragma: needs cover
-            org_id = self.request.GET.get("org")
-            return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
-
     class Service(StaffOnlyMixin, SmartFormView):
         class ServiceForm(forms.Form):
             other_org = ModelChoiceField(queryset=Org.objects.all(), widget=forms.HiddenInput())
@@ -1681,14 +1652,6 @@ class OrgCRUDL(SmartCRUDL):
             ids = [child.id for child in Org.objects.filter(parent=org)]
 
             return queryset.filter(id__in=ids, is_active=True).order_by("-parent", "name")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            org = self.get_object()
-            if self.has_org_perm("orgs.org_manage_accounts") and Org.FEATURE_USERS in org.features:
-                context["manage_users"] = True
-
-            return context
 
     class Create(NonAtomicMixin, RequireFeatureMixin, ModalFormMixin, InferOrgMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
@@ -2364,16 +2327,9 @@ class InvitationCRUDL(SmartCRUDL):
         submit_button_name = _("Send")
         success_url = "@orgs.org_manage_accounts"
 
-        def get_dest_org(self):
-            org_id = self.request.GET.get("org")
-            if org_id:
-                return get_object_or_404(self.request.org.children.filter(id=org_id))
-
-            return self.request.org
-
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.get_dest_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def get_context_data(self, **kwargs):
@@ -2383,7 +2339,7 @@ class InvitationCRUDL(SmartCRUDL):
 
         def save(self, obj):
             self.object = Invitation.create(
-                self.get_dest_org(), self.request.user, obj.email, OrgRole.from_code(self.form.cleaned_data["role"])
+                self.request.org, self.request.user, obj.email, OrgRole.from_code(self.form.cleaned_data["role"])
             )
 
         def post_save(self, obj):

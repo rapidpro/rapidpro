@@ -1451,16 +1451,25 @@ class ChannelLogTest(TembaTest):
         )
 
     def test_get_display_timed_out(self):
-        channel = self.create_channel("TG", "Telegram", "mybot")
-        contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
+        channel = self.create_channel(
+            "D3C",
+            "360Dialog channel",
+            address="1234",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://waba-v2.360dialog.io",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+        )
+        contact = self.create_contact("Bob", urns=["whatsapp:75757575"])
         log = ChannelLog.objects.create(
             channel=channel,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=True,
             http_logs=[
                 {
-                    "url": "https://telegram.com/send?to=74747474",
-                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "url": "https://waba-v2.360dialog.io/send?to=75757575",
+                    "request": 'POST https://waba-v2.360dialog.io/send?to=75757575 HTTP/1.1\r\n\r\n{"to":"75757575"}',
                     "elapsed_ms": 30001,
                     "retries": 0,
                     "created_on": "2022-08-17T14:07:30Z",
@@ -1476,8 +1485,8 @@ class ChannelLogTest(TembaTest):
                 "type": "msg_send",
                 "http_logs": [
                     {
-                        "url": "https://telegram.com/send?to=74747474",
-                        "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                        "url": "https://waba-v2.360dialog.io/send?to=75757575",
+                        "request": 'POST https://waba-v2.360dialog.io/send?to=75757575 HTTP/1.1\r\n\r\n{"to":"75757575"}',
                         "elapsed_ms": 30001,
                         "retries": 0,
                         "created_on": "2022-08-17T14:07:30Z",
@@ -1489,14 +1498,15 @@ class ChannelLogTest(TembaTest):
             },
             log.get_display(anonymize=False, urn=msg_out.contact_urn),
         )
+
         self.assertEqual(
             {
                 "uuid": str(log.uuid),
                 "type": "msg_send",
                 "http_logs": [
                     {
-                        "url": "https://telegram.com/send?to=********",
-                        "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                        "url": "https://waba-v2.360dialog.io/send?to=********",
+                        "request": 'POST https://waba-v2.360dialog.io/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
                         "response": "",
                         "elapsed_ms": 30001,
                         "retries": 0,
