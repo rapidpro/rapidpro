@@ -944,7 +944,9 @@ class ChannelLog(models.Model):
         # out of an abundance of caution, check that we're not returning one of our own credential values
         for log in data["http_logs"]:
             for secret in self.channel.type.get_redact_values(self.channel):
-                assert secret not in log["url"] and secret not in log["request"] and secret not in log["response"]
+                assert (
+                    secret not in log["url"] and secret not in log["request"] and secret not in log.get("response", "")
+                )
 
         return data
 
