@@ -370,13 +370,11 @@ class UserCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            has_viewers = False
             for user in context["object_list"]:
                 user.role = self.request.org.get_user_role(user)
-                if user.role == OrgRole.VIEWER:
-                    has_viewers = True
 
-            context["has_viewers"] = has_viewers
+            context["has_viewers"] = self.request.org.get_users(roles=[OrgRole.VIEWER]).exists()
+            context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
             return context
 
     class Update(RequireFeatureMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
