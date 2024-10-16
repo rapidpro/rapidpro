@@ -314,7 +314,7 @@ class User(AuthUser):
 
 class UserSettings(models.Model):
     """
-    Custom fields for users
+    Additional non-org specific fields for users
     """
 
     STATUS_UNVERIFIED = "U"
