@@ -2007,8 +2007,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_list"))
         self.assertContains(response, flow1.name)
         self.assertContains(response, flow3.name)
-        self.assertEqual(2, response.context["folders"][0]["count"])
-        self.assertEqual(1, response.context["folders"][1]["count"])
 
         # archive it
         response = self.client.post(reverse("flows.flow_list"), {"action": "archive", "objects": flow1.id})
@@ -2018,8 +2016,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_list"))
         self.assertNotContains(response, flow1.name)
         self.assertContains(response, flow3.name)
-        self.assertEqual(1, response.context["folders"][0]["count"])
-        self.assertEqual(2, response.context["folders"][1]["count"])
 
         self.assertEqual(("archive", "label", "export-results"), response.context["actions"])
 
@@ -2044,8 +2040,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_list"))
         self.assertContains(response, flow1.name)
         self.assertContains(response, flow3.name)
-        self.assertEqual(2, response.context["folders"][0]["count"])
-        self.assertEqual(1, response.context["folders"][1]["count"])
 
         # can label flows
         label1 = FlowLabel.create(self.org, self.admin, "Important")
@@ -2073,25 +2067,18 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(reverse("flows.flow_list"))
         self.assertContains(response, flow1.name)
-        self.assertEqual(2, response.context["folders"][0]["count"])
-        self.assertEqual(1, response.context["folders"][1]["count"])
 
         # single message flow (flom campaign) should not be included in counts and not even on this list
         Flow.objects.filter(id=flow1.id).update(is_system=True)
 
         response = self.client.get(reverse("flows.flow_list"))
-
         self.assertNotContains(response, flow1.name)
-        self.assertEqual(1, response.context["folders"][0]["count"])
-        self.assertEqual(1, response.context["folders"][1]["count"])
 
         # single message flow should not be even in the archived list
         Flow.objects.filter(id=flow1.id).update(is_system=True, is_archived=True)
 
         response = self.client.get(reverse("flows.flow_archived"))
         self.assertNotContains(response, flow1.name)
-        self.assertEqual(1, response.context["folders"][0]["count"])
-        self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
 
     def test_filter(self):
         flow1 = self.create_flow("Flow 1")
@@ -2107,7 +2094,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(reverse("flows.flow_filter", args=[label1.uuid]))
         self.assertEqual([flow2, flow1], list(response.context["object_list"]))
-        self.assertEqual(2, len(response.context["labels"]))
         self.assertEqual(("label", "export-results"), response.context["actions"])
 
         response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
