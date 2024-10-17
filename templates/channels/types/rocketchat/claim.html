@@ -5,42 +5,44 @@
   {% blocktrans trimmed with name=branding.name %}
     You can connect Rocket.Chat to {{ name }} in a few simple steps.
   {% endblocktrans %}
-  <ol class="steps card">
-    <li>
-      {% blocktrans trimmed %}
-        In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it.
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed %}
-        Add a new user with the "bot" role (<i>Administration</i> &gt; <i>Users</i> &gt; <i>New</i>)
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed with brand=branding.name %}
-        Install the app <b>{{ brand }} Channel</b> from the <i>Marketplace</i>.
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed with brand=branding.name %}
-        Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>{{ brand }} Channel</i>, and in
-        its settings section put the following token in the <i>App Secret</i> field:
-        <div class="code">{{ secret }}</div>
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed with brand=branding.name %}
-        Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID,
-        for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed %}
-        You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt;
-        <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked.
-      {% endblocktrans %}
-    </li>
-  </ol>
+  <div class="card">
+    <ol class="steps">
+      <li>
+        {% blocktrans trimmed %}
+          In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it.
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed %}
+          Add a new user with the "bot" role (<i>Administration</i> &gt; <i>Users</i> &gt; <i>New</i>)
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed with brand=branding.name %}
+          Install the app <b>{{ brand }} Channel</b> from the <i>Marketplace</i>.
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed with brand=branding.name %}
+          Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>{{ brand }} Channel</i>, and in
+          its settings section put the following token in the <i>App Secret</i> field:
+          <div class="code">{{ secret }}</div>
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed with brand=branding.name %}
+          Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID,
+          for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed %}
+          You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt;
+          <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked.
+        {% endblocktrans %}
+      </li>
+    </ol>
+  </div>
 {% endblock pre-form %}
 {% block extra-script %}
   {{ block.super }}

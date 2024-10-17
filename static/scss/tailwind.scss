@@ -647,7 +647,10 @@ code {
 
 ol.steps,
 ul.steps {
+  @apply px-6;
+
   line-height: 2;
+  list-style-type: decimal;
 }
 
 .card {

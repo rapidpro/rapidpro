@@ -1848,9 +1848,15 @@ code {
   color: #2980b9;
 }
 
+ol.steps, ul.steps {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
 ol.steps,
 ul.steps {
   line-height: 2;
+  list-style-type: decimal;
 }
 
 .card {
