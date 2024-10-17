@@ -24,15 +24,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelLog, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.contacts.models import (
-    URN,
-    Contact,
-    ContactExport,
-    ContactField,
-    ContactGroup,
-    ContactImport,
-    ContactImportBatch,
-)
+from temba.contacts.models import URN, ContactExport, ContactField, ContactGroup, ContactImport, ContactImportBatch
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowSession, FlowStart, FlowStartCount, ResultsExport
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -93,21 +85,21 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertTrue(perms["orgs"]["org_country"])
         self.assertTrue(perms["orgs"]["user_list"])
-        self.assertTrue(perms["orgs"]["org_delete_child"])
+        self.assertTrue(perms["orgs"]["org_delete"])
 
         perms = RolePermsWrapper(OrgRole.EDITOR)
 
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["user_list"])
-        self.assertFalse(perms["orgs"]["org_delete_child"])
+        self.assertFalse(perms["orgs"]["org_delete"])
 
         perms = RolePermsWrapper(OrgRole.VIEWER)
 
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertFalse(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["user_list"])
-        self.assertFalse(perms["orgs"]["org_delete_child"])
+        self.assertFalse(perms["orgs"]["org_delete"])
 
         self.assertFalse(perms["msgs"]["foo"])  # no blow up if perm doesn't exist
         self.assertFalse(perms["chickens"]["foo"])  # or app doesn't exist
@@ -138,7 +130,7 @@ class InvitationTest(TembaTest):
     def test_expire_task(self):
         invitation1 = Invitation.objects.create(
             org=self.org,
-            user_group="E",
+            role_code="E",
             email="neweditor@nyaruka.com",
             created_by=self.admin,
             created_on=timezone.now() - timedelta(days=31),
@@ -146,7 +138,7 @@ class InvitationTest(TembaTest):
         )
         invitation2 = Invitation.objects.create(
             org=self.org,
-            user_group="T",
+            role_code="T",
             email="newagent@nyaruka.com",
             created_by=self.admin,
             created_on=timezone.now() - timedelta(days=29),
@@ -1685,11 +1677,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             [
                 "Nyaruka",
-                "Workspaces (1)",
-                "Dashboard",
                 "Account",
                 "Resthooks",
                 "Incidents",
+                "Workspaces (2)",
+                "Dashboard",
                 "Users (4)",
                 "Invitations (0)",
                 "Export",
@@ -2352,28 +2344,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(User.objects.filter(email="myal@relieves.org"))
 
     def test_create_new(self):
-        children_url = reverse("orgs.org_sub_orgs")
         create_url = reverse("orgs.org_create")
 
-        self.login(self.admin)
-
-        # by default orgs don't have this feature
-        response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, [])
-
-        # trying to access the modal directly should redirect
-        response = self.client.get(create_url)
-        self.assertRedirect(response, "/org/workspace/")
+        # nobody can access if new orgs feature not enabled
+        response = self.requestView(create_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save(update_fields=("features",))
-
-        response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, ["New Workspace"])
-
-        # give org2 the same feature
-        self.org2.features = [Org.FEATURE_NEW_ORGS]
-        self.org2.save(update_fields=("features",))
 
         # since we can only create new orgs, we don't show type as an option
         self.assertRequestDisallowed(create_url, [None, self.user, self.editor, self.agent])
@@ -2406,24 +2384,18 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(str(new_org.id), response.headers["X-Temba-Org"])
 
     def test_create_child(self):
-        children_url = reverse("orgs.org_sub_orgs")
+        list_url = reverse("orgs.org_list")
         create_url = reverse("orgs.org_create")
 
-        self.login(self.admin)
-
-        # by default orgs don't have the new_orgs or child_orgs feature
-        response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, [])
-
-        # trying to access the modal directly should redirect
-        response = self.client.get(create_url)
-        self.assertRedirect(response, "/org/workspace/")
+        # nobody can access if child orgs feature not enabled
+        response = self.requestView(create_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
-        response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, ["New Workspace"])
+        response = self.client.get(list_url)
+        self.assertContentMenu(list_url, self.admin, ["New"])
 
         # give org2 the same feature
         self.org2.features = [Org.FEATURE_CHILD_ORGS]
@@ -2455,7 +2427,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(OrgRole.ADMINISTRATOR, child_org.get_user_role(self.admin))
 
         # should have been redirected to child management page
-        self.assertRedirect(response, "/org/sub_orgs/")
+        self.assertRedirect(response, "/org/")
 
     def test_create_child_or_new(self):
         create_url = reverse("orgs.org_create")
@@ -2499,73 +2471,79 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(create_url, {"name": "Child Org", "timezone": "Africa/Nairobi"}, HTTP_TEMBA_SPA=1)
 
-        self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
+        self.assertRedirect(response, reverse("orgs.org_list"))
 
-    def test_child_management(self):
-        sub_orgs_url = reverse("orgs.org_sub_orgs")
-        menu_url = reverse("orgs.org_menu") + "settings/"
+    def test_list(self):
+        list_url = reverse("orgs.org_list")
 
-        self.login(self.admin)
-
-        response = self.client.get(menu_url)
-        self.assertNotContains(response, "Workspaces")
-        self.assertNotContains(response, sub_orgs_url)
+        # nobody can access if child orgs feature not enabled
+        response = self.requestView(list_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         # enable child orgs and create some child orgs
-        self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
         child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
         child2 = self.org.create_new(self.admin, "Child Org 2", self.org.timezone, as_child=True)
 
-        # now we see the Workspaces menu item
-        self.login(self.admin, choose_org=self.org)
-
-        response = self.client.get(menu_url)
-        self.assertContains(response, "Workspaces")
-        self.assertContains(response, sub_orgs_url)
-
         response = self.assertListFetch(
-            sub_orgs_url, [self.admin], context_objects=[child1, child2], choose_org=self.org
+            list_url, [self.admin], context_objects=[self.org, child1, child2], choose_org=self.org
+        )
+        self.assertContains(response, "Child Org 1")
+        self.assertContains(response, "Child Org 2")
+
+        # can search by name
+        self.assertListFetch(
+            list_url + "?search=child", [self.admin], context_objects=[child1, child2], choose_org=self.org
         )
 
-        child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"
-        self.assertContains(response, "Child Org 1")
+    def test_update(self):
+        # enable child orgs and create some child orgs
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
+        child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
 
-        # edit our sub org's details
-        response = self.client.post(
-            child1_edit_url,
+        update_url = reverse("orgs.org_update", args=[child1.id])
+
+        self.assertRequestDisallowed(update_url, [None, self.user, self.editor, self.agent, self.admin2])
+        self.assertUpdateFetch(
+            update_url, [self.admin], form_fields=["name", "timezone", "date_format", "language"], choose_org=self.org
+        )
+
+        response = self.assertUpdateSubmit(
+            update_url,
+            self.admin,
             {"name": "New Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
         )
-        self.assertEqual(sub_orgs_url, response.url)
 
         child1.refresh_from_db()
         self.assertEqual("New Child Name", child1.name)
-        self.assertEqual("/org/sub_orgs/", response.url)
-
-        # edit our sub org's details in a spa view
-        response = self.client.post(
-            child1_edit_url,
-            {"name": "Spa Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
-            HTTP_TEMBA_SPA=1,
-        )
-
-        self.assertEqual(reverse("orgs.org_sub_orgs"), response.url)
-
-        child1.refresh_from_db()
-        self.assertEqual("Spa Child Name", child1.name)
-        self.assertEqual("Africa/Nairobi", str(child1.timezone))
-        self.assertEqual("Y", child1.date_format)
-        self.assertEqual("es", child1.language)
+        self.assertEqual("/org/", response.url)
 
         # if org doesn't exist, 404
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
+        response = self.requestView(reverse("orgs.org_update", args=[3464374]), self.admin, choose_org=self.org)
         self.assertEqual(404, response.status_code)
 
-        self.login(self.admin2)
+    def test_delete(self):
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
 
-        # same if it's not a child of the request org
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={child1.id}")
-        self.assertEqual(404, response.status_code)
+        child = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
+        delete_url = reverse("orgs.org_delete", args=[child.id])
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent, self.admin2])
+        self.assertDeleteFetch(delete_url, [self.admin], choose_org=self.org)
+
+        # schedule for deletion
+        response = self.client.get(delete_url)
+        self.assertContains(response, "You are about to delete the workspace <b>Child Workspace</b>")
+
+        # go through with it, redirects to workspaces list page
+        response = self.client.post(delete_url)
+        self.assertEqual(reverse("orgs.org_list"), response["Temba-Success"])
+
+        child.refresh_from_db()
+        self.assertFalse(child.is_active)
 
     def test_start(self):
         # the start view routes users based on their role
@@ -2686,27 +2664,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Y", self.org.date_format)
         self.assertEqual("es", self.org.language)
 
-    def test_delete_child(self):
-        self.org.features = [Org.FEATURE_CHILD_ORGS]
-        self.org.save(update_fields=("features",))
-
-        child = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
-        delete_url = reverse("orgs.org_delete_child", args=[child.id])
-
-        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent, self.admin2])
-        self.assertDeleteFetch(delete_url, [self.admin], choose_org=self.org)
-
-        # schedule for deletion
-        response = self.client.get(delete_url)
-        self.assertContains(response, "You are about to delete the workspace <b>Child Workspace</b>")
-
-        # go through with it, redirects to main workspace page
-        response = self.client.post(delete_url)
-        self.assertEqual(reverse("orgs.org_sub_orgs"), response["Temba-Success"])
-
-        child.refresh_from_db()
-        self.assertFalse(child.is_active)
-
     def test_urn_schemes(self):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)
@@ -2752,75 +2709,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "QWERTY123"}, follow=True)
         self.assertIn("form", response.context)
         self.assertTrue(response.context["form"].errors)
-
-    @mock_mailroom
-    def test_service(self, mr_mocks):
-        service_url = reverse("orgs.org_service")
-        inbox_url = reverse("msgs.msg_inbox")
-
-        # without logging in, try to service our main org
-        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
-        self.assertLoginRedirect(response)
-
-        response = self.client.post(service_url, {"other_org": self.org.id})
-        self.assertLoginRedirect(response)
-
-        # try logging in with a normal user
-        self.login(self.admin)
-
-        # same thing, no permission
-        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
-        self.assertLoginRedirect(response)
-
-        response = self.client.post(service_url, {"other_org": self.org.id})
-        self.assertLoginRedirect(response)
-
-        # ok, log in as our cs rep
-        self.login(self.customer_support)
-
-        # getting invalid org, has no service form
-        response = self.client.get(service_url, {"other_org": 325253256, "next": inbox_url})
-        self.assertContains(response, "Invalid org")
-
-        # posting invalid org just redirects back to manage page
-        response = self.client.post(service_url, {"other_org": 325253256})
-        self.assertRedirect(response, "/staff/org/")
-
-        # then service our org
-        response = self.client.get(service_url, {"other_org": self.org.id})
-        self.assertContains(response, "You are about to service the workspace, <b>Nyaruka</b>.")
-
-        # requesting a next page has a slightly different message
-        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
-        self.assertContains(response, "The page you are requesting belongs to a different workspace, <b>Nyaruka</b>.")
-
-        response = self.client.post(service_url, {"other_org": self.org.id})
-        self.assertRedirect(response, "/msg/")
-        self.assertEqual(self.org.id, self.client.session["org_id"])
-        self.assertTrue(self.client.session["servicing"])
-
-        # specify redirect_url
-        response = self.client.post(service_url, {"other_org": self.org.id, "next": "/flow/"})
-        self.assertRedirect(response, "/flow/")
-
-        # create a new contact
-        response = self.client.post(
-            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", phone="0788123123")
-        )
-        self.assertNoFormErrors(response)
-
-        # make sure that contact's created on is our cs rep
-        contact = Contact.objects.get(urns__path="+250788123123", org=self.org)
-        self.assertEqual(self.customer_support, contact.created_by)
-
-        self.assertEqual(self.org.id, self.client.session["org_id"])
-        self.assertTrue(self.client.session["servicing"])
-
-        # stop servicing
-        response = self.client.post(service_url, {})
-        self.assertRedirect(response, "/staff/org/")
-        self.assertIsNone(self.client.session["org_id"])
-        self.assertFalse(self.client.session["servicing"])
 
     def test_languages(self):
         settings_url = reverse("orgs.org_workspace")
@@ -4205,7 +4093,7 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             self.admin,
             {"email": "newguy@nyaruka.com", "role": "A"},
-            new_obj_query=Invitation.objects.filter(org=self.org, email="newguy@nyaruka.com", user_group="A").exclude(
+            new_obj_query=Invitation.objects.filter(org=self.org, email="newguy@nyaruka.com", role_code="A").exclude(
                 secret=None
             ),
         )

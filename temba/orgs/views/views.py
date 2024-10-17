@@ -13,7 +13,6 @@ from smartmin.views import (
     SmartCRUDL,
     SmartDeleteView,
     SmartFormView,
-    SmartListView,
     SmartReadView,
     SmartTemplateView,
     SmartUpdateView,
@@ -26,9 +25,9 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.db.models.functions import Lower
-from django.forms import ModelChoiceField
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -63,7 +62,6 @@ from temba.utils.views.mixins import (
     PostOnlyMixin,
     RequireRecentAuthMixin,
     SpaMixin,
-    StaffOnlyMixin,
 )
 
 from ..models import (
@@ -353,7 +351,7 @@ class UserCRUDL(SmartCRUDL):
         "send_verification_email",
     )
 
-    class List(SpaMixin, RequireFeatureMixin, ContextMenuMixin, OrgPermsMixin, SmartListView):
+    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
         require_feature = Org.FEATURE_USERS
         title = _("Users")
         menu_path = "/settings/users"
@@ -361,7 +359,7 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             return (
-                super()
+                super(BaseListView, self)
                 .derive_queryset(**kwargs)
                 .filter(id__in=self.request.org.get_users().values_list("id", flat=True))
                 .order_by(Lower("email"))
@@ -947,22 +945,21 @@ class OrgCRUDL(SmartCRUDL):
         "signup",
         "start",
         "edit",
-        "edit_sub_org",
+        "update",
         "join",
         "join_signup",
         "join_accept",
         "grant",
         "choose",
-        "delete_child",
+        "delete",
         "menu",
         "country",
         "languages",
-        "sub_orgs",
+        "list",
         "create",
         "export",
         "prometheus",
         "resthooks",
-        "service",
         "flow_smtp",
         "workspace",
     )
@@ -991,24 +988,6 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 ]
 
-                if self.has_org_perm("orgs.org_sub_orgs") and Org.FEATURE_CHILD_ORGS in org.features:
-                    children = org.children.filter(is_active=True).count()
-                    item = self.create_menu_item(name=_("Workspaces"), icon="children", href="orgs.org_sub_orgs")
-                    if children:
-                        item["count"] = children
-                    menu.append(item)
-
-                if self.has_org_perm("orgs.org_dashboard") and Org.FEATURE_CHILD_ORGS in org.features:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id="dashboard",
-                            name=_("Dashboard"),
-                            icon="dashboard",
-                            href="dashboard.dashboard_home",
-                            perm="orgs.org_dashboard",
-                        )
-                    )
-
                 if self.request.user.is_authenticated:
                     menu.append(
                         self.create_menu_item(
@@ -1024,6 +1003,26 @@ class OrgCRUDL(SmartCRUDL):
                 if self.has_org_perm("notifications.incident_list"):
                     menu.append(
                         self.create_menu_item(name=_("Incidents"), icon="incidents", href="notifications.incident_list")
+                    )
+
+                if Org.FEATURE_CHILD_ORGS in org.features and self.has_org_perm("orgs.org_list"):
+                    menu.append(self.create_divider())
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Workspaces"),
+                            icon="children",
+                            href="orgs.org_list",
+                            count=org.children.filter(is_active=True).count() + 1,
+                        )
+                    )
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id="dashboard",
+                            name=_("Dashboard"),
+                            icon="dashboard",
+                            href="dashboard.dashboard_home",
+                            perm="orgs.org_dashboard",
+                        )
                     )
 
                 if Org.FEATURE_USERS in org.features and self.has_org_perm("orgs.user_list"):
@@ -1427,16 +1426,36 @@ class OrgCRUDL(SmartCRUDL):
             context["from_email_custom"] = from_email_custom
             return context
 
-    class DeleteChild(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
-        cancel_url = "@orgs.org_sub_orgs"
-        success_url = "@orgs.org_sub_orgs"
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            name = forms.CharField(max_length=128, label=_("Name"), widget=InputWidget())
+            timezone = TimeZoneFormField(label=_("Timezone"), widget=SelectWidget(attrs={"searchable": True}))
+
+            class Meta:
+                model = Org
+                fields = ("name", "timezone", "date_format", "language")
+                widgets = {"date_format": SelectWidget(), "language": SelectWidget()}
+
+        form_class = Form
+        success_url = "@orgs.org_list"
+
+        def get_object_org(self):
+            return self.request.org
+
+        def get_queryset(self, *args, **kwargs):
+            return self.request.org.children.all()
+
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
+        cancel_url = "@orgs.org_list"
+        success_url = "@orgs.org_list"
         fields = ("id",)
         submit_button_name = _("Delete")
 
         def get_object_org(self):
-            # child orgs work in the context of their parent
-            org = self.get_object()
-            return org if not org.is_child else org.parent
+            return self.request.org
+
+        def get_queryset(self, *args, **kwargs):
+            return self.request.org.children.all()
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1450,56 +1469,28 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class Service(StaffOnlyMixin, SmartFormView):
-        class ServiceForm(forms.Form):
-            other_org = ModelChoiceField(queryset=Org.objects.all(), widget=forms.HiddenInput())
-            next = forms.CharField(widget=forms.HiddenInput(), required=False)
-
-        form_class = ServiceForm
-        fields = ("other_org", "next")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["other_org"] = Org.objects.filter(id=self.request.GET.get("other_org")).first()
-            context["next"] = self.request.GET.get("next", "")
-            return context
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-            initial["other_org"] = self.request.GET.get("other_org", "")
-            initial["next"] = self.request.GET.get("next", "")
-            return initial
-
-        # valid form means we set our org and redirect to their inbox
-        def form_valid(self, form):
-            switch_to_org(self.request, form.cleaned_data["other_org"], servicing=True)
-            success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
-            return HttpResponseRedirect(success_url)
-
-        # invalid form login 'logs out' the user from the org and takes them to the org manage page
-        def form_invalid(self, form):
-            switch_to_org(self.request, None)
-            return HttpResponseRedirect(reverse("staff.org_list"))
-
-    class SubOrgs(SpaMixin, ContextMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
+    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+        require_feature = Org.FEATURE_CHILD_ORGS
         title = _("Workspaces")
         menu_path = "/settings/workspaces"
+        search_fields = ("name__icontains",)
 
         def build_context_menu(self, menu):
-            org = self.get_object()
-
-            enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
-            if self.has_org_perm("orgs.org_create") and enabled:
-                menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
+            if self.has_org_perm("orgs.org_create"):
+                menu.add_modax(
+                    _("New"), "new_workspace", reverse("orgs.org_create"), title=_("New Workspace"), as_button=True
+                )
 
         def derive_queryset(self, **kwargs):
-            queryset = super().derive_queryset(**kwargs)
+            qs = super(BaseListView, self).derive_queryset(**kwargs)
 
-            # all our children
-            org = self.get_object()
-            ids = [child.id for child in Org.objects.filter(parent=org)]
-
-            return queryset.filter(id__in=ids, is_active=True).order_by("-parent", "name")
+            # return this org and its children
+            org = self.request.org
+            return (
+                qs.filter(Q(id=org.id) | Q(id__in=[c.id for c in org.children.all()]))
+                .filter(is_active=True)
+                .order_by("-parent", "name")
+            )
 
     class Create(NonAtomicMixin, RequireFeatureMixin, ModalFormMixin, InferOrgMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
@@ -1538,7 +1529,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_success_url(self):
             # if we created a child org, redirect to its management
             if self.object.is_child:
-                return reverse("orgs.org_sub_orgs")
+                return reverse("orgs.org_list")
 
             # if we created a new separate org, switch to it
             switch_to_org(self.request, self.object)
@@ -1959,10 +1950,8 @@ class OrgCRUDL(SmartCRUDL):
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
-            name = forms.CharField(max_length=128, label=_("Workspace Name"), help_text="", widget=InputWidget())
-            timezone = TimeZoneFormField(
-                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True})
-            )
+            name = forms.CharField(max_length=128, label=_("Name"), widget=InputWidget())
+            timezone = TimeZoneFormField(label=_("Timezone"), widget=SelectWidget(attrs={"searchable": True}))
 
             class Meta:
                 model = Org
@@ -1973,18 +1962,6 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_exclude(self):
             return ["language"] if len(settings.LANGUAGES) == 1 else []
-
-    class EditSubOrg(SpaMixin, ModalFormMixin, Edit):
-        success_url = "@orgs.org_sub_orgs"
-
-        def get_success_url(self):
-            return super().get_success_url()
-
-        def get_object(self, *args, **kwargs):
-            try:
-                return self.request.org.children.get(id=int(self.request.GET.get("org")))
-            except Org.DoesNotExist:
-                raise Http404(_("No such child workspace"))
 
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class CountryForm(forms.ModelForm):

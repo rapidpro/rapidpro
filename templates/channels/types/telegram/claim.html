@@ -10,24 +10,26 @@
     You will need to <a target="_blank" href="https://core.telegram.org/bots#create-a-new-bot">create a new Telegram bot</a> and
     get its Authentication Token. To do so:
   {% endblocktrans %}
-  <ol class="steps card">
-    <li>
-      {% blocktrans trimmed %}
-        Start a new chat with the <a target="_blank" href="https://telegram.me/botfather">BotFather</a>. You can do so on your
-        device by searching for "botfather" and starting a new chat.
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed %}
-        In your @botfather chat, type in the command <code>/newbot</code>. Follow the instructions to name your bot and
-        choose a username for it.
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed %}
-        Once you have created your bot, @botfather will provide you with the authentication token to use your bot.
-        Enter that token below.
-      {% endblocktrans %}
-    </li>
-  </ol>
+  <div class="card">
+    <ol class="steps">
+      <li>
+        {% blocktrans trimmed %}
+          Start a new chat with the <a target="_blank" href="https://telegram.me/botfather">BotFather</a>. You can do so on your
+          device by searching for "botfather" and starting a new chat.
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed %}
+          In your @botfather chat, type in the command <code>/newbot</code>. Follow the instructions to name your bot and
+          choose a username for it.
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed %}
+          Once you have created your bot, @botfather will provide you with the authentication token to use your bot.
+          Enter that token below.
+        {% endblocktrans %}
+      </li>
+    </ol>
+  </div>
 {% endblock pre-form %}

@@ -83,7 +83,7 @@ class OrgObjPermsMixin(OrgPermsMixin):
         org = self.get_object_org()
         if request.user.is_staff and self.request.org != org:
             return HttpResponseRedirect(
-                f"{reverse('orgs.org_service')}?next={quote_plus(request.path)}&other_org={org.id}"
+                f"{reverse('staff.org_service')}?next={quote_plus(request.path)}&other_org={org.id}"
             )
 
 

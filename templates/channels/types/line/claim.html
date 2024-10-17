@@ -9,119 +9,121 @@
   {% blocktrans trimmed %}
     To start creating a LINE bot, go to <a href="https://developers.line.biz/en/docs/messaging-api/getting-started/">Getting started with the Messaging API</a>.
   {% endblocktrans %}
-  <ol class="steps card">
+  <div class="card">
+    <ol class="steps">
+      <li>
+        {% blocktrans trimmed %}
+          Access the <a href="https://developers.line.biz/console/">LINE Developers Console</a> page.
+        </li>
+      {% endblocktrans %}
+    </li>
     <li>
       {% blocktrans trimmed %}
-        Access the <a href="https://developers.line.biz/console/">LINE Developers Console</a> page.
-      </li>
-    {% endblocktrans %}
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Create a Line account using the application on your smartphone
-    {% endblocktrans %}
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Activate the permission to login via web application in the <i>Settings</i> &gt; <i>Account</i> &gt; <i>Allow login</i>
-    {% endblocktrans %}
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Register your email and password via the application <i>Settings</i> &gt; <i>Account</i> &gt; <i>Email Account</i>
-    {% endblocktrans %}
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Create a new account on LINE Developers Console (With Messaging API enabled)
-    {% endblocktrans %}
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Follow the steps on <a href="https://developers.line.biz/en/docs/messaging-api/getting-started/#using-console">Creating a channel on the LINE Developers Console</a>
-    {% endblocktrans %}
-    <ol>
-      <li>
-        {% blocktrans trimmed %}
-          Log in to the LINE Developers Console
-        {% endblocktrans %}
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          Register as a developer (only on first login)
-        {% endblocktrans %}
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          Enter your credentials created through the application and wait for the confirmation code in it.
-        {% endblocktrans %}
-        <div class="important">
+        Create a Line account using the application on your smartphone
+      {% endblocktrans %}
+    </li>
+    <li>
+      {% blocktrans trimmed %}
+        Activate the permission to login via web application in the <i>Settings</i> &gt; <i>Account</i> &gt; <i>Allow login</i>
+      {% endblocktrans %}
+    </li>
+    <li>
+      {% blocktrans trimmed %}
+        Register your email and password via the application <i>Settings</i> &gt; <i>Account</i> &gt; <i>Email Account</i>
+      {% endblocktrans %}
+    </li>
+    <li>
+      {% blocktrans trimmed %}
+        Create a new account on LINE Developers Console (With Messaging API enabled)
+      {% endblocktrans %}
+    </li>
+    <li>
+      {% blocktrans trimmed %}
+        Follow the steps on <a href="https://developers.line.biz/en/docs/messaging-api/getting-started/#using-console">Creating a channel on the LINE Developers Console</a>
+      {% endblocktrans %}
+      <ol>
+        <li>
+          {% blocktrans trimmed %}
+            Log in to the LINE Developers Console
+          {% endblocktrans %}
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            Register as a developer (only on first login)
+          {% endblocktrans %}
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            Enter your credentials created through the application and wait for the confirmation code in it.
+          {% endblocktrans %}
+          <div class="important">
+            <p>
+              {% blocktrans trimmed %}
+                Note: At this time you must create a LINE Developers Console account and some information, for example, address,
+                phone, etc., will be requested.
+              {% endblocktrans %}
+            </p>
+          </div>
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            Create a new provider
+          {% endblocktrans %}
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            Create a channel
+          {% endblocktrans %}
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            After the creation process of the LINE Developers Console account, you will see the page to add a new channel of
+            communication <i>Messaging API</i>. Enter the name and select the appropriate category and click OK.
+          {% endblocktrans %}
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            In the next step, click the <i>LINE @ Manager</i> and it will redirect you to the API activation page.
+          {% endblocktrans %}
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            Click "Enable API" and confirm. (By doing so, the status of your API will be <i>Valid</i>)
+          {% endblocktrans %}
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            Enable the option to allow the use of Webhooks and click <i>Save</i>.
+          {% endblocktrans %}
+        </li>
+      </ol>
+    </li>
+    <li>
+      {% blocktrans trimmed %}
+        Set your bot:
+      {% endblocktrans %}
+      <ol>
+        <li>
+          {% blocktrans trimmed %}
+            Click on the menu "Accounts" at the top of the page at the link <a href="https://developers.line.biz/console/">https://developers.line.biz/console/</a>
+          {% endblocktrans %}
+        </li>
+        <li>
+          {% blocktrans trimmed %}
+            In the communication channel of your choice, click on the <i>LINE Developers Console</i> button, accept the terms,
+            and it will direct you to a page with the information needed to fill out in the form below
+            (Channel ID, Channel Name, Channel Secret and Channel Access Token).
+          {% endblocktrans %}
           <p>
             {% blocktrans trimmed %}
-              Note: At this time you must create a LINE Developers Console account and some information, for example, address,
-              phone, etc., will be requested.
+              Note: To generate the Channel Access Token click on <i>Issue</i> button
             {% endblocktrans %}
           </p>
-        </div>
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          Create a new provider
-        {% endblocktrans %}
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          Create a channel
-        {% endblocktrans %}
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          After the creation process of the LINE Developers Console account, you will see the page to add a new channel of
-          communication <i>Messaging API</i>. Enter the name and select the appropriate category and click OK.
-        {% endblocktrans %}
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          In the next step, click the <i>LINE @ Manager</i> and it will redirect you to the API activation page.
-        {% endblocktrans %}
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          Click "Enable API" and confirm. (By doing so, the status of your API will be <i>Valid</i>)
-        {% endblocktrans %}
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          Enable the option to allow the use of Webhooks and click <i>Save</i>.
-        {% endblocktrans %}
-      </li>
-    </ol>
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Set your bot:
-    {% endblocktrans %}
-    <ol>
-      <li>
-        {% blocktrans trimmed %}
-          Click on the menu "Accounts" at the top of the page at the link <a href="https://developers.line.biz/console/">https://developers.line.biz/console/</a>
-        {% endblocktrans %}
-      </li>
-      <li>
-        {% blocktrans trimmed %}
-          In the communication channel of your choice, click on the <i>LINE Developers Console</i> button, accept the terms,
-          and it will direct you to a page with the information needed to fill out in the form below
-          (Channel ID, Channel Name, Channel Secret and Channel Access Token).
-        {% endblocktrans %}
-        <p>
-          {% blocktrans trimmed %}
-            Note: To generate the Channel Access Token click on <i>Issue</i> button
-          {% endblocktrans %}
-        </p>
-      </li>
-    </ol>
-  </li>
-</ol>
+        </li>
+      </ol>
+    </li>
+  </ol>
+</div>
 {% endblock pre-form %}
 {% block extra-style %}
   {{ block.super }}
