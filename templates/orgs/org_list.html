@@ -1,54 +1,46 @@
-{% extends "smartmin/list.html" %}
+{% extends "orgs/base/list.html" %}
 {% load i18n temba smartmin humanize %}
 
-{% block content %}
-  {% block pre-table %}
-    <temba-modax header="{{ _("Update Workspace") |escapejs }}" id="update-child">
-    </temba-modax>
-    <temba-modax header="{{ _("Delete Workspace") |escapejs }}" id="delete-child">
-    </temba-modax>
-  {% endblock pre-table %}
-  <form method="get" action="{{ request.path }}" id="search-form">
-    <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-    </temba-textinput>
-    <input type="submit" class="hide">
-  </form>
-  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
-  <div class="flex-grow overflow-y-auto shadow">
-    <table class="list lined scrolled">
-      <thead>
-        <tr>
-          <th>{% trans "Name" %}</th>
-          <th style="text-align:right">{% trans "Users" %}</th>
-          <th style="text-align:right">{% trans "Contacts" %}</th>
-          <th style="text-align:right">{% trans "Created On" %}</th>
-          <th></th>
-        </tr>
-        <tbody>
-          {% for obj in object_list %}
-            <tr onclick="{% if obj.id != user_org.id %}showUpdateChildModal({{ obj.id }}){% endif %}"
-                class="{% if obj.id != user_org.id %}hover-linked update{% endif %}">
-              <td>{{ obj.name }}</td>
-              <td style="text-align:right">{{ obj.users.all|length }}</td>
-              <td style="text-align:right">{{ obj.get_contact_count|intcomma }}</td>
-              <td style="text-align:right">{{ obj.created_on|day }}</td>
-              <td class="w-2">
-                {% if obj.id != user_org.id %}
-                  <div style="visibility:hidden"
-                       onclick="event.stopPropagation(); showDeleteChildModal({{ obj.id }});"
-                       class="pl-2 pt-1 delete-link linked text-gray-400">
-                    <temba-icon name="delete_small">
-                    </temba-icon>
-                  </div>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </thead>
-    </table>
-  </div>
-{% endblock content %}
+{% block pre-table %}
+  <temba-modax header="{{ _("Update Workspace") |escapejs }}" id="update-child">
+  </temba-modax>
+  <temba-modax header="{{ _("Delete Workspace") |escapejs }}" id="delete-child">
+  </temba-modax>
+{% endblock pre-table %}
+{% block table-head %}
+  <tr>
+    <th>{% trans "Name" %}</th>
+    <th style="text-align:right">{% trans "Users" %}</th>
+    <th style="text-align:right">{% trans "Contacts" %}</th>
+    <th style="text-align:right">{% trans "Created On" %}</th>
+    <th></th>
+  </tr>
+{% endblock table-head %}
+{% block table-body %}
+  {% for obj in object_list %}
+    <tr onclick="{% if obj.id != user_org.id %}showUpdateChildModal({{ obj.id }}){% endif %}"
+        class="{% if obj.id != user_org.id %}hover-linked update{% endif %}">
+      <td>{{ obj.name }}</td>
+      <td style="text-align:right">{{ obj.users.all|length }}</td>
+      <td style="text-align:right">{{ obj.get_contact_count|intcomma }}</td>
+      <td style="text-align:right">{{ obj.created_on|day }}</td>
+      <td class="w-2">
+        {% if obj.id != user_org.id %}
+          <div style="visibility:hidden"
+               onclick="event.stopPropagation(); showDeleteChildModal({{ obj.id }});"
+               class="pl-2 pt-1 delete-link linked text-gray-400">
+            <temba-icon name="delete_small">
+            </temba-icon>
+          </div>
+        {% endif %}
+      </td>
+    </tr>
+  {% empty %}
+    <tr class="empty_list">
+      <td colspan="99" class="text-center">{% trans "No workspaces" %}</td>
+    </tr>
+  {% endfor %}
+{% endblock table-body %}
 {% block extra-script %}
   {{ block.super }}
   <script>
@@ -65,11 +57,3 @@
     }
   </script>
 {% endblock extra-script %}
-{% block extra-style %}
-  {{ block.super }}
-  <style type="text/css">
-    tr:hover .delete-link {
-      visibility: visible !important;
-    }
-  </style>
-{% endblock extra-style %}
