@@ -19,7 +19,7 @@ from django import forms
 from django.conf import settings
 from django.contrib.humanize.templatetags import humanize
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Max, Min, Sum
+from django.db.models import Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
@@ -669,7 +669,6 @@ class FlowCRUDL(SmartCRUDL):
     class BaseList(BulkActionMixin, ContextMenuMixin, BaseListView):
         permission = "flows.flow_list"
         title = _("Flows")
-        refresh = 10000
         fields = ("name", "modified_on")
         default_template = "flows/flow_list.html"
         default_order = ("-saved_on",)
@@ -677,11 +676,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org_has_flows"] = self.request.org.flows.filter(is_active=True).exists()
-            context["folders"] = self.get_folders()
-            context["labels"] = self.get_flow_labels()
-            context["campaigns"] = self.get_campaigns()
-            context["request_url"] = self.request.path
+            context["labels"] = self.request.org.flow_labels.order_by(Lower("name"))
 
             # decorate flow objects with their run activity stats
             for flow in context["object_list"]:
@@ -692,22 +687,6 @@ class FlowCRUDL(SmartCRUDL):
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
             return qs.exclude(is_system=True).exclude(is_active=False)
-
-        def get_campaigns(self):
-            from temba.campaigns.models import CampaignEvent
-
-            org = self.request.org
-            events = CampaignEvent.objects.filter(
-                campaign__org=org,
-                is_active=True,
-                campaign__is_active=True,
-                flow__is_archived=False,
-                flow__is_active=True,
-                flow__is_system=False,
-            )
-            return (
-                events.values("campaign__name", "campaign__id").annotate(count=Count("id")).order_by("campaign__name")
-            )
 
         def apply_bulk_action(self, user, action, objects, label):
             super().apply_bulk_action(user, action, objects, label)
@@ -723,39 +702,6 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_bulk_action_labels(self):
             return self.request.org.flow_labels.filter(is_active=True)
-
-        def get_flow_labels(self):
-            labels = []
-            for label in self.request.org.flow_labels.order_by("name"):
-                labels.append(
-                    {
-                        "id": label.id,
-                        "uuid": label.uuid,
-                        "name": label.name,
-                        "count": label.get_flow_count(),
-                    }
-                )
-            return labels
-
-        def get_folders(self):
-            org = self.request.org
-
-            return [
-                dict(
-                    label="Active",
-                    url=reverse("flows.flow_list"),
-                    count=Flow.objects.exclude(is_system=True)
-                    .filter(is_active=True, is_archived=False, org=org)
-                    .count(),
-                ),
-                dict(
-                    label="Archived",
-                    url=reverse("flows.flow_archived"),
-                    count=Flow.objects.exclude(is_system=True)
-                    .filter(is_active=True, is_archived=True, org=org)
-                    .count(),
-                ),
-            ]
 
         def build_context_menu(self, menu):
             if self.has_org_perm("flows.flow_create"):
