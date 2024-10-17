@@ -11,21 +11,23 @@
   {% blocktrans trimmed %}
     If you want to better understand these steps, read this guide <a href="https://api.slack.com/authentication/basics" target="_blank">here</a> please.
   {% endblocktrans %}
-  <ol class="steps card">
-    <li>
-      {% blocktrans trimmed %}
-        You'll need to create a <a href="https://api.slack.com/apps" target="_blank">Slack App</a> if you haven't already.
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed %}
-        Setup a bot to your Slack App, add the needed scopes for Bot Token (chat:write, files:read, files:write, users:read), User Token (files:read and files:write) and install app on your slack workspace.
-      {% endblocktrans %}
-    </li>
-    <li>
-      {% blocktrans trimmed %}
-        Fill this form, submit and go redirected to new channel's configuration to finish connection.
-      {% endblocktrans %}
-    </li>
-  </ol>
+  <div class="card">
+    <ol class="steps">
+      <li>
+        {% blocktrans trimmed %}
+          You'll need to create a <a href="https://api.slack.com/apps" target="_blank">Slack App</a> if you haven't already.
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed %}
+          Setup a bot to your Slack App, add the needed scopes for Bot Token (chat:write, files:read, files:write, users:read), User Token (files:read and files:write) and install app on your slack workspace.
+        {% endblocktrans %}
+      </li>
+      <li>
+        {% blocktrans trimmed %}
+          Fill this form, submit and go redirected to new channel's configuration to finish connection.
+        {% endblocktrans %}
+      </li>
+    </ol>
+  </div>
 {% endblock pre-form %}
