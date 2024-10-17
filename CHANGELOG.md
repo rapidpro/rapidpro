@@ -1,3 +1,7 @@
+v9.3.73 (2024-10-17)
+-------------------------
+ * Overhaul UI for managing child workspaces
+
 v9.3.72 (2024-10-17)
 -------------------------
  * Move org service view to staff app
