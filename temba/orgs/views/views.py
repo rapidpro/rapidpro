@@ -13,7 +13,6 @@ from smartmin.views import (
     SmartCRUDL,
     SmartDeleteView,
     SmartFormView,
-    SmartListView,
     SmartReadView,
     SmartTemplateView,
     SmartUpdateView,
@@ -1478,7 +1477,9 @@ class OrgCRUDL(SmartCRUDL):
 
         def build_context_menu(self, menu):
             if self.has_org_perm("orgs.org_create"):
-                menu.add_modax(_("New"), "new_workspace", reverse("orgs.org_create"), as_button=True)
+                menu.add_modax(
+                    _("New"), "new_workspace", reverse("orgs.org_create"), title=_("New Workspace"), as_button=True
+                )
 
         def derive_queryset(self, **kwargs):
             qs = super(BaseListView, self).derive_queryset(**kwargs)
