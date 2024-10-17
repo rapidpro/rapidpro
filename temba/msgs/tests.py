@@ -484,6 +484,33 @@ class MsgTest(TembaTest, CRUDLTestMixin):
 
 
 class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_menu(self):
+        menu_url = reverse("msgs.msg_menu")
+
+        contact = self.create_contact("Joe Blow", phone="+250788000001")
+        spam = self.create_label("Spam")
+        msg1 = self.create_incoming_msg(contact, "Hi")
+        spam.toggle_label([msg1], add=True)
+
+        self.assertRequestDisallowed(menu_url, [None, self.agent])
+        self.assertPageMenu(
+            menu_url,
+            self.admin,
+            [
+                "Inbox (1)",
+                "Handled (0)",
+                "Archived (0)",
+                "Outbox (0)",
+                "Sent (0)",
+                "Failed (0)",
+                "Scheduled (0)",
+                "Broadcasts",
+                "Templates",
+                "Calls (0)",
+                ("Labels", ["Spam (1)"]),
+            ],
+        )
+
     def test_inbox(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         contact2 = self.create_contact("Frank", phone="+250788000002")
