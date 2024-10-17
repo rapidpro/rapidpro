@@ -19,9 +19,19 @@
       <tbody>
         {% for obj in object_list %}
           <tr onclick="showUpdateShortcutModal({{ obj.id }})" class="hover-linked update">
-            <td style="min-width: 50px">{{ obj.name }}</td>
+            <td class="whitespace-nowrap"
+                style="min-width: 50px;
+                       max-width:150px;
+                       overflow: hidden;
+                       text-overflow: ellipsis">{{ obj.name }}</td>
             <td>
-              <div class="break-all">{{ obj.text|truncatechars:100 }}</div>
+              <div style="overflow: hidden;
+                          text-overflow: ellipsis;
+                          display: -webkit-box;
+                          line-height: 16px;
+                          max-height: 16px;
+                          -webkit-line-clamp: 1;
+                          -webkit-box-orient: vertical">{{ obj.text }}</div>
             </td>
             <td class="w-10">
               {% if org_perms.tickets.shortcut_delete %}
@@ -46,6 +56,9 @@
 {% block extra-script %}
   {{ block.super }}
   <script>
+    // refresh our cached shortcuts in case we just created one
+    document.querySelector("temba-store").refreshShortcuts();
+
     function showUpdateShortcutModal(id) {
       var modax = document.querySelector('#update-shortcut');
       modax.endpoint = `/shortcut/update/${id}/`;
