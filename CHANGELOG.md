@@ -1,3 +1,8 @@
+v9.3.72 (2024-10-17)
+-------------------------
+ * Move org service view to staff app
+ * Drop Invitation.user_group and UserSettings.team
+
 v9.3.71 (2024-10-17)
 -------------------------
  * Fix invitations count on org menu to exclude expired invitations
