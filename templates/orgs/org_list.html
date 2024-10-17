@@ -54,13 +54,13 @@
   <script>
     function showUpdateChildModal(id) {
       var modax = document.querySelector('#update-child');
-      modax.endpoint = `/org/edit_sub_org/?org=${id}`;
+      modax.endpoint = `/org/update/${id}/`;
       modax.open = true;
     }
 
     function showDeleteChildModal(id) {
       var modax = document.querySelector('#delete-child');
-      modax.endpoint = `/org/delete_child/${id}/`;
+      modax.endpoint = `/org/delete/${id}/`;
       modax.open = true;
     }
   </script>

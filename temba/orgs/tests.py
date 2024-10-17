@@ -85,21 +85,21 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertTrue(perms["orgs"]["org_country"])
         self.assertTrue(perms["orgs"]["user_list"])
-        self.assertTrue(perms["orgs"]["org_delete_child"])
+        self.assertTrue(perms["orgs"]["org_delete"])
 
         perms = RolePermsWrapper(OrgRole.EDITOR)
 
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["user_list"])
-        self.assertFalse(perms["orgs"]["org_delete_child"])
+        self.assertFalse(perms["orgs"]["org_delete"])
 
         perms = RolePermsWrapper(OrgRole.VIEWER)
 
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertFalse(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["user_list"])
-        self.assertFalse(perms["orgs"]["org_delete_child"])
+        self.assertFalse(perms["orgs"]["org_delete"])
 
         self.assertFalse(perms["msgs"]["foo"])  # no blow up if perm doesn't exist
         self.assertFalse(perms["chickens"]["foo"])  # or app doesn't exist
@@ -2485,13 +2485,18 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(
             list_url, [self.admin], context_objects=[self.org, child1, child2], choose_org=self.org
         )
-
-        child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"
         self.assertContains(response, "Child Org 1")
+        self.assertContains(response, "Child Org 2")
+
+        # can search by name
+        self.assertListFetch(
+            list_url + "?search=child", [self.admin], context_objects=[child1, child2], choose_org=self.org
+        )
 
         # edit our sub org's details
+        child1_update_url = reverse("orgs.org_update", args=[child1.id])
         response = self.client.post(
-            child1_edit_url,
+            child1_update_url,
             {"name": "New Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
         )
         self.assertEqual(list_url, response.url)
@@ -2502,7 +2507,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # edit our sub org's details in a spa view
         response = self.client.post(
-            child1_edit_url,
+            child1_update_url,
             {"name": "Spa Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
             HTTP_TEMBA_SPA=1,
         )
@@ -2516,13 +2521,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("es", child1.language)
 
         # if org doesn't exist, 404
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
+        response = self.client.get(reverse("orgs.org_update", args=[3464374]))
         self.assertEqual(404, response.status_code)
 
         self.login(self.admin2)
 
         # same if it's not a child of the request org
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={child1.id}")
+        response = self.client.get(reverse("orgs.org_update", args=[child1.id]))
         self.assertEqual(404, response.status_code)
 
     def test_start(self):
@@ -2644,12 +2649,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Y", self.org.date_format)
         self.assertEqual("es", self.org.language)
 
-    def test_delete_child(self):
+    def test_delete(self):
         self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
         child = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
-        delete_url = reverse("orgs.org_delete_child", args=[child.id])
+        delete_url = reverse("orgs.org_delete", args=[child.id])
 
         self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent, self.admin2])
         self.assertDeleteFetch(delete_url, [self.admin], choose_org=self.org)

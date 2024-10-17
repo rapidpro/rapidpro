@@ -28,7 +28,7 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.db.models.functions import Lower
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -946,13 +946,13 @@ class OrgCRUDL(SmartCRUDL):
         "signup",
         "start",
         "edit",
-        "edit_sub_org",
+        "update",
         "join",
         "join_signup",
         "join_accept",
         "grant",
         "choose",
-        "delete_child",
+        "delete",
         "menu",
         "country",
         "languages",
@@ -1427,16 +1427,36 @@ class OrgCRUDL(SmartCRUDL):
             context["from_email_custom"] = from_email_custom
             return context
 
-    class DeleteChild(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            name = forms.CharField(max_length=128, label=_("Name"), widget=InputWidget())
+            timezone = TimeZoneFormField(label=_("Timezone"), widget=SelectWidget(attrs={"searchable": True}))
+
+            class Meta:
+                model = Org
+                fields = ("name", "timezone", "date_format", "language")
+                widgets = {"date_format": SelectWidget(), "language": SelectWidget()}
+
+        form_class = Form
+        success_url = "@orgs.org_list"
+
+        def get_object_org(self):
+            return self.request.org
+
+        def get_queryset(self, *args, **kwargs):
+            return self.request.org.children.all()
+
+    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = "@orgs.org_list"
         success_url = "@orgs.org_list"
         fields = ("id",)
         submit_button_name = _("Delete")
 
         def get_object_org(self):
-            # child orgs work in the context of their parent
-            org = self.get_object()
-            return org if not org.is_child else org.parent
+            return self.request.org
+
+        def get_queryset(self, *args, **kwargs):
+            return self.request.org.children.all()
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1450,7 +1470,7 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class List(SpaMixin, RequireFeatureMixin, ContextMenuMixin, OrgPermsMixin, SmartListView):
+    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
         require_feature = Org.FEATURE_CHILD_ORGS
         title = _("Workspaces")
         menu_path = "/settings/workspaces"
@@ -1461,7 +1481,7 @@ class OrgCRUDL(SmartCRUDL):
                 menu.add_modax(_("New"), "new_workspace", reverse("orgs.org_create"), as_button=True)
 
         def derive_queryset(self, **kwargs):
-            qs = super().derive_queryset(**kwargs)
+            qs = super(BaseListView, self).derive_queryset(**kwargs)
 
             # return this org and its children
             org = self.request.org
@@ -1929,10 +1949,8 @@ class OrgCRUDL(SmartCRUDL):
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
-            name = forms.CharField(max_length=128, label=_("Workspace Name"), help_text="", widget=InputWidget())
-            timezone = TimeZoneFormField(
-                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True})
-            )
+            name = forms.CharField(max_length=128, label=_("Name"), widget=InputWidget())
+            timezone = TimeZoneFormField(label=_("Timezone"), widget=SelectWidget(attrs={"searchable": True}))
 
             class Meta:
                 model = Org
@@ -1943,18 +1961,6 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_exclude(self):
             return ["language"] if len(settings.LANGUAGES) == 1 else []
-
-    class EditSubOrg(ModalFormMixin, Edit):
-        success_url = "@orgs.org_list"
-
-        def get_success_url(self):
-            return super().get_success_url()
-
-        def get_object(self, *args, **kwargs):
-            try:
-                return self.request.org.children.get(id=int(self.request.GET.get("org")))
-            except Org.DoesNotExist:
-                raise Http404(_("No such child workspace"))
 
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class CountryForm(forms.ModelForm):
