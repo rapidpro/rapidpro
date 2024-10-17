@@ -27,7 +27,6 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.db.models.functions import Lower
-from django.forms import ModelChoiceField
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, resolve_url
 from django.urls import reverse, reverse_lazy
@@ -63,7 +62,6 @@ from temba.utils.views.mixins import (
     PostOnlyMixin,
     RequireRecentAuthMixin,
     SpaMixin,
-    StaffOnlyMixin,
 )
 
 from ..models import (
@@ -962,7 +960,6 @@ class OrgCRUDL(SmartCRUDL):
         "export",
         "prometheus",
         "resthooks",
-        "service",
         "flow_smtp",
         "workspace",
     )
@@ -1449,37 +1446,6 @@ class OrgCRUDL(SmartCRUDL):
             self.object = self.get_object()
             self.object.release(request.user)
             return self.render_modal_response()
-
-    class Service(StaffOnlyMixin, SmartFormView):
-        class ServiceForm(forms.Form):
-            other_org = ModelChoiceField(queryset=Org.objects.all(), widget=forms.HiddenInput())
-            next = forms.CharField(widget=forms.HiddenInput(), required=False)
-
-        form_class = ServiceForm
-        fields = ("other_org", "next")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["other_org"] = Org.objects.filter(id=self.request.GET.get("other_org")).first()
-            context["next"] = self.request.GET.get("next", "")
-            return context
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-            initial["other_org"] = self.request.GET.get("other_org", "")
-            initial["next"] = self.request.GET.get("next", "")
-            return initial
-
-        # valid form means we set our org and redirect to their inbox
-        def form_valid(self, form):
-            switch_to_org(self.request, form.cleaned_data["other_org"], servicing=True)
-            success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
-            return HttpResponseRedirect(success_url)
-
-        # invalid form login 'logs out' the user from the org and takes them to the org manage page
-        def form_invalid(self, form):
-            switch_to_org(self.request, None)
-            return HttpResponseRedirect(reverse("staff.org_list"))
 
     class SubOrgs(SpaMixin, ContextMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
         title = _("Workspaces")

@@ -384,7 +384,7 @@ class ContentType(BaseCheck):
 
 class StaffRedirect(BaseCheck):
     def check(self, test_cls, response, msg_prefix):
-        test_cls.assertRedirect(response, reverse("orgs.org_service"), msg=f"{msg_prefix}: expected staff redirect")
+        test_cls.assertRedirect(response, reverse("staff.org_service"), msg=f"{msg_prefix}: expected staff redirect")
 
 
 class LoginRedirectOr404(BaseCheck):

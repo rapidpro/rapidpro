@@ -20,7 +20,7 @@
           You are about to service the workspace, <b>{{ other_org.name }}</b>.
         {% endif %}
       </div>
-      <form method="post" action="{% url 'orgs.org_service' %}">
+      <form method="post" action="{% url 'staff.org_service' %}">
         {% for field in form.fields %}
           {% render_field field %}
         {% endfor %}

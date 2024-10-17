@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from smartmin.users.models import FailedLogin, PasswordHistory
 from smartmin.users.views import UserUpdateForm
-from smartmin.views import SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.conf import settings
@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.orgs.models import Org, OrgRole, User
+from temba.orgs.views import switch_to_org
 from temba.utils import get_anonymous_user
 from temba.utils.fields import SelectMultipleWidget
 from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin, StaffOnlyMixin
@@ -21,7 +22,7 @@ from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, Modal
 
 class OrgCRUDL(SmartCRUDL):
     model = Org
-    actions = ("read", "update", "list")
+    actions = ("read", "update", "list", "service")
 
     class Read(StaffOnlyMixin, SpaMixin, ContextMenuMixin, SmartReadView):
         def build_context_menu(self, menu):
@@ -55,7 +56,7 @@ class OrgCRUDL(SmartCRUDL):
             menu.new_group()
             menu.add_url_post(
                 _("Service"),
-                f'{reverse("orgs.org_service")}?other_org={obj.id}&next={reverse("msgs.msg_inbox", args=[])}',
+                f'{reverse("staff.org_service")}?other_org={obj.id}&next={reverse("msgs.msg_inbox", args=[])}',
             )
 
         def get_context_data(self, **kwargs):
@@ -225,6 +226,37 @@ class OrgCRUDL(SmartCRUDL):
 
             obj.limits = cleaned_data["limits"]
             return obj
+
+    class Service(StaffOnlyMixin, SmartFormView):
+        class ServiceForm(forms.Form):
+            other_org = forms.ModelChoiceField(queryset=Org.objects.all(), widget=forms.HiddenInput())
+            next = forms.CharField(widget=forms.HiddenInput(), required=False)
+
+        form_class = ServiceForm
+        fields = ("other_org", "next")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["other_org"] = Org.objects.filter(id=self.request.GET.get("other_org")).first()
+            context["next"] = self.request.GET.get("next", "")
+            return context
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            initial["other_org"] = self.request.GET.get("other_org", "")
+            initial["next"] = self.request.GET.get("next", "")
+            return initial
+
+        # valid form means we set our org and redirect to their inbox
+        def form_valid(self, form):
+            switch_to_org(self.request, form.cleaned_data["other_org"], servicing=True)
+            success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
+            return HttpResponseRedirect(success_url)
+
+        # invalid form login 'logs out' the user from the org and takes them to the org manage page
+        def form_invalid(self, form):
+            switch_to_org(self.request, None)
+            return HttpResponseRedirect(reverse("staff.org_list"))
 
 
 class UserCRUDL(SmartCRUDL):

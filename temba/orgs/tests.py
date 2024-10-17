@@ -24,15 +24,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelLog, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.contacts.models import (
-    URN,
-    Contact,
-    ContactExport,
-    ContactField,
-    ContactGroup,
-    ContactImport,
-    ContactImportBatch,
-)
+from temba.contacts.models import URN, ContactExport, ContactField, ContactGroup, ContactImport, ContactImportBatch
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowSession, FlowStart, FlowStartCount, ResultsExport
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -2752,75 +2744,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "QWERTY123"}, follow=True)
         self.assertIn("form", response.context)
         self.assertTrue(response.context["form"].errors)
-
-    @mock_mailroom
-    def test_service(self, mr_mocks):
-        service_url = reverse("orgs.org_service")
-        inbox_url = reverse("msgs.msg_inbox")
-
-        # without logging in, try to service our main org
-        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
-        self.assertLoginRedirect(response)
-
-        response = self.client.post(service_url, {"other_org": self.org.id})
-        self.assertLoginRedirect(response)
-
-        # try logging in with a normal user
-        self.login(self.admin)
-
-        # same thing, no permission
-        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
-        self.assertLoginRedirect(response)
-
-        response = self.client.post(service_url, {"other_org": self.org.id})
-        self.assertLoginRedirect(response)
-
-        # ok, log in as our cs rep
-        self.login(self.customer_support)
-
-        # getting invalid org, has no service form
-        response = self.client.get(service_url, {"other_org": 325253256, "next": inbox_url})
-        self.assertContains(response, "Invalid org")
-
-        # posting invalid org just redirects back to manage page
-        response = self.client.post(service_url, {"other_org": 325253256})
-        self.assertRedirect(response, "/staff/org/")
-
-        # then service our org
-        response = self.client.get(service_url, {"other_org": self.org.id})
-        self.assertContains(response, "You are about to service the workspace, <b>Nyaruka</b>.")
-
-        # requesting a next page has a slightly different message
-        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
-        self.assertContains(response, "The page you are requesting belongs to a different workspace, <b>Nyaruka</b>.")
-
-        response = self.client.post(service_url, {"other_org": self.org.id})
-        self.assertRedirect(response, "/msg/")
-        self.assertEqual(self.org.id, self.client.session["org_id"])
-        self.assertTrue(self.client.session["servicing"])
-
-        # specify redirect_url
-        response = self.client.post(service_url, {"other_org": self.org.id, "next": "/flow/"})
-        self.assertRedirect(response, "/flow/")
-
-        # create a new contact
-        response = self.client.post(
-            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", phone="0788123123")
-        )
-        self.assertNoFormErrors(response)
-
-        # make sure that contact's created on is our cs rep
-        contact = Contact.objects.get(urns__path="+250788123123", org=self.org)
-        self.assertEqual(self.customer_support, contact.created_by)
-
-        self.assertEqual(self.org.id, self.client.session["org_id"])
-        self.assertTrue(self.client.session["servicing"])
-
-        # stop servicing
-        response = self.client.post(service_url, {})
-        self.assertRedirect(response, "/staff/org/")
-        self.assertIsNone(self.client.session["org_id"])
-        self.assertFalse(self.client.session["servicing"])
 
     def test_languages(self):
         settings_url = reverse("orgs.org_workspace")
