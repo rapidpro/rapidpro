@@ -2476,8 +2476,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_list(self):
         list_url = reverse("orgs.org_list")
 
+        # nobody can access if child orgs feature not enabled
+        response = self.requestView(list_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
         # enable child orgs and create some child orgs
-        self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
         child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
         child2 = self.org.create_new(self.admin, "Child Org 2", self.org.timezone, as_child=True)
@@ -2493,42 +2497,53 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url + "?search=child", [self.admin], context_objects=[child1, child2], choose_org=self.org
         )
 
-        # edit our sub org's details
-        child1_update_url = reverse("orgs.org_update", args=[child1.id])
-        response = self.client.post(
-            child1_update_url,
+    def test_update(self):
+        # enable child orgs and create some child orgs
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
+        child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
+
+        update_url = reverse("orgs.org_update", args=[child1.id])
+
+        self.assertRequestDisallowed(update_url, [None, self.user, self.editor, self.agent, self.admin2])
+        self.assertUpdateFetch(
+            update_url, [self.admin], form_fields=["name", "timezone", "date_format", "language"], choose_org=self.org
+        )
+
+        response = self.assertUpdateSubmit(
+            update_url,
+            self.admin,
             {"name": "New Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
         )
-        self.assertEqual(list_url, response.url)
 
         child1.refresh_from_db()
         self.assertEqual("New Child Name", child1.name)
         self.assertEqual("/org/", response.url)
 
-        # edit our sub org's details in a spa view
-        response = self.client.post(
-            child1_update_url,
-            {"name": "Spa Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
-            HTTP_TEMBA_SPA=1,
-        )
-
-        self.assertEqual(list_url, response.url)
-
-        child1.refresh_from_db()
-        self.assertEqual("Spa Child Name", child1.name)
-        self.assertEqual("Africa/Nairobi", str(child1.timezone))
-        self.assertEqual("Y", child1.date_format)
-        self.assertEqual("es", child1.language)
-
         # if org doesn't exist, 404
-        response = self.client.get(reverse("orgs.org_update", args=[3464374]))
+        response = self.requestView(reverse("orgs.org_update", args=[3464374]), self.admin, choose_org=self.org)
         self.assertEqual(404, response.status_code)
 
-        self.login(self.admin2)
+    def test_delete(self):
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
 
-        # same if it's not a child of the request org
-        response = self.client.get(reverse("orgs.org_update", args=[child1.id]))
-        self.assertEqual(404, response.status_code)
+        child = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
+        delete_url = reverse("orgs.org_delete", args=[child.id])
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent, self.admin2])
+        self.assertDeleteFetch(delete_url, [self.admin], choose_org=self.org)
+
+        # schedule for deletion
+        response = self.client.get(delete_url)
+        self.assertContains(response, "You are about to delete the workspace <b>Child Workspace</b>")
+
+        # go through with it, redirects to workspaces list page
+        response = self.client.post(delete_url)
+        self.assertEqual(reverse("orgs.org_list"), response["Temba-Success"])
+
+        child.refresh_from_db()
+        self.assertFalse(child.is_active)
 
     def test_start(self):
         # the start view routes users based on their role
@@ -2648,27 +2663,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Africa/Nairobi", str(self.org.timezone))
         self.assertEqual("Y", self.org.date_format)
         self.assertEqual("es", self.org.language)
-
-    def test_delete(self):
-        self.org.features = [Org.FEATURE_CHILD_ORGS]
-        self.org.save(update_fields=("features",))
-
-        child = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
-        delete_url = reverse("orgs.org_delete", args=[child.id])
-
-        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent, self.admin2])
-        self.assertDeleteFetch(delete_url, [self.admin], choose_org=self.org)
-
-        # schedule for deletion
-        response = self.client.get(delete_url)
-        self.assertContains(response, "You are about to delete the workspace <b>Child Workspace</b>")
-
-        # go through with it, redirects to workspaces list page
-        response = self.client.post(delete_url)
-        self.assertEqual(reverse("orgs.org_list"), response["Temba-Success"])
-
-        child.refresh_from_db()
-        self.assertFalse(child.is_active)
 
     def test_urn_schemes(self):
         # remove existing channels
