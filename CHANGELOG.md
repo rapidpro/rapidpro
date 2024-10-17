@@ -1,3 +1,9 @@
+v9.3.74 (2024-10-17)
+-------------------------
+ * Remove pre-spa days code from flow list view
+ * Add more clarifications to FreshChat claim page
+ * Cleanup channel claim pages with steps
+
 v9.3.73 (2024-10-17)
 -------------------------
  * Overhaul UI for managing child workspaces
