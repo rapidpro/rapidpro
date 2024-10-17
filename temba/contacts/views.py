@@ -146,9 +146,6 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             patch_queryset_count(qs, self.group.get_member_count)
             return qs
 
-    def get_bulk_action_labels(self):
-        return ContactGroup.get_groups(self.request.org, manual_only=True)
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
