@@ -352,7 +352,7 @@ class UserCRUDL(SmartCRUDL):
         "send_verification_email",
     )
 
-    class List(SpaMixin, RequireFeatureMixin, ContextMenuMixin, OrgPermsMixin, SmartListView):
+    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
         require_feature = Org.FEATURE_USERS
         title = _("Users")
         menu_path = "/settings/users"
@@ -360,7 +360,7 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             return (
-                super()
+                super(BaseListView, self)
                 .derive_queryset(**kwargs)
                 .filter(id__in=self.request.org.get_users().values_list("id", flat=True))
                 .order_by(Lower("email"))
