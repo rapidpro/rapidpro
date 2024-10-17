@@ -376,12 +376,6 @@ function handleMenuClicked(event) {
     return;
   }
 
-  if (!item.popup && selection.length > 1 && selection[0] == 'ticket') {
-    if (window.handleTicketsMenuChanged) {
-      handleTicketsMenuChanged(item);
-    }
-  }
-
   // posterize if called for
   if (item.href && item.posterize) {
     posterize(item.href);

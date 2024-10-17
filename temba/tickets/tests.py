@@ -528,7 +528,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 "My Tickets (2)",
                 "Unassigned (1)",
                 "All (3)",
-                # "Shortcuts (0)",
+                "Shortcuts (0)",
                 "Export",
                 "New Topic",
                 "General (3)",
