@@ -30,11 +30,10 @@
       <div class="p-6">{% trans "Are you sure you want to delete the selected triggers? This cannot be undone." %}</div>
     </temba-dialog>
   {% endblock pjax %}
-  <form method="get" action="{{ request.path }}" class="mb-4" id="search-form">
-    <temba-textinput type="text" placeholder="{% trans "Search" %}" name="search" value="{{ search }}">
+  <form method="get" action="{{ request.path }}" id="search-form">
+    <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
     </temba-textinput>
-    {% if request.REQUEST.status %}<input type="hidden" name="status" value="{{ request.REQUEST.status }}">{% endif %}
-    <input type="submit" class="hidden">
+    <input type="submit" class="hide">
   </form>
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">
     {% include "includes/short_pagination.html" %}
@@ -92,7 +91,7 @@
           </tr>
         {% empty %}
           <tr class="empty_list">
-            <td colspan="3">{% trans "No matching triggers." %}</td>
+            <td colspan="99" class="text-center">{% trans "No triggers" %}</td>
           </tr>
         {% endfor %}
       </tbody>

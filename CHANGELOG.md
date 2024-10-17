@@ -1,3 +1,44 @@
+v9.3.71 (2024-10-17)
+-------------------------
+ * Fix invitations count on org menu to exclude expired invitations
+
+v9.3.70 (2024-10-16)
+-------------------------
+ * Data migration to set Invitation.role_code
+
+v9.3.69 (2024-10-16)
+-------------------------
+ * Fix how we model team membership so that users can belong to different teams in different workspaces
+
+v9.3.68 (2024-10-16)
+-------------------------
+ * Tweak user update and delete forms to return 404 for users not in the current org
+
+v9.3.67 (2024-10-16)
+-------------------------
+ * New CRUDL views for org users and invitations
+
+v9.3.66 (2024-10-16)
+-------------------------
+ * Fix displaying the channel log missing HTTP response
+ * Fix claim number to display non field errors
+ * Remove support for user management of sub-orgs without switching to those orgs
+
+v9.3.65 (2024-10-10)
+-------------------------
+ * Add mixin for views that require a feature
+
+v9.3.64 (2024-10-09)
+-------------------------
+ * Fix modal for deleting a shortcut
+ * Tweak list view templates for consistency
+ * Data migration to tweak names of existing status groups
+
+v9.3.63 (2024-10-09)
+-------------------------
+ * Create status groups with invalid names to avoid conflicts with real group names
+ * Bump django from 5.1 to 5.1.1
+
 v9.3.62 (2024-10-08)
 -------------------------
  * Fix double character rendering on autogrow inputs

@@ -180,7 +180,7 @@ class APITestMixin:
             response = self._getJSON(endpoint_url, user, by_token=by_token, num_queries=expected_queries)
 
             if results is not None:
-                self.assertEqual(200, response.status_code)
+                self.assertEqual(200, response.status_code, f"status code mismatch for user {user}")
 
                 actual_results = response.json()["results"]
                 full_check = expected_results and isinstance(expected_results[0], dict)

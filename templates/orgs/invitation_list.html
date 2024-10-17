@@ -1,0 +1,66 @@
+{% extends "smartmin/list.html" %}
+{% load smartmin temba i18n %}
+
+{% block content %}
+  <div class="mb-4">
+    {% blocktrans trimmed with days=validity_days %}
+      These are pending invitations to join your workspace. Invitations expire after {{ days }} days.
+    {% endblocktrans %}
+  </div>
+  {% block pre-table %}
+    <temba-modax header="{{ _("Cancel Invitation") |escapejs }}" id="delete-invitation">
+    </temba-modax>
+  {% endblock pre-table %}
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow overflow-y-auto shadow">
+    <table class="list lined scrolled">
+      <thead>
+        <tr>
+          <th>{% trans "Email" %}</th>
+          <th>{% trans "Role" %}</th>
+          <th>{% trans "Sent On" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for obj in object_list %}
+          <tr>
+            <td>{{ obj.email }}</td>
+            <td>{{ obj.role.display }}</td>
+            <td>{{ obj.created_on|day }}</td>
+            <td class="w-10">
+              <div style="visibility:hidden"
+                   onclick="event.stopPropagation(); showDeleteInvitationModal({{ obj.id }});"
+                   class="pl-2 pt-1 delete-link linked text-gray-400">
+                <temba-icon name="delete_small">
+                </temba-icon>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr class="empty_list">
+            <td colspan="99" class="text-center">{% trans "No invitations" %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showDeleteInvitationModal(id) {
+      var modax = document.querySelector('#delete-invitation');
+      modax.endpoint = `/invitation/delete/${id}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    tr:hover .delete-link {
+      visibility: visible !important;
+    }
+  </style>
+{% endblock extra-style %}

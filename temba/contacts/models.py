@@ -1430,7 +1430,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         assert not org.groups.filter(is_system=True).exists(), "org already has system groups"
 
         org.groups.create(
-            name="Active",
+            name="\\Active",  # to avoid name collisions with real groups
             group_type=ContactGroup.TYPE_DB_ACTIVE,
             is_system=True,
             status=cls.STATUS_READY,
@@ -1438,7 +1438,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             modified_by=org.modified_by,
         )
         org.groups.create(
-            name="Blocked",
+            name="\\Blocked",
             group_type=ContactGroup.TYPE_DB_BLOCKED,
             is_system=True,
             status=cls.STATUS_READY,
@@ -1446,7 +1446,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             modified_by=org.modified_by,
         )
         org.groups.create(
-            name="Stopped",
+            name="\\Stopped",
             group_type=ContactGroup.TYPE_DB_STOPPED,
             is_system=True,
             status=cls.STATUS_READY,
@@ -1454,7 +1454,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             modified_by=org.modified_by,
         )
         org.groups.create(
-            name="Archived",
+            name="\\Archived",
             group_type=ContactGroup.TYPE_DB_ARCHIVED,
             is_system=True,
             status=cls.STATUS_READY,
