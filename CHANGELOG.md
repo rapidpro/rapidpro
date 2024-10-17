@@ -1,3 +1,7 @@
+v9.3.71 (2024-10-17)
+-------------------------
+ * Fix invitations count on org menu to exclude expired invitations
+
 v9.3.70 (2024-10-16)
 -------------------------
  * Data migration to set Invitation.role_code
