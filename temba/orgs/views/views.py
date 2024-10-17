@@ -26,6 +26,7 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, resolve_url
@@ -955,7 +956,7 @@ class OrgCRUDL(SmartCRUDL):
         "menu",
         "country",
         "languages",
-        "sub_orgs",
+        "list",
         "create",
         "export",
         "prometheus",
@@ -988,24 +989,6 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 ]
 
-                if self.has_org_perm("orgs.org_sub_orgs") and Org.FEATURE_CHILD_ORGS in org.features:
-                    children = org.children.filter(is_active=True).count()
-                    item = self.create_menu_item(name=_("Workspaces"), icon="children", href="orgs.org_sub_orgs")
-                    if children:
-                        item["count"] = children
-                    menu.append(item)
-
-                if self.has_org_perm("orgs.org_dashboard") and Org.FEATURE_CHILD_ORGS in org.features:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id="dashboard",
-                            name=_("Dashboard"),
-                            icon="dashboard",
-                            href="dashboard.dashboard_home",
-                            perm="orgs.org_dashboard",
-                        )
-                    )
-
                 if self.request.user.is_authenticated:
                     menu.append(
                         self.create_menu_item(
@@ -1021,6 +1004,26 @@ class OrgCRUDL(SmartCRUDL):
                 if self.has_org_perm("notifications.incident_list"):
                     menu.append(
                         self.create_menu_item(name=_("Incidents"), icon="incidents", href="notifications.incident_list")
+                    )
+
+                if Org.FEATURE_CHILD_ORGS in org.features and self.has_org_perm("orgs.org_list"):
+                    menu.append(self.create_divider())
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Workspaces"),
+                            icon="children",
+                            href="orgs.org_list",
+                            count=org.children.filter(is_active=True).count() + 1,
+                        )
+                    )
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id="dashboard",
+                            name=_("Dashboard"),
+                            icon="dashboard",
+                            href="dashboard.dashboard_home",
+                            perm="orgs.org_dashboard",
+                        )
                     )
 
                 if Org.FEATURE_USERS in org.features and self.has_org_perm("orgs.user_list"):
@@ -1425,8 +1428,8 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class DeleteChild(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
-        cancel_url = "@orgs.org_sub_orgs"
-        success_url = "@orgs.org_sub_orgs"
+        cancel_url = "@orgs.org_list"
+        success_url = "@orgs.org_list"
         fields = ("id",)
         submit_button_name = _("Delete")
 
@@ -1447,25 +1450,26 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class SubOrgs(SpaMixin, ContextMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
+    class List(SpaMixin, RequireFeatureMixin, ContextMenuMixin, OrgPermsMixin, SmartListView):
+        require_feature = Org.FEATURE_CHILD_ORGS
         title = _("Workspaces")
         menu_path = "/settings/workspaces"
+        search_fields = ("name__icontains",)
 
         def build_context_menu(self, menu):
-            org = self.get_object()
-
-            enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
-            if self.has_org_perm("orgs.org_create") and enabled:
-                menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
+            if self.has_org_perm("orgs.org_create"):
+                menu.add_modax(_("New"), "new_workspace", reverse("orgs.org_create"), as_button=True)
 
         def derive_queryset(self, **kwargs):
-            queryset = super().derive_queryset(**kwargs)
+            qs = super().derive_queryset(**kwargs)
 
-            # all our children
-            org = self.get_object()
-            ids = [child.id for child in Org.objects.filter(parent=org)]
-
-            return queryset.filter(id__in=ids, is_active=True).order_by("-parent", "name")
+            # return this org and its children
+            org = self.request.org
+            return (
+                qs.filter(Q(id=org.id) | Q(id__in=[c.id for c in org.children.all()]))
+                .filter(is_active=True)
+                .order_by("-parent", "name")
+            )
 
     class Create(NonAtomicMixin, RequireFeatureMixin, ModalFormMixin, InferOrgMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
@@ -1504,7 +1508,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_success_url(self):
             # if we created a child org, redirect to its management
             if self.object.is_child:
-                return reverse("orgs.org_sub_orgs")
+                return reverse("orgs.org_list")
 
             # if we created a new separate org, switch to it
             switch_to_org(self.request, self.object)
@@ -1940,8 +1944,8 @@ class OrgCRUDL(SmartCRUDL):
         def derive_exclude(self):
             return ["language"] if len(settings.LANGUAGES) == 1 else []
 
-    class EditSubOrg(SpaMixin, ModalFormMixin, Edit):
-        success_url = "@orgs.org_sub_orgs"
+    class EditSubOrg(ModalFormMixin, Edit):
+        success_url = "@orgs.org_list"
 
         def get_success_url(self):
             return super().get_success_url()

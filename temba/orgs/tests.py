@@ -1677,11 +1677,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             [
                 "Nyaruka",
-                "Workspaces (1)",
-                "Dashboard",
                 "Account",
                 "Resthooks",
                 "Incidents",
+                "Workspaces (2)",
+                "Dashboard",
                 "Users (4)",
                 "Invitations (0)",
                 "Export",
@@ -2344,28 +2344,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(User.objects.filter(email="myal@relieves.org"))
 
     def test_create_new(self):
-        children_url = reverse("orgs.org_sub_orgs")
         create_url = reverse("orgs.org_create")
 
-        self.login(self.admin)
-
-        # by default orgs don't have this feature
-        response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, [])
-
-        # trying to access the modal directly should redirect
-        response = self.client.get(create_url)
-        self.assertRedirect(response, "/org/workspace/")
+        # nobody can access if new orgs feature not enabled
+        response = self.requestView(create_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save(update_fields=("features",))
-
-        response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, ["New Workspace"])
-
-        # give org2 the same feature
-        self.org2.features = [Org.FEATURE_NEW_ORGS]
-        self.org2.save(update_fields=("features",))
 
         # since we can only create new orgs, we don't show type as an option
         self.assertRequestDisallowed(create_url, [None, self.user, self.editor, self.agent])
@@ -2398,24 +2384,18 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(str(new_org.id), response.headers["X-Temba-Org"])
 
     def test_create_child(self):
-        children_url = reverse("orgs.org_sub_orgs")
+        list_url = reverse("orgs.org_list")
         create_url = reverse("orgs.org_create")
 
-        self.login(self.admin)
-
-        # by default orgs don't have the new_orgs or child_orgs feature
-        response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, [])
-
-        # trying to access the modal directly should redirect
-        response = self.client.get(create_url)
-        self.assertRedirect(response, "/org/workspace/")
+        # nobody can access if child orgs feature not enabled
+        response = self.requestView(create_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
-        response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, ["New Workspace"])
+        response = self.client.get(list_url)
+        self.assertContentMenu(list_url, self.admin, ["New"])
 
         # give org2 the same feature
         self.org2.features = [Org.FEATURE_CHILD_ORGS]
@@ -2447,7 +2427,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(OrgRole.ADMINISTRATOR, child_org.get_user_role(self.admin))
 
         # should have been redirected to child management page
-        self.assertRedirect(response, "/org/sub_orgs/")
+        self.assertRedirect(response, "/org/")
 
     def test_create_child_or_new(self):
         create_url = reverse("orgs.org_create")
@@ -2491,17 +2471,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(create_url, {"name": "Child Org", "timezone": "Africa/Nairobi"}, HTTP_TEMBA_SPA=1)
 
-        self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
+        self.assertRedirect(response, reverse("orgs.org_list"))
 
-    def test_child_management(self):
-        sub_orgs_url = reverse("orgs.org_sub_orgs")
-        menu_url = reverse("orgs.org_menu") + "settings/"
-
-        self.login(self.admin)
-
-        response = self.client.get(menu_url)
-        self.assertNotContains(response, "Workspaces")
-        self.assertNotContains(response, sub_orgs_url)
+    def test_list(self):
+        list_url = reverse("orgs.org_list")
 
         # enable child orgs and create some child orgs
         self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
@@ -2509,15 +2482,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
         child2 = self.org.create_new(self.admin, "Child Org 2", self.org.timezone, as_child=True)
 
-        # now we see the Workspaces menu item
-        self.login(self.admin, choose_org=self.org)
-
-        response = self.client.get(menu_url)
-        self.assertContains(response, "Workspaces")
-        self.assertContains(response, sub_orgs_url)
-
         response = self.assertListFetch(
-            sub_orgs_url, [self.admin], context_objects=[child1, child2], choose_org=self.org
+            list_url, [self.admin], context_objects=[self.org, child1, child2], choose_org=self.org
         )
 
         child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"
@@ -2528,11 +2494,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             child1_edit_url,
             {"name": "New Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
         )
-        self.assertEqual(sub_orgs_url, response.url)
+        self.assertEqual(list_url, response.url)
 
         child1.refresh_from_db()
         self.assertEqual("New Child Name", child1.name)
-        self.assertEqual("/org/sub_orgs/", response.url)
+        self.assertEqual("/org/", response.url)
 
         # edit our sub org's details in a spa view
         response = self.client.post(
@@ -2541,7 +2507,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             HTTP_TEMBA_SPA=1,
         )
 
-        self.assertEqual(reverse("orgs.org_sub_orgs"), response.url)
+        self.assertEqual(list_url, response.url)
 
         child1.refresh_from_db()
         self.assertEqual("Spa Child Name", child1.name)
@@ -2692,9 +2658,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(delete_url)
         self.assertContains(response, "You are about to delete the workspace <b>Child Workspace</b>")
 
-        # go through with it, redirects to main workspace page
+        # go through with it, redirects to workspaces list page
         response = self.client.post(delete_url)
-        self.assertEqual(reverse("orgs.org_sub_orgs"), response["Temba-Success"])
+        self.assertEqual(reverse("orgs.org_list"), response["Temba-Success"])
 
         child.refresh_from_db()
         self.assertFalse(child.is_active)
