@@ -125,7 +125,7 @@ class EndpointsTest(APITestMixin, TembaTest):
     def test_shortcuts(self):
         endpoint_url = reverse("api.internal.shortcuts") + ".json"
 
-        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertGetNotPermitted(endpoint_url, [None])
         self.assertPostNotAllowed(endpoint_url)
         self.assertDeleteNotAllowed(endpoint_url)
 
