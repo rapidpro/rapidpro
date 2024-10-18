@@ -13,7 +13,7 @@
   {% endif %}
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
   <div class="flex-grow overflow-y-auto shadow">
-    <table class="list lined scrolled">
+    <table class="list lined scrolled {% if actions %}selectable{% endif %}">
       <thead>
         {% block table-head %}
         {% endblock table-head %}
