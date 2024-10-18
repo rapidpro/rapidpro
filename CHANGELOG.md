@@ -1,3 +1,8 @@
+v9.3.75 (2024-10-17)
+-------------------------
+ * Add Shortcuts UI
+ * Normal menu navigation for tickets
+
 v9.3.74 (2024-10-17)
 -------------------------
  * Remove pre-spa days code from flow list view

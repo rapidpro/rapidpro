@@ -278,19 +278,20 @@ class TicketCRUDL(SmartCRUDL):
                         "name": folder.name,
                         "icon": folder.icon,
                         "count": counts[folder.id],
+                        "href": f"/ticket/{folder.id}/open/",
                     }
                 )
 
             menu.append(self.create_divider())
-            # menu.append(
-            #     self.create_menu_item(
-            #         menu_id="shortcuts",
-            #         name=_("Shortcuts"),
-            #         icon="shortcut",
-            #         count=org.shortcuts.filter(is_active=True).count(),
-            #         href="tickets.shortcut_list",
-            #     )
-            # )
+            menu.append(
+                self.create_menu_item(
+                    menu_id="shortcuts",
+                    name=_("Shortcuts"),
+                    icon="shortcut",
+                    count=org.shortcuts.filter(is_active=True).count(),
+                    href="tickets.shortcut_list",
+                )
+            )
             menu.append(self.create_modax_button(_("Export"), "tickets.ticket_export", icon="export"))
             menu.append(
                 self.create_modax_button(_("New Topic"), "tickets.topic_create", icon="add", on_submit="refreshMenu()")
@@ -307,6 +308,7 @@ class TicketCRUDL(SmartCRUDL):
                         "name": topic.name,
                         "icon": "topic",
                         "count": counts[topic],
+                        "href": f"/ticket/{topic.uuid}/open/",
                     }
                 )
 
