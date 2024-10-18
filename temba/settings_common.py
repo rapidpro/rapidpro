@@ -689,6 +689,7 @@ API_PERMISSIONS = {
         "msgs.msg_create",
         "orgs.org_read",
         "orgs.user_list",
+        "tickets.shortcut_list",
     ),
 }
 
