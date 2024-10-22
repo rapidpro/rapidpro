@@ -676,7 +676,6 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["labels"] = self.request.org.flow_labels.order_by(Lower("name"))
 
             # decorate flow objects with their run activity stats
             for flow in context["object_list"]:
@@ -701,7 +700,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
         def get_bulk_action_labels(self):
-            return self.request.org.flow_labels.filter(is_active=True)
+            return self.request.org.flow_labels.filter(is_active=True).order_by(Lower("name"))
 
         def build_context_menu(self, menu):
             if self.has_org_perm("flows.flow_create"):

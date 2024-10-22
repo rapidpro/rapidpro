@@ -192,6 +192,7 @@ class BulkActionMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["actions"] = self.get_bulk_actions()
+        context["labels"] = self.get_bulk_action_labels()
         return context
 
     def get_bulk_actions(self):
