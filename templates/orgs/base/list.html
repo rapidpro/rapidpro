@@ -1,0 +1,27 @@
+{% extends "smartmin/list.html" %}
+{% load i18n %}
+
+{% block content %}
+  {% block pre-table %}
+  {% endblock pre-table %}
+  {% if view.search_fields %}
+    <form method="get" action="{{ request.path }}" id="search-form">
+      <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+      </temba-textinput>
+      <input type="submit" class="hide">
+    </form>
+  {% endif %}
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow overflow-y-auto shadow">
+    {% block table %}
+    {% endblock table %}
+  </div>
+{% endblock content %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    tr:hover .delete-link {
+      visibility: visible !important;
+    }
+  </style>
+{% endblock extra-style %}

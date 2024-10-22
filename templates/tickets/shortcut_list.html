@@ -1,58 +1,55 @@
-{% extends "smartmin/list.html" %}
-{% load smartmin temba i18n humanize %}
+{% extends "orgs/base/list.html" %}
+{% load smartmin temba i18n %}
 
-{% block content %}
+{% block pre-table %}
+  <temba-modax header="{{ _("Update Shortcut") |escapejs }}" id="update-shortcut">
+  </temba-modax>
+  <temba-modax header="{{ _("Delete Shortcut") |escapejs }}" id="delete-shortcut">
+  </temba-modax>
   <div class="mb-4">
     {% blocktrans trimmed %}
       These are canned responses that agents can use to quickly reply to tickets.
     {% endblocktrans %}
   </div>
-  {% block pre-table %}
-    <temba-modax header="{{ _("Update Shortcut") |escapejs }}" id="update-shortcut">
-    </temba-modax>
-    <temba-modax header="{{ _("Delete Shortcut") |escapejs }}" id="delete-shortcut">
-    </temba-modax>
-  {% endblock pre-table %}
-  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
-  <div class="flex-grow overflow-y-auto shadow">
-    <table class="list lined scrolled">
-      <tbody>
-        {% for obj in object_list %}
-          <tr onclick="showUpdateShortcutModal({{ obj.id }})" class="hover-linked update">
-            <td class="whitespace-nowrap"
-                style="min-width: 50px;
-                       max-width:150px;
-                       overflow: hidden;
-                       text-overflow: ellipsis">{{ obj.name }}</td>
-            <td>
-              <div style="overflow: hidden;
-                          text-overflow: ellipsis;
-                          display: -webkit-box;
-                          line-height: 16px;
-                          max-height: 16px;
-                          -webkit-line-clamp: 1;
-                          -webkit-box-orient: vertical">{{ obj.text }}</div>
-            </td>
-            <td class="w-10">
-              {% if org_perms.tickets.shortcut_delete %}
-                <div style="visibility:hidden"
-                     onclick="event.stopPropagation(); showDeleteShortcutModal({{ obj.id }});"
-                     class="pl-2 pt-1 delete-link linked text-gray-400">
-                  <temba-icon name="delete_small">
-                  </temba-icon>
-                </div>
-              {% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr class="empty_list">
-            <td colspan="99" class="text-center">{% trans "No shortcuts" %}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-{% endblock content %}
+{% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled">
+    <tbody>
+      {% for obj in object_list %}
+        <tr onclick="showUpdateShortcutModal({{ obj.id }})" class="hover-linked update">
+          <td class="whitespace-nowrap"
+              style="min-width: 50px;
+                     max-width:150px;
+                     overflow: hidden;
+                     text-overflow: ellipsis">{{ obj.name }}</td>
+          <td>
+            <div style="overflow: hidden;
+                        text-overflow: ellipsis;
+                        display: -webkit-box;
+                        line-height: 16px;
+                        max-height: 16px;
+                        -webkit-line-clamp: 1;
+                        -webkit-box-orient: vertical">{{ obj.text }}</div>
+          </td>
+          <td class="w-10">
+            {% if org_perms.tickets.shortcut_delete %}
+              <div style="visibility:hidden"
+                   onclick="event.stopPropagation(); showDeleteShortcutModal({{ obj.id }});"
+                   class="pl-2 pt-1 delete-link linked text-gray-400">
+                <temba-icon name="delete_small">
+                </temba-icon>
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No shortcuts" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
 {% block extra-script %}
   {{ block.super }}
   <script>
@@ -72,11 +69,3 @@
     }
   </script>
 {% endblock extra-script %}
-{% block extra-style %}
-  {{ block.super }}
-  <style type="text/css">
-    tr:hover .delete-link {
-      visibility: visible !important;
-    }
-  </style>
-{% endblock extra-style %}
