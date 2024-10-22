@@ -15,37 +15,41 @@
     </temba-alert>
   {% endif %}
 {% endblock pre-table %}
-{% block table-head %}
-  <tr>
-    <th>{% trans "Email" %}</th>
-    <th>{% trans "Name" %}</th>
-    <th>{% trans "Role" %}</th>
-    <th></th>
-  </tr>
-{% endblock table-head %}
-{% block table-body %}
-  {% for obj in object_list %}
-    <tr onclick="showUpdateUserModal({{ obj.id }})" class="hover-linked update">
-      <td>{{ obj.email }}</td>
-      <td>{{ obj.name }}</td>
-      <td>{{ obj.role.display }}</td>
-      <td class="w-10">
-        {% if obj.role.code != "A" or admin_count > 1 %}
-          <div style="visibility:hidden"
-               onclick="event.stopPropagation(); showDeleteUserModal({{ obj.id }});"
-               class="pl-2 pt-1 delete-link linked text-gray-400">
-            <temba-icon name="delete_small">
-            </temba-icon>
-          </div>
-        {% endif %}
-      </td>
-    </tr>
-  {% empty %}
-    <tr class="empty_list">
-      <td colspan="99" class="text-center">{% trans "No users" %}</td>
-    </tr>
-  {% endfor %}
-{% endblock table-body %}
+{% block table %}
+  <table class="list lined scrolled">
+    <thead>
+      <tr>
+        <th>{% trans "Email" %}</th>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Role" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr onclick="showUpdateUserModal({{ obj.id }})" class="hover-linked update">
+          <td>{{ obj.email }}</td>
+          <td>{{ obj.name }}</td>
+          <td>{{ obj.role.display }}</td>
+          <td class="w-10">
+            {% if obj.role.code != "A" or admin_count > 1 %}
+              <div style="visibility:hidden"
+                   onclick="event.stopPropagation(); showDeleteUserModal({{ obj.id }});"
+                   class="pl-2 pt-1 delete-link linked text-gray-400">
+                <temba-icon name="delete_small">
+                </temba-icon>
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No users" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
 {% block extra-script %}
   {{ block.super }}
   <script>

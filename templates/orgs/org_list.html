@@ -7,40 +7,44 @@
   <temba-modax header="{{ _("Delete Workspace") |escapejs }}" id="delete-child">
   </temba-modax>
 {% endblock pre-table %}
-{% block table-head %}
-  <tr>
-    <th>{% trans "Name" %}</th>
-    <th style="text-align:right">{% trans "Users" %}</th>
-    <th style="text-align:right">{% trans "Contacts" %}</th>
-    <th style="text-align:right">{% trans "Created On" %}</th>
-    <th></th>
-  </tr>
-{% endblock table-head %}
-{% block table-body %}
-  {% for obj in object_list %}
-    <tr onclick="{% if obj.id != user_org.id %}showUpdateChildModal({{ obj.id }}){% endif %}"
-        class="{% if obj.id != user_org.id %}hover-linked update{% endif %}">
-      <td>{{ obj.name }}</td>
-      <td style="text-align:right">{{ obj.users.all|length }}</td>
-      <td style="text-align:right">{{ obj.get_contact_count|intcomma }}</td>
-      <td style="text-align:right">{{ obj.created_on|day }}</td>
-      <td class="w-2">
-        {% if obj.id != user_org.id %}
-          <div style="visibility:hidden"
-               onclick="event.stopPropagation(); showDeleteChildModal({{ obj.id }});"
-               class="pl-2 pt-1 delete-link linked text-gray-400">
-            <temba-icon name="delete_small">
-            </temba-icon>
-          </div>
-        {% endif %}
-      </td>
-    </tr>
-  {% empty %}
-    <tr class="empty_list">
-      <td colspan="99" class="text-center">{% trans "No workspaces" %}</td>
-    </tr>
-  {% endfor %}
-{% endblock table-body %}
+{% block table %}
+  <table class="list lined scrolled">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th style="text-align:right">{% trans "Users" %}</th>
+        <th style="text-align:right">{% trans "Contacts" %}</th>
+        <th style="text-align:right">{% trans "Created On" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr onclick="{% if obj.id != user_org.id %}showUpdateChildModal({{ obj.id }}){% endif %}"
+            class="{% if obj.id != user_org.id %}hover-linked update{% endif %}">
+          <td>{{ obj.name }}</td>
+          <td style="text-align:right">{{ obj.users.all|length }}</td>
+          <td style="text-align:right">{{ obj.get_contact_count|intcomma }}</td>
+          <td style="text-align:right">{{ obj.created_on|day }}</td>
+          <td class="w-2">
+            {% if obj.id != user_org.id %}
+              <div style="visibility:hidden"
+                   onclick="event.stopPropagation(); showDeleteChildModal({{ obj.id }});"
+                   class="pl-2 pt-1 delete-link linked text-gray-400">
+                <temba-icon name="delete_small">
+                </temba-icon>
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No workspaces" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
 {% block extra-script %}
   {{ block.super }}
   <script>
