@@ -1,3 +1,10 @@
+v9.3.77 (2024-10-22)
+-------------------------
+ * Update django
+ * Update to python 3.12
+ * Simplify bulk labeling of msgs and flows
+ * Remove unused code from MsgCRUDL.Menu and add test
+
 v9.3.76 (2024-10-18)
 -------------------------
  * Fix agents shortcuts permission
