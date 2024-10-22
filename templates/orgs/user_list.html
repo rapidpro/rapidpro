@@ -1,11 +1,13 @@
 {% extends "orgs/base/list.html" %}
 {% load smartmin temba i18n %}
 
-{% block pre-table %}
+{% block modaxes %}
   <temba-modax header="{{ _("Update User") |escapejs }}" -temba-redirected="refreshUsers" id="update-user">
   </temba-modax>
   <temba-modax header="{{ _("Remove User") |escapejs }}" -temba-redirected="refreshUsers" id="delete-user">
   </temba-modax>
+{% endblock modaxes %}
+{% block pre-table %}
   {% if has_viewers %}
     <temba-alert level="warning" class="mb-4">
       {% blocktrans trimmed with cutoff="2024-12-31"|day %}

@@ -1,12 +1,12 @@
 {% extends "orgs/base/list.html" %}
 {% load i18n temba smartmin humanize %}
 
-{% block pre-table %}
+{% block modaxes %}
   <temba-modax header="{{ _("Update Workspace") |escapejs }}" id="update-child">
   </temba-modax>
   <temba-modax header="{{ _("Delete Workspace") |escapejs }}" id="delete-child">
   </temba-modax>
-{% endblock pre-table %}
+{% endblock modaxes %}
 {% block table %}
   <table class="list lined scrolled">
     <thead>
