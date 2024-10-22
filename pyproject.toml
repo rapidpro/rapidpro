@@ -8,7 +8,7 @@ authors = ["Nyaruka <code@nyaruka.com>"]
 repository = "http://github.com/rapidpro/rapidpro"
 
 [tool.poetry.dependencies]
-python = "~3.11"
+python = "~3.12"
 Django = "^5.1"
 django-compressor = "^4.3.1"
 django-countries = "^7.0"
@@ -46,7 +46,7 @@ openpyxl = "^3.1.5"
 ffmpeg-python = "^0.2.0"
 slack-sdk = "3.17.0"
 django-formtools = "^2.4.1"
-psycopg = {extras = ["pool"], version = "^3.2.1"}
+psycopg = { extras = ["pool"], version = "^3.2.1" }
 pillow = "^10.1.0"
 django-imagekit = "^5.0.0"
 iso639-lang = "^2.2.3"
@@ -54,7 +54,7 @@ google-auth = "^2.30.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
-coverage = {extras = ["toml"], version = "^7.5.4"}
+coverage = { extras = ["toml"], version = "^7.5.4" }
 isort = "^5.13.2"
 responses = "^0.25.3"
 ruff = "^0.5.0"
@@ -79,13 +79,20 @@ force_grid_wrap = 0
 line_length = 120
 include_trailing_comma = true
 combine_as_imports = true
-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
+sections = [
+    "FUTURE",
+    "STDLIB",
+    "THIRDPARTY",
+    "DJANGO",
+    "FIRSTPARTY",
+    "LOCALFOLDER",
+]
 known_django = ["django"]
 
 [tool.djlint]
 blank_line_after_tag = "load"
 custom_blocks = "render"
-custom_html="temba-[a-z-]+"
+custom_html = "temba-[a-z-]+"
 format_css = true
 format_js = true
 ignore = "H021,H023"
