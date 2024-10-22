@@ -764,113 +764,96 @@ class MsgCRUDL(SmartCRUDL):
     model = Msg
     actions = ("inbox", "flow", "archived", "menu", "outbox", "sent", "failed", "filter", "export", "legacy_inbox")
 
-    class Menu(BaseMenuView):  # pragma: no cover
+    class Menu(BaseMenuView):
         def derive_menu(self):
             org = self.request.org
             counts = SystemLabel.get_counts(org)
 
-            if self.request.GET.get("labels"):
-                labels = Label.get_active_for_org(org).order_by(Lower("name"))
-                label_counts = LabelCount.get_totals([lb for lb in labels])
+            menu = [
+                self.create_menu_item(
+                    menu_id="inbox",
+                    name=_("Inbox"),
+                    href=reverse("msgs.msg_inbox"),
+                    count=counts[SystemLabel.TYPE_INBOX],
+                    icon="inbox",
+                ),
+                self.create_menu_item(
+                    menu_id="handled",
+                    name=_("Handled"),
+                    href=reverse("msgs.msg_flow"),
+                    count=counts[SystemLabel.TYPE_FLOWS],
+                    icon="flow",
+                ),
+                self.create_menu_item(
+                    menu_id="archived",
+                    name=_("Archived"),
+                    href=reverse("msgs.msg_archived"),
+                    count=counts[SystemLabel.TYPE_ARCHIVED],
+                    icon="archive",
+                ),
+                self.create_divider(),
+                self.create_menu_item(
+                    menu_id="outbox",
+                    name=_("Outbox"),
+                    href=reverse("msgs.msg_outbox"),
+                    count=counts[SystemLabel.TYPE_OUTBOX],
+                ),
+                self.create_menu_item(
+                    menu_id="sent",
+                    name=_("Sent"),
+                    href=reverse("msgs.msg_sent"),
+                    count=counts[SystemLabel.TYPE_SENT],
+                ),
+                self.create_menu_item(
+                    menu_id="failed",
+                    name=_("Failed"),
+                    href=reverse("msgs.msg_failed"),
+                    count=counts[SystemLabel.TYPE_FAILED],
+                ),
+                self.create_divider(),
+                self.create_menu_item(
+                    menu_id="scheduled",
+                    name=_("Scheduled"),
+                    href=reverse("msgs.broadcast_scheduled"),
+                    count=counts[SystemLabel.TYPE_SCHEDULED],
+                ),
+                self.create_menu_item(
+                    menu_id="broadcasts",
+                    name=_("Broadcasts"),
+                    href=reverse("msgs.broadcast_list"),
+                ),
+                self.create_menu_item(
+                    menu_id="templates",
+                    name=_("Templates"),
+                    href=reverse("templates.template_list"),
+                ),
+                self.create_divider(),
+                self.create_menu_item(
+                    menu_id="calls",
+                    name=_("Calls"),
+                    href=reverse("ivr.call_list"),
+                    count=counts[SystemLabel.TYPE_CALLS],
+                ),
+            ]
 
-                menu = []
-                for label in labels:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id=label.uuid,
-                            name=label.name,
-                            href=reverse("msgs.msg_filter", args=[label.uuid]),
-                            count=label_counts[label],
-                        )
+            labels = Label.get_active_for_org(org).order_by(Lower("name"))
+            label_items = []
+            label_counts = LabelCount.get_totals([lb for lb in labels])
+            for label in labels:
+                label_items.append(
+                    self.create_menu_item(
+                        icon="label",
+                        menu_id=label.uuid,
+                        name=label.name,
+                        count=label_counts[label],
+                        href=reverse("msgs.msg_filter", args=[label.uuid]),
                     )
-                return menu
-            else:
-                labels = Label.get_active_for_org(org).order_by(Lower("name"))
+                )
 
-                menu = [
-                    self.create_menu_item(
-                        menu_id="inbox",
-                        name=_("Inbox"),
-                        href=reverse("msgs.msg_inbox"),
-                        count=counts[SystemLabel.TYPE_INBOX],
-                        icon="inbox",
-                    ),
-                    self.create_menu_item(
-                        menu_id="handled",
-                        name=_("Handled"),
-                        href=reverse("msgs.msg_flow"),
-                        count=counts[SystemLabel.TYPE_FLOWS],
-                        icon="flow",
-                    ),
-                    self.create_menu_item(
-                        menu_id="archived",
-                        name=_("Archived"),
-                        href=reverse("msgs.msg_archived"),
-                        count=counts[SystemLabel.TYPE_ARCHIVED],
-                        icon="archive",
-                    ),
-                    self.create_divider(),
-                    self.create_menu_item(
-                        menu_id="outbox",
-                        name=_("Outbox"),
-                        href=reverse("msgs.msg_outbox"),
-                        count=counts[SystemLabel.TYPE_OUTBOX],
-                    ),
-                    self.create_menu_item(
-                        menu_id="sent",
-                        name=_("Sent"),
-                        href=reverse("msgs.msg_sent"),
-                        count=counts[SystemLabel.TYPE_SENT],
-                    ),
-                    self.create_menu_item(
-                        menu_id="failed",
-                        name=_("Failed"),
-                        href=reverse("msgs.msg_failed"),
-                        count=counts[SystemLabel.TYPE_FAILED],
-                    ),
-                    self.create_divider(),
-                    self.create_menu_item(
-                        menu_id="scheduled",
-                        name=_("Scheduled"),
-                        href=reverse("msgs.broadcast_scheduled"),
-                        count=counts[SystemLabel.TYPE_SCHEDULED],
-                    ),
-                    self.create_menu_item(
-                        menu_id="broadcasts",
-                        name=_("Broadcasts"),
-                        href=reverse("msgs.broadcast_list"),
-                    ),
-                    self.create_menu_item(
-                        menu_id="templates",
-                        name=_("Templates"),
-                        href=reverse("templates.template_list"),
-                    ),
-                    self.create_divider(),
-                    self.create_menu_item(
-                        menu_id="calls",
-                        name=_("Calls"),
-                        href=reverse("ivr.call_list"),
-                        count=counts[SystemLabel.TYPE_CALLS],
-                    ),
-                ]
+            if label_items:
+                menu.append(self.create_menu_item(menu_id="labels", name="Labels", items=label_items, inline=True))
 
-                label_items = []
-                label_counts = LabelCount.get_totals([lb for lb in labels])
-                for label in labels:
-                    label_items.append(
-                        self.create_menu_item(
-                            icon="label",
-                            menu_id=label.uuid,
-                            name=label.name,
-                            count=label_counts[label],
-                            href=reverse("msgs.msg_filter", args=[label.uuid]),
-                        )
-                    )
-
-                if label_items:
-                    menu.append(self.create_menu_item(menu_id="labels", name="Labels", items=label_items, inline=True))
-
-                return menu
+            return menu
 
     class Export(BaseExportModal):
         class Form(BaseExportModal.Form):
