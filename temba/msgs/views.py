@@ -123,14 +123,13 @@ class MsgListView(ContextMenuMixin, BulkActionMixin, SystemLabelView):
         return qs
 
     def get_bulk_action_labels(self):
-        return self.request.org.msgs_labels.filter(is_active=True)
+        return self.request.org.msgs_labels.filter(is_active=True).order_by(Lower("name"))
 
     def get_context_data(self, **kwargs):
         org = self.request.org
 
         context = super().get_context_data(**kwargs)
         context["org"] = org
-        context["labels"] = Label.get_active_for_org(org).order_by(Lower("name"))
 
         # if refresh was passed in, increase it by our normal refresh time
         previous_refresh = self.request.GET.get("refresh")
