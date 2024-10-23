@@ -35,7 +35,7 @@ from django.utils.encoding import DjangoUnicodeDecodeError, force_str
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
-from temba.api.models import APIToken, Resthook
+from temba.api.models import Resthook
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
@@ -346,12 +346,11 @@ class UserCRUDL(SmartCRUDL):
         "two_factor_disable",
         "two_factor_tokens",
         "account",
-        "tokens",
         "verify_email",
         "send_verification_email",
     )
 
-    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+    class List(RequireFeatureMixin, BaseListView):
         require_feature = Org.FEATURE_USERS
         title = _("Users")
         menu_path = "/settings/users"
@@ -882,36 +881,6 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_formax_sections(self, formax, context):
             formax.add_section("profile", reverse("orgs.user_edit"), icon="user")
-
-    class Tokens(SpaMixin, InferUserMixin, ContextMenuMixin, OrgPermsMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            new = forms.BooleanField(required=False)
-
-            class Meta:
-                model = User
-                fields = ()
-
-        form_class = Form
-        title = _("API Tokens")
-        menu_path = "/settings/account"
-        success_url = "@orgs.user_tokens"
-        token_limit = 3
-
-        def build_context_menu(self, menu):
-            if self.request.user.get_api_tokens(self.request.org).count() < self.token_limit:
-                menu.add_url_post(_("New Token"), reverse("orgs.user_tokens") + "?new=1", as_button=True)
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["tokens"] = self.request.user.get_api_tokens(self.request.org).order_by("created")
-            context["token_limit"] = self.token_limit
-            return context
-
-        def form_valid(self, form):
-            if self.request.user.get_api_tokens(self.request.org).count() < self.token_limit:
-                APIToken.create(self.request.org, self.request.user)
-
-            return super().form_valid(form)
 
 
 class InvitationMixin:

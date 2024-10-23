@@ -3237,39 +3237,6 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, FailedLogin.objects.filter(username="admin@nyaruka.com").count())  # deleted
         self.assertEqual(1, FailedLogin.objects.filter(username="editor@nyaruka.com").count())  # unaffected
 
-    def test_tokens(self):
-        tokens_url = reverse("orgs.user_tokens")
-
-        self.assertRequestDisallowed(tokens_url, [None, self.user, self.agent])
-        self.assertReadFetch(tokens_url, [self.admin], context_object=self.admin)
-
-        # add user to other org and create API tokens for both
-        self.org2.add_user(self.admin, OrgRole.EDITOR)
-        token1 = APIToken.create(self.org, self.admin)
-        token2 = APIToken.create(self.org, self.admin)
-        APIToken.create(self.org, self.editor)  # other user
-        APIToken.create(self.org2, self.admin)  # other org
-
-        response = self.assertReadFetch(tokens_url, [self.admin], context_object=self.admin, choose_org=self.org)
-        self.assertEqual([token1, token2], list(response.context["tokens"]))
-        self.assertContentMenu(tokens_url, self.admin, ["New Token"], choose_org=self.org)
-
-        # can POST to create new token
-        response = self.client.post(tokens_url, {"new": "1"})
-        self.assertRedirect(response, reverse("orgs.user_tokens"))
-        self.assertEqual(3, self.admin.get_api_tokens(self.org).count())
-        token3 = self.admin.get_api_tokens(self.org).order_by("created").last()
-
-        # and now option to create new token is gone because we've reached the limit
-        response = self.assertReadFetch(tokens_url, [self.admin], context_object=self.admin, choose_org=self.org)
-        self.assertEqual([token1, token2, token3], list(response.context["tokens"]))
-        self.assertContentMenu(tokens_url, self.admin, [], choose_org=self.org)
-
-        # and POSTing is noop
-        response = self.client.post(tokens_url, {"new": "1"})
-        self.assertRedirect(response, reverse("orgs.user_tokens"))
-        self.assertEqual(3, self.admin.get_api_tokens(self.org).count())
-
     def test_verify_email(self):
         self.assertEqual(self.admin.settings.email_status, "U")
         self.assertTrue(self.admin.settings.email_verification_secret)
