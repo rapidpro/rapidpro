@@ -86,7 +86,11 @@ class Topic(TembaModel, DependencyMixin):
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system topics"
         assert not self.tickets.exists(), "can't release topic with tickets"
+
         super().release(user)
+
+        for team in self.teams.all():
+            team.topics.remove(self)
 
         self.is_active = False
         self.name = self._deleted_name()
@@ -402,20 +406,24 @@ class TicketCount(SquashableModel):
 
 class Team(TembaModel):
     """
-    Every user can be a member of a ticketing team
+    Agent users are assigned to a team which controls which topics they can access.
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
     topics = models.ManyToManyField(Topic, related_name="teams")
+    all_topics = models.BooleanField(default=False)
 
     org_limit_key = Org.LIMIT_TEAMS
 
     @classmethod
-    def create(cls, org, user, name: str):
+    def create(cls, org, user, name: str, *, topics=(), all_topics: bool = False):
         assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
         assert not org.teams.filter(name__iexact=name, is_active=True).exists()
+        assert not (topics and all_topics), "can't specify topics and all_topics"
 
-        return org.teams.create(name=name, created_by=user, modified_by=user)
+        team = org.teams.create(name=name, all_topics=all_topics, created_by=user, modified_by=user)
+        team.topics.add(*topics)
+        return team
 
     def get_users(self):
         return self.org.users.filter(orgmembership__team=self)
