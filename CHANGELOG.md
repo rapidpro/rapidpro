@@ -1,3 +1,12 @@
+v9.3.78 (2024-10-23)
+-------------------------
+ * Use django filter to format archive size
+ * Fix paging on archive list pages and make styling consistent with other list views
+ * Add Team.all_topics to more easily model a team that can access all topics
+ * Remove styles from contact field list page that are no longered used since it became a placeholder for the field management component
+ * Convert API tokens page to be real list page
+ * Make some list pages use a common template
+
 v9.3.77 (2024-10-22)
 -------------------------
  * Update django
