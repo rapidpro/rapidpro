@@ -14,7 +14,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from temba.utils import json, s3, sizeof_fmt
+from temba.utils import json, s3
 from temba.utils.s3 import EventStreamReader
 
 KEY_PATTERN = re.compile(r"^(?P<org>\d+)/(?P<type>run|message)_(?P<period>(D|M)\d+)_(?P<hash>[0-9a-f]{32})\.jsonl\.gz$")
@@ -35,32 +35,19 @@ class Archive(models.Model):
     archive_type = models.CharField(choices=TYPE_CHOICES, max_length=16)
     created_on = models.DateTimeField(default=timezone.now)
 
-    # the length of time this archive covers
     period = models.CharField(max_length=1, choices=PERIOD_CHOICES, default=PERIOD_DAILY)
-
-    # the earliest modified_on date for records in this archive (inclusive)
-    start_date = models.DateField()
-
-    # number of records in this archive
-    record_count = models.IntegerField(default=0)
-
-    # size in bytes of the archive contents (after compression)
-    size = models.BigIntegerField(default=0)
-
-    # MD5 hash of the archive contents (after compression)
-    hash = models.TextField()
-
-    # full URL of this archive
-    url = models.URLField()
-
-    # whether the records in this archive need to be deleted
-    needs_deletion = models.BooleanField(default=False)
-
-    # number of milliseconds it took to build and upload this archive
-    build_time = models.IntegerField()
+    start_date = models.DateField()  # the earliest modified_on date for records (inclusive)
+    record_count = models.IntegerField(default=0)  # number of records in this archive
+    size = models.BigIntegerField(default=0)  # size in bytes of the archive contents (after compression)
+    hash = models.TextField()  # MD5 hash of the archive contents (after compression)
+    url = models.URLField()  # full URL of this archive
+    build_time = models.IntegerField()  # time in ms it took to build and upload this archive
 
     # archive we were rolled up into, if any
     rollup = models.ForeignKey("archives.Archive", on_delete=models.PROTECT, null=True)
+
+    # whether the records in this archive need to be deleted
+    needs_deletion = models.BooleanField(default=False)
 
     # when this archive's records where deleted (if any)
     deleted_on = models.DateTimeField(null=True)
@@ -68,9 +55,6 @@ class Archive(models.Model):
     @classmethod
     def storage(cls):
         return storages["archives"]
-
-    def size_display(self):
-        return sizeof_fmt(self.size)
 
     def get_storage_location(self) -> tuple:
         """

@@ -1,6 +1,13 @@
 {% extends "orgs/base/list.html" %}
 {% load i18n humanize temba %}
 
+{% block pre-table %}
+  <div class="mb-4">
+    {% blocktrans trimmed %}
+      Archives are created after 90 days of inactivity for messages and flow runs.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-table %}
 {% block table %}
   <table class="list lined scrolled">
     <thead>
@@ -19,7 +26,7 @@
           {% endif %}
         </td>
         <td style="text-align:right">{{ archive.record_count|intcomma }}</td>
-        <td style="text-align:right">{{ archive.size_display }}</td>
+        <td style="text-align:right">{{ archive.size|filesizeformat }}</td>
         <td class="w-10" style="--icon-color:#bbb">
           <temba-icon clickable="true"
                       name="download"
@@ -29,12 +36,7 @@
       </tr>
     {% empty %}
       <tr class="empty_list">
-        <td colspan="99" class="text-center">
-          {% blocktrans trimmed %}
-            No archives found. Archives are created after 90 days of inactivity for messages and flow runs. Check back later to
-            see a list of all archives.
-          {% endblocktrans %}
-        </td>
+        <td colspan="99" class="text-center">{% trans "No archives" %}</td>
       </tr>
     {% endfor %}
   </table>

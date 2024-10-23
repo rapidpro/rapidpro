@@ -204,14 +204,7 @@ class ArchiveTest(TembaTest):
 
 
 class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_empty_list(self):
-        response = self.assertListFetch(reverse("archives.archive_run"), [self.editor], context_objects=[])
-        self.assertContains(response, "No archives found")
-
-        response = self.assertListFetch(reverse("archives.archive_message"), [self.editor], context_objects=[])
-        self.assertContains(response, "No archives found")
-
-    def test_archive_type_filter(self):
+    def test_list_views(self):
         # a daily archive that has been rolled up and will not appear in the results
         d1 = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}])
         m1 = self.create_archive(Archive.TYPE_MSG, "M", date(2020, 7, 1), [{"id": 1}, {"id": 2}], rollup_of=(d1,))
