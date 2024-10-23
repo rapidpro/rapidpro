@@ -1,115 +1,43 @@
-{% extends "smartmin/list.html" %}
-{% load smartmin sms temba compress i18n humanize %}
+{% extends "orgs/base/list.html" %}
+{% load i18n humanize temba %}
 
-{% block page-title %}
-  {{ title }}
-{% endblock page-title %}
-{% block content %}
-  {% if object_list %}
-    <table class="archives list lined">
-      <thead>
-        <th>{% trans "Records" %}</th>
-        <th>{% trans "Size" %}</th>
-        <th>{% trans "Period" %}</th>
-        <th></th>
-      </thead>
-      {% for archive in object_list %}
-        <tr class="archive-row">
-          <td class="archive-record-count cell">
-            <div class="pl-6">{{ archive.record_count|intcomma }}</div>
-          </td>
-          <td class="archive-size cell whitespace-nowrap">
-            <div class="pl-32">{{ archive.size_display }}</div>
-          </td>
-          <td class="archive-period cell w-full">
-            {% if archive.period == 'D' %}
-              {{ archive.start_date|date:"M j, Y" }}
-            {% else %}
-              {{ archive.start_date|date:"F Y" }}
-            {% endif %}
-          </td>
-          <td style="--icon-color:#bbb">
-            <temba-icon clickable="true"
-                        name="download"
-                        onclick="downloadFile(event, '{% url 'archives.archive_read' archive.id %}')">
-            </temba-icon>
-          </td>
-        </tr>
-      {% endfor %}
-    </table>
-  {% else %}
+{% block pre-table %}
+  <div class="mb-4">
     {% blocktrans trimmed %}
-      No archives found. Archives are created after 90 days of inactivity for messages and flow runs. Check back later to
-      see a list of all archives.
+      Archives are created after 90 days of inactivity for messages and flow runs.
     {% endblocktrans %}
-  {% endif %}
-  {% block paginator %}
-    {% if object_list.count %}
-      {% include "includes/short_pagination.html" %}
-    {% endif %}
-  {% endblock paginator %}
-{% endblock content %}
-{% block extra-style %}
-  <style type="text/css">
-    .page-content {
-      align-self: auto;
-      max-width: 1024px;
-    }
-
-    .cell {
-      overflow: clip;
-      padding: 5px 5px 5px 5px;
-
-    }
-
-    .archive-row {}
-
-    .archive-period {
-      text-align: right;
-    }
-
-    .archive-size {
-      text-align: right;
-    }
-
-    .archive-record-count {
-      width: 130px;
-      text-align: right;
-    }
-
-    .archives {
-      width: 100%;
-    }
-
-    .archive-icon {
-      width: 30px;
-      text-align: center;
-    }
-
-    thead {
-      border-top: none;
-    }
-
-    table.archives.list thead th {
-      text-align: right;
-    }
-
-    table.archives.list thead th.name {
-      text-align: left;
-    }
-
-    th.empty {
-      border: 0px solid green;
-    }
-
-    .icon {
-      color: #ddd;
-      padding-top: 2px;
-    }
-
-    .icon:hover {
-      color: #aaa;
-      cursor: pointer;
-    }
-  </style>
-{% endblock extra-style %}
+  </div>
+{% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled">
+    <thead>
+      <th>{% trans "Period" %}</th>
+      <th style="text-align:right">{% trans "Records" %}</th>
+      <th style="text-align:right">{% trans "Size" %}</th>
+      <th></th>
+    </thead>
+    {% for archive in object_list %}
+      <tr>
+        <td>
+          {% if archive.period == 'D' %}
+            {{ archive.start_date|date:"M j, Y" }}
+          {% else %}
+            {{ archive.start_date|date:"F Y" }}
+          {% endif %}
+        </td>
+        <td style="text-align:right">{{ archive.record_count|intcomma }}</td>
+        <td style="text-align:right">{{ archive.size|filesizeformat }}</td>
+        <td class="w-10" style="--icon-color:#bbb">
+          <temba-icon clickable="true"
+                      name="download"
+                      onclick="downloadFile(event, '{% url 'archives.archive_read' archive.id %}')">
+          </temba-icon>
+        </td>
+      </tr>
+    {% empty %}
+      <tr class="empty_list">
+        <td colspan="99" class="text-center">{% trans "No archives" %}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock table %}

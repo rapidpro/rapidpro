@@ -325,12 +325,12 @@ class ArchivesEndpoint(ListAPIMixin, BaseEndpoint):
 
     A `GET` returns the archives for your organization with the following fields.
 
-      * **archive_type** - the type of the archive, one of `message`or `run` (filterable as `archive_type`).
+      * **archive_type** - the type of the archive, one of `message` or `run` (filterable as `archive_type`).
       * **start_date** - the UTC date of the archive (string) (filterable as `before` and `after`).
       * **period** - `daily` for daily archives, `monthly` for monthly archives (filterable as `period`).
       * **record_count** - number of records in the archive (int).
-      * **size** - size of the gziped archive content (int).
-      * **hash** - MD5 hash of the gziped archive (string).
+      * **size** - size of the gzipped archive content (int).
+      * **hash** - MD5 hash of the gzipped archive (string).
       * **download_url** - temporary download URL of the archive (string).
 
     Example:
@@ -345,13 +345,13 @@ class ArchivesEndpoint(ListAPIMixin, BaseEndpoint):
             "count": 248,
             "results": [
             {
-                "archive_type":"message",
-                "start_date":"2017-02-20",
-                "period":"daily",
-                "record_count":1432,
-                "size":2304,
-                "hash":"feca9988b7772c003204a28bd741d0d0",
-                "download_url":"<redacted>"
+                "archive_type": "message",
+                "start_date": "2017-02-20",
+                "period": "daily",
+                "record_count": 1432,
+                "size": 2304,
+                "hash": "feca9988b7772c003204a28bd741d0d0",
+                "download_url": "https://..."
             },
             ...
         }
