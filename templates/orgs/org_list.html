@@ -28,12 +28,11 @@
           <td style="text-align:right">{{ obj.created_on|day }}</td>
           <td class="w-2">
             {% if obj.id != user_org.id %}
-              <div style="visibility:hidden"
-                   onclick="event.stopPropagation(); showDeleteChildModal({{ obj.id }});"
-                   class="pl-2 pt-1 delete-link linked text-gray-400">
-                <temba-icon name="delete_small">
-                </temba-icon>
-              </div>
+              <temba-icon name="delete"
+                          clickable="true"
+                          style="--icon-color:#bbb"
+                          onclick="event.stopPropagation(); showDeleteChildModal({{ obj.id }});">
+              </temba-icon>
             {% endif %}
           </td>
         </tr>
