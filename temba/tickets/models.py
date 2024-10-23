@@ -101,6 +101,43 @@ class Topic(TembaModel, DependencyMixin):
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
 
 
+class Team(TembaModel):
+    """
+    Agent users are assigned to a team which controls which topics they can access.
+    """
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
+    topics = models.ManyToManyField(Topic, related_name="teams")
+    all_topics = models.BooleanField(default=False)
+
+    org_limit_key = Org.LIMIT_TEAMS
+
+    @classmethod
+    def create(cls, org, user, name: str, *, topics=(), all_topics: bool = False):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
+        assert not org.teams.filter(name__iexact=name, is_active=True).exists()
+        assert not (topics and all_topics), "can't specify topics and all_topics"
+
+        team = org.teams.create(name=name, all_topics=all_topics, created_by=user, modified_by=user)
+        team.topics.add(*topics)
+        return team
+
+    def get_users(self):
+        return self.org.users.filter(orgmembership__team=self)
+
+    def release(self, user):
+        # remove all users from this team
+        OrgMembership.objects.filter(org=self.org, team=self).update(team=None)
+
+        self.name = self._deleted_name()
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_team_names")]
+
+
 class Ticket(models.Model):
     """
     A ticket represents a period of human interaction with a contact.
@@ -402,43 +439,6 @@ class TicketCount(SquashableModel):
                 name="ticket_count_unsquashed", fields=("org", "scope", "status"), condition=Q(is_squashed=False)
             ),
         ]
-
-
-class Team(TembaModel):
-    """
-    Agent users are assigned to a team which controls which topics they can access.
-    """
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
-    topics = models.ManyToManyField(Topic, related_name="teams")
-    all_topics = models.BooleanField(default=False)
-
-    org_limit_key = Org.LIMIT_TEAMS
-
-    @classmethod
-    def create(cls, org, user, name: str, *, topics=(), all_topics: bool = False):
-        assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
-        assert not org.teams.filter(name__iexact=name, is_active=True).exists()
-        assert not (topics and all_topics), "can't specify topics and all_topics"
-
-        team = org.teams.create(name=name, all_topics=all_topics, created_by=user, modified_by=user)
-        team.topics.add(*topics)
-        return team
-
-    def get_users(self):
-        return self.org.users.filter(orgmembership__team=self)
-
-    def release(self, user):
-        # remove all users from this team
-        OrgMembership.objects.filter(org=self.org, team=self).update(team=None)
-
-        self.name = self._deleted_name()
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
-
-    class Meta:
-        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_team_names")]
 
 
 class TicketDailyCount(DailyCountModel):
