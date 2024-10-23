@@ -1,11 +1,13 @@
 {% extends "orgs/base/list.html" %}
 {% load smartmin temba i18n %}
 
-{% block pre-table %}
+{% block modaxes %}
   <temba-modax header="{{ _("Update Shortcut") |escapejs }}" id="update-shortcut">
   </temba-modax>
   <temba-modax header="{{ _("Delete Shortcut") |escapejs }}" id="delete-shortcut">
   </temba-modax>
+{% endblock modaxes %}
+{% block pre-table %}
   <div class="mb-4">
     {% blocktrans trimmed %}
       These are canned responses that agents can use to quickly reply to tickets.

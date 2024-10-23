@@ -1,13 +1,15 @@
 {% extends "orgs/base/list.html" %}
 {% load smartmin temba i18n humanize %}
 
-{% block pre-table %}
+{% block modaxes %}
   <temba-modax header="{{ _("Update Global") |escapejs }}" -temba-redirected="refreshGlobals" id="update-global">
   </temba-modax>
   <temba-modax header="{{ _("Delete Global") |escapejs }}" -temba-redirected="refreshGlobals" id="delete-global">
   </temba-modax>
   <temba-modax header="{{ _("Usages") |escapejs }}" id="usages-global">
   </temba-modax>
+{% endblock modaxes %}
+{% block pre-table %}
   <div class="mb-4">
     {% blocktrans trimmed %}
       Globals are variables you can use across all of your flows but

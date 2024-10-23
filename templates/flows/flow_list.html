@@ -1,7 +1,7 @@
 {% extends "orgs/base/list.html" %}
 {% load smartmin temba i18n humanize %}
 
-{% block pre-table %}
+{% block modaxes %}
   <temba-modax header="{% trans "Export Results" %}" id="export-results">
   </temba-modax>
   <temba-modax header="{% trans "New Label" %}"
@@ -10,7 +10,7 @@
                -temba-submitted="handleCreateLabelModalSubmitted"
                id="create-label-modal">
   </temba-modax>
-{% endblock pre-table %}
+{% endblock modaxes %}
 {% block table %}
   <table class="relative list object-list lined selectable scrolled">
     {% if object_list %}

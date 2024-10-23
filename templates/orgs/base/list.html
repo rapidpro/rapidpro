@@ -2,16 +2,20 @@
 {% load i18n %}
 
 {% block content %}
+  {% block modaxes %}
+  {% endblock modaxes %}
   {% block pre-table %}
   {% endblock pre-table %}
   {% if view.search_fields %}
-    <form method="get" action="{{ request.path }}" id="search-form">
-      <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-      </temba-textinput>
-      <input type="submit" class="hide">
-    </form>
+    {% block search-form %}
+      <form method="get" action="{{ request.path }}" id="search-form" class="mb-4">
+        <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+        </temba-textinput>
+        <input type="submit" class="hide">
+      </form>
+    {% endblock search-form %}
   {% endif %}
-  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
   <div class="flex-grow overflow-y-auto shadow">
     {% block table %}
     {% endblock table %}
