@@ -611,7 +611,7 @@ class EndpointsTest(APITest):
 
         response = self.client.get(explorer_url)
         self.assertContains(response, "To use the explorer you need to first create")
-        self.assertContains(response, reverse("orgs.user_tokens"))
+        self.assertContains(response, reverse("api.apitoken_list"))
 
         APIToken.create(self.org, self.admin)
 

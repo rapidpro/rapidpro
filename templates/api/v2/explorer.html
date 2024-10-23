@@ -22,7 +22,7 @@
             All operations work against real data in the <b>{{ org }}</b> workspace.
           {% endblocktrans %}
         {% else %}
-          {% url "orgs.user_tokens" as tokens_url %}
+          {% url "api.apitoken_list" as tokens_url %}
           {% blocktrans trimmed with org=user_org.name %}
             To use the explorer you need to first create <a href="{{ tokens_url }}">an API token</a>.
           {% endblocktrans %}

@@ -15,7 +15,9 @@
       </form>
     {% endblock search-form %}
   {% endif %}
-  <div class="shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  {% if view.paginate_by %}
+    <div class="shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  {% endif %}
   <div class="flex-grow overflow-y-auto shadow">
     {% block table %}
     {% endblock table %}
