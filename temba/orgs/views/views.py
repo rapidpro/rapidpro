@@ -367,8 +367,11 @@ class UserCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
+            # annotate the users with their roles and teams
             for user in context["object_list"]:
-                user.role = self.request.org.get_user_role(user)
+                membership = self.request.org.get_membership(user)
+                user.role = membership.role
+                user.team = membership.team
 
             context["has_viewers"] = self.request.org.get_users(roles=[OrgRole.VIEWER]).exists()
             context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
