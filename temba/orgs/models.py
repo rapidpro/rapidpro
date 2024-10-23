@@ -949,6 +949,10 @@ class Org(SmartModel):
     def default_ticket_topic(self):
         return self.topics.get(is_default=True)
 
+    @cached_property
+    def default_ticket_team(self):
+        return self.teams.get(is_default=True)
+
     def get_resthooks(self):
         """
         Returns the resthooks configured on this Org
@@ -1229,12 +1233,13 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.tickets.models import Topic
+        from temba.tickets.models import Team, Topic
 
         with transaction.atomic():
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
-            Topic.create_default_topic(self)
+            Team.create_system(self)
+            Topic.create_system(self)
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
@@ -1339,6 +1344,7 @@ class Org(SmartModel):
         delete_in_batches(self.tickets.all())
         delete_in_batches(self.ticket_counts.all())
         delete_in_batches(self.topics.all())
+        delete_in_batches(self.teams.all())
         delete_in_batches(self.airtime_transfers.all())
 
         # delete our contacts
