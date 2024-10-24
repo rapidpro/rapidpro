@@ -53,19 +53,17 @@ class Topic(TembaModel, DependencyMixin):
     The topic of a ticket which controls who can access that ticket.
     """
 
-    DEFAULT_TOPIC = "General"
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
     is_default = models.BooleanField(default=False)
 
     org_limit_key = Org.LIMIT_TOPICS
 
     @classmethod
-    def create_default_topic(cls, org):
+    def create_system(cls, org):
         assert not org.topics.filter(is_default=True).exists(), "org already has default topic"
 
         org.topics.create(
-            name=cls.DEFAULT_TOPIC,
+            name="General",
             is_default=True,
             is_system=True,
             created_by=org.created_by,
@@ -109,8 +107,22 @@ class Team(TembaModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
     topics = models.ManyToManyField(Topic, related_name="teams")
     all_topics = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
 
     org_limit_key = Org.LIMIT_TEAMS
+
+    @classmethod
+    def create_system(cls, org):
+        assert not org.teams.filter(is_default=True).exists(), "org already has default team"
+
+        org.teams.create(
+            name="All Topics",
+            is_default=True,
+            is_system=True,
+            all_topics=True,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
 
     @classmethod
     def create(cls, org, user, name: str, *, topics=(), all_topics: bool = False):
@@ -126,8 +138,8 @@ class Team(TembaModel):
         return self.org.users.filter(orgmembership__team=self)
 
     def release(self, user):
-        # remove all users from this team
-        OrgMembership.objects.filter(org=self.org, team=self).update(team=None)
+        # re-assign agents in this team to the default team
+        OrgMembership.objects.filter(org=self.org, team=self).update(team=self.org.default_ticket_team)
 
         self.name = self._deleted_name()
         self.is_active = False
