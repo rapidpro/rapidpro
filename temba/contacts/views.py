@@ -1106,7 +1106,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 )
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(is_active=True, is_system=False)
+            return super().derive_queryset(**kwargs).filter(is_proxy=False)
 
     class Usages(FieldLookupMixin, BaseUsagesModal):
         permission = "contacts.contactfield_read"

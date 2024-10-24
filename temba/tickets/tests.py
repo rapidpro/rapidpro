@@ -326,7 +326,7 @@ class ShortcutCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit to delete it
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=shortcut1, success_status=302)
 
-        # other shortcut unafected
+        # other shortcut unaffected
         shortcut2.refresh_from_db()
         self.assertTrue(shortcut2.is_active)
 
@@ -406,8 +406,9 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(topic.name, "Boring")
 
         # can't edit a system topic
-        with self.assertRaises(AssertionError):
-            self.requestView(reverse("tickets.topic_update", args=[self.org.default_ticket_topic.uuid]), self.admin)
+        self.assertRequestDisallowed(
+            reverse("tickets.topic_update", args=[self.org.default_ticket_topic.uuid]), [self.admin]
+        )
 
     def test_delete(self):
         topic1 = Topic.create(self.org, self.admin, "Planes")
