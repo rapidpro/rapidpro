@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def backfill_default_teams(apps, schema_editor):
+def backfill_default_teams(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     for org in Org.objects.filter(teams=None):

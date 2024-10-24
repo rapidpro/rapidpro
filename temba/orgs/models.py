@@ -539,7 +539,7 @@ class Org(SmartModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._user_role_cache = {}
+        self._membership_cache = {}
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -1076,16 +1076,15 @@ class Org(SmartModel):
         if role == OrgRole.AGENT and not team:
             team = self.default_ticket_team
 
-        self.users.add(user, through_defaults={"role_code": role.code, "team": team})
-        self._user_role_cache[user] = role
+        self._membership_cache[user] = OrgMembership.objects.create(org=self, user=user, role_code=role.code, team=team)
 
     def remove_user(self, user: User):
         """
         Removes the given user from this org by removing them from any roles
         """
         self.users.remove(user)
-        if user in self._user_role_cache:
-            del self._user_role_cache[user]
+        if user in self._membership_cache:
+            del self._membership_cache[user]
 
     def get_owner(self) -> User:
         # look thru roles in order for the first added user
@@ -1097,21 +1096,29 @@ class Org(SmartModel):
         # default to user that created this org (converting to our User proxy model)
         return User.objects.get(id=self.created_by_id)
 
+    def get_membership(self, user: User):
+        """
+        Gets the membership of the given user in this org (if any).
+        """
+
+        def get():
+            # for staff we return a faked membership: admin role, no team
+            if user.is_staff:
+                return OrgMembership(org=self, user=user, role_code=OrgRole.ADMINISTRATOR.code, team=None)
+
+            return OrgMembership.objects.filter(org=self, user=user).first()
+
+        if user not in self._membership_cache:
+            self._membership_cache[user] = get()
+        return self._membership_cache[user]
+
     def get_user_role(self, user: User):
         """
-        Gets the role of the given user in this org if any.
+        Convenience method to get just the role of the given user in this org (if any).
         """
 
-        def get_role():
-            if user.is_staff:
-                return OrgRole.ADMINISTRATOR
-
-            membership = OrgMembership.objects.filter(org=self, user=user).first()
-            return membership.role if membership else None
-
-        if user not in self._user_role_cache:
-            self._user_role_cache[user] = get_role()
-        return self._user_role_cache[user]
+        membership = self.get_membership(user)
+        return membership.role if membership else None
 
     def create_sample_flows(self, api_url):
         # get our sample dir

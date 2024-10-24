@@ -32,7 +32,10 @@
         <tr onclick="showUpdateUserModal({{ obj.id }})" class="hover-linked update">
           <td>{{ obj.email }}</td>
           <td>{{ obj.name }}</td>
-          <td>{{ obj.role.display }}</td>
+          <td>
+            {{ obj.role.display }}
+            {% if obj.team %}({{ obj.team.name }}){% endif %}
+          </td>
           <td class="w-10">
             {% if obj.role.code != "A" or admin_count > 1 %}
               <temba-icon name="delete"
