@@ -1,55 +1,39 @@
-{% extends "smartmin/list.html" %}
+{% extends "orgs/base/list.html" %}
 {% load i18n contacts channels %}
 
-{% block content %}
-  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
-  <div class="flex-grow overflow-y-auto shadow rounded-b-lg">
-    {% if has_messages %}
-      <table class="relative list object-list lined selectable scrolled">
-        <tbody>
-          {% for object in object_list %}
-            <tr data-sender-uuid="{{ object.contact.uuid }}"
-                onclick="handleRowClicked(event)"
-                href="{% url 'contacts.contact_read' object.contact.uuid %}"
-                class="sms object-row">
-              <td>
-                {% if object.direction == "I" %}
-                  <temba-icon name="incoming_call">
-                  </temba-icon>
-                {% else %}
-                  <temba-icon name="call">
-                  </temba-icon>
-                {% endif %}
-              </td>
-              <td class="whitespace-nowrap">{{ object.contact|name_or_urn:user_org|truncatechars:20 }}</td>
-              <td class="w-full">
-                <div class="flex flex-wrap flex-end items-center justify-end">
-                  <div class="flex-grow inline">{{ object.get_duration }}</div>
-                </div>
-              </td>
-              <td>
-                <div class="flex w-full items-center justify-end pr-4">
-                  <div class="time whitespace-nowrap">
-                    <temba-date value="{{ object.created_on.isoformat }}" display="timedate">
-                    </temba-date>
-                  </div>
-                  {% channel_log_link object %}
-                </div>
-              </td>
-            </tr>
-          {% endfor %}
-          {% if not object_list %}
-            <tr class="empty_list">
-              <td colspan="99">{% trans "No calls" %}</td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
-    {% else %}
-      {% include "msgs/empty_include.html" %}
-    {% endif %}
-  </div>
-{% endblock content %}
+{% block table %}
+  <table class="list lined selectable scrolled">
+    <tbody>
+      {% for object in object_list %}
+        <tr data-sender-uuid="{{ object.contact.uuid }}"
+            onclick="handleRowClicked(event)"
+            href="{% url 'contacts.contact_read' object.contact.uuid %}">
+          <td class="w-10">
+            {% if object.direction == "I" %}
+              <temba-icon name="incoming_call">
+              </temba-icon>
+            {% else %}
+              <temba-icon name="call">
+              </temba-icon>
+            {% endif %}
+          </td>
+          <td class="whitespace-nowrap">{{ object.contact|name_or_urn:user_org|truncatechars:20 }}</td>
+          <td>{{ object.get_duration }}</td>
+          <td>
+            <div class="flex w-full items-center justify-end">
+              <div class="time whitespace-nowrap">{{ object.created_on|timedate }}</div>
+              {% channel_log_link object %}
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No calls" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
