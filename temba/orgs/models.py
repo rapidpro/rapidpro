@@ -1073,6 +1073,9 @@ class Org(SmartModel):
         if self.has_user(user):  # remove user from any existing roles
             self.remove_user(user)
 
+        if role == OrgRole.AGENT and not team:
+            team = self.default_ticket_team
+
         self.users.add(user, through_defaults={"role_code": role.code, "team": team})
         self._user_role_cache[user] = role
 
