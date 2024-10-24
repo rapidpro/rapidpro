@@ -33,6 +33,7 @@ from .models import (
     AllFolder,
     MineFolder,
     Shortcut,
+    Team,
     Ticket,
     TicketCount,
     TicketExport,
@@ -117,6 +118,17 @@ class TopicCRUDL(SmartCRUDL):
         def get_redirect_url(self, **kwargs):
             default_topic = self.get_object().org.topics.filter(is_default=True).first()
             return f"/ticket/{str(default_topic.uuid)}/open/"
+
+
+class TeamCRUDL(SmartCRUDL):
+    model = Team
+    actions = ("list",)
+
+    class List(BaseListView):
+        menu_path = "/settings/teams"
+
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True).order_by(Lower("name"))
 
 
 class TicketCRUDL(SmartCRUDL):

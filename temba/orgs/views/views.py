@@ -1012,6 +1012,14 @@ class OrgCRUDL(SmartCRUDL):
                             count=org.invitations.filter(is_active=True).count(),
                         )
                     )
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Teams"),
+                            icon="team",
+                            href="tickets.team_list",
+                            count=org.teams.filter(is_active=True).count(),
+                        )
+                    )
 
                 menu.append(self.create_divider())
                 if self.has_org_perm("orgs.org_export"):

@@ -506,6 +506,7 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_webhooks",
         "templates.template.*",
         "tickets.shortcut.*",
+        "tickets.team.*",
         "tickets.ticket.*",
         "tickets.topic.*",
         "triggers.trigger.*",
