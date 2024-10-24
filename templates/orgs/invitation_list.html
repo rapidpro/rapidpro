@@ -29,12 +29,11 @@
           <td>{{ obj.role.display }}</td>
           <td>{{ obj.created_on|day }}</td>
           <td class="w-10">
-            <div style="visibility:hidden"
-                 onclick="event.stopPropagation(); showDeleteInvitationModal({{ obj.id }});"
-                 class="pl-2 pt-1 delete-link linked text-gray-400">
-              <temba-icon name="delete_small">
-              </temba-icon>
-            </div>
+            <temba-icon name="delete"
+                        clickable="true"
+                        style="--icon-color:#bbb"
+                        onclick="event.stopPropagation(); showDeleteInvitationModal({{ obj.id }});">
+            </temba-icon>
           </td>
         </tr>
       {% empty %}
