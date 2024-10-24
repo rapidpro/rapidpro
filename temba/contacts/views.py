@@ -149,16 +149,10 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        org = self.request.org
+        # prefetch contact URNs
+        Contact.bulk_urn_cache_initialize(context["object_list"])
 
-        # resolve the paginated object list so we can initialize a cache of URNs
-        contacts = context["object_list"]
-        Contact.bulk_urn_cache_initialize(contacts)
-
-        context["contacts"] = contacts
-        context["has_contacts"] = contacts or org.get_contact_count() > 0
         context["search_error"] = self.search_error
-
         context["sort_direction"] = self.sort_direction
         context["sort_field"] = self.sort_field
 
