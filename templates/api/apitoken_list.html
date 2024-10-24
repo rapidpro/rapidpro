@@ -31,12 +31,11 @@
           {% endif %}
         </td>
         <td class="w-10">
-          <div style="visibility:hidden"
-               onclick="event.stopPropagation(); showDeleteTokenModal('{{ obj.key }}');"
-               class="pl-2 pt-1 delete-link linked text-gray-400">
-            <temba-icon name="delete_small">
-            </temba-icon>
-          </div>
+          <temba-icon name="delete"
+                      clickable="true"
+                      style="--icon-color:#bbb"
+                      onclick="event.stopPropagation(); showDeleteTokenModal('{{ obj.key }}');">
+          </temba-icon>
         </td>
       </tr>
     {% empty %}
