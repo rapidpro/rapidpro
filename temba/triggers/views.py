@@ -434,15 +434,14 @@ class TriggerCRUDL(SmartCRUDL):
         default_template = "triggers/trigger_list.html"
         search_fields = ("keywords__icontains", "flow__name__icontains", "channel__name__icontains")
 
-        def get_queryset(self, *args, **kwargs):
-            qs = super().get_queryset(*args, **kwargs)
-            qs = (
-                qs.filter(is_active=True)
+        def derive_queryset(self, *args, **kwargs):
+            return (
+                super()
+                .derive_queryset(*args, **kwargs)
                 .order_by("-created_on")
                 .select_related("flow", "channel")
                 .prefetch_related("contacts", "groups", "exclude_groups")
             )
-            return qs
 
     class List(BaseList):
         """

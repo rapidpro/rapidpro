@@ -2078,9 +2078,6 @@ class InvitationCRUDL(SmartCRUDL):
         def build_context_menu(self, menu):
             menu.add_modax(_("New"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
 
-        def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(is_active=True)
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["validity_days"] = settings.INVITATION_VALIDITY.days

@@ -684,8 +684,7 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def derive_queryset(self, *args, **kwargs):
-            qs = super().derive_queryset(*args, **kwargs)
-            return qs.exclude(is_system=True).exclude(is_active=False)
+            return super().derive_queryset(*args, **kwargs).exclude(is_system=True)
 
         def apply_bulk_action(self, user, action, objects, label):
             super().apply_bulk_action(user, action, objects, label)
