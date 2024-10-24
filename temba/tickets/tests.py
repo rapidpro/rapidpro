@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export, OrgMembership, OrgRole
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -1531,4 +1531,21 @@ class TicketDailyTimingTest(TembaTest):
 
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
+        )
+
+
+class BackfillDefaultTeamsTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0067_team_is_default"
+    migrate_to = "0068_backfill_default_teams"
+
+    def setUpBeforeMigration(self, apps):
+        self.org2.teams.all().delete()
+
+    def test_migration(self):
+        self.assertEqual(
+            1, self.org.teams.filter(name="All Topics", is_default=True, is_system=True, all_topics=True).count()
+        )
+        self.assertEqual(
+            1, self.org2.teams.filter(name="All Topics", is_default=True, is_system=True, all_topics=True).count()
         )
