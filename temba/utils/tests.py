@@ -28,7 +28,6 @@ from . import (
     percentage,
     redact,
     set_nested_key,
-    sizeof_fmt,
     str_to_bool,
 )
 from .checks import storage
@@ -40,18 +39,6 @@ from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
 class InitTest(TembaTest):
-    def test_sizeof_fmt(self):
-        self.assertEqual("512.0 b", sizeof_fmt(512))
-        self.assertEqual("1.0 Kb", sizeof_fmt(1024))
-        self.assertEqual("1.0 Mb", sizeof_fmt(1024**2))
-        self.assertEqual("1.0 Gb", sizeof_fmt(1024**3))
-        self.assertEqual("1.0 Tb", sizeof_fmt(1024**4))
-        self.assertEqual("1.0 Pb", sizeof_fmt(1024**5))
-        self.assertEqual("1.0 Eb", sizeof_fmt(1024**6))
-        self.assertEqual("1.0 Zb", sizeof_fmt(1024**7))
-        self.assertEqual("1.0 Yb", sizeof_fmt(1024**8))
-        self.assertEqual("1024.0 Yb", sizeof_fmt(1024**9))
-
     def test_str_to_bool(self):
         self.assertFalse(str_to_bool(None))
         self.assertFalse(str_to_bool(""))

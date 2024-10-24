@@ -29,7 +29,7 @@ class Shortcut(TembaModel):
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="shortcuts")
-    text = models.TextField()
+    text = models.TextField(max_length=10_000)
 
     @classmethod
     def create(cls, org, user, name: str, text: str):
@@ -53,19 +53,17 @@ class Topic(TembaModel, DependencyMixin):
     The topic of a ticket which controls who can access that ticket.
     """
 
-    DEFAULT_TOPIC = "General"
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
     is_default = models.BooleanField(default=False)
 
     org_limit_key = Org.LIMIT_TOPICS
 
     @classmethod
-    def create_default_topic(cls, org):
+    def create_system(cls, org):
         assert not org.topics.filter(is_default=True).exists(), "org already has default topic"
 
         org.topics.create(
-            name=cls.DEFAULT_TOPIC,
+            name="General",
             is_default=True,
             is_system=True,
             created_by=org.created_by,
@@ -86,7 +84,11 @@ class Topic(TembaModel, DependencyMixin):
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system topics"
         assert not self.tickets.exists(), "can't release topic with tickets"
+
         super().release(user)
+
+        for team in self.teams.all():
+            team.topics.remove(self)
 
         self.is_active = False
         self.name = self._deleted_name()
@@ -95,6 +97,59 @@ class Topic(TembaModel, DependencyMixin):
 
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
+
+
+class Team(TembaModel):
+    """
+    Agent users are assigned to a team which controls which topics they can access.
+    """
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
+    topics = models.ManyToManyField(Topic, related_name="teams")
+    all_topics = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
+
+    org_limit_key = Org.LIMIT_TEAMS
+
+    @classmethod
+    def create_system(cls, org):
+        assert not org.teams.filter(is_default=True).exists(), "org already has default team"
+
+        org.teams.create(
+            name="All Topics",
+            is_default=True,
+            is_system=True,
+            all_topics=True,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+
+    @classmethod
+    def create(cls, org, user, name: str, *, topics=(), all_topics: bool = False):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
+        assert not org.teams.filter(name__iexact=name, is_active=True).exists()
+        assert not (topics and all_topics), "can't specify topics and all_topics"
+
+        team = org.teams.create(name=name, all_topics=all_topics, created_by=user, modified_by=user)
+        team.topics.add(*topics)
+        return team
+
+    def get_users(self):
+        return self.org.users.filter(orgmembership__team=self)
+
+    def release(self, user):
+        assert not (self.is_system and self.org.is_active), "can't release system teams"
+
+        # re-assign agents in this team to the default team
+        OrgMembership.objects.filter(org=self.org, team=self).update(team=self.org.default_ticket_team)
+
+        self.name = self._deleted_name()
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_team_names")]
 
 
 class Ticket(models.Model):
@@ -398,39 +453,6 @@ class TicketCount(SquashableModel):
                 name="ticket_count_unsquashed", fields=("org", "scope", "status"), condition=Q(is_squashed=False)
             ),
         ]
-
-
-class Team(TembaModel):
-    """
-    Every user can be a member of a ticketing team
-    """
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
-    topics = models.ManyToManyField(Topic, related_name="teams")
-
-    org_limit_key = Org.LIMIT_TEAMS
-
-    @classmethod
-    def create(cls, org, user, name: str):
-        assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
-        assert not org.teams.filter(name__iexact=name, is_active=True).exists()
-
-        return org.teams.create(name=name, created_by=user, modified_by=user)
-
-    def get_users(self):
-        return self.org.users.filter(orgmembership__team=self)
-
-    def release(self, user):
-        # remove all users from this team
-        OrgMembership.objects.filter(org=self.org, team=self).update(team=None)
-
-        self.name = self._deleted_name()
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
-
-    class Meta:
-        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_team_names")]
 
 
 class TicketDailyCount(DailyCountModel):

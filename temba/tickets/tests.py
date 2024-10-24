@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export, OrgMembership, OrgRole
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -1286,18 +1286,24 @@ class TopicTest(TembaTest):
 
     def test_release(self):
         topic1 = Topic.create(self.org, self.admin, "Sales")
+        topic2 = Topic.create(self.org, self.admin, "Support")
         flow = self.create_flow("Test")
         flow.topic_dependencies.add(topic1)
+        team = Team.create(self.org, self.admin, "Sales & Support", topics=[topic1, topic2])
 
         topic1.release(self.admin)
 
         self.assertFalse(topic1.is_active)
         self.assertTrue(topic1.name.startswith("deleted-"))
 
+        # topic should be removed from team
+        self.assertEqual({topic2}, set(team.topics.all()))
+
+        # flow should be flagged as having issues
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
 
-        # can't release default topic
+        # can't release system topic
         with self.assertRaises(AssertionError):
             self.org.default_ticket_topic.release(self.admin)
 
@@ -1313,16 +1319,24 @@ class TopicTest(TembaTest):
 
 class TeamTest(TembaTest):
     def test_create(self):
-        team1 = Team.create(self.org, self.admin, "Sales")
+        sales = Topic.create(self.org, self.admin, "Sales")
+        support = Topic.create(self.org, self.admin, "Support")
+        team1 = Team.create(self.org, self.admin, "Sales & Support", topics=[sales, support])
         agent2 = self.create_user("tickets@nyaruka.com")
         self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
         self.org.add_user(agent2, OrgRole.AGENT, team=team1)
 
-        self.assertEqual("Sales", team1.name)
-        self.assertEqual("Sales", str(team1))
-        self.assertEqual(f'<Team: id={team1.id} name="Sales">', repr(team1))
-
+        self.assertEqual("Sales & Support", team1.name)
+        self.assertEqual("Sales & Support", str(team1))
+        self.assertEqual(f'<Team: id={team1.id} name="Sales & Support">', repr(team1))
         self.assertEqual({self.agent, agent2}, set(team1.get_users()))
+        self.assertEqual({sales, support}, set(team1.topics.all()))
+        self.assertFalse(team1.all_topics)
+
+        # create an unrestricted team
+        team2 = Team.create(self.org, self.admin, "Any Topic", all_topics=True)
+        self.assertEqual(set(), set(team2.topics.all()))
+        self.assertTrue(team2.all_topics)
 
         # try to create with invalid name
         with self.assertRaises(AssertionError):
@@ -1330,7 +1344,7 @@ class TeamTest(TembaTest):
 
         # try to create with name that already exists
         with self.assertRaises(AssertionError):
-            Team.create(self.org, self.admin, "Sales")
+            Team.create(self.org, self.admin, "Sales & Support")
 
     def test_release(self):
         team1 = Team.create(self.org, self.admin, "Sales")
@@ -1340,8 +1354,14 @@ class TeamTest(TembaTest):
 
         self.assertFalse(team1.is_active)
         self.assertTrue(team1.name.startswith("deleted-"))
-
         self.assertEqual(0, team1.get_users().count())
+
+        # check agent was re-assigned to default team
+        self.assertEqual({self.agent}, set(self.org.default_ticket_team.get_users()))
+
+        # can't release system team
+        with self.assertRaises(AssertionError):
+            self.org.default_ticket_team.release(self.admin)
 
 
 class TicketDailyCountTest(TembaTest):
@@ -1515,4 +1535,21 @@ class TicketDailyTimingTest(TembaTest):
 
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
+        )
+
+
+class BackfillDefaultTeamsTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0067_team_is_default"
+    migrate_to = "0068_backfill_default_teams"
+
+    def setUpBeforeMigration(self, apps):
+        self.org2.teams.all().delete()
+
+    def test_migration(self):
+        self.assertEqual(
+            1, self.org.teams.filter(name="All Topics", is_default=True, is_system=True, all_topics=True).count()
+        )
+        self.assertEqual(
+            1, self.org2.teams.filter(name="All Topics", is_default=True, is_system=True, all_topics=True).count()
         )

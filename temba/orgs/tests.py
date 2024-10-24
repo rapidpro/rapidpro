@@ -36,7 +36,7 @@ from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
-from temba.tickets.models import TicketExport
+from temba.tickets.models import Team, TicketExport, Topic
 from temba.triggers.models import Trigger
 from temba.utils import json, languages
 from temba.utils.uuid import uuid4
@@ -1311,10 +1311,12 @@ class OrgDeleteTest(TembaTest):
         add(FlowStartCount.objects.create(start=start1, count=1))
 
     def _create_ticket_content(self, org, user, contacts, flows, add):
-        ticket1 = add(self.create_ticket(contacts[0]))
+        topic = add(Topic.create(org, user, "Spam"))
+        ticket1 = add(self.create_ticket(contacts[0], topic))
         ticket1.events.create(org=org, contact=contacts[0], event_type="N", note="spam", created_by=user)
 
         add(self.create_ticket(contacts[0], opened_in=flows[0]))
+        add(Team.create(org, user, "Spam Only", topics=[topic]))
 
     def _create_export_content(self, org, user, flows, groups, fields, labels, add):
         results = add(

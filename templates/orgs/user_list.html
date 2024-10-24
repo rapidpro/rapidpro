@@ -38,12 +38,11 @@
           </td>
           <td class="w-10">
             {% if obj.role.code != "A" or admin_count > 1 %}
-              <div style="visibility:hidden"
-                   onclick="event.stopPropagation(); showDeleteUserModal({{ obj.id }});"
-                   class="pl-2 pt-1 delete-link linked text-gray-400">
-                <temba-icon name="delete_small">
-                </temba-icon>
-              </div>
+              <temba-icon name="delete"
+                          clickable="true"
+                          style="--icon-color:#bbb"
+                          onclick="event.stopPropagation(); showDeleteUserModal({{ obj.id }});">
+              </temba-icon>
             {% endif %}
           </td>
         </tr>
