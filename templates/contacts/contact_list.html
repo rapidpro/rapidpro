@@ -219,7 +219,7 @@
             {% endif %}
           </th>
         </tr>
-        {% for object in contacts %}
+        {% for object in object_list %}
           <tr onclick="handleRowClicked(event)"
               data-uuid="{{ object.uuid }}"
               data-object-id="{{ object.id }}"
