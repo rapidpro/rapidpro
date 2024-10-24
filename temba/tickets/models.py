@@ -138,6 +138,8 @@ class Team(TembaModel):
         return self.org.users.filter(orgmembership__team=self)
 
     def release(self, user):
+        assert not (self.is_system and self.org.is_active), "can't release system teams"
+
         # re-assign agents in this team to the default team
         OrgMembership.objects.filter(org=self.org, team=self).update(team=self.org.default_ticket_team)
 

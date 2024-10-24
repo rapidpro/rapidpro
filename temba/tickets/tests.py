@@ -1303,7 +1303,7 @@ class TopicTest(TembaTest):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
 
-        # can't release default topic
+        # can't release system topic
         with self.assertRaises(AssertionError):
             self.org.default_ticket_topic.release(self.admin)
 
@@ -1358,6 +1358,10 @@ class TeamTest(TembaTest):
 
         # check agent was re-assigned to default team
         self.assertEqual({self.agent}, set(self.org.default_ticket_team.get_users()))
+
+        # can't release system team
+        with self.assertRaises(AssertionError):
+            self.org.default_ticket_team.release(self.admin)
 
 
 class TicketDailyCountTest(TembaTest):
