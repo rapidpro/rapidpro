@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("tickets", "0065_team_all_topics"),
+        ("tickets", "0066_alter_shortcut_text"),
     ]
 
     operations = [

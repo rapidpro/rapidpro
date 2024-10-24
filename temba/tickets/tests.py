@@ -1354,8 +1354,10 @@ class TeamTest(TembaTest):
 
         self.assertFalse(team1.is_active)
         self.assertTrue(team1.name.startswith("deleted-"))
-
         self.assertEqual(0, team1.get_users().count())
+
+        # check agent was re-assigned to default team
+        self.assertEqual({self.agent}, set(self.org.default_ticket_team.get_users()))
 
 
 class TicketDailyCountTest(TembaTest):
