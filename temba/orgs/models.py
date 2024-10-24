@@ -1104,7 +1104,7 @@ class Org(SmartModel):
         def get():
             # for staff we return a faked membership: admin role, no team
             if user.is_staff:
-                return OrgMembership(org=self, user=user, role_code=OrgRole.ADMINISTRATOR, team=None)
+                return OrgMembership(org=self, user=user, role_code=OrgRole.ADMINISTRATOR.code, team=None)
 
             return OrgMembership.objects.filter(org=self, user=user).first()
 

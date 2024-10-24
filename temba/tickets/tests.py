@@ -1538,18 +1538,14 @@ class TicketDailyTimingTest(TembaTest):
         )
 
 
-class BackfillDefaultTeamsTest(MigrationTest):
+class AssignAgentsToDefaultTeamTest(MigrationTest):
     app = "tickets"
-    migrate_from = "0067_team_is_default"
-    migrate_to = "0068_backfill_default_teams"
+    migrate_from = "0068_backfill_default_teams"
+    migrate_to = "0069_assign_agents_to_default_team"
 
     def setUpBeforeMigration(self, apps):
-        self.org2.teams.all().delete()
+        OrgMembership.objects.filter(user=self.agent).update(team=None)
 
     def test_migration(self):
-        self.assertEqual(
-            1, self.org.teams.filter(name="All Topics", is_default=True, is_system=True, all_topics=True).count()
-        )
-        self.assertEqual(
-            1, self.org2.teams.filter(name="All Topics", is_default=True, is_system=True, all_topics=True).count()
-        )
+        self.assertEqual(1, OrgMembership.objects.filter(user=self.agent, team=self.org.default_ticket_team).count())
+        self.assertEqual(1, OrgMembership.objects.exclude(team=None).count())

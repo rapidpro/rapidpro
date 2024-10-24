@@ -371,7 +371,7 @@ class UserCRUDL(SmartCRUDL):
             for user in context["object_list"]:
                 membership = self.request.org.get_membership(user)
                 user.role = membership.role
-                user.team = membership.team
+                # user.team = membership.team  # TODO enable this when orgs can create teams
 
             context["has_viewers"] = self.request.org.get_users(roles=[OrgRole.VIEWER]).exists()
             context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
