@@ -1,3 +1,9 @@
+v9.3.79 (2024-10-24)
+-------------------------
+ * Add max length of 10,000 to shortcut text
+ * Give every workspace a default team with access to all topics
+ * Change delete links on list views to be clearer
+
 v9.3.78 (2024-10-23)
 -------------------------
  * Use django filter to format archive size
