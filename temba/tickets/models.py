@@ -29,7 +29,7 @@ class Shortcut(TembaModel):
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="shortcuts")
-    text = models.TextField()
+    text = models.TextField(max_length=10_000)
 
     @classmethod
     def create(cls, org, user, name: str, text: str):
