@@ -97,13 +97,6 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         search = quote_plus(self.request.GET.get("search", ""))
         return f"{reverse('contacts.contact_export')}?g={self.group.uuid}&s={search}"
 
-    def derive_refresh(self):
-        # smart groups that are reevaluating should refresh every 2 seconds
-        if self.group.is_smart and self.group.status != ContactGroup.STATUS_READY:
-            return 200000
-
-        return None
-
     def get_queryset(self, **kwargs):
         org = self.request.org
         self.search_error = None
@@ -149,9 +142,15 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        org = self.request.org
 
         # prefetch contact URNs
         Contact.bulk_urn_cache_initialize(context["object_list"])
+
+        # get the first 6 featured fields as well as the last seen and created fields
+        featured_fields = ContactField.get_fields(org, featured=True).order_by("-priority", "id")[0:6]
+        proxy_fields = org.fields.filter(key__in=("last_seen_on", "created_on"), is_proxy=True).order_by("-key")
+        context["contact_fields"] = list(featured_fields) + list(proxy_fields)
 
         context["search_error"] = self.search_error
         context["sort_direction"] = self.sort_direction
@@ -541,13 +540,6 @@ class ContactCRUDL(SmartCRUDL):
 
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            org = self.request.org
-
-            context["contact_fields"] = ContactField.get_fields(org).order_by("-show_in_table", "-priority", "id")[0:6]
-            return context
 
     class Blocked(ContextMenuMixin, ContactListView):
         title = _("Blocked")
