@@ -1,6 +1,6 @@
 {% extends "contacts/contact_list.html" %}
 {% load i18n %}
 
-{% block subtitle %}
-  {% trans "These contacts have opted out and you can no longer send them messages, but inbound messages will unstop them. They have also been removed from all groups." %}
-{% endblock subtitle %}
+{% block pre-table %}
+  <div class="mb-4">{% trans "These contacts have opted out and you can no longer send them messages, but inbound messages will unstop them. They have also been removed from all groups." %}</div>
+{% endblock pre-table %}

@@ -14,9 +14,12 @@
         <input type="submit" class="hide">
       </form>
     {% endblock search-form %}
+    {% if search_error %}<div class="alert alert-error mb-4">{{ search_error }}</div>{% endif %}
   {% endif %}
   {% if view.paginate_by %}
-    <div class="shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+    {% block pagination %}
+      <div class="shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+    {% endblock pagination %}
   {% endif %}
   <div class="flex-grow overflow-y-auto shadow">
     {% block table %}

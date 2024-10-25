@@ -74,6 +74,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     sort_field = None
     sort_direction = None
 
+    search_fields = ("name",)  # so that search box is displayed
     search_error = None
 
     def pre_process(self, request, *args, **kwargs):
