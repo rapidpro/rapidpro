@@ -19,10 +19,7 @@ class TemplateCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             return Template.annotate_usage(
-                super()
-                .get_queryset(**kwargs)
-                .filter(org=self.request.org, is_active=True)
-                .exclude(base_translation=None)  # don't show "empty" templates
+                super().get_queryset(**kwargs).exclude(base_translation=None)  # don't show "empty" templates
             )
 
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):

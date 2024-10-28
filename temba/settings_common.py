@@ -343,7 +343,7 @@ PERMISSIONS = {
     ),
     "api.apitoken": ("explorer",),
     "archives.archive": ("run", "message"),
-    "campaigns.campaign": ("archived", "archive", "activate", "menu"),
+    "campaigns.campaign": ("archive", "activate", "menu"),
     "channels.channel": ("chart", "claim", "configuration", "errors", "facebook_whitelist"),
     "channels.channellog": ("connection",),
     "classifiers.classifier": ("connect", "sync"),
@@ -596,7 +596,6 @@ GROUP_PERMISSIONS = {
         "triggers.trigger.*",
     ),
     "Viewers": (
-        "campaigns.campaign_archived",
         "campaigns.campaign_list",
         "campaigns.campaign_menu",
         "campaigns.campaign_read",

@@ -1,3 +1,15 @@
+v9.3.81 (2024-10-28)
+-------------------------
+ * Fix N+1 query on contact list page
+ * Cleanup more list pages and move more functionality to org/base views
+
+v9.3.80 (2024-10-24)
+-------------------------
+ * Add migration to assign teamless agents to the default team
+ * Prevent deletion of system teams
+ * Assign new agent users to the default team if team not specified
+ * Data migration to give existing orgs a default team
+
 v9.3.79 (2024-10-24)
 -------------------------
  * Add max length of 10,000 to shortcut text

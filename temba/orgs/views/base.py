@@ -54,7 +54,15 @@ class BaseUpdateModal(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, Smar
         return kwargs
 
     def derive_queryset(self, **kwargs):
-        return super().derive_queryset(**kwargs).filter(org=self.request.org, is_active=True)
+        qs = super().derive_queryset(**kwargs).filter(org=self.request.org)
+
+        if hasattr(self.model, "is_active"):
+            qs = qs.filter(is_active=True)
+
+        if hasattr(self.model, "is_system"):
+            qs = qs.filter(is_system=False)
+
+        return qs
 
 
 class BaseDeleteModal(OrgObjPermsMixin, SmartDeleteView):
@@ -67,7 +75,10 @@ class BaseDeleteModal(OrgObjPermsMixin, SmartDeleteView):
         return context
 
     def post(self, request, *args, **kwargs):
-        self.get_object().release(self.request.user)
+        obj = self.get_object()
+
+        if not getattr(obj, "is_system", False):
+            obj.release(self.request.user)
 
         return HttpResponseRedirect(self.get_redirect_url())
 
@@ -78,12 +89,12 @@ class BaseListView(SpaMixin, OrgPermsMixin, SmartListView):
     """
 
     def derive_queryset(self, **kwargs):
-        qs = super().derive_queryset(**kwargs)
+        qs = super().derive_queryset(**kwargs).filter(org=self.request.org)
 
-        if not self.request.user.is_authenticated:
-            return qs.none()  # pragma: no cover
-        else:
-            return qs.filter(org=self.request.org)
+        if hasattr(self.model, "is_active"):
+            qs = qs.filter(is_active=True)
+
+        return qs
 
 
 class BaseMenuView(OrgPermsMixin, SmartTemplateView):

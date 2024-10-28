@@ -1,6 +1,6 @@
 {% extends "contacts/contact_list.html" %}
 {% load i18n %}
 
-{% block subtitle %}
-  {% trans "All inbound messages from these contacts are ignored. They have also been removed from all groups." %}
-{% endblock subtitle %}
+{% block pre-table %}
+  <div class="mb-4">{% trans "All inbound messages from these contacts are ignored. They have also been removed from all groups." %}</div>
+{% endblock pre-table %}

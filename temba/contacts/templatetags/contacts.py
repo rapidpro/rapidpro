@@ -24,16 +24,14 @@ MISSING_VALUE = "--"
 
 
 @register.simple_tag()
-def contact_field(contact, key):
-    field = contact.org.fields.filter(is_active=True, key=key).first()
-    if field is None:
-        return MISSING_VALUE
-
+def contact_field(contact, field):
     value = contact.get_field_display(field)
+
     if value and field.value_type == ContactField.TYPE_DATETIME:
         value = contact.get_field_value(field)
         if value:
-            return mark_safe(f"<temba-date value='{value.isoformat()}' display='date'></temba-date>")
+            display = "timedate" if field.is_proxy else "date"
+            return mark_safe(f"<temba-date value='{value.isoformat()}' display='{display}'></temba-date>")
 
     return value or MISSING_VALUE
 
