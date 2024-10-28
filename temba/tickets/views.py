@@ -1,11 +1,11 @@
 from datetime import timedelta
 
-from smartmin.views import SmartCRUDL, SmartDeleteView, SmartListView, SmartTemplateView, SmartUpdateView
+from smartmin.views import SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
 from django.db.models.functions import Lower
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.http import Http404, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -95,29 +95,17 @@ class TopicCRUDL(SmartCRUDL):
     class Update(BaseUpdateModal):
         form_class = TopicForm
         success_url = "hide"
-        slug_url_kwarg = "uuid"
 
-    class Delete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
-        default_template = "smartmin/delete_confirm.html"
-        submit_button_name = _("Delete")
-        slug_url_kwarg = "uuid"
-        fields = ("uuid",)
+    class Delete(BaseDeleteModal):
         cancel_url = "@tickets.ticket_list"
-        redirect_url = "@tickets.ticket_list"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["has_tickets"] = self.object.tickets.exists()
             return context
 
-        def post(self, request, *args, **kwargs):
-            self.get_object().release(self.request.user)
-            redirect_url = self.get_redirect_url()
-            return HttpResponseRedirect(redirect_url)
-
         def get_redirect_url(self, **kwargs):
-            default_topic = self.get_object().org.topics.filter(is_default=True).first()
-            return f"/ticket/{str(default_topic.uuid)}/open/"
+            return f"/ticket/{self.request.org.default_ticket_topic.uuid}/open/"
 
 
 class TeamCRUDL(SmartCRUDL):
@@ -199,9 +187,9 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_notification_scope(self) -> tuple:
             folder, status, _, _ = self.tickets_path
-            if folder == UnassignedFolder.id and status == "open":
+            if folder == UnassignedFolder.slug and status == "open":
                 return "tickets:opened", ""
-            elif folder == MineFolder.id and status == "open":
+            elif folder == MineFolder.slug and status == "open":
                 return "tickets:activity", ""
             return "", ""
 
@@ -223,7 +211,7 @@ class TicketCRUDL(SmartCRUDL):
                 status_code = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED
                 org = self.request.org
                 user = self.request.user
-                ticket_folder = TicketFolder.from_id(org, folder)
+                ticket_folder = TicketFolder.from_slug(org, folder)
 
                 if not ticket_folder:
                     raise Http404()
@@ -237,10 +225,10 @@ class TicketCRUDL(SmartCRUDL):
                     # if it's not, switch our folder to everything with that ticket's state
                     ticket = org.tickets.filter(uuid=uuid).first()
                     if ticket:
-                        folder = AllFolder.id
+                        folder = AllFolder.slug
                         status = "open" if ticket.status == Ticket.STATUS_OPEN else "closed"
 
-            return folder or MineFolder.id, status or "open", uuid, in_page
+            return folder or MineFolder.slug, status or "open", uuid, in_page
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -250,7 +238,7 @@ class TicketCRUDL(SmartCRUDL):
             context["status"] = status
             context["has_tickets"] = self.request.org.tickets.exists()
 
-            folder = TicketFolder.from_id(self.request.org, folder)
+            folder = TicketFolder.from_slug(self.request.org, folder)
             context["title"] = folder.name
 
             if uuid:
@@ -259,10 +247,6 @@ class TicketCRUDL(SmartCRUDL):
             return context
 
         def build_context_menu(self, menu):
-            # we only support dynamic content menus
-            if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
-                return
-
             uuid = self.kwargs.get("uuid")
             if uuid:
                 ticket = self.request.org.tickets.filter(uuid=uuid).first()
@@ -311,20 +295,20 @@ class TicketCRUDL(SmartCRUDL):
             user = self.request.user
             count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
             counts = {
-                MineFolder.id: count_by_assignee[user],
-                UnassignedFolder.id: count_by_assignee[None],
-                AllFolder.id: TicketCount.get_all(org, Ticket.STATUS_OPEN),
+                MineFolder.slug: count_by_assignee[user],
+                UnassignedFolder.slug: count_by_assignee[None],
+                AllFolder.slug: TicketCount.get_all(org, Ticket.STATUS_OPEN),
             }
 
             menu = []
             for folder in TicketFolder.all().values():
                 menu.append(
                     {
-                        "id": folder.id,
+                        "id": folder.slug,
                         "name": folder.name,
                         "icon": folder.icon,
-                        "count": counts[folder.id],
-                        "href": f"/ticket/{folder.id}/open/",
+                        "count": counts[folder.slug],
+                        "href": f"/ticket/{folder.slug}/open/",
                     }
                 )
 
@@ -370,37 +354,30 @@ class TicketCRUDL(SmartCRUDL):
             return rf"^{path}/{action}/(?P<folder>{folders}|{UUID_REGEX.pattern})/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
 
         @cached_property
-        def folder(self):
-            folder = TicketFolder.from_id(self.request.org, self.kwargs["folder"])
+        def folder(self) -> TicketFolder:
+            folder = TicketFolder.from_slug(self.request.org, self.kwargs["folder"])
             if not folder:
                 raise Http404()
+
             return folder
 
         def build_context_menu(self, menu):
-            # we only support dynamic content menus
-            if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
-                return
-
-            if (
-                self.has_org_perm("tickets.topic_update")
-                and isinstance(self.folder, TopicFolder)
-                and not self.folder.is_system
-            ):
-
-                menu.add_modax(
-                    _("Edit"),
-                    "edit-topic",
-                    f"{reverse('tickets.topic_update', args=[self.folder.id])}",
-                    title=_("Edit Topic"),
-                    on_submit="handleTopicUpdated()",
-                )
-
-                menu.add_modax(
-                    _("Delete"),
-                    "delete-topic",
-                    f"{reverse('tickets.topic_delete', args=[self.folder.id])}",
-                    title=_("Delete"),
-                )
+            if isinstance(self.folder, TopicFolder) and not self.folder.topic.is_system:
+                if self.has_org_perm("tickets.topic_update"):
+                    menu.add_modax(
+                        _("Edit"),
+                        "edit-topic",
+                        f"{reverse('tickets.topic_update', args=[self.folder.topic.id])}",
+                        title=_("Edit Topic"),
+                        on_submit="handleTopicUpdated()",
+                    )
+                if self.has_org_perm("tickets.topic_delete"):
+                    menu.add_modax(
+                        _("Delete"),
+                        "delete-topic",
+                        f"{reverse('tickets.topic_delete', args=[self.folder.topic.id])}",
+                        title=_("Delete Topic"),
+                    )
 
         def get_queryset(self, **kwargs):
             org = self.request.org
@@ -502,7 +479,7 @@ class TicketCRUDL(SmartCRUDL):
             # build up our next link if we have more
             if len(context["tickets"]) >= self.paginate_by:
                 folder_url = reverse(
-                    "tickets.ticket_folder", kwargs={"folder": self.folder.id, "status": self.kwargs["status"]}
+                    "tickets.ticket_folder", kwargs={"folder": self.folder.slug, "status": self.kwargs["status"]}
                 )
                 last_time = results["results"][-1]["ticket"]["last_activity_on"]
                 results["next"] = f"{folder_url}?before={datetime_to_timestamp(last_time)}"
