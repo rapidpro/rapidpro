@@ -175,7 +175,7 @@ class ContactCRUDL(SmartCRUDL):
         "list",
         "menu",
         "read",
-        "filter",
+        "group",
         "blocked",
         "omnibox",
         "open_ticket",
@@ -257,7 +257,7 @@ class ContactCRUDL(SmartCRUDL):
                         name=g.name,
                         icon=g.icon,
                         count=group_counts[g],
-                        href=reverse("contacts.contact_filter", args=[g.uuid]),
+                        href=reverse("contacts.contact_group", args=[g.uuid]),
                     )
                 )
 
@@ -600,8 +600,8 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contact_delete"):
                 menu.add_js("contacts_delete_all", _("Delete All"))
 
-    class Filter(OrgObjPermsMixin, ContextMenuMixin, ContactListView):
-        template_name = "contacts/contact_filter.html"
+    class Group(OrgObjPermsMixin, ContextMenuMixin, ContactListView):
+        template_name = "contacts/contact_group.html"
 
         def build_context_menu(self, menu):
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
@@ -843,7 +843,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Create(ComponentFormMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
         fields = ("name", "preselected_contacts", "group_query")
-        success_url = "uuid@contacts.contact_filter"
+        success_url = "uuid@contacts.contact_group"
         submit_button_name = _("Create")
 
         def save(self, obj):
@@ -877,7 +877,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactGroupForm
         fields = ("name",)
-        success_url = "uuid@contacts.contact_filter"
+        success_url = "uuid@contacts.contact_group"
 
         def get_queryset(self):
             return super().get_queryset().filter(is_system=False)
@@ -906,7 +906,7 @@ class ContactGroupCRUDL(SmartCRUDL):
         permission = "contacts.contactgroup_read"
 
     class Delete(BaseDependencyDeleteModal):
-        cancel_url = "uuid@contacts.contact_filter"
+        cancel_url = "uuid@contacts.contact_group"
         success_url = "@contacts.contact_list"
 
 

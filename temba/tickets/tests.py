@@ -1285,6 +1285,25 @@ class TopicTest(TembaTest):
         self.assertIsNone(topic15)
         self.assertEqual(Topic.ImportResult.IGNORED_LIMIT_REACHED, result)
 
+    def test_get_accessible(self):
+        topic1 = Topic.create(self.org, self.admin, "Sales")
+        topic2 = Topic.create(self.org, self.admin, "Support")
+        team1 = Team.create(self.org, self.admin, "Sales & Support", topics=[topic1, topic2])
+        team2 = Team.create(self.org, self.admin, "Nothing", topics=[])
+        agent2 = self.create_user("agent2@nyaruka.com")
+        self.org.add_user(agent2, OrgRole.AGENT, team=team1)
+        agent3 = self.create_user("agent3@nyaruka.com")
+        self.org.add_user(agent3, OrgRole.AGENT, team=team2)
+
+        self.assertEqual(
+            {self.org.default_ticket_topic, topic1, topic2}, set(Topic.get_accessible(self.org, self.admin))
+        )
+        self.assertEqual(
+            {self.org.default_ticket_topic, topic1, topic2}, set(Topic.get_accessible(self.org, self.agent))
+        )
+        self.assertEqual({topic1, topic2}, set(Topic.get_accessible(self.org, agent2)))
+        self.assertEqual(set(), set(Topic.get_accessible(self.org, agent3)))
+
     def test_release(self):
         topic1 = Topic.create(self.org, self.admin, "Sales")
         topic2 = Topic.create(self.org, self.admin, "Support")

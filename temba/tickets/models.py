@@ -81,6 +81,18 @@ class Topic(TembaModel, DependencyMixin):
     def create_from_import_def(cls, org, user, definition: dict):
         return cls.create(org, user, definition["name"])
 
+    @classmethod
+    def get_accessible(cls, org, user):
+        """
+        Gets the topics accessible to the given user in the given org.
+        """
+
+        membership = org.get_membership(user)
+        if membership.team and not membership.team.all_topics:
+            return membership.team.topics.all()
+
+        return org.topics.filter(is_active=True)
+
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system topics"
         assert not self.tickets.exists(), "can't release topic with tickets"
