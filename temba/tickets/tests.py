@@ -441,6 +441,8 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateFetch(create_url, [self.admin], form_fields=("name", "topics"))
 
         sales = Topic.create(self.org, self.admin, "Sales")
+        for n in range(Team.max_topics + 1):
+            Topic.create(self.org, self.admin, f"Topic {n}")
 
         # try to create with empty values
         self.assertCreateSubmit(
@@ -471,6 +473,14 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             {"name": "X" * 65, "topics": []},
             form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
+        )
+
+        # try to create with too many topics
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Everything", "topics": [t.id for t in self.org.topics.all()]},
+            form_errors={"topics": "Teams can have at most 10 topics."},
         )
 
         self.assertCreateSubmit(

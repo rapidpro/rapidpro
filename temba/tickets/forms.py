@@ -50,10 +50,12 @@ class TeamForm(forms.ModelForm):
 
         return name
 
-    def clean_education(self):
+    def clean_topics(self):
         topics = self.cleaned_data["topics"]
-        if len(topics) > 10:
-            raise forms.ValidationError("Maximum number of topics is 10.")
+        if len(topics) > Team.max_topics:
+            raise forms.ValidationError(
+                _("Teams can have at most %(limit)d topics."), params={"limit": Team.max_topics}
+            )
         return topics
 
     class Meta:
