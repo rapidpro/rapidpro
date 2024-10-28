@@ -432,6 +432,59 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(f"/ticket/{self.org.default_ticket_topic.uuid}/open/", response.url)
 
 
+class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_create(self):
+        create_url = reverse("tickets.team_create")
+
+        self.assertRequestDisallowed(create_url, [None, self.agent, self.user, self.editor])
+
+        self.assertCreateFetch(create_url, [self.admin], form_fields=("name", "topics"))
+
+        sales = Topic.create(self.org, self.admin, "Sales")
+
+        # try to create with empty values
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "", "topics": []},
+            form_errors={"name": "This field is required."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "all topics", "topics": []},
+            form_errors={"name": "Team with this name already exists."},
+        )
+
+        # try to create with name that has invalid characters
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "\\ministry", "topics": []},
+            form_errors={"name": "Cannot contain the character: \\"},
+        )
+
+        # try to create with name that is too long
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "X" * 65, "topics": []},
+            form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Sales", "topics": [sales.id]},
+            new_obj_query=Team.objects.filter(name="Sales", is_system=False),
+            success_status=302,
+        )
+
+        team = Team.objects.get(name="Sales")
+        self.assertEqual({sales}, set(team.topics.all()))
+
+
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()

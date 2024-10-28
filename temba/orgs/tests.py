@@ -1686,6 +1686,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "Dashboard",
                 "Users (4)",
                 "Invitations (0)",
+                "Teams (1)",
                 "Export",
                 "Import",
                 ("Channels", ["New Channel", "Test Channel"]),

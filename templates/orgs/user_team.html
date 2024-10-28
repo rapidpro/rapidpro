@@ -1,0 +1,36 @@
+{% extends "orgs/base/list.html" %}
+{% load smartmin temba i18n %}
+
+{% block pre-table %}
+  {% if not team.all_topics %}
+    <div class="mb-4">
+      {% for topic in team_topics %}
+        <temba-label icon="topic" class="mx-1 my-1">
+          {{ topic.name }}
+        </temba-label>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled">
+    <thead>
+      <tr>
+        <th>{% trans "Email" %}</th>
+        <th>{% trans "Name" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr>
+          <td>{{ obj.email }}</td>
+          <td>{{ obj.name }}</td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No users" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}

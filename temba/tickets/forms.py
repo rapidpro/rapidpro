@@ -1,11 +1,11 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from .models import Shortcut, Topic
+from .models import Shortcut, Team, Topic
 
 
 class ShortcutForm(forms.ModelForm):
-    def __init__(self, org, *args, **kwargs) -> None:
+    def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.org = org
@@ -28,11 +28,42 @@ class ShortcutForm(forms.ModelForm):
         fields = ("name", "text")
 
 
-class TopicForm(forms.ModelForm):
-    def __init__(self, org, *args, **kwargs) -> None:
+class TeamForm(forms.ModelForm):
+    topics = forms.ModelMultipleChoiceField(queryset=Topic.objects.none(), required=False)
+
+    def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        assert not self.instance or not self.instance.is_system, "cannot edit system topic"
+        self.org = org
+        self.fields["topics"].queryset = org.topics.filter(is_active=True)
+
+    def clean_name(self):
+        name = self.cleaned_data["name"]
+
+        # make sure the name isn't already taken
+        conflicts = self.org.teams.filter(name__iexact=name)
+        if self.instance:
+            conflicts = conflicts.exclude(id=self.instance.id)
+
+        if conflicts.exists():
+            raise forms.ValidationError(_("Team with this name already exists."))
+
+        return name
+
+    def clean_education(self):
+        topics = self.cleaned_data["topics"]
+        if len(topics) > 10:
+            raise forms.ValidationError("Maximum number of topics is 10.")
+        return topics
+
+    class Meta:
+        model = Team
+        fields = ("name", "topics")
+
+
+class TopicForm(forms.ModelForm):
+    def __init__(self, org, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.org = org
 

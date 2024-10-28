@@ -28,7 +28,7 @@ from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
 from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
-from .forms import ShortcutForm, TopicForm
+from .forms import ShortcutForm, TeamForm, TopicForm
 from .models import (
     AllFolder,
     MineFolder,
@@ -122,13 +122,47 @@ class TopicCRUDL(SmartCRUDL):
 
 class TeamCRUDL(SmartCRUDL):
     model = Team
-    actions = ("list",)
+    actions = ("create", "update", "delete", "list")
 
-    class List(BaseListView):
+    class Create(BaseCreateModal):
+        form_class = TeamForm
+        success_url = "@tickets.team_list"
+
+        def save(self, obj):
+            return Team.create(self.request.org, self.request.user, obj.name, topics=self.form.cleaned_data["topics"])
+
+    class Update(BaseUpdateModal):
+        form_class = TeamForm
+        success_url = "id@orgs.user_team"
+
+    class Delete(BaseDeleteModal):
+        cancel_url = "id@orgs.user_team"
+        redirect_url = "@tickets.team_list"
+
+    class List(ContextMenuMixin, BaseListView):
         menu_path = "/settings/teams"
 
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(is_active=True).order_by(Lower("name"))
+
+        def build_context_menu(self, menu):
+            if self.has_org_perm("tickets.team_create"):
+                menu.add_modax(
+                    _("New"),
+                    "new-team",
+                    reverse("tickets.team_create"),
+                    title=_("New Team"),
+                    as_button=True,
+                )
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            # annotate each team with its user count
+            for team in context["object_list"]:
+                team.user_count = team.get_users().count()
+
+            return context
 
 
 class TicketCRUDL(SmartCRUDL):
