@@ -2821,6 +2821,20 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertListFetch(list_url + "?search=andy", [self.admin], context_objects=[self.admin])
         self.assertListFetch(list_url + "?search=editor@nyaruka.com", [self.admin], context_objects=[self.editor])
 
+    def test_team(self):
+        team_url = reverse("orgs.user_team", args=[self.org.default_ticket_team.id])
+
+        # nobody can access if users feature not enabled
+        response = self.requestView(team_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(team_url, [None, self.user, self.editor, self.agent])
+
+        self.assertListFetch(team_url, [self.admin], context_objects=[self.agent])
+
     def test_update(self):
         update_url = reverse("orgs.user_update", args=[self.agent.id])
 

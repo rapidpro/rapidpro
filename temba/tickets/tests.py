@@ -484,6 +484,73 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
         team = Team.objects.get(name="Sales")
         self.assertEqual({sales}, set(team.topics.all()))
 
+    def test_update(self):
+        sales = Topic.create(self.org, self.admin, "Sales")
+        marketing = Topic.create(self.org, self.admin, "Marketing")
+        team = Team.create(self.org, self.admin, "Sales", topics=[sales])
+
+        update_url = reverse("tickets.team_update", args=[team.id])
+
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.editor, self.admin2])
+
+        self.assertUpdateFetch(update_url, [self.admin], form_fields=["name", "topics"])
+
+        # names must be unique (case-insensitive)
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "all topics"},
+            form_errors={"name": "Team with this name already exists."},
+            object_unchanged=team,
+        )
+
+        self.assertUpdateSubmit(
+            update_url, self.admin, {"name": "Marketing", "topics": [marketing.id]}, success_status=302
+        )
+
+        team.refresh_from_db()
+        self.assertEqual(team.name, "Marketing")
+        self.assertEqual({marketing}, set(team.topics.all()))
+
+        # can't edit a system team
+        self.assertRequestDisallowed(
+            reverse("tickets.team_update", args=[self.org.default_ticket_team.id]), [self.admin]
+        )
+
+    def test_delete(self):
+        sales = Topic.create(self.org, self.admin, "Sales")
+        team1 = Team.create(self.org, self.admin, "Sales", topics=[sales])
+        team2 = Team.create(self.org, self.admin, "Other", topics=[sales])
+
+        delete_url = reverse("tickets.team_delete", args=[team1.id])
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.editor, self.admin2])
+
+        response = self.assertDeleteFetch(delete_url, [self.admin])
+        self.assertContains(response, "You are about to delete")
+
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=team1, success_status=302)
+
+        # other team unafected
+        team2.refresh_from_db()
+        self.assertTrue(team2.is_active)
+
+        # we should have been redirected to the team list
+        self.assertEqual("/team/", response.url)
+
+    def test_list(self):
+        sales = Topic.create(self.org, self.admin, "Sales")
+        team1 = Team.create(self.org, self.admin, "Sales", topics=[sales])
+        team2 = Team.create(self.org, self.admin, "Other", topics=[sales])
+        Team.create(self.org2, self.admin2, "Cars", topics=[])
+
+        list_url = reverse("tickets.team_list")
+
+        self.assertRequestDisallowed(list_url, [None, self.agent, self.editor])
+
+        self.assertListFetch(list_url, [self.admin], context_objects=[self.org.default_ticket_team, team2, team1])
+
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
