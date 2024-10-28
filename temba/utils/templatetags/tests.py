@@ -158,7 +158,7 @@ class TembaTagLibraryTest(TembaTest):
         group = self.create_group("Testers", contacts=[])
 
         self.assertEqual(f"/flow/editor/{flow.uuid}/", tags.object_url(flow))
-        self.assertEqual(f"/contact/filter/{group.uuid}/", tags.object_url(group))
+        self.assertEqual(f"/contact/group/{group.uuid}/", tags.object_url(group))
 
     def test_object_class_plural(self):
         self.assertEqual("Flow", tags.object_class_name(Flow()))
