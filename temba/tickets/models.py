@@ -18,7 +18,7 @@ from temba.utils import chunk_list
 from temba.utils.dates import date_range
 from temba.utils.export import MultiSheetExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
-from temba.utils.uuid import uuid4
+from temba.utils.uuid import is_uuid, uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -295,13 +295,13 @@ class TicketEvent(models.Model):
 
 
 class TicketFolder(metaclass=ABCMeta):
-    id = None
+    slug = None
     name = None
     icon = None
     verbose_name = None
 
     def get_queryset(self, org, user, ordered):
-        qs = Ticket.objects.filter(org=org)
+        qs = org.tickets.all()
 
         if ordered:
             qs = qs.order_by("-last_activity_on", "-id")
@@ -309,32 +309,17 @@ class TicketFolder(metaclass=ABCMeta):
         return qs.select_related("topic", "assignee").prefetch_related("contact")
 
     @classmethod
-    def from_id(cls, org, id: str):
-        folder = FOLDERS.get(id, None)
-        if not folder:
-            topic = Topic.objects.filter(org=org, uuid=id).first()
+    def from_slug(cls, org, slug_or_uuid: str):
+        if is_uuid(slug_or_uuid):
+            topic = org.topics.filter(uuid=slug_or_uuid, is_active=True).first()
             if topic:
-                folder = TopicFolder(topic)
-        return folder
+                return TopicFolder(topic)
+
+        return FOLDERS.get(slug_or_uuid, None)
 
     @classmethod
     def all(cls):
         return FOLDERS
-
-
-class TopicFolder(TicketFolder):
-    """
-    Tickets assigned to the current user
-    """
-
-    def __init__(self, topic: Topic):
-        self.topic = topic
-        self.id = topic.uuid
-        self.name = topic.name
-        self.is_system = topic.is_system
-
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered).filter(topic=self.topic)
 
 
 class MineFolder(TicketFolder):
@@ -342,7 +327,7 @@ class MineFolder(TicketFolder):
     Tickets assigned to the current user
     """
 
-    id = "mine"
+    slug = "mine"
     name = _("My Tickets")
     icon = "tickets_mine"
 
@@ -355,7 +340,7 @@ class UnassignedFolder(TicketFolder):
     Tickets not assigned to any user
     """
 
-    id = "unassigned"
+    slug = "unassigned"
     name = _("Unassigned")
     verbose_name = _("Unassigned Tickets")
     icon = "tickets_unassigned"
@@ -369,7 +354,7 @@ class AllFolder(TicketFolder):
     All tickets
     """
 
-    id = "all"
+    slug = "all"
     name = _("All")
     verbose_name = _("All Tickets")
     icon = "tickets_all"
@@ -378,7 +363,21 @@ class AllFolder(TicketFolder):
         return super().get_queryset(org, user, ordered)
 
 
-FOLDERS = {f.id: f() for f in TicketFolder.__subclasses__() if f.id}
+FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
+
+
+class TopicFolder(TicketFolder):
+    """
+    Tickets with a specific topic
+    """
+
+    def __init__(self, topic: Topic):
+        self.slug = topic.uuid
+        self.name = topic.name
+        self.topic = topic
+
+    def get_queryset(self, org, user, ordered):
+        return super().get_queryset(org, user, ordered).filter(topic=self.topic)
 
 
 class TicketCount(SquashableModel):
