@@ -52,7 +52,7 @@
           <div class="import-result text-lg mt-2">
             <temba-icon name="check" class="text-success mr-2">
             </temba-icon>
-            {% url 'contacts.contact_filter' object.group.uuid as group_url %}
+            {% url 'contacts.contact_group' object.group.uuid as group_url %}
             {% blocktrans trimmed count info.num_created|add:info.num_updated as count with group_url=group_url group_name=object.group.name %}
               Added {{ count }} contact to the <span class="linked" onclick="goto(event)" href="{{ group_url }}">{{ group_name }}</span> group
             {% plural %}

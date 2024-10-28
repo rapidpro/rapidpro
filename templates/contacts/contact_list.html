@@ -102,7 +102,7 @@
                 {% for group in object.all_groups.all %}
                   {% if group.group_type == 'U' %}
                     <span data-id="{{ group.id }}" class="label label-info lbl">
-                      <a href="{% url 'contacts.contact_filter' group.uuid %}">{{ group.name }}</a>
+                      <a href="{% url 'contacts.contact_group' group.uuid %}">{{ group.name }}</a>
                     </span>
                   {% endif %}
                 {% endfor %}
