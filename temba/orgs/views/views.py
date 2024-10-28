@@ -380,7 +380,7 @@ class UserCRUDL(SmartCRUDL):
 
     class Team(RequireFeatureMixin, ContextMenuMixin, BaseListView):
         permission = "orgs.user_list"
-        require_feature = Org.FEATURE_USERS
+        require_feature = Org.FEATURE_TEAMS
         menu_path = "/settings/teams"
         search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
 
@@ -1064,14 +1064,15 @@ class OrgCRUDL(SmartCRUDL):
                             count=org.invitations.filter(is_active=True).count(),
                         )
                     )
-                    menu.append(
-                        self.create_menu_item(
-                            name=_("Teams"),
-                            icon="agent",
-                            href="tickets.team_list",
-                            count=org.teams.filter(is_active=True).count(),
+                    if Org.FEATURE_TEAMS in org.features:
+                        menu.append(
+                            self.create_menu_item(
+                                name=_("Teams"),
+                                icon="agent",
+                                href="tickets.team_list",
+                                count=org.teams.filter(is_active=True).count(),
+                            )
                         )
-                    )
 
                 menu.append(self.create_divider())
                 if self.has_org_perm("orgs.org_export"):

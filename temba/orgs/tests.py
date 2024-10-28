@@ -1657,8 +1657,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-        # enable child workspaces and users
-        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
+        # enable child workspaces, users and teams
+        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS, Org.FEATURE_TEAMS]
         self.org.save(update_fields=("features",))
 
         self.child_org = Org.objects.create(
@@ -2824,16 +2824,22 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_team(self):
         team_url = reverse("orgs.user_team", args=[self.org.default_ticket_team.id])
 
-        # nobody can access if users feature not enabled
+        # nobody can access if teams feature not enabled
         response = self.requestView(team_url, self.admin)
         self.assertRedirect(response, reverse("orgs.org_workspace"))
 
-        self.org.features = [Org.FEATURE_USERS]
+        self.org.features = [Org.FEATURE_TEAMS]
         self.org.save(update_fields=("features",))
 
         self.assertRequestDisallowed(team_url, [None, self.user, self.editor, self.agent])
 
         self.assertListFetch(team_url, [self.admin], context_objects=[self.agent])
+        self.assertContentMenu(team_url, self.admin, [])  # because it's a system team
+
+        team = Team.create(self.org, self.admin, "My Team")
+        team_url = reverse("orgs.user_team", args=[team.id])
+
+        self.assertContentMenu(team_url, self.admin, ["Edit", "Delete"])
 
     def test_update(self):
         update_url = reverse("orgs.user_update", args=[self.agent.id])

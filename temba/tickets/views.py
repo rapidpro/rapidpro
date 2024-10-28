@@ -13,6 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
+from temba.orgs.models import Org
 from temba.orgs.views.base import (
     BaseCreateModal,
     BaseDeleteModal,
@@ -21,7 +22,7 @@ from temba.orgs.views.base import (
     BaseMenuView,
     BaseUpdateModal,
 )
-from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin, RequireFeatureMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget
@@ -112,7 +113,8 @@ class TeamCRUDL(SmartCRUDL):
     model = Team
     actions = ("create", "update", "delete", "list")
 
-    class Create(BaseCreateModal):
+    class Create(RequireFeatureMixin, BaseCreateModal):
+        require_feature = Org.FEATURE_TEAMS
         form_class = TeamForm
         success_url = "@tickets.team_list"
 
@@ -127,7 +129,8 @@ class TeamCRUDL(SmartCRUDL):
         cancel_url = "id@orgs.user_team"
         redirect_url = "@tickets.team_list"
 
-    class List(ContextMenuMixin, BaseListView):
+    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+        require_feature = Org.FEATURE_TEAMS
         menu_path = "/settings/teams"
 
         def derive_queryset(self, **kwargs):

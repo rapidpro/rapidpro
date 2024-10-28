@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
-from temba.orgs.models import Export, OrgMembership, OrgRole
+from temba.orgs.models import Export, Org, OrgMembership, OrgRole
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
@@ -436,6 +436,13 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("tickets.team_create")
 
+        # nobody can access if new orgs feature not enabled
+        response = self.requestView(create_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+
         self.assertRequestDisallowed(create_url, [None, self.agent, self.user, self.editor])
 
         self.assertCreateFetch(create_url, [self.admin], form_fields=("name", "topics"))
@@ -556,6 +563,13 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
         Team.create(self.org2, self.admin2, "Cars", topics=[])
 
         list_url = reverse("tickets.team_list")
+
+        # nobody can access if new orgs feature not enabled
+        response = self.requestView(list_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
 
         self.assertRequestDisallowed(list_url, [None, self.agent, self.editor])
 
