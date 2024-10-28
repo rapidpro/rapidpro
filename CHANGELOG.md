@@ -1,3 +1,8 @@
+v9.3.81 (2024-10-28)
+-------------------------
+ * Fix N+1 query on contact list page
+ * Cleanup more list pages and move more functionality to org/base views
+
 v9.3.80 (2024-10-24)
 -------------------------
  * Add migration to assign teamless agents to the default team
