@@ -74,6 +74,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     sort_field = None
     sort_direction = None
 
+    search_fields = ("name",)  # so that search box is displayed
     search_error = None
 
     def pre_process(self, request, *args, **kwargs):
@@ -95,13 +96,6 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     def derive_export_url(self):
         search = quote_plus(self.request.GET.get("search", ""))
         return f"{reverse('contacts.contact_export')}?g={self.group.uuid}&s={search}"
-
-    def derive_refresh(self):
-        # smart groups that are reevaluating should refresh every 2 seconds
-        if self.group.is_smart and self.group.status != ContactGroup.STATUS_READY:
-            return 200000
-
-        return None
 
     def get_queryset(self, **kwargs):
         org = self.request.org
@@ -148,17 +142,17 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         org = self.request.org
 
-        # resolve the paginated object list so we can initialize a cache of URNs
-        contacts = context["object_list"]
-        Contact.bulk_urn_cache_initialize(contacts)
+        # prefetch contact URNs
+        Contact.bulk_urn_cache_initialize(context["object_list"])
 
-        context["contacts"] = contacts
-        context["has_contacts"] = contacts or org.get_contact_count() > 0
+        # get the first 6 featured fields as well as the last seen and created fields
+        featured_fields = ContactField.get_fields(org, featured=True).order_by("-priority", "id")[0:6]
+        proxy_fields = org.fields.filter(key__in=("last_seen_on", "created_on"), is_proxy=True).order_by("-key")
+        context["contact_fields"] = list(featured_fields) + list(proxy_fields)
+
         context["search_error"] = self.search_error
-
         context["sort_direction"] = self.sort_direction
         context["sort_field"] = self.sort_field
 
@@ -546,13 +540,6 @@ class ContactCRUDL(SmartCRUDL):
 
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            org = self.request.org
-
-            context["contact_fields"] = ContactField.get_fields(org).order_by("-show_in_table", "-priority", "id")[0:6]
-            return context
 
     class Blocked(ContextMenuMixin, ContactListView):
         title = _("Blocked")
@@ -1112,7 +1099,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 )
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(is_active=True, is_system=False)
+            return super().derive_queryset(**kwargs).filter(is_proxy=False)
 
     class Usages(FieldLookupMixin, BaseUsagesModal):
         permission = "contacts.contactfield_read"

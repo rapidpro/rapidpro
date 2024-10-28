@@ -67,6 +67,7 @@ class CampaignCRUDL(SmartCRUDL):
                     icon="campaign_archived",
                     count=org.campaigns.filter(is_active=True, is_archived=True).count(),
                     href="campaigns.campaign_archived",
+                    perm="campaigns.campaign_list",
                 )
             )
 
@@ -162,27 +163,19 @@ class CampaignCRUDL(SmartCRUDL):
             return kwargs
 
     class BaseList(ContextMenuMixin, BulkActionMixin, BaseListView):
+        permission = "campaigns.campaign_list"
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"
         default_order = ("-modified_on",)
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["org_has_campaigns"] = self.request.org.campaigns.exists()
-            context["request_url"] = self.request.path
-            return context
-
     class List(BaseList):
         title = _("Active")
-        fields = ("name", "group")
         bulk_actions = ("archive",)
         search_fields = ("name__icontains", "group__name__icontains")
         menu_path = "/campaign/active"
 
         def get_queryset(self, *args, **kwargs):
-            qs = super().get_queryset(*args, **kwargs)
-            qs = qs.filter(is_active=True, is_archived=False)
-            return qs
+            return super().get_queryset(*args, **kwargs).filter(is_archived=False)
 
         def build_context_menu(self, menu):
             if self.has_org_perm("campaigns.campaign_create"):
@@ -196,14 +189,11 @@ class CampaignCRUDL(SmartCRUDL):
 
     class Archived(BaseList):
         title = _("Archived")
-        fields = ("name",)
         bulk_actions = ("restore",)
         menu_path = "/campaign/archived"
 
         def get_queryset(self, *args, **kwargs):
-            qs = super().get_queryset(*args, **kwargs)
-            qs = qs.filter(is_active=True, is_archived=True)
-            return qs
+            return super().get_queryset(*args, **kwargs).filter(is_archived=True)
 
     class Archive(OrgObjPermsMixin, SmartUpdateView):
         fields = ()

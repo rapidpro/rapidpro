@@ -67,7 +67,7 @@ class ShortcutCRUDL(SmartCRUDL):
         menu_path = "/ticket/shortcuts"
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(is_active=True).order_by(Lower("name"))
+            return super().derive_queryset(**kwargs).order_by(Lower("name"))
 
         def build_context_menu(self, menu):
             if self.has_org_perm("tickets.shortcut_create"):

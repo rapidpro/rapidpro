@@ -49,7 +49,7 @@ from .models import (
     ContactURN,
 )
 from .tasks import squash_group_counts
-from .templatetags.contacts import contact_field, msg_status_badge
+from .templatetags.contacts import msg_status_badge
 
 
 class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
@@ -59,8 +59,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
         AdminBoundary.create(osm_id="1708283", name="Kigali", level=1, parent=self.country)
 
-        self.create_field("age", "Age", value_type="N")
-        self.create_field("home", "Home", value_type="S", priority=10)
+        self.create_field("age", "Age", value_type="N", show_in_table=True)
+        self.create_field("home", "Home", value_type="S", show_in_table=True, priority=10)
 
         # sample flows don't actually get created by org initialization during tests because there are no users at that
         # point so create them explicitly here, so that we also get the sample groups
@@ -141,7 +141,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(16):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -162,7 +162,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(response.context["search"], "age = 18")
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
-        self.assertEqual(list(response.context["contact_fields"].values_list("name", flat=True)), ["Home", "Age"])
+        self.assertEqual(
+            [f.name for f in response.context["contact_fields"]], ["Home", "Age", "Last Seen On", "Created On"]
+        )
 
         mr_mocks.contact_search("age = 18", contacts=[frank], total=10020)
 
@@ -3130,21 +3132,6 @@ class ContactFieldTest(TembaTest):
         field7 = ContactField.get_or_create(self.org, self.admin, "new_key", name="  ")
         self.assertEqual("new_key", field7.key)
         self.assertEqual("New Key", field7.name)  # generated
-
-    def test_contact_templatetag(self):
-        ContactField.get_or_create(
-            self.org, self.admin, "date_joined", name="join date", value_type=ContactField.TYPE_DATETIME
-        )
-
-        self.set_contact_field(self.joe, "first", "Starter")
-        self.set_contact_field(self.joe, "date_joined", "01-01-2022 8:30")
-
-        self.assertEqual(contact_field(self.joe, "first"), "Starter")
-        self.assertEqual(
-            contact_field(self.joe, "date_joined"),
-            "<temba-date value='2022-01-01T08:30:00+02:00' display='date'></temba-date>",
-        )
-        self.assertEqual(contact_field(self.joe, "not_there"), "--")
 
     def test_make_key(self):
         self.assertEqual("first_name", ContactField.make_key("First Name"))
