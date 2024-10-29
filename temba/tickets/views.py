@@ -158,25 +158,62 @@ class TeamCRUDL(SmartCRUDL):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "update", "folder", "note", "menu", "export_stats", "export")
+    actions = ("menu", "list", "folder", "update", "note", "export_stats", "export")
 
-    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            def __init__(self, **kwargs):
-                super().__init__(**kwargs)
+    class Menu(BaseMenuView):
+        def derive_menu(self):
+            org = self.request.org
+            user = self.request.user
+            count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
+            counts = {
+                MineFolder.slug: count_by_assignee[user],
+                UnassignedFolder.slug: count_by_assignee[None],
+                AllFolder.slug: TicketCount.get_all(org, Ticket.STATUS_OPEN),
+            }
 
-                self.fields["topic"].queryset = self.instance.org.topics.filter(is_active=True).order_by(
-                    "-is_system", "name"
+            menu = []
+            for folder in TicketFolder.all().values():
+                menu.append(
+                    {
+                        "id": folder.slug,
+                        "name": folder.name,
+                        "icon": folder.icon,
+                        "count": counts[folder.slug],
+                        "href": f"/ticket/{folder.slug}/open/",
+                    }
                 )
 
-            class Meta:
-                fields = ("topic",)
-                model = Ticket
+            menu.append(self.create_divider())
+            menu.append(
+                self.create_menu_item(
+                    menu_id="shortcuts",
+                    name=_("Shortcuts"),
+                    icon="shortcut",
+                    count=org.shortcuts.filter(is_active=True).count(),
+                    href="tickets.shortcut_list",
+                )
+            )
+            menu.append(self.create_modax_button(_("Export"), "tickets.ticket_export", icon="export"))
+            menu.append(
+                self.create_modax_button(_("New Topic"), "tickets.topic_create", icon="add", on_submit="refreshMenu()")
+            )
 
-        form_class = Form
-        fields = ("topic",)
-        slug_url_kwarg = "uuid"
-        success_url = "hide"
+            menu.append(self.create_divider())
+
+            topics = list(Topic.get_accessible(org, user).order_by("-is_system", "name"))
+            counts = TicketCount.get_by_topics(org, topics, Ticket.STATUS_OPEN)
+            for topic in topics:
+                menu.append(
+                    {
+                        "id": topic.uuid,
+                        "name": topic.name,
+                        "icon": "topic",
+                        "count": counts[topic],
+                        "href": f"/ticket/{topic.uuid}/open/",
+                    }
+                )
+
+            return menu
 
     class List(SpaMixin, ContextMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
@@ -291,61 +328,6 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
-
-    class Menu(BaseMenuView):
-        def derive_menu(self):
-            org = self.request.org
-            user = self.request.user
-            count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
-            counts = {
-                MineFolder.slug: count_by_assignee[user],
-                UnassignedFolder.slug: count_by_assignee[None],
-                AllFolder.slug: TicketCount.get_all(org, Ticket.STATUS_OPEN),
-            }
-
-            menu = []
-            for folder in TicketFolder.all().values():
-                menu.append(
-                    {
-                        "id": folder.slug,
-                        "name": folder.name,
-                        "icon": folder.icon,
-                        "count": counts[folder.slug],
-                        "href": f"/ticket/{folder.slug}/open/",
-                    }
-                )
-
-            menu.append(self.create_divider())
-            menu.append(
-                self.create_menu_item(
-                    menu_id="shortcuts",
-                    name=_("Shortcuts"),
-                    icon="shortcut",
-                    count=org.shortcuts.filter(is_active=True).count(),
-                    href="tickets.shortcut_list",
-                )
-            )
-            menu.append(self.create_modax_button(_("Export"), "tickets.ticket_export", icon="export"))
-            menu.append(
-                self.create_modax_button(_("New Topic"), "tickets.topic_create", icon="add", on_submit="refreshMenu()")
-            )
-
-            menu.append(self.create_divider())
-
-            topics = list(Topic.get_accessible(org, user).order_by("-is_system", "name"))
-            counts = TicketCount.get_by_topics(org, topics, Ticket.STATUS_OPEN)
-            for topic in topics:
-                menu.append(
-                    {
-                        "id": topic.uuid,
-                        "name": topic.name,
-                        "icon": "topic",
-                        "count": counts[topic],
-                        "href": f"/ticket/{topic.uuid}/open/",
-                    }
-                )
-
-            return menu
 
     class Folder(ContextMenuMixin, OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"
@@ -488,6 +470,24 @@ class TicketCRUDL(SmartCRUDL):
                 results["next"] = f"{folder_url}?before={datetime_to_timestamp(last_time)}"
 
             return JsonResponse(results)
+
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                self.fields["topic"].queryset = self.instance.org.topics.filter(is_active=True).order_by(
+                    "-is_system", "name"
+                )
+
+            class Meta:
+                fields = ("topic",)
+                model = Ticket
+
+        form_class = Form
+        fields = ("topic",)
+        slug_url_kwarg = "uuid"
+        success_url = "hide"
 
     class Note(ModalFormMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
