@@ -422,7 +422,7 @@ class TicketCRUDL(SmartCRUDL):
             last_msg_ids = Msg.objects.filter(contact_id__in=contact_ids).values("contact").annotate(last_msg=Max("id"))
             last_msgs = Msg.objects.filter(id__in=[m["last_msg"] for m in last_msg_ids]).select_related("created_by")
 
-            context["last_msgs"] = {m.contact: m for m in last_msgs}
+            context["last_msgs"] = {m.contact_id: m for m in last_msgs}
             return context
 
         def render_to_response(self, context, **response_kwargs):
@@ -446,10 +446,10 @@ class TicketCRUDL(SmartCRUDL):
                 """
                 Converts a ticket to the contact-centric format expected by our frontend components
                 """
-                last_msg = context["last_msgs"].get(t.contact)
+                last_msg = context["last_msgs"].get(t.contact_id)
                 return {
                     "uuid": str(t.contact.uuid),
-                    "name": t.contact.get_display(),
+                    "name": t.contact.get_display(org=self.request.org),
                     "last_seen_on": t.contact.last_seen_on,
                     "last_msg": msg_as_json(last_msg) if last_msg else None,
                     "ticket": {

@@ -603,6 +603,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # we have a specific ticket so we should show context menu for it
         self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
 
+        with self.assertNumQueries(11):
+            self.client.get(deep_link)
+
         # try to link to our ticket but with mismatched status
         deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
 
@@ -740,7 +743,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_outgoing_msg(contact3, "Yes", created_by=self.agent)
 
         # fetching open folder returns all open tickets
-        response = self.client.get(open_url)
+        with self.assertNumQueries(12):
+            response = self.client.get(open_url)
+
         assert_tickets(response, [c2_t1, c1_t2, c1_t1])
 
         joes_open_tickets = contact1.tickets.filter(status="O").order_by("-opened_on")
