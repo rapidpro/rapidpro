@@ -458,10 +458,12 @@ class Org(SmartModel):
     FEATURE_USERS = "users"  # can invite users to this org
     FEATURE_NEW_ORGS = "new_orgs"  # can create new workspace with same login
     FEATURE_CHILD_ORGS = "child_orgs"  # can create child workspaces of this org
+    FEATURE_TEAMS = "teams"  # can create teams to organize agent users
     FEATURES_CHOICES = (
         (FEATURE_USERS, _("Users")),
         (FEATURE_NEW_ORGS, _("New Orgs")),
         (FEATURE_CHILD_ORGS, _("Child Orgs")),
+        (FEATURE_TEAMS, _("Teams")),
     )
 
     LIMIT_CHANNELS = "channels"

@@ -122,6 +122,7 @@ class Team(TembaModel):
     is_default = models.BooleanField(default=False)
 
     org_limit_key = Org.LIMIT_TEAMS
+    max_topics = 10
 
     @classmethod
     def create_system(cls, org):

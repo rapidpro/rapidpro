@@ -337,6 +337,7 @@ class UserCRUDL(SmartCRUDL):
     model = User
     actions = (
         "list",
+        "team",
         "update",
         "delete",
         "edit",
@@ -375,6 +376,57 @@ class UserCRUDL(SmartCRUDL):
 
             context["has_viewers"] = self.request.org.get_users(roles=[OrgRole.VIEWER]).exists()
             context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
+            return context
+
+    class Team(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+        permission = "orgs.user_list"
+        require_feature = Org.FEATURE_TEAMS
+        menu_path = "/settings/teams"
+        search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<team_id>\d+)/$" % (path, action)
+
+        def derive_title(self):
+            return self.team.name
+
+        @cached_property
+        def team(self):
+            from temba.tickets.models import Team
+
+            return get_object_or_404(Team, id=self.kwargs["team_id"])
+
+        def build_context_menu(self, menu):
+            if not self.team.is_system:
+                if self.has_org_perm("tickets.team_update"):
+                    menu.add_modax(
+                        _("Edit"),
+                        "update-team",
+                        reverse("tickets.team_update", args=[self.team.id]),
+                        title=_("Edit Team"),
+                        as_button=True,
+                    )
+                if self.has_org_perm("tickets.team_delete"):
+                    menu.add_modax(
+                        _("Delete"),
+                        "delete-team",
+                        reverse("tickets.team_delete", args=[self.team.id]),
+                        title=_("Delete Team"),
+                    )
+
+        def derive_queryset(self, **kwargs):
+            return (
+                super(BaseListView, self)
+                .derive_queryset(**kwargs)
+                .filter(id__in=self.team.get_users().values_list("id", flat=True))
+                .order_by(Lower("email"))
+            )
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["team"] = self.team
+            context["team_topics"] = self.team.topics.order_by(Lower("name"))
             return context
 
     class Update(RequireFeatureMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
@@ -1012,6 +1064,15 @@ class OrgCRUDL(SmartCRUDL):
                             count=org.invitations.filter(is_active=True).count(),
                         )
                     )
+                    if Org.FEATURE_TEAMS in org.features:
+                        menu.append(
+                            self.create_menu_item(
+                                name=_("Teams"),
+                                icon="agent",
+                                href="tickets.team_list",
+                                count=org.teams.filter(is_active=True).count(),
+                            )
+                        )
 
                 menu.append(self.create_divider())
                 if self.has_org_perm("orgs.org_export"):
