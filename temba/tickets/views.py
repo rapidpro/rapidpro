@@ -217,7 +217,7 @@ class TicketCRUDL(SmartCRUDL):
 
     class List(SpaMixin, ContextMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
-        A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
+        Placeholder view for the ticketing frontend components which fetch tickets from the folders view below.
         """
 
         @classmethod
@@ -226,105 +226,107 @@ class TicketCRUDL(SmartCRUDL):
             return rf"^ticket/((?P<folder>{folders}|{UUID_REGEX.pattern})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
 
         def get_notification_scope(self) -> tuple:
-            folder, status, _, _ = self.tickets_path
-            if folder == UnassignedFolder.slug and status == "open":
+            folder, status, ticket, in_page = self.tickets_path
+
+            if folder.slug == UnassignedFolder.slug and status == Ticket.STATUS_OPEN:
                 return "tickets:opened", ""
-            elif folder == MineFolder.slug and status == "open":
+            elif folder.slug == MineFolder.slug and status == Ticket.STATUS_OPEN:
                 return "tickets:activity", ""
             return "", ""
 
         def derive_menu_path(self):
-            return f"/ticket/{self.kwargs.get('folder', 'mine')}/"
+            folder, status, ticket, in_page = self.tickets_path
+
+            return f"/ticket/{folder.slug}/"
 
         @cached_property
-        def tickets_path(self) -> tuple:
+        def tickets_path(self) -> tuple[TicketFolder, str, Ticket, bool]:
             """
-            Returns tuple of folder, status, ticket uuid, and whether that ticket exists in first page of tickets
+            Returns tuple of folder, status, ticket, and whether that ticket exists in first page of tickets
             """
-            folder = self.kwargs.get("folder")
-            status = self.kwargs.get("status")
-            uuid = self.kwargs.get("uuid")
+
+            # get requested folder, defaulting to Mine
+            folder = TicketFolder.from_slug(self.request.org, self.kwargs.get("folder", MineFolder.slug))
+            if not folder:
+                raise Http404()
+
+            status = Ticket.STATUS_OPEN if self.kwargs.get("status", "open") == "open" else Ticket.STATUS_CLOSED
+            ticket = None
             in_page = False
 
-            # if we have a uuid make sure it is in our first page of tickets
-            if uuid:
-                status_code = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED
+            # is the request for a specific ticket?
+            if uuid := self.kwargs.get("uuid"):
                 org = self.request.org
                 user = self.request.user
-                ticket_folder = TicketFolder.from_slug(org, folder)
 
-                if not ticket_folder:
-                    raise Http404()
+                # is the ticket in the first page from of current folder?
+                for t in list(folder.get_queryset(org, user, ordered=True).filter(status=status)[:25]):
+                    if str(t.uuid) == uuid:
+                        ticket = t
+                        in_page = True
+                        break
 
-                tickets = list(ticket_folder.get_queryset(org, user, True).filter(status=status_code)[:25])
+                # if not, see if we can access it in the All tickets folder and if so switch to that
+                if not in_page:
+                    all_folder = TicketFolder.from_slug(self.request.org, AllFolder.slug)
+                    ticket = all_folder.get_queryset(org, user, ordered=False).filter(uuid=uuid).first()
 
-                found = list(filter(lambda t: str(t.uuid) == uuid, tickets))
-                if found:
-                    in_page = True
-                else:
-                    # if it's not, switch our folder to everything with that ticket's state
-                    ticket = org.tickets.filter(uuid=uuid).first()
                     if ticket:
-                        folder = AllFolder.slug
-                        status = "open" if ticket.status == Ticket.STATUS_OPEN else "closed"
+                        folder = all_folder
+                        status = ticket.status
 
-            return folder or MineFolder.slug, status or "open", uuid, in_page
+            return folder, status, ticket, in_page
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            folder, status, uuid, in_page = self.tickets_path
-            context["folder"] = folder
-            context["status"] = status
+            folder, status, ticket, in_page = self.tickets_path
+
+            context["title"] = folder.name
+            context["folder"] = folder.slug
+            context["status"] = "open" if status == Ticket.STATUS_OPEN else "closed"
             context["has_tickets"] = self.request.org.tickets.exists()
 
-            folder = TicketFolder.from_slug(self.request.org, folder)
-            context["title"] = folder.name
-
-            if uuid:
-                context["nextUUID" if in_page else "uuid"] = uuid
+            if ticket:
+                context["nextUUID" if in_page else "uuid"] = str(ticket.uuid)
 
             return context
 
         def build_context_menu(self, menu):
-            uuid = self.kwargs.get("uuid")
-            if uuid:
-                ticket = self.request.org.tickets.filter(uuid=uuid).first()
-                if ticket:
-                    if ticket.status == Ticket.STATUS_OPEN:
-                        if self.has_org_perm("tickets.ticket_update"):
-                            menu.add_modax(
-                                _("Edit"),
-                                "edit-ticket",
-                                f"{reverse('tickets.ticket_update', args=[ticket.uuid])}",
-                                title=_("Edit Ticket"),
-                                on_submit="handleTicketEditComplete()",
-                            )
+            folder, status, ticket, in_page = self.tickets_path
 
-                        if self.has_org_perm("tickets.ticket_note"):
-                            menu.add_modax(
-                                _("Add Note"),
-                                "add-note",
-                                f"{reverse('tickets.ticket_note', args=[ticket.uuid])}",
-                                on_submit="handleNoteAdded()",
-                            )
+            if ticket and ticket.status == Ticket.STATUS_OPEN:
+                if self.has_org_perm("tickets.ticket_update"):
+                    menu.add_modax(
+                        _("Edit"),
+                        "edit-ticket",
+                        f"{reverse('tickets.ticket_update', args=[ticket.uuid])}",
+                        title=_("Edit Ticket"),
+                        on_submit="handleTicketEditComplete()",
+                    )
 
-                        # we don't want to show start flow if interrupt was given as an option
-                        interrupt_added = False
-                        if self.has_org_perm("contacts.contact_interrupt") and ticket.contact.current_flow:
-                            menu.add_url_post(
-                                _("Interrupt"), reverse("contacts.contact_interrupt", args=(ticket.contact.id,))
-                            )
-                            interrupt_added = True
+                if self.has_org_perm("tickets.ticket_note"):
+                    menu.add_modax(
+                        _("Add Note"),
+                        "add-note",
+                        f"{reverse('tickets.ticket_note', args=[ticket.uuid])}",
+                        on_submit="handleNoteAdded()",
+                    )
 
-                        if not interrupt_added and self.has_org_perm("flows.flow_start"):
-                            menu.add_modax(
-                                _("Start Flow"),
-                                "start-flow",
-                                f"{reverse('flows.flow_start')}?c={ticket.contact.uuid}",
-                                disabled=True,
-                                on_submit="handleFlowStarted()",
-                            )
+                if ticket.contact.current_flow:
+                    if self.has_org_perm("contacts.contact_interrupt"):
+                        menu.add_url_post(
+                            _("Interrupt"), reverse("contacts.contact_interrupt", args=(ticket.contact.id,))
+                        )
+                else:
+                    if self.has_org_perm("flows.flow_start"):
+                        menu.add_modax(
+                            _("Start Flow"),
+                            "start-flow",
+                            f"{reverse('flows.flow_start')}?c={ticket.contact.uuid}",
+                            disabled=True,
+                            on_submit="handleFlowStarted()",
+                        )
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
@@ -374,7 +376,7 @@ class TicketCRUDL(SmartCRUDL):
 
             # fetching new activity gets a different order later
             ordered = False if after else True
-            qs = self.folder.get_queryset(org, user, ordered).filter(status=status)
+            qs = self.folder.get_queryset(org, user, ordered=ordered).filter(status=status)
 
             # all new activity
             after = int(self.request.GET.get("after", 0))
@@ -395,7 +397,7 @@ class TicketCRUDL(SmartCRUDL):
 
                 if count == self.paginate_by:
                     last_ticket = qs[len(qs) - 1]
-                    qs = self.folder.get_queryset(org, user, ordered).filter(
+                    qs = self.folder.get_queryset(org, user, ordered=ordered).filter(
                         status=status, last_activity_on__gte=last_ticket.last_activity_on
                     )
 
