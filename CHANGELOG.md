@@ -1,3 +1,11 @@
+v9.3.82 (2024-10-29)
+-------------------------
+ * Make teams an org feature.. that nobody has for now
+ * Some cleanup to topic crudl and ticket folders
+ * Tweak name/url of contact group filter list page
+ * Filter topics in topic selection menu based on team membership
+ * Add basic team CRUDL views
+
 v9.3.81 (2024-10-28)
 -------------------------
  * Fix N+1 query on contact list page
