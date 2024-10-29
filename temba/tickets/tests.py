@@ -581,19 +581,36 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         super().setUp()
 
         self.contact = self.create_contact("Bob", urns=["twitter:bobby"])
+        self.sales = Topic.create(self.org, self.admin, "Sales")
+        self.support = Topic.create(self.org, self.admin, "Support")
+
+        # create other agent users in teams with limited topic access
+        self.agent2 = self.create_user("agent2@nyaruka.com")
+        sales_only = Team.create(self.org, self.admin, "Sales", topics=[self.sales])
+        self.org.add_user(self.agent2, OrgRole.AGENT, team=sales_only)
+
+        self.agent3 = self.create_user("agent3@nyaruka.com")
+        support_only = Team.create(self.org, self.admin, "Support", topics=[self.support])
+        self.org.add_user(self.agent3, OrgRole.AGENT, team=support_only)
 
     def test_list(self):
         list_url = reverse("tickets.ticket_list")
-        ticket = self.create_ticket(self.contact, assignee=self.admin)
+
+        ticket = self.create_ticket(self.contact, assignee=self.admin, topic=self.support)
 
         # just a placeholder view for frontend components
         self.assertRequestDisallowed(list_url, [None])
-        self.assertListFetch(list_url, [self.user, self.editor, self.admin, self.agent], context_objects=[])
+        self.assertListFetch(
+            list_url, [self.user, self.editor, self.admin, self.agent, self.agent2, self.agent3], context_objects=[]
+        )
 
         # link to our ticket within the All folder
-        deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
+        deep_link = f"{list_url}all/open/{ticket.uuid}/"
 
-        response = self.assertListFetch(deep_link, [self.user, self.editor, self.admin, self.agent], context_objects=[])
+        response = self.assertListFetch(
+            deep_link, [self.user, self.editor, self.admin, self.agent, self.agent3], context_objects=[]
+        )
+        self.assertEqual("All", response.context["title"])
         self.assertEqual("all", response.context["folder"])
         self.assertEqual("open", response.context["status"])
 
@@ -606,12 +623,39 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         with self.assertNumQueries(11):
             self.client.get(deep_link)
 
-        # try to link to our ticket but with mismatched status
-        deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
+        # try same request but for agent that can't see this ticket
+        response = self.assertListFetch(deep_link, [self.agent2], context_objects=[])
+        self.assertEqual("All", response.context["title"])
+        self.assertEqual("all", response.context["folder"])
+        self.assertEqual("open", response.context["status"])
+        self.assertNotIn("nextUUID", response.context)
 
+        # can also link to our ticket within the Support topic
+        deep_link = f"{list_url}{self.support.uuid}/open/{ticket.uuid}/"
+
+        self.assertRequestDisallowed(deep_link, [self.agent2])  # doesn't have access to that topic
+
+        response = self.assertListFetch(
+            deep_link, [self.user, self.editor, self.admin, self.agent, self.agent3], context_objects=[]
+        )
+        self.assertEqual("Support", response.context["title"])
+        self.assertEqual(str(self.support.uuid), response.context["folder"])
+        self.assertEqual("open", response.context["status"])
+
+        # try to link to our ticket but with mismatched topic
+        deep_link = f"{list_url}{self.sales.uuid}/closed/{str(ticket.uuid)}/"
+
+        # redirected to All
         response = self.assertListFetch(deep_link, [self.agent], context_objects=[])
+        self.assertEqual("all", response.context["folder"])
+        self.assertEqual("open", response.context["status"])
+        self.assertEqual(str(ticket.uuid), response.context["uuid"])
+
+        # try to link to our ticket but with mismatched status
+        deep_link = f"{list_url}all/closed/{ticket.uuid}/"
 
         # now our ticket is listed as the uuid and we were redirected to All folder with Open status
+        response = self.assertListFetch(deep_link, [self.agent], context_objects=[])
         self.assertEqual("all", response.context["folder"])
         self.assertEqual("open", response.context["status"])
         self.assertEqual(str(ticket.uuid), response.context["uuid"])
@@ -620,7 +664,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
 
         # non-existent topic should give a 404
-        bad_topic_link = f"{list_url}{uuid4()}/open/{str(ticket.uuid)}/"
+        bad_topic_link = f"{list_url}{uuid4()}/open/{ticket.uuid}/"
         response = self.requestView(bad_topic_link, self.agent)
         self.assertEqual(404, response.status_code)
 
@@ -629,7 +673,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             content_type="application/json",
             HTTP_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
         )
-
         self.assertEqual(("tickets", "mine", "open", str(ticket.uuid)), response.context["temba_referer"])
 
         # contacts in a flow get interrupt menu option instead
@@ -665,7 +708,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("tickets.ticket_menu")
 
         self.create_ticket(self.contact, assignee=self.admin)
-        self.create_ticket(self.contact, assignee=self.admin)
+        self.create_ticket(self.contact, assignee=self.admin, topic=self.sales)
         self.create_ticket(self.contact, assignee=None)
         self.create_ticket(self.contact, closed_on=timezone.now())
 
@@ -680,10 +723,18 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 "Shortcuts (0)",
                 "Export",
                 "New Topic",
-                "General (3)",
+                "General (2)",
+                "Sales (1)",
+                "Support (0)",
             ],
         )
-        self.assertPageMenu(menu_url, self.agent, ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (3)"])
+        self.assertPageMenu(
+            menu_url,
+            self.agent,
+            ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (2)", "Sales (1)", "Support (0)"],
+        )
+        self.assertPageMenu(menu_url, self.agent2, ["My Tickets (0)", "Unassigned (1)", "All (3)", "Sales (1)"])
+        self.assertPageMenu(menu_url, self.agent3, ["My Tickets (0)", "Unassigned (1)", "All (3)", "Support (0)"])
 
     @mock_mailroom
     def test_folder(self, mr_mocks):

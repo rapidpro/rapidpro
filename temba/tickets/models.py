@@ -304,15 +304,19 @@ class TicketFolder(metaclass=ABCMeta):
     def get_queryset(self, org, user, *, ordered: bool):
         qs = org.tickets.all()
 
+        membership = org.get_membership(user)
+        if membership.team and not membership.team.all_topics:
+            qs = qs.filter(topic__in=list(membership.team.topics.all()))
+
         if ordered:
             qs = qs.order_by("-last_activity_on", "-id")
 
         return qs.select_related("topic", "assignee").prefetch_related("contact")
 
     @classmethod
-    def from_slug(cls, org, slug_or_uuid: str):
+    def from_slug(cls, org, user, slug_or_uuid: str):
         if is_uuid(slug_or_uuid):
-            topic = org.topics.filter(uuid=slug_or_uuid, is_active=True).first()
+            topic = Topic.get_accessible(org, user).filter(uuid=slug_or_uuid).first()
             if topic:
                 return TopicFolder(topic)
 
