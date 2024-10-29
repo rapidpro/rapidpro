@@ -590,34 +590,35 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRequestDisallowed(list_url, [None])
         self.assertListFetch(list_url, [self.user, self.editor, self.admin, self.agent], context_objects=[])
 
-        # can hit this page with a uuid
-        # TODO: work out reverse for deep link
-        # deep_link = reverse(
-        #    "tickets.ticket_list", kwargs={"folder": "all", "status": "open", "uuid": str(ticket.uuid)}
-        # )
-
+        # link to our ticket within the All folder
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
+
         response = self.assertListFetch(deep_link, [self.user, self.editor, self.admin, self.agent], context_objects=[])
+        self.assertEqual("all", response.context["folder"])
+        self.assertEqual("open", response.context["status"])
 
         # our ticket exists on the first page, so it'll get flagged to be focused
         self.assertEqual(str(ticket.uuid), response.context["nextUUID"])
 
-        # deep link into a page that doesn't have our ticket
+        # we have a specific ticket so we should show context menu for it
+        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
+
+        # try to link to our ticket but with mismatched status
         deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
 
-        self.login(self.admin)
+        response = self.assertListFetch(deep_link, [self.agent], context_objects=[])
 
-        response = self.client.get(deep_link)
-
-        # now our ticket is listed as the uuid and we were redirected to all/open
+        # now our ticket is listed as the uuid and we were redirected to All folder with Open status
         self.assertEqual("all", response.context["folder"])
         self.assertEqual("open", response.context["status"])
         self.assertEqual(str(ticket.uuid), response.context["uuid"])
 
-        # bad topic should give a 404
+        # and again we have a specific ticket so we should show context menu for it
+        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
+
+        # non-existent topic should give a 404
         bad_topic_link = f"{list_url}{uuid4()}/open/{str(ticket.uuid)}/"
-        response = self.client.get(bad_topic_link)
+        response = self.requestView(bad_topic_link, self.agent)
         self.assertEqual(404, response.status_code)
 
         response = self.client.get(
@@ -637,7 +638,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # closed our tickets don't get extra menu options
         ticket.status = Ticket.STATUS_CLOSED
-        ticket.save()
+        ticket.save(update_fields=("status",))
         deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
         self.assertContentMenu(deep_link, self.admin, [])
 

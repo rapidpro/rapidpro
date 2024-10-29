@@ -301,7 +301,7 @@ class TicketFolder(metaclass=ABCMeta):
     icon = None
     verbose_name = None
 
-    def get_queryset(self, org, user, ordered):
+    def get_queryset(self, org, user, *, ordered: bool):
         qs = org.tickets.all()
 
         if ordered:
@@ -325,20 +325,20 @@ class TicketFolder(metaclass=ABCMeta):
 
 class MineFolder(TicketFolder):
     """
-    Tickets assigned to the current user
+    Tickets assigned to the current user.
     """
 
     slug = "mine"
     name = _("My Tickets")
     icon = "tickets_mine"
 
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered).filter(assignee=user)
+    def get_queryset(self, org, user, *, ordered: bool):
+        return super().get_queryset(org, user, ordered=ordered).filter(assignee=user)
 
 
 class UnassignedFolder(TicketFolder):
     """
-    Tickets not assigned to any user
+    Tickets not assigned to any user.
     """
 
     slug = "unassigned"
@@ -346,13 +346,13 @@ class UnassignedFolder(TicketFolder):
     verbose_name = _("Unassigned Tickets")
     icon = "tickets_unassigned"
 
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered).filter(assignee=None)
+    def get_queryset(self, org, user, *, ordered: bool):
+        return super().get_queryset(org, user, ordered=ordered).filter(assignee=None)
 
 
 class AllFolder(TicketFolder):
     """
-    All tickets
+    All tickets the user can access.
     """
 
     slug = "all"
@@ -360,16 +360,13 @@ class AllFolder(TicketFolder):
     verbose_name = _("All Tickets")
     icon = "tickets_all"
 
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered)
-
 
 FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
 
 
 class TopicFolder(TicketFolder):
     """
-    Tickets with a specific topic
+    Wraps a topic so we can use it like a folder.
     """
 
     def __init__(self, topic: Topic):
@@ -377,8 +374,8 @@ class TopicFolder(TicketFolder):
         self.name = topic.name
         self.topic = topic
 
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered).filter(topic=self.topic)
+    def get_queryset(self, org, user, *, ordered: bool):
+        return super().get_queryset(org, user, ordered=ordered).filter(topic=self.topic)
 
 
 class TicketCount(SquashableModel):
