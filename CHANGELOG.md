@@ -1,3 +1,9 @@
+v9.3.85 (2024-10-30)
+-------------------------
+ * Add generic squashable count model for things owned by orgs
+ * Implement tickets counts by topic and assignee using new count model
+ * Ensure that ticket counts are cleaned up when a topic is deleted
+
 v9.3.84 (2024-10-30)
 -------------------------
  * Reduce topic limit to 50 and enforce limits for topics and teams
