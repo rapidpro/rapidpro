@@ -935,7 +935,7 @@ ORG_LIMIT_DEFAULTS = {
     "groups": 250,
     "labels": 250,
     "teams": 50,
-    "topics": 250,
+    "topics": 50,
 }
 
 RETENTION_PERIODS = {
