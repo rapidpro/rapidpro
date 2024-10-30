@@ -245,8 +245,11 @@ class TicketCRUDL(SmartCRUDL):
             Returns tuple of folder, status, ticket, and whether that ticket exists in first page of tickets
             """
 
+            org = self.request.org
+            user = self.request.user
+
             # get requested folder, defaulting to Mine
-            folder = TicketFolder.from_slug(self.request.org, self.kwargs.get("folder", MineFolder.slug))
+            folder = TicketFolder.from_slug(org, user, self.kwargs.get("folder", MineFolder.slug))
             if not folder:
                 raise Http404()
 
@@ -256,9 +259,6 @@ class TicketCRUDL(SmartCRUDL):
 
             # is the request for a specific ticket?
             if uuid := self.kwargs.get("uuid"):
-                org = self.request.org
-                user = self.request.user
-
                 # is the ticket in the first page from of current folder?
                 for t in list(folder.get_queryset(org, user, ordered=True).filter(status=status)[:25]):
                     if str(t.uuid) == uuid:
@@ -268,7 +268,7 @@ class TicketCRUDL(SmartCRUDL):
 
                 # if not, see if we can access it in the All tickets folder and if so switch to that
                 if not in_page:
-                    all_folder = TicketFolder.from_slug(self.request.org, AllFolder.slug)
+                    all_folder = TicketFolder.from_slug(org, user, AllFolder.slug)
                     ticket = all_folder.get_queryset(org, user, ordered=False).filter(uuid=uuid).first()
 
                     if ticket:
@@ -283,7 +283,7 @@ class TicketCRUDL(SmartCRUDL):
             folder, status, ticket, in_page = self.tickets_path
 
             context["title"] = folder.name
-            context["folder"] = folder.slug
+            context["folder"] = str(folder.slug)
             context["status"] = "open" if status == Ticket.STATUS_OPEN else "closed"
             context["has_tickets"] = self.request.org.tickets.exists()
 
@@ -342,7 +342,7 @@ class TicketCRUDL(SmartCRUDL):
 
         @cached_property
         def folder(self) -> TicketFolder:
-            folder = TicketFolder.from_slug(self.request.org, self.kwargs["folder"])
+            folder = TicketFolder.from_slug(self.request.org, self.request.user, self.kwargs["folder"])
             if not folder:
                 raise Http404()
 
