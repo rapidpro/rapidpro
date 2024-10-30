@@ -1,3 +1,16 @@
+v9.3.83 (2024-10-30)
+-------------------------
+ * Merge pull request #5596 from nyaruka/group_page_tweak
+ * ContactCRUDL.Group should use contact_fields from ContactListView
+ * Merge pull request #5595 from nyaruka/group-page-proxy-fields
+ * Show contact proxy fields on the group pages
+ * Fix scrolling for contact group pages
+ * Merge pull request #5592 from nyaruka/ticket_queries
+ * Add query checks to ticket view tests and fix missing prefetches
+ * Merge pull request #5591 from nyaruka/ticket_cleanup
+ * Some cleanup to tickets list view
+ * Tweak ordering of ticket crudl views for consistency with other crudls
+
 v9.3.82 (2024-10-29)
 -------------------------
  * Make teams an org feature.. that nobody has for now
