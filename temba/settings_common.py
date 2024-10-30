@@ -764,6 +764,7 @@ CELERY_BEAT_SCHEDULE = {
     "squash-channel-counts": {"task": "squash_channel_counts", "schedule": timedelta(seconds=60)},
     "squash-group-counts": {"task": "squash_group_counts", "schedule": timedelta(seconds=60)},
     "squash-flow-counts": {"task": "squash_flow_counts", "schedule": timedelta(seconds=60)},
+    "squash-item-counts": {"task": "squash_item_counts", "schedule": timedelta(seconds=45)},
     "squash-msg-counts": {"task": "squash_msg_counts", "schedule": timedelta(seconds=60)},
     "squash-notification-counts": {"task": "squash_notification_counts", "schedule": timedelta(seconds=60)},
     "squash-ticket-counts": {"task": "squash_ticket_counts", "schedule": timedelta(seconds=60)},
@@ -935,7 +936,7 @@ ORG_LIMIT_DEFAULTS = {
     "groups": 250,
     "labels": 250,
     "teams": 50,
-    "topics": 250,
+    "topics": 50,
 }
 
 RETENTION_PERIODS = {

@@ -1,3 +1,8 @@
+v9.3.84 (2024-10-30)
+-------------------------
+ * Reduce topic limit to 50 and enforce limits for topics and teams
+ * Implement filtering of tickets by accessible topics
+
 ## v9.3.83 (2024-10-30)
 
 - Show same featured + proxy fields on the group pages

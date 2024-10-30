@@ -47,6 +47,7 @@ from .models import (
     DefinitionExport,
     Export,
     Invitation,
+    ItemCount,
     Org,
     OrgImport,
     OrgMembership,
@@ -59,6 +60,7 @@ from .tasks import (
     expire_invitations,
     restart_stalled_exports,
     send_user_verification_email,
+    squash_item_counts,
     trim_exports,
 )
 
@@ -4203,3 +4205,25 @@ class ExportCRUDLTest(TembaTest):
 
         response = self.client.get(download_url + "?raw=1")
         self.assertRedirect(response, f"/test-default/orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx")
+
+
+class ItemCountTest(TembaTest):
+    def test_model(self):
+        self.org.counts.create(scope="foo:1", count=2)
+        self.org.counts.create(scope="foo:1", count=3)
+        self.org.counts.create(scope="foo:2", count=1)
+        self.org.counts.create(scope="foo:3", count=4)
+        self.org2.counts.create(scope="foo:4", count=1)
+        self.org2.counts.create(scope="foo:4", count=1)
+
+        self.assertEqual(9, ItemCount.sum(self.org.counts.filter(scope__in=("foo:1", "foo:3"))))
+        self.assertEqual(10, ItemCount.sum(self.org.counts.filter(scope__startswith="foo:")))
+        self.assertEqual(4, self.org.counts.count())
+
+        squash_item_counts()
+
+        self.assertEqual(9, ItemCount.sum(self.org.counts.filter(scope__in=("foo:1", "foo:3"))))
+        self.assertEqual(10, ItemCount.sum(self.org.counts.filter(scope__startswith="foo:")))
+        self.assertEqual(3, self.org.counts.count())
+
+        self.org.counts.all().delete()
