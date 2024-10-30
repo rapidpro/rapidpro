@@ -11,7 +11,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export, Org, OrgMembership, OrgRole
 from temba.orgs.tasks import squash_item_counts
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom, MigrationTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
