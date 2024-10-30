@@ -343,6 +343,7 @@ class ShortcutCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
+    @override_settings(ORG_LIMIT_DEFAULTS={"topics": 2})
     def test_create(self):
         create_url = reverse("tickets.topic_create")
 
@@ -358,14 +359,6 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"name": "This field is required."},
         )
 
-        # try to create with name that is already taken
-        self.assertCreateSubmit(
-            create_url,
-            self.admin,
-            {"name": "general"},
-            form_errors={"name": "Topic with this name already exists."},
-        )
-
         # try to create with name that is too long
         self.assertCreateSubmit(
             create_url,
@@ -377,9 +370,35 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"name": "Hot Topic"},
-            new_obj_query=Topic.objects.filter(name="Hot Topic", is_system=False),
+            {"name": "Sales"},
+            new_obj_query=Topic.objects.filter(name="Sales", is_system=False),
             success_status=302,
+        )
+
+        # try again with same name
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "sales"},
+            form_errors={"name": "Topic with this name already exists."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Support"},
+            new_obj_query=Topic.objects.filter(name="Support", is_system=False),
+            success_status=302,
+        )
+
+        # try to create another now that we've reached the limit
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Training"},
+            form_errors={
+                "__all__": "This workspace has reached its limit of 2 topics. You must delete existing ones before you can create new ones."
+            },
         )
 
     def test_update(self):
@@ -433,6 +452,7 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
+    @override_settings(ORG_LIMIT_DEFAULTS={"teams": 1})
     def test_create(self):
         create_url = reverse("tickets.team_create")
 
@@ -500,6 +520,16 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
 
         team = Team.objects.get(name="Sales")
         self.assertEqual({sales}, set(team.topics.all()))
+
+        # try to create another now that we've reached the limit
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Training", "topics": [sales.id]},
+            form_errors={
+                "__all__": "This workspace has reached its limit of 1 teams. You must delete existing ones before you can create new ones."
+            },
+        )
 
     def test_update(self):
         sales = Topic.create(self.org, self.admin, "Sales")
