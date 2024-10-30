@@ -70,7 +70,7 @@ CREATE TRIGGER temba_ticket_on_insert
 AFTER INSERT ON tickets_ticket REFERENCING NEW TABLE AS newtab
 FOR EACH STATEMENT EXECUTE PROCEDURE temba_ticket_on_insert();
 
-CREATE TRIGGER temba_msg_on_update
+CREATE TRIGGER temba_ticket_on_update
 AFTER UPDATE ON tickets_ticket REFERENCING OLD TABLE AS oldtab NEW TABLE AS newtab
 FOR EACH STATEMENT EXECUTE PROCEDURE temba_ticket_on_update();
 """
