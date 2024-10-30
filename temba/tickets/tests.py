@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export, Org, OrgMembership, OrgRole
+from temba.orgs.tasks import squash_item_counts
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
@@ -234,6 +235,24 @@ class TicketTest(TembaTest):
             topic_open={org2_general: 0},
             topic_closed={org2_general: 0},
             contacts={org2_contact: 0},
+        )
+
+        squash_item_counts()
+
+        # check new count model raw values are consistent
+        self.assertEqual(
+            {
+                f"tickets:C:{general.id}:{self.admin.id}": 0,
+                f"tickets:C:{general.id}:{self.agent.id}": 0,
+                f"tickets:C:{cats.id}:0": 0,
+                f"tickets:C:{cats.id}:{self.admin.id}": 0,
+                f"tickets:O:{general.id}:0": 0,
+                f"tickets:O:{general.id}:{self.editor.id}": 1,
+                f"tickets:O:{general.id}:{self.agent.id}": 0,
+                f"tickets:O:{cats.id}:0": 1,
+                f"tickets:O:{cats.id}:{self.admin.id}": 1,
+            },
+            {c["scope"]: c["count"] for c in self.org.counts.order_by("scope").values("scope", "count")},
         )
 
 
