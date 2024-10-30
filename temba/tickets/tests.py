@@ -1560,6 +1560,14 @@ class TopicTest(TembaTest):
         flow = self.create_flow("Test")
         flow.topic_dependencies.add(topic1)
         team = Team.create(self.org, self.admin, "Sales & Support", topics=[topic1, topic2])
+        ticket = self.create_ticket(self.create_contact("Ann"), topic=topic1)
+        self.create_ticket(self.create_contact("Bob"), topic=topic2)
+
+        # can't release a topic with tickets
+        with self.assertRaises(AssertionError):
+            topic1.release(self.admin)
+
+        ticket.delete()
 
         topic1.release(self.admin)
 
@@ -1568,6 +1576,10 @@ class TopicTest(TembaTest):
 
         # topic should be removed from team
         self.assertEqual({topic2}, set(team.topics.all()))
+
+        # counts should be deleted
+        self.assertEqual(0, self.org.counts.filter(scope__startswith=f"tickets:O:{topic1.id}:").count())
+        self.assertEqual(1, self.org.counts.filter(scope__startswith=f"tickets:O:{topic2.id}:").count())
 
         # flow should be flagged as having issues
         flow.refresh_from_db()
@@ -1581,10 +1593,6 @@ class TopicTest(TembaTest):
         ticket = self.create_ticket(self.create_contact("Bob"), topic=topic1)
         with self.assertRaises(AssertionError):
             topic1.release(self.admin)
-
-        # can delete a topic with no tickets
-        ticket.delete()
-        topic1.release(self.admin)
 
 
 class TeamTest(TembaTest):
