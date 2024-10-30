@@ -1315,7 +1315,6 @@ class Org(SmartModel):
         user = self.modified_by
         counts = defaultdict(int)
 
-        delete_in_batches(self.counts.all())
         delete_in_batches(self.notifications.all())
         delete_in_batches(self.notification_counts.all())
         delete_in_batches(self.incidents.all())
@@ -1412,8 +1411,9 @@ class Org(SmartModel):
         delete_in_batches(self.boundaryalias_set.all())
         delete_in_batches(self.templates.all())
 
-        # needs to come after deletion of msgs and broadcasts as those insert new counts
+        # needs to come after deletion of other things as those insert new negative counts
         delete_in_batches(self.system_labels.all())
+        delete_in_batches(self.counts.all())
 
         # now that contacts are no longer in the database, we can start de-indexing them from search
         mailroom.get_client().org_deindex(self)

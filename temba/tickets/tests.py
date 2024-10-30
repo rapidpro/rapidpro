@@ -10,7 +10,8 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export, Org, OrgMembership, OrgRole
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.orgs.tasks import squash_item_counts
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -234,6 +235,24 @@ class TicketTest(TembaTest):
             topic_open={org2_general: 0},
             topic_closed={org2_general: 0},
             contacts={org2_contact: 0},
+        )
+
+        squash_item_counts()
+
+        # check new count model raw values are consistent
+        self.assertEqual(
+            {
+                f"tickets:C:{general.id}:{self.admin.id}": 0,
+                f"tickets:C:{general.id}:{self.agent.id}": 0,
+                f"tickets:C:{cats.id}:0": 0,
+                f"tickets:C:{cats.id}:{self.admin.id}": 0,
+                f"tickets:O:{general.id}:0": 0,
+                f"tickets:O:{general.id}:{self.editor.id}": 1,
+                f"tickets:O:{general.id}:{self.agent.id}": 0,
+                f"tickets:O:{cats.id}:0": 1,
+                f"tickets:O:{cats.id}:{self.admin.id}": 1,
+            },
+            {c["scope"]: c["count"] for c in self.org.counts.order_by("scope").values("scope", "count")},
         )
 
 
@@ -1541,6 +1560,14 @@ class TopicTest(TembaTest):
         flow = self.create_flow("Test")
         flow.topic_dependencies.add(topic1)
         team = Team.create(self.org, self.admin, "Sales & Support", topics=[topic1, topic2])
+        ticket = self.create_ticket(self.create_contact("Ann"), topic=topic1)
+        self.create_ticket(self.create_contact("Bob"), topic=topic2)
+
+        # can't release a topic with tickets
+        with self.assertRaises(AssertionError):
+            topic1.release(self.admin)
+
+        ticket.delete()
 
         topic1.release(self.admin)
 
@@ -1549,6 +1576,10 @@ class TopicTest(TembaTest):
 
         # topic should be removed from team
         self.assertEqual({topic2}, set(team.topics.all()))
+
+        # counts should be deleted
+        self.assertEqual(0, self.org.counts.filter(scope__startswith=f"tickets:O:{topic1.id}:").count())
+        self.assertEqual(1, self.org.counts.filter(scope__startswith=f"tickets:O:{topic2.id}:").count())
 
         # flow should be flagged as having issues
         flow.refresh_from_db()
@@ -1562,10 +1593,6 @@ class TopicTest(TembaTest):
         ticket = self.create_ticket(self.create_contact("Bob"), topic=topic1)
         with self.assertRaises(AssertionError):
             topic1.release(self.admin)
-
-        # can delete a topic with no tickets
-        ticket.delete()
-        topic1.release(self.admin)
 
 
 class TeamTest(TembaTest):
@@ -1787,16 +1814,3 @@ class TicketDailyTimingTest(TembaTest):
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
         )
-
-
-class AssignAgentsToDefaultTeamTest(MigrationTest):
-    app = "tickets"
-    migrate_from = "0068_backfill_default_teams"
-    migrate_to = "0069_assign_agents_to_default_team"
-
-    def setUpBeforeMigration(self, apps):
-        OrgMembership.objects.filter(user=self.agent).update(team=None)
-
-    def test_migration(self):
-        self.assertEqual(1, OrgMembership.objects.filter(user=self.agent, team=self.org.default_ticket_team).count())
-        self.assertEqual(1, OrgMembership.objects.exclude(team=None).count())

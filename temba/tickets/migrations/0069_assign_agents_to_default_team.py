@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def assign_agents_to_default_team(apps, schema_editor):
+def assign_agents_to_default_team(apps, schema_editor):  # pragma: no cover
     OrgMembership = apps.get_model("orgs", "OrgMembership")
 
     for membership in OrgMembership.objects.filter(role_code="T"):

@@ -93,6 +93,9 @@ class Topic(TembaModel, DependencyMixin):
 
         return org.topics.filter(is_active=True)
 
+    def get_count_prefixes(self) -> tuple[str]:
+        return f"tickets:{Ticket.STATUS_OPEN}:{self.id}:", f"tickets:{Ticket.STATUS_CLOSED}:{self.id}:"
+
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system topics"
         assert not self.tickets.exists(), "can't release topic with tickets"
@@ -101,6 +104,10 @@ class Topic(TembaModel, DependencyMixin):
 
         for team in self.teams.all():
             team.topics.remove(self)
+
+        # delete ticket counts for this topic
+        for prefix in self.get_count_prefixes():
+            self.org.counts.filter(scope__startswith=prefix).delete()
 
         self.is_active = False
         self.name = self._deleted_name()
