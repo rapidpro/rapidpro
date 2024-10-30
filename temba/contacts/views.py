@@ -632,7 +632,11 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.org
 
             context["current_group"] = self.group
-            context["contact_fields"] = ContactField.get_fields(org).order_by("-priority", "id")
+
+            fields = ContactField.get_fields(org).order_by("-priority", "id")
+            proxy_fields = org.fields.filter(key__in=("last_seen_on", "created_on"), is_proxy=True).order_by("-key")
+            context["contact_fields"] = list(fields) + list(proxy_fields)
+
             return context
 
         @classmethod

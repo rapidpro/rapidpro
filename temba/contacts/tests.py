@@ -426,6 +426,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "unlabel", "send", "start-flow"], list(response.context["actions"]))
+        self.assertEqual(
+            [f.name for f in response.context["contact_fields"]], ["Home", "Age", "Last Seen On", "Created On"]
+        )
 
         self.assertContentMenu(
             group1_url,

@@ -155,7 +155,7 @@ temba-menu:defined {
 .spa-container {
   background: #f7f7f7;
   overflow-y: clip;
-  overflow-x: visible;
+  overflow-x: auto;
 }
 
 .spa-container.loading .spa-content {
