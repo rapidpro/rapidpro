@@ -4,60 +4,75 @@ from django.db import migrations
 
 SQL = """
 ----------------------------------------------------------------------
--- Inserts a new ticketcount row with the given values
+-- Determines the item count scope for a ticket
 ----------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_insert_ticketcount(_org_id INTEGER, status CHAR(1), _topic_id INTEGER, _assignee_id INTEGER, _count INT) RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION temba_ticket_countscope(_ticket tickets_ticket) RETURNS TEXT STABLE AS $$
 BEGIN
-    INSERT INTO tickets_ticketcount("org_id", "scope", "status", "count", "is_squashed")
-    VALUES(_org_id, format('%s:%s:%s', status, _topic_id, coalesce(_assignee_id, 0)), 'X', _count, FALSE);
+    RETURN format('tickets:%s:%s:%s', _ticket.status, _ticket.topic_id, COALESCE(_ticket.assignee_id, 0));
 END;
 $$ LANGUAGE plpgsql;
 
 ----------------------------------------------------------------------
--- Trigger procedure to update ticket counts on column changes
+-- Handles INSERT statements on ticket table
 ----------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_ticket_on_change() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION temba_ticket_on_insert() RETURNS TRIGGER AS $$
 BEGIN
-  IF TG_OP = 'INSERT' THEN -- new ticket inserted
-    PERFORM temba_insert_ticketcount(NEW.org_id, NEW.status, NEW.topic_id, NEW.assignee_id, 1);
-    PERFORM temba_insert_ticketcount_for_assignee(NEW.org_id, NEW.assignee_id, NEW.status, 1);
-    PERFORM temba_insert_ticketcount_for_topic(NEW.org_id, NEW.topic_id, NEW.status, 1);
+    INSERT INTO orgs_itemcount("org_id", "scope", "count", "is_squashed")
+    SELECT org_id, temba_ticket_countscope(newtab), count(*), FALSE FROM newtab
+    GROUP BY 1, 2;
 
-    IF NEW.status = 'O' THEN
-      UPDATE contacts_contact SET ticket_count = ticket_count + 1, modified_on = NOW() WHERE id = NEW.contact_id;
-    END IF;
-  ELSIF TG_OP = 'UPDATE' THEN -- existing ticket updated
-    IF OLD.topic_id != NEW.topic_id OR OLD.assignee_id IS DISTINCT FROM NEW.assignee_id OR OLD.status != NEW.status THEN
-      PERFORM temba_insert_ticketcount(OLD.org_id, OLD.status, OLD.topic_id, OLD.assignee_id, -1);
-      PERFORM temba_insert_ticketcount(NEW.org_id, NEW.status, NEW.topic_id, NEW.assignee_id, 1);
-    END IF;
-
-    IF OLD.assignee_id IS DISTINCT FROM NEW.assignee_id OR OLD.status != NEW.status THEN
-      PERFORM temba_insert_ticketcount_for_assignee(OLD.org_id, OLD.assignee_id, OLD.status, -1);
-      PERFORM temba_insert_ticketcount_for_assignee(NEW.org_id, NEW.assignee_id, NEW.status, 1);
-    END IF;
-    IF OLD.topic_id != NEW.topic_id OR OLD.status != NEW.status THEN
-      PERFORM temba_insert_ticketcount_for_topic(OLD.org_id, OLD.topic_id, OLD.status, -1);
-      PERFORM temba_insert_ticketcount_for_topic(NEW.org_id, NEW.topic_id, NEW.status, 1);
-    END IF;
-
-    IF OLD.status = 'O' AND NEW.status = 'C' THEN -- ticket closed
-      UPDATE contacts_contact SET ticket_count = ticket_count - 1, modified_on = NOW() WHERE id = OLD.contact_id;
-    ELSIF OLD.status = 'C' AND NEW.status = 'O' THEN -- ticket reopened
-      UPDATE contacts_contact SET ticket_count = ticket_count + 1, modified_on = NOW() WHERE id = OLD.contact_id;
-    END IF;
-  ELSIF TG_OP = 'DELETE' THEN -- existing ticket deleted
-    PERFORM temba_insert_ticketcount(OLD.org_id, OLD.status, OLD.topic_id, OLD.assignee_id, -1);
-    PERFORM temba_insert_ticketcount_for_assignee(OLD.org_id, OLD.assignee_id, OLD.status, -1);
-    PERFORM temba_insert_ticketcount_for_topic(OLD.org_id, OLD.topic_id, OLD.status, -1);
-
-    IF OLD.status = 'O' THEN -- open ticket deleted
-      UPDATE contacts_contact SET ticket_count = ticket_count - 1, modified_on = NOW() WHERE id = OLD.contact_id;
-    END IF;
-  END IF;
-  RETURN NULL;
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Handles DELETE statements on ticket table
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_ticket_on_delete() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO orgs_itemcount("org_id", "scope", "count", "is_squashed")
+    SELECT org_id, temba_ticket_countscope(oldtab), -count(*), FALSE FROM oldtab
+    GROUP BY 1, 2;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Handles UPDATE statements on ticket table
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_ticket_on_update() RETURNS TRIGGER AS $$
+BEGIN
+    -- add negative counts for all old count scopes that don't match the new ones
+    INSERT INTO orgs_itemcount("org_id", "scope", "count", "is_squashed")
+    SELECT o.org_id, temba_ticket_countscope(o), -count(*), FALSE FROM oldtab o
+    INNER JOIN newtab n ON n.id = o.id
+    WHERE temba_ticket_countscope(o) != temba_ticket_countscope(n)
+    GROUP BY 1, 2;
+
+    -- add positive counts for all new count scopes that don't match the old ones
+    INSERT INTO orgs_itemcount("org_id", "scope", "count", "is_squashed")
+    SELECT n.org_id, temba_ticket_countscope(n), count(*), FALSE FROM newtab n
+    INNER JOIN oldtab o ON o.id = n.id
+    WHERE temba_ticket_countscope(o) != temba_ticket_countscope(n)
+    GROUP BY 1, 2;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER temba_ticket_on_delete
+AFTER DELETE ON tickets_ticket REFERENCING OLD TABLE AS oldtab
+FOR EACH STATEMENT EXECUTE PROCEDURE temba_ticket_on_delete();
+
+CREATE TRIGGER temba_ticket_on_insert
+AFTER INSERT ON tickets_ticket REFERENCING NEW TABLE AS newtab
+FOR EACH STATEMENT EXECUTE PROCEDURE temba_ticket_on_insert();
+
+CREATE TRIGGER temba_msg_on_update
+AFTER UPDATE ON tickets_ticket REFERENCING OLD TABLE AS oldtab NEW TABLE AS newtab
+FOR EACH STATEMENT EXECUTE PROCEDURE temba_ticket_on_update();
 """
 
 
