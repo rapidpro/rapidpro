@@ -20,11 +20,12 @@ from timezone_field import TimeZoneField
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import OpClass
 from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import models, transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -40,7 +41,7 @@ from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import EmailSender
 from temba.utils.fields import UploadToIdPathAndRename
-from temba.utils.models import JSONField, TembaUUIDMixin, delete_in_batches
+from temba.utils.models import JSONField, SquashableModel, TembaUUIDMixin, delete_in_batches
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_secret, generate_token
 from temba.utils.timezones import timezone_to_country_code
@@ -1314,7 +1315,7 @@ class Org(SmartModel):
         user = self.modified_by
         counts = defaultdict(int)
 
-        # delete notifications and exports
+        delete_in_batches(self.counts.all())
         delete_in_batches(self.notifications.all())
         delete_in_batches(self.notification_counts.all())
         delete_in_batches(self.incidents.all())
@@ -1872,3 +1873,38 @@ class Export(TembaUUIDMixin, models.Model):
 
     def __repr__(self):  # pragma: no cover
         return f'<Export: id={self.id} type="{self.export_type}">'
+
+
+class ItemCount(SquashableModel):
+    """
+    Org-level counts of things.
+    """
+
+    squash_over = ("org_id", "scope")
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
+    scope = models.CharField(max_length=64)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set) -> tuple:
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "scope" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "scope", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {
+            "table": cls._meta.db_table
+        }
+
+        params = (distinct_set.org_id, distinct_set.scope) * 2
+
+        return sql, params
+
+    class Meta:
+        indexes = [
+            models.Index("org", OpClass("scope", name="varchar_pattern_ops"), name="orgcount_org_scope"),
+            # for squashing task
+            models.Index(name="orgcount_unsquashed", fields=("org", "scope"), condition=Q(is_squashed=False)),
+        ]

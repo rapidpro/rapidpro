@@ -12,7 +12,7 @@ from temba.contacts.models import URN, ContactURN
 from temba.utils.crons import cron_task
 from temba.utils.email import EmailSender
 
-from .models import Export, Invitation, Org, OrgImport, User, UserSettings
+from .models import Export, Invitation, ItemCount, Org, OrgImport, User, UserSettings
 
 
 @shared_task
@@ -125,3 +125,8 @@ def delete_released_orgs():
         num_deleted += 1
 
     return {"deleted": num_deleted, "failed": num_failed}
+
+
+@cron_task(lock_timeout=7200)
+def squash_item_counts():
+    ItemCount.squash()
