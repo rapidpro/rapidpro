@@ -31,7 +31,7 @@ from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticket, TicketCount, Topic
+from temba.tickets.models import Ticket, Topic
 from temba.triggers.models import Trigger
 from temba.utils import json, s3
 from temba.utils.dates import datetime_to_timestamp
@@ -1842,8 +1842,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(2, len(contact.fields))
         self.assertEqual(1, contact.campaign_fires.count())
 
-        self.assertEqual(2, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
-        self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
+        self.assertEqual(2, Ticket.get_status_count(self.org, self.org.topics.all(), Ticket.STATUS_OPEN))
+        self.assertEqual(1, Ticket.get_status_count(self.org, self.org.topics.all(), Ticket.STATUS_CLOSED))
 
         # first try releasing with _full_release patched so we can check the state of the contact before the task
         # to do a full release has kicked off
@@ -1879,8 +1879,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # tickets deleted (only for this contact)
         self.assertEqual(0, contact.tickets.count())
-        self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
-        self.assertEqual(0, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
+        self.assertEqual(1, Ticket.get_status_count(self.org, self.org.topics.all(), Ticket.STATUS_OPEN))
+        self.assertEqual(0, Ticket.get_status_count(self.org, self.org.topics.all(), Ticket.STATUS_CLOSED))
 
         # contact who used to own our urn had theirs released too
         self.assertEqual(0, old_contact.calls.all().count())
