@@ -181,7 +181,7 @@ class TicketCRUDL(SmartCRUDL):
                     {
                         "id": folder.slug,
                         "name": folder.name,
-                        "icon": folder.icon,
+                        "icon": folder.get_icon(counts[folder.slug]),
                         "count": counts[folder.slug],
                         "href": f"/ticket/{folder.slug}/open/",
                     }
