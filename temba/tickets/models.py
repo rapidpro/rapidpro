@@ -7,8 +7,8 @@ import openpyxl
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Q, Sum
-from django.db.models.functions import Lower
+from django.db.models import F, Q, Sum, Value
+from django.db.models.functions import Cast, Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -16,6 +16,7 @@ from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgMembership, User
 from temba.utils.dates import date_range
+from temba.utils.db.functions import SplitPart
 from temba.utils.export import MultiSheetExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import is_uuid, uuid4
@@ -236,6 +237,37 @@ class Ticket(models.Model):
     @classmethod
     def get_allowed_assignees(cls, org):
         return org.get_users(with_perm=cls.ASSIGNEE_PERMISSION)
+
+    @classmethod
+    def get_assignee_count(cls, org, user, topics, status: str) -> int:
+        """
+        Gets the count of tickets assigned to the given user across the given topics and status.
+        """
+        return org.counts.filter(scope__in=[f"tickets:{status}:{t.id}:{user.id if user else 0}" for t in topics]).sum()
+
+    @classmethod
+    def get_status_count(cls, org, topics, status: str) -> int:
+        """
+        Gets the count across the given topics and status.
+        """
+        return org.counts.prefixes([f"tickets:{status}:{t.id}:" for t in topics]).sum()
+
+    @classmethod
+    def get_topic_counts(cls, org, topics, status: str) -> dict[Topic, int]:
+        """
+        Gets the count for each topic and the given status.
+        """
+
+        # count scopes are stored as 'tickets:<status>:<topic-id>:<assignee-id>' so get all counts with the prefix
+        # 'tickets:<status>:' and group by topic-id extracted as the 3rd split part.
+        counts = (
+            org.counts.filter(scope__startswith=f"tickets:{status}:")
+            .annotate(topic_id=Cast(SplitPart(F("scope"), Value(":"), Value(3)), output_field=models.IntegerField()))
+            .values_list("topic_id")
+            .annotate(count_sum=Sum("count"))
+        )
+        by_topic_id = {c[0]: c[1] for c in counts}
+        return {t: by_topic_id.get(t.id, 0) for t in topics}
 
     def delete(self):
         self.events.all().delete()

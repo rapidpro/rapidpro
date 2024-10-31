@@ -36,7 +36,6 @@ from .models import (
     Shortcut,
     Team,
     Ticket,
-    TicketCount,
     TicketExport,
     TicketFolder,
     Topic,
@@ -169,11 +168,11 @@ class TicketCRUDL(SmartCRUDL):
         def derive_menu(self):
             org = self.request.org
             user = self.request.user
-            count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
+            topics = Topic.get_accessible(org, user).order_by("-is_system", "name")
             counts = {
-                MineFolder.slug: count_by_assignee[user],
-                UnassignedFolder.slug: count_by_assignee[None],
-                AllFolder.slug: TicketCount.get_all(org, Ticket.STATUS_OPEN),
+                MineFolder.slug: Ticket.get_assignee_count(org, user, topics, Ticket.STATUS_OPEN),
+                UnassignedFolder.slug: Ticket.get_assignee_count(org, None, topics, Ticket.STATUS_OPEN),
+                AllFolder.slug: Ticket.get_status_count(org, topics, Ticket.STATUS_OPEN),
             }
 
             menu = []
@@ -205,8 +204,7 @@ class TicketCRUDL(SmartCRUDL):
 
             menu.append(self.create_divider())
 
-            topics = list(Topic.get_accessible(org, user).order_by("-is_system", "name"))
-            counts = TicketCount.get_by_topics(org, topics, Ticket.STATUS_OPEN)
+            counts = Ticket.get_topic_counts(org, topics, Ticket.STATUS_OPEN)
             for topic in topics:
                 menu.append(
                     {
