@@ -451,15 +451,23 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete(self):
         topic1 = Topic.create(self.org, self.admin, "Planes")
         topic2 = Topic.create(self.org, self.admin, "Trains")
+        ticket = self.create_ticket(self.create_contact("Bob", urns=["twitter:bobby"]), topic=topic1)
 
         delete_url = reverse("tickets.topic_delete", args=[topic1.id])
 
         self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
 
+        # deleting blocked for topic with tickets
         response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
-        self.assertContains(response, "You are about to delete")
+        self.assertContains(response, "Sorry, the <b>Planes</b> topic can't be deleted")
 
-        # submit to delete it
+        ticket.topic = topic2
+        ticket.save(update_fields=("topic",))
+
+        # try again...
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
+        self.assertContains(response, "You are about to delete the <b>Planes</b> topic")
+
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=topic1, success_status=302)
 
         # other topic unafected
@@ -587,15 +595,22 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
         sales = Topic.create(self.org, self.admin, "Sales")
         team1 = Team.create(self.org, self.admin, "Sales", topics=[sales])
         team2 = Team.create(self.org, self.admin, "Other", topics=[sales])
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
 
         delete_url = reverse("tickets.team_delete", args=[team1.id])
 
         self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.editor, self.admin2])
 
+        # deleting blocked for team with agents
         response = self.assertDeleteFetch(delete_url, [self.admin])
-        self.assertContains(response, "You are about to delete")
+        self.assertContains(response, "Sorry, the <b>Sales</b> team can't be deleted")
 
-        # submit to delete it
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team2)
+
+        # try again...
+        response = self.assertDeleteFetch(delete_url, [self.admin])
+        self.assertContains(response, "You are about to delete the <b>Sales</b> team")
+
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=team1, success_status=302)
 
         # other team unafected
