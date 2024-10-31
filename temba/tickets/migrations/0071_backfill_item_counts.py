@@ -4,7 +4,7 @@ from django.db import migrations, transaction
 from django.db.models import Count
 
 
-def backfill_item_counts(apps, schema_editor):
+def backfill_item_counts(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     for org in Org.objects.all():

@@ -423,84 +423,18 @@ class TopicFolder(TicketFolder):
 
 class TicketCount(SquashableModel):
     """
-    Counts of tickets by assignment/topic and status
+    TODO drop
     """
-
-    squash_over = ("org_id", "scope", "status")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
     scope = models.CharField(max_length=32)
     status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
     count = models.IntegerField(default=0)
 
-    @classmethod
-    def get_squash_query(cls, distinct_set) -> tuple:
-        sql = """
-        WITH removed as (
-            DELETE FROM %(table)s WHERE "org_id" = %%s AND "scope" = %%s AND "status" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("org_id", "scope", "status", "count", "is_squashed")
-        VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        params = (distinct_set.org_id, distinct_set.scope, distinct_set.status) * 2
-
-        return sql, params
-
-    @classmethod
-    def get_by_assignees(cls, org, assignees: list, status: str) -> dict:
-        """
-        Gets counts for a set of assignees (None means no assignee)
-        """
-
-        scopes = [cls._assignee_scope(a) for a in assignees]
-        counts = (
-            cls.objects.filter(org=org, scope__in=scopes, status=status)
-            .values_list("scope")
-            .annotate(count_sum=Sum("count"))
-        )
-        counts_by_scope = {c[0]: c[1] for c in counts}
-
-        return {a: counts_by_scope.get(cls._assignee_scope(a), 0) for a in assignees}
-
-    @classmethod
-    def get_by_topics(cls, org, topics: list, status: str) -> dict:
-        """
-        Gets counts for a set of topics
-        """
-
-        scopes = [cls._topic_scope(t) for t in topics]
-        counts = (
-            cls.objects.filter(org=org, scope__in=scopes, status=status)
-            .values_list("scope")
-            .annotate(count_sum=Sum("count"))
-        )
-        counts_by_scope = {c[0]: c[1] for c in counts}
-
-        return {t: counts_by_scope.get(cls._topic_scope(t), 0) for t in topics}
-
-    @classmethod
-    def get_all(cls, org, status: str) -> int:
-        """
-        Gets count for org and status regardless of assignee
-        """
-        return cls.sum(cls.objects.filter(org=org, scope__startswith="assignee:", status=status))
-
-    @staticmethod
-    def _assignee_scope(user) -> str:
-        return f"assignee:{user.id if user else 0}"
-
-    @staticmethod
-    def _topic_scope(topic) -> str:
-        return f"topic:{topic.id}"
-
     class Meta:
         indexes = [
             models.Index(fields=("org", "status")),
             models.Index(fields=("org", "scope", "status")),
-            # for squashing task
             models.Index(
                 name="ticket_count_unsquashed", fields=("org", "scope", "status"), condition=Q(is_squashed=False)
             ),
