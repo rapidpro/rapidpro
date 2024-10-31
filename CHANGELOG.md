@@ -1,3 +1,10 @@
+v9.3.88 (2024-10-31)
+-------------------------
+ * Fix browsing definitions API endpoint docs
+ * Fix the My Tickets icon, wasn't always accurate
+ * Prevent deletion of non-empty teams
+ * Start reading from new ticket counts
+
 v9.3.87 (2024-10-31)
 -------------------------
  * Make shortcuts an optional attribute on compose

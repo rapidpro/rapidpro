@@ -1505,6 +1505,9 @@ class DefinitionsEndpoint(BaseEndpoint):
         all = 2
 
     def get(self, request, *args, **kwargs):
+        if self.is_docs():
+            return Response({})
+
         org = request.org
         params = request.query_params
         flow_uuids = params.getlist("flow")
