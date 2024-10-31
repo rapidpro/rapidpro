@@ -26,6 +26,7 @@ from .models import (
     Topic,
     export_ticket_stats,
 )
+from .tasks import squash_ticket_counts
 
 
 class TicketTest(TembaTest):
@@ -1810,7 +1811,7 @@ class TicketDailyTimingTest(TembaTest):
 
         assert_timings()
 
-        TicketDailyTiming.squash()
+        squash_ticket_counts()
 
         assert_timings()
 
