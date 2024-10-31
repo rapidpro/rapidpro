@@ -201,7 +201,7 @@ class TicketCRUDL(SmartCRUDL):
             menu.append(self.create_divider())
 
             topics = list(Topic.get_accessible(org, user).order_by("-is_system", "name"))
-            counts = TicketCount.get_by_topics(org, topics, Ticket.STATUS_OPEN)
+            counts = Ticket.get_topic_counts(org, topics, Ticket.STATUS_OPEN)
             for topic in topics:
                 menu.append(
                     {
