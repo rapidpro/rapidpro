@@ -340,6 +340,9 @@ class TicketFolder(metaclass=ABCMeta):
     icon = None
     verbose_name = None
 
+    def get_icon(self, count) -> str:
+        return self.icon
+
     def get_queryset(self, org, user, *, ordered: bool):
         qs = org.tickets.all()
 
@@ -374,6 +377,9 @@ class MineFolder(TicketFolder):
     slug = "mine"
     name = _("My Tickets")
     icon = "tickets_mine"
+
+    def get_icon(self, count) -> str:
+        return self.icon if count else "tickets_mine_done"
 
     def get_queryset(self, org, user, *, ordered: bool):
         return super().get_queryset(org, user, ordered=ordered).filter(assignee=user)
