@@ -1,3 +1,7 @@
+v9.3.87 (2024-10-31)
+-------------------------
+ * Make shortcuts an optional attribute on compose
+
 v9.3.86 (2024-10-31)
 -------------------------
  * Replace custom chunk_list with new itertools.batched
