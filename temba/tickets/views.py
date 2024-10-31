@@ -129,6 +129,11 @@ class TeamCRUDL(SmartCRUDL):
         cancel_url = "id@orgs.user_team"
         redirect_url = "@tickets.team_list"
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["has_agents"] = self.object.get_users().exists()
+            return context
+
     class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
         require_feature = Org.FEATURE_TEAMS
         menu_path = "/settings/teams"
