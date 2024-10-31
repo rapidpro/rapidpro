@@ -1,3 +1,9 @@
+v9.3.86 (2024-10-31)
+-------------------------
+ * Replace custom chunk_list with new itertools.batched
+ * Fetch logs from DynamoDB in batches of 100
+ * Data migration to back fill item counts for tickets
+
 v9.3.85 (2024-10-30)
 -------------------------
  * Add generic squashable count model for things owned by orgs
