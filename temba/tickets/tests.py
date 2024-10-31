@@ -11,7 +11,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export, Org, OrgMembership, OrgRole
 from temba.orgs.tasks import squash_item_counts
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -1813,4 +1813,38 @@ class TicketDailyTimingTest(TembaTest):
 
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
+        )
+
+
+class BackfillItemCountsTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0070_update_triggers"
+    migrate_to = "0071_backfill_item_counts"
+
+    def setUpBeforeMigration(self, apps):
+        self.general = self.org.default_ticket_topic
+        self.cats = Topic.create(self.org, self.admin, "Cats")
+
+        contact1 = self.create_contact("Bob", urns=["twitter:bobby"])
+        contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
+
+        org2_general = self.org2.default_ticket_topic
+        org2_contact = self.create_contact("Bob", urns=["twitter:bobby"], org=self.org2)
+
+        self.create_ticket(contact1, topic=self.general, assignee=self.admin)
+        self.create_ticket(contact2, topic=self.general, assignee=self.admin)
+        self.create_ticket(contact1, topic=self.general, assignee=self.admin, closed_on=timezone.now())
+        self.create_ticket(contact2, topic=self.cats, assignee=self.agent)
+        self.create_ticket(contact1, topic=self.cats)
+        self.create_ticket(org2_contact, topic=org2_general)
+
+    def test_migration(self):
+        self.assertEqual(
+            {
+                f"tickets:C:{self.general.id}:{self.admin.id}": 1,
+                f"tickets:O:{self.general.id}:{self.admin.id}": 2,
+                f"tickets:O:{self.cats.id}:0": 1,
+                f"tickets:O:{self.cats.id}:{self.agent.id}": 1,
+            },
+            {c["scope"]: c["count"] for c in self.org.counts.order_by("scope").values("scope", "count")},
         )
