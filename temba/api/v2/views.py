@@ -23,7 +23,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, BroadcastMsgCount, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from temba.orgs.models import OrgMembership, User
 from temba.orgs.views.mixins import OrgPermsMixin
-from temba.tickets.models import Ticket, TicketCount, Topic
+from temba.tickets.models import Ticket, Topic
 from temba.utils import str_to_bool
 from temba.utils.uuid import is_uuid
 
@@ -3459,8 +3459,8 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         return super().get_queryset().filter(is_active=True)
 
     def prepare_for_serialization(self, object_list, using: str):
-        open_counts = TicketCount.get_by_topics(self.request.org, object_list, Ticket.STATUS_OPEN)
-        closed_counts = TicketCount.get_by_topics(self.request.org, object_list, Ticket.STATUS_CLOSED)
+        open_counts = Ticket.get_topic_counts(self.request.org, object_list, Ticket.STATUS_OPEN)
+        closed_counts = Ticket.get_topic_counts(self.request.org, object_list, Ticket.STATUS_CLOSED)
         for topic in object_list:
             topic.open_count = open_counts[topic]
             topic.closed_count = closed_counts[topic]
