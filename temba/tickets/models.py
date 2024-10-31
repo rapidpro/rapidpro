@@ -239,9 +239,23 @@ class Ticket(models.Model):
         return org.get_users(with_perm=cls.ASSIGNEE_PERMISSION)
 
     @classmethod
+    def get_assignee_count(cls, org, user, topics, status: str) -> int:
+        """
+        Gets the count of tickets assigned to the given user across the given topics and status.
+        """
+        return org.counts.filter(scope__in=[f"tickets:{status}:{t.id}:{user.id if user else 0}" for t in topics]).sum()
+
+    @classmethod
+    def get_status_count(cls, org, topics, status: str) -> int:
+        """
+        Gets the count across the given topics and status.
+        """
+        return org.counts.prefixes([f"tickets:{status}:{t.id}:" for t in topics]).sum()
+
+    @classmethod
     def get_topic_counts(cls, org, topics, status: str) -> dict[Topic, int]:
         """
-        Gets the count for each topic and status.
+        Gets the count for each topic and the given status.
         """
 
         # count scopes are stored as 'tickets:<status>:<topic-id>:<assignee-id>' so get all counts with the prefix

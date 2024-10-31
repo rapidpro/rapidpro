@@ -104,13 +104,27 @@ class TicketTest(TembaTest):
         def assert_counts(
             org, *, assignee_open: dict, assignee_closed: dict, topic_open: dict, topic_closed: dict, contacts: dict
         ):
+            all_topics = org.topics.filter(is_active=True)
             assignees = [None] + list(Ticket.get_allowed_assignees(org))
 
             self.assertEqual(assignee_open, TicketCount.get_by_assignees(org, assignees, Ticket.STATUS_OPEN))
             self.assertEqual(assignee_closed, TicketCount.get_by_assignees(org, assignees, Ticket.STATUS_CLOSED))
 
+            self.assertEqual(
+                assignee_open, {u: Ticket.get_assignee_count(org, u, all_topics, Ticket.STATUS_OPEN) for u in assignees}
+            )
+            self.assertEqual(
+                assignee_closed,
+                {u: Ticket.get_assignee_count(org, u, all_topics, Ticket.STATUS_CLOSED) for u in assignees},
+            )
+
             self.assertEqual(sum(assignee_open.values()), TicketCount.get_all(org, Ticket.STATUS_OPEN))
             self.assertEqual(sum(assignee_closed.values()), TicketCount.get_all(org, Ticket.STATUS_CLOSED))
+
+            self.assertEqual(sum(assignee_open.values()), Ticket.get_status_count(org, all_topics, Ticket.STATUS_OPEN))
+            self.assertEqual(
+                sum(assignee_closed.values()), Ticket.get_status_count(org, all_topics, Ticket.STATUS_CLOSED)
+            )
 
             self.assertEqual(topic_open, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_OPEN))
             self.assertEqual(topic_closed, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_CLOSED))
@@ -785,8 +799,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             self.agent,
             ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (2)", "Sales (1)", "Support (0)"],
         )
-        self.assertPageMenu(menu_url, self.agent2, ["My Tickets (0)", "Unassigned (1)", "All (3)", "Sales (1)"])
-        self.assertPageMenu(menu_url, self.agent3, ["My Tickets (0)", "Unassigned (1)", "All (3)", "Support (0)"])
+        self.assertPageMenu(menu_url, self.agent2, ["My Tickets (0)", "Unassigned (0)", "All (1)", "Sales (1)"])
+        self.assertPageMenu(menu_url, self.agent3, ["My Tickets (0)", "Unassigned (0)", "All (0)", "Support (0)"])
 
     @mock_mailroom
     def test_folder(self, mr_mocks):

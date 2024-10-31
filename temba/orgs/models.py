@@ -1,5 +1,7 @@
+import functools
 import itertools
 import logging
+import operator
 import os
 from abc import ABCMeta
 from collections import defaultdict
@@ -25,7 +27,7 @@ from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import models, transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -1885,6 +1887,15 @@ class ItemCount(SquashableModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
     scope = models.CharField(max_length=64)
     count = models.IntegerField(default=0)
+
+    class QuerySet(models.QuerySet):
+        def prefixes(self, prefixes: list):
+            return self.filter(functools.reduce(operator.or_, [Q(scope__startswith=p) for p in prefixes]))
+
+        def sum(self) -> int:
+            return self.aggregate(count_sum=Sum("count"))["count_sum"] or 0
+
+    objects = QuerySet.as_manager()
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
