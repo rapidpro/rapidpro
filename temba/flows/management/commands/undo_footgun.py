@@ -1,3 +1,4 @@
+import itertools
 from collections import defaultdict
 
 from django.core.management.base import BaseCommand, CommandError
@@ -5,7 +6,6 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import FlowRun, FlowSession, FlowStart
-from temba.utils import chunk_list
 
 
 class Command(BaseCommand):
@@ -43,7 +43,7 @@ class Command(BaseCommand):
         num_fixed = 0
 
         # process runs in batches
-        for run_id_batch in chunk_list(run_ids, self.batch_size):
+        for run_id_batch in itertools.batched(run_ids, self.batch_size):
             run_batch = list(FlowRun.objects.filter(id__in=run_id_batch).only("id", "contact_id", "session_id"))
 
             self.undo_for_batch(run_batch, undoers, dry_run)

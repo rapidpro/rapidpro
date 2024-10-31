@@ -19,17 +19,7 @@ from temba.tests import TembaTest, matchers, override_brand
 from temba.utils import json, uuid
 from temba.utils.compose import compose_serialize
 
-from . import (
-    chunk_list,
-    countries,
-    format_number,
-    get_nested_key,
-    languages,
-    percentage,
-    redact,
-    set_nested_key,
-    str_to_bool,
-)
+from . import countries, format_number, get_nested_key, languages, percentage, redact, set_nested_key, str_to_bool
 from .checks import storage
 from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
@@ -102,22 +92,6 @@ class InitTest(TembaTest):
 
     def test_generate_token(self):
         self.assertEqual(len(generate_token()), 8)
-
-    def test_chunk_list(self):
-        curr = 0
-        for chunk in chunk_list(range(100), 7):
-            batch_curr = curr
-            for item in chunk:
-                self.assertEqual(item, curr)
-                curr += 1
-
-            # again to make sure things work twice
-            curr = batch_curr
-            for item in chunk:
-                self.assertEqual(item, curr)
-                curr += 1
-
-        self.assertEqual(curr, 100)
 
     def test_nested_keys(self):
         nested = {}

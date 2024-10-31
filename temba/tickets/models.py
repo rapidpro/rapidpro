@@ -1,3 +1,4 @@
+import itertools
 import logging
 from abc import ABCMeta
 from datetime import date
@@ -14,7 +15,6 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgMembership, User
-from temba.utils import chunk_list
 from temba.utils.dates import date_range
 from temba.utils.export import MultiSheetExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
@@ -627,7 +627,7 @@ class TicketExport(ExportType):
         num_records = 0
 
         # add tickets to the export in batches of 1k to limit memory usage
-        for batch_ids in chunk_list(ticket_ids, 1000):
+        for batch_ids in itertools.batched(ticket_ids, 1000):
             tickets = (
                 Ticket.objects.filter(id__in=batch_ids)
                 .order_by("opened_on")

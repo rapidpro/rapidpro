@@ -1,3 +1,4 @@
+import itertools
 import math
 from datetime import timedelta
 
@@ -5,7 +6,6 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from temba.msgs.models import Msg
-from temba.utils import chunk_list
 
 BATCH_SIZE = 1000
 DEFAULT_BATCH = 1000
@@ -55,7 +55,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         self.stdout.write(f"> estimated batch send time of {batch_send_time} seconds at {tps} TPS")
 
-        for id_batch in chunk_list(msg_ids, batch_size):
+        for id_batch in itertools.batched(msg_ids, batch_size):
             # only fetch messages which are WIRED and have never errored
             batch = Msg.objects.filter(id__in=id_batch, status=Msg.STATUS_WIRED, error_count=0)
             num_updated = batch.update(status=Msg.STATUS_ERRORED, error_count=1, next_attempt=next_attempt)
