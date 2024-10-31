@@ -2891,6 +2891,11 @@ class EndpointsTest(APITest):
             raw=lambda j: len(j["flows"]) == 1 and j["flows"][0]["spec_version"] == Flow.CURRENT_SPEC_VERSION,
         )
 
+        # test fetching docs anonymously
+        self.client.logout()
+        response = self.client.get(reverse("api.v2.definitions"))
+        self.assertContains(response, "Deprecated endpoint")
+
     @override_settings(ORG_LIMIT_DEFAULTS={"fields": 10})
     def test_fields(self):
         endpoint_url = reverse("api.v2.fields") + ".json"
