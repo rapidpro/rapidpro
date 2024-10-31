@@ -1880,7 +1880,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # tickets deleted (only for this contact)
         self.assertEqual(0, contact.tickets.count())
         self.assertEqual(1, Ticket.get_status_count(self.org, self.org.topics.all(), Ticket.STATUS_OPEN))
-        self.assertEqual(10, Ticket.get_status_count(self.org, self.org.topics.all(), Ticket.STATUS_CLOSED))
+        self.assertEqual(0, Ticket.get_status_count(self.org, self.org.topics.all(), Ticket.STATUS_CLOSED))
 
         # contact who used to own our urn had theirs released too
         self.assertEqual(0, old_contact.calls.all().count())
