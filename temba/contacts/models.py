@@ -1,3 +1,4 @@
+import itertools
 import logging
 from datetime import date, datetime, timedelta, timezone as tzone
 from decimal import Decimal
@@ -26,7 +27,7 @@ from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole, User
-from temba.utils import chunk_list, format_number, on_transaction_commit
+from temba.utils import format_number, on_transaction_commit
 from temba.utils.export import MultiSheetExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
 from temba.utils.text import unsnakify
@@ -1647,7 +1648,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         ContactGroupContacts = self.contacts.through
         memberships = ContactGroupContacts.objects.filter(contactgroup_id=self.id)
 
-        for batch in chunk_list(memberships, 100):
+        for batch in itertools.batched(memberships, 100):
             ContactGroupContacts.objects.filter(id__in=[m.id for m in batch]).delete()
             Contact.objects.filter(id__in=[m.contact_id for m in batch]).update(modified_on=timezone.now())
 
@@ -1875,7 +1876,7 @@ class ContactExport(ExportType):
         num_records = 0
 
         # write out contacts in batches to limit memory usage
-        for batch_ids in chunk_list(contact_ids, 1000):
+        for batch_ids in itertools.batched(contact_ids, 1000):
             # fetch all the contacts for our batch
             batch_contacts = (
                 Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "groups").using("readonly")

@@ -1,9 +1,9 @@
+import itertools
 import traceback
 
 from django.core.management.base import BaseCommand
 
 from temba.flows.models import Flow
-from temba.utils import chunk_list
 
 
 class Command(BaseCommand):
@@ -30,7 +30,7 @@ class Command(BaseCommand):
         num_updated = 0
         num_errored = 0
 
-        for id_batch in chunk_list(flow_ids, 1000):
+        for id_batch in itertools.batched(flow_ids, 1000):
             for flow in Flow.objects.filter(id__in=id_batch):
                 try:
                     flow.ensure_current_version()

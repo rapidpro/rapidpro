@@ -1,3 +1,4 @@
+import itertools
 import logging
 import time
 
@@ -10,7 +11,6 @@ from django.utils import timezone
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.request_logs.models import HTTPLog
-from temba.utils import chunk_list
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def refresh_whatsapp_contacts(channel_id):
         # 1,000 contacts at a time, we ask WhatsApp to look up our contacts based on the path
         refreshed = 0
 
-        for urn_batch in chunk_list(wa_urns, 1000):
+        for urn_batch in itertools.batched(wa_urns, 1000):
             # need to wait 10 seconds between each batch of 1000
             if refreshed > 0:  # pragma: no cover
                 time.sleep(10)

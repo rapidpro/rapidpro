@@ -1,3 +1,4 @@
+import itertools
 import logging
 import mimetypes
 import os
@@ -24,7 +25,7 @@ from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org
 from temba.schedules.models import Schedule
-from temba.utils import chunk_list, languages, on_transaction_commit
+from temba.utils import languages, on_transaction_commit
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
 from temba.utils.s3 import public_file_storage
@@ -613,7 +614,7 @@ class Msg(models.Model):
 
         # update modified on in small batches to avoid long table lock, and having too many non-unique values for
         # modified_on which is the primary ordering for the API
-        for batch in chunk_list(msg_ids, 100):
+        for batch in itertools.batched(msg_ids, 100):
             Msg.objects.filter(pk__in=batch).update(visibility=cls.VISIBILITY_ARCHIVED, modified_on=timezone.now())
 
     def restore(self):
@@ -1197,7 +1198,7 @@ class MessageExport(ExportType):
         records = Archive.iter_all_records(export.org, Archive.TYPE_MSG, start_date, end_date, where=where)
         last_created_on = None
 
-        for record_batch in chunk_list(records, 1000):
+        for record_batch in itertools.batched(records, 1000):
             matching = []
             for record in record_batch:
                 created_on = iso8601.parse_date(record["created_on"])

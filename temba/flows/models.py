@@ -1,3 +1,4 @@
+import itertools
 import logging
 from array import array
 from collections import defaultdict
@@ -24,7 +25,7 @@ from temba.msgs.models import Label, OptIn
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, User
 from temba.templates.models import Template
 from temba.tickets.models import Topic
-from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
+from temba.utils import analytics, json, on_transaction_commit, s3
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
 from temba.utils.uuid import uuid4
@@ -1678,7 +1679,7 @@ class ResultsExport(ExportType):
         )
         seen = set()
 
-        for record_batch in chunk_list(records, 1000):
+        for record_batch in itertools.batched(records, 1000):
             matching = []
             for record in record_batch:
                 seen.add(record["id"])
@@ -1699,7 +1700,7 @@ class ResultsExport(ExportType):
             f"Results export #{export.id} for org #{export.org.id}: found {len(run_ids)} runs in database to export"
         )
 
-        for id_batch in chunk_list(run_ids, 1000):
+        for id_batch in itertools.batched(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch)
                 .order_by("modified_on", "id")
