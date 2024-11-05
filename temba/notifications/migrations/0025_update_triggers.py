@@ -79,6 +79,9 @@ DROP FUNCTION extract_jsonb_keys(_jsonb JSONB);
 
 class Migration(migrations.Migration):
 
-    dependencies = [("notifications", "0024_notification_data_and_more")]
+    dependencies = [
+        ("notifications", "0024_notification_data_and_more"),
+        ("orgs", "0156_itemcount"),
+    ]
 
     operations = [migrations.RunSQL(SQL)]
