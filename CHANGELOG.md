@@ -1,3 +1,8 @@
+v9.3.93 (2024-11-05)
+-------------------------
+ * Allow invitations to specify team and block team deletion when it has pending invitations
+ * Drop no longer used count models
+
 v9.3.92 (2024-11-05)
 -------------------------
  * Remove database triggers to maintain old notification counts
