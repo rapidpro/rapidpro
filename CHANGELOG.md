@@ -1,3 +1,8 @@
+v9.3.89 (2024-11-05)
+-------------------------
+ * Fix calculating field usages on API endpoint
+ * Stop writing old ticket counts
+
 v9.3.88 (2024-10-31)
 -------------------------
  * Fix browsing definitions API endpoint docs
