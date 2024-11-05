@@ -1523,7 +1523,7 @@ class Invitation(SmartModel):
     email = models.EmailField()
     secret = models.CharField(max_length=64, unique=True)
     role_code = models.CharField(max_length=1, choices=OrgRole.choices(), default=OrgRole.EDITOR.code)
-    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
+    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True, related_name="invitations")
 
     @classmethod
     def create(cls, org, user, email: str, role: OrgRole, team=None):
@@ -1555,7 +1555,7 @@ class Invitation(SmartModel):
     def accept(self, user):
         from temba.notifications.types.builtin import InvitationAcceptedNotificationType
 
-        self.org.add_user(user, self.role)
+        self.org.add_user(user, self.role, team=self.team)
 
         InvitationAcceptedNotificationType.create(self)
 
