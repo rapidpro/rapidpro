@@ -1,3 +1,9 @@
+v9.3.91 (2024-11-05)
+-------------------------
+ * Update some deps
+ * Start using new notification counts
+ * Add data migration to backfill new notification counts
+
 v9.3.90 (2024-11-05)
 -------------------------
  * Start writing notification counts to orgs_itemcount
