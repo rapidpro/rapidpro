@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView
 
-from django.db.models import Count, Prefetch, Q
+from django.db.models import OuterRef, Prefetch, Q
 from django.utils.translation import gettext_lazy as _
 
 from temba.archives.models import Archive
@@ -25,6 +25,7 @@ from temba.orgs.models import OrgMembership, User
 from temba.orgs.views.mixins import OrgPermsMixin
 from temba.tickets.models import Ticket, Topic
 from temba.utils import str_to_bool
+from temba.utils.db.queries import SubqueryCount
 from temba.utils.uuid import is_uuid
 
 from ..models import APIPermission, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
@@ -1636,9 +1637,17 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         org = self.request.org
         return (
             self.model.objects.filter(org=org, is_active=True, is_proxy=False)
-            .annotate(flow_count=Count("dependent_flows", filter=Q(dependent_flows__is_active=True)))
-            .annotate(group_count=Count("dependent_groups", filter=Q(dependent_groups__is_active=True)))
-            .annotate(campaignevent_count=Count("campaign_events", filter=Q(campaign_events__is_active=True)))
+            .annotate(
+                flow_count=SubqueryCount(Flow.objects.filter(field_dependencies__id=OuterRef("id"), is_active=True))
+            )
+            .annotate(
+                group_count=SubqueryCount(ContactGroup.objects.filter(query_fields__id=OuterRef("id"), is_active=True))
+            )
+            .annotate(
+                campaignevent_count=SubqueryCount(
+                    CampaignEvent.objects.filter(relative_to__id=OuterRef("id"), is_active=True)
+                )
+            )
         )
 
     def filter_queryset(self, queryset):

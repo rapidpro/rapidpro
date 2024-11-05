@@ -2908,11 +2908,22 @@ class EndpointsTest(APITest):
         registered = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
         self.create_field("not_ours", "Something Else", org=self.org2)
 
-        # add our date field to a campaign event
+        # add our date field to some campaign events
         campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
         CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow("Flow")
+            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow("Event 1")
         )
+        CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, registered, offset=2, unit="W", flow=self.create_flow("Event 2")
+        )
+
+        # and some regular flows
+        self.create_flow("Flow 1").field_dependencies.add(registered)
+        self.create_flow("Flow 2").field_dependencies.add(registered)
+        self.create_flow("Flow 3").field_dependencies.add(registered)
+
+        # and a group
+        self.create_group("Farmers").query_fields.add(registered)
 
         deleted = self.create_field("deleted", "Deleted")
         deleted.release(self.admin)
@@ -2928,7 +2939,7 @@ class EndpointsTest(APITest):
                     "type": "datetime",
                     "featured": False,
                     "priority": 0,
-                    "usages": {"campaign_events": 1, "flows": 0, "groups": 0},
+                    "usages": {"campaign_events": 2, "flows": 3, "groups": 1},
                     "agent_access": "view",
                     "label": "Registered On",
                     "value_type": "datetime",
