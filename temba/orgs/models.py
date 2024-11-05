@@ -1318,7 +1318,6 @@ class Org(SmartModel):
         counts = defaultdict(int)
 
         delete_in_batches(self.notifications.all())
-        delete_in_batches(self.notification_counts.all())
         delete_in_batches(self.incidents.all())
         delete_in_batches(self.flow_labels.all())
 
@@ -1356,7 +1355,6 @@ class Org(SmartModel):
         delete_in_batches(self.sessions.all())
         delete_in_batches(self.ticket_events.all())
         delete_in_batches(self.tickets.all())
-        delete_in_batches(self.ticket_counts.all())
         delete_in_batches(self.topics.all())
         delete_in_batches(self.teams.all())
         delete_in_batches(self.airtime_transfers.all())

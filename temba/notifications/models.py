@@ -11,7 +11,6 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactImport
 from temba.orgs.models import Export, Org
 from temba.utils.email import EmailSender
-from temba.utils.models import SquashableModel
 
 logger = logging.getLogger(__name__)
 
@@ -261,15 +260,3 @@ class Notification(models.Model):
                 condition=Q(is_seen=False),
             ),
         ]
-
-
-class NotificationCount(SquashableModel):
-    """
-    TODO drop
-    """
-
-    squash_over = ("org_id", "user_id")
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notification_counts")
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notification_counts")
-    count = models.IntegerField(default=0)

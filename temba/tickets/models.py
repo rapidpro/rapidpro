@@ -18,7 +18,7 @@ from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgMembe
 from temba.utils.dates import date_range
 from temba.utils.db.functions import SplitPart
 from temba.utils.export import MultiSheetExporter
-from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
+from temba.utils.models import DailyCountModel, DailyTimingModel, TembaModel
 from temba.utils.uuid import is_uuid, uuid4
 
 logger = logging.getLogger(__name__)
@@ -425,26 +425,6 @@ class TopicFolder(TicketFolder):
 
     def get_queryset(self, org, user, *, ordered: bool):
         return super().get_queryset(org, user, ordered=ordered).filter(topic=self.topic)
-
-
-class TicketCount(SquashableModel):
-    """
-    TODO drop
-    """
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
-    scope = models.CharField(max_length=32)
-    status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
-    count = models.IntegerField(default=0)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=("org", "status")),
-            models.Index(fields=("org", "scope", "status")),
-            models.Index(
-                name="ticket_count_unsquashed", fields=("org", "scope", "status"), condition=Q(is_squashed=False)
-            ),
-        ]
 
 
 class TicketDailyCount(DailyCountModel):
