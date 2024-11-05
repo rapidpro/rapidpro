@@ -1,3 +1,7 @@
+v9.3.90 (2024-11-05)
+-------------------------
+ * Start writing notification counts to orgs_itemcount
+
 v9.3.89 (2024-11-05)
 -------------------------
  * Fix calculating field usages on API endpoint
