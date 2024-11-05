@@ -1,3 +1,7 @@
+v9.3.92 (2024-11-05)
+-------------------------
+ * Remove database triggers to maintain old notification counts
+
 v9.3.91 (2024-11-05)
 -------------------------
  * Update some deps
