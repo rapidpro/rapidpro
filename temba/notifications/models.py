@@ -226,6 +226,10 @@ class Notification(models.Model):
     def get_unseen_count(cls, org: Org, user: User) -> int:
         return NotificationCount.get_total(org, user)
 
+    @classmethod
+    def get_unseen_count_new(cls, org: Org, user: User) -> int:
+        return org.counts.filter(scope=f"notifications:{user.id}:U").sum()
+
     @property
     def type(self):
         from .types import TYPES  # noqa

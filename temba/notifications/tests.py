@@ -529,7 +529,7 @@ class NotificationTest(TembaTest):
         self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())  # previous address
         self.assertIn("User bob@nyaruka.com accepted an invitation to join your workspace.", mail.outbox[0].body)
 
-    def test_get_unseen_count(self):
+    def test_counts(self):
         imp = ContactImport.objects.create(
             org=self.org, mappings={}, num_records=5, created_by=self.editor, modified_by=self.editor
         )
@@ -543,38 +543,42 @@ class NotificationTest(TembaTest):
             self.org2, "tickets:activity", scope="", users=[self.editor], medium="UE"
         )  # different org
 
-        self.assertEqual(2, Notification.get_unseen_count(self.org, self.agent))
-        self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))
-        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
-        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+        def assert_count(org, user, expected: int):
+            self.assertEqual(expected, Notification.get_unseen_count(org, user))
+            self.assertEqual(expected, Notification.get_unseen_count_new(org, user))
+
+        assert_count(self.org, self.agent, 2)
+        assert_count(self.org, self.editor, 3)
+        assert_count(self.org2, self.agent, 0)
+        assert_count(self.org2, self.editor, 1)
 
         Notification.mark_seen(self.org, self.agent, "tickets:activity", scope="")
 
-        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
-        self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))
-        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
-        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+        assert_count(self.org, self.agent, 1)
+        assert_count(self.org, self.editor, 3)
+        assert_count(self.org2, self.agent, 0)
+        assert_count(self.org2, self.editor, 1)
 
         Notification.objects.filter(org=self.org, user=self.editor, notification_type="tickets:opened").delete()
 
-        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
-        self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
-        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
-        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+        assert_count(self.org, self.agent, 1)
+        assert_count(self.org, self.editor, 2)
+        assert_count(self.org2, self.agent, 0)
+        assert_count(self.org2, self.editor, 1)
 
         squash_notification_counts()
 
-        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
-        self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
-        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
-        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+        assert_count(self.org, self.agent, 1)
+        assert_count(self.org, self.editor, 2)
+        assert_count(self.org2, self.agent, 0)
+        assert_count(self.org2, self.editor, 1)
 
         Notification.mark_seen(self.org, self.editor)
 
-        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
-        self.assertEqual(0, Notification.get_unseen_count(self.org, self.editor))
-        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
-        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+        assert_count(self.org, self.agent, 1)
+        assert_count(self.org, self.editor, 0)
+        assert_count(self.org2, self.agent, 0)
+        assert_count(self.org2, self.editor, 1)
 
     def test_trim_task(self):
         self.org.suspend()
