@@ -6,7 +6,7 @@ from django.utils import timezone
 from temba.utils.crons import cron_task
 from temba.utils.models import delete_in_batches
 
-from .models import Notification, NotificationCount
+from .models import Notification
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +30,6 @@ def send_notification_emails():
             num_errored += 1
 
     return {"sent": num_sent, "errored": num_errored}
-
-
-@cron_task(lock_timeout=1800)
-def squash_notification_counts():
-    NotificationCount.squash()
 
 
 @cron_task()

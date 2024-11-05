@@ -224,10 +224,6 @@ class Notification(models.Model):
 
     @classmethod
     def get_unseen_count(cls, org: Org, user: User) -> int:
-        return NotificationCount.get_total(org, user)
-
-    @classmethod
-    def get_unseen_count_new(cls, org: Org, user: User) -> int:
         return org.counts.filter(scope=f"notifications:{user.id}:U").sum()
 
     @property
@@ -269,7 +265,7 @@ class Notification(models.Model):
 
 class NotificationCount(SquashableModel):
     """
-    A count of a user's unseen notifications in a specific org
+    TODO drop
     """
 
     squash_over = ("org_id", "user_id")
@@ -277,21 +273,3 @@ class NotificationCount(SquashableModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notification_counts")
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notification_counts")
     count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-            WITH deleted as (
-                DELETE FROM %(table)s WHERE "org_id" = %%s AND "user_id" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("org_id", "user_id", "count", "is_squashed")
-            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-            """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.org_id, distinct_set.user_id) * 2
-
-    @classmethod
-    def get_total(cls, org: Org, user: User) -> int:
-        return cls.sum(cls.objects.filter(org=org, user=user))

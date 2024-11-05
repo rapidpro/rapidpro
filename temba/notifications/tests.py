@@ -7,13 +7,13 @@ from django.utils import timezone
 from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ResultsExport
 from temba.msgs.models import MessageExport
-from temba.orgs.models import Invitation, OrgRole
+from temba.orgs.models import Invitation, ItemCount, OrgRole
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
 from temba.tickets.models import TicketExport
 
 from .incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
 from .models import Incident, Notification
-from .tasks import send_notification_emails, squash_notification_counts, trim_notifications
+from .tasks import send_notification_emails, trim_notifications
 from .types.builtin import (
     ExportFinishedNotificationType,
     InvitationAcceptedNotificationType,
@@ -545,7 +545,6 @@ class NotificationTest(TembaTest):
 
         def assert_count(org, user, expected: int):
             self.assertEqual(expected, Notification.get_unseen_count(org, user))
-            self.assertEqual(expected, Notification.get_unseen_count_new(org, user))
 
         assert_count(self.org, self.agent, 2)
         assert_count(self.org, self.editor, 3)
@@ -566,7 +565,7 @@ class NotificationTest(TembaTest):
         assert_count(self.org2, self.agent, 0)
         assert_count(self.org2, self.editor, 1)
 
-        squash_notification_counts()
+        ItemCount.squash()
 
         assert_count(self.org, self.agent, 1)
         assert_count(self.org, self.editor, 2)
@@ -623,7 +622,7 @@ class BackfillNewCountsTest(MigrationTest):
 
     def test_migration(self):
         def assert_count(org, user, expected: int):
-            self.assertEqual(expected, Notification.get_unseen_count_new(org, user))
+            self.assertEqual(expected, Notification.get_unseen_count(org, user))
 
         assert_count(self.org, self.agent, 2)
         assert_count(self.org, self.editor, 3)
