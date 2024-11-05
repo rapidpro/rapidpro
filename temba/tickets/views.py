@@ -131,6 +131,7 @@ class TeamCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["has_agents"] = self.object.get_users().exists()
+            context["has_invitations"] = self.object.invitations.filter(is_active=True).exists()
             return context
 
     class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):

@@ -123,11 +123,26 @@ class InvitationTest(TembaTest):
         self.assertEqual("RapidPro Invitation", mail.outbox[0].subject)
         self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", mail.outbox[0].body)
 
-        user = User.create("invitededitor@nyaruka.com", "Bob", "", "Qwerty123", "en-US")
-        invitation.accept(user)
+        new_editor = User.create("invitededitor@nyaruka.com", "Bob", "", "Qwerty123", "en-US")
+        invitation.accept(new_editor)
 
         self.assertEqual(1, self.admin.notifications.count())
         self.assertFalse(invitation.is_active)
+        self.assertEqual({self.editor, new_editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+
+        # invite an agent user to a specific team
+        sales = Team.create(self.org, self.admin, "Sales", topics=[])
+        invitation = Invitation.create(self.org, self.admin, "invitedagent@nyaruka.com", OrgRole.AGENT, team=sales)
+
+        self.assertEqual(OrgRole.AGENT, invitation.role)
+        self.assertEqual(sales, invitation.team)
+
+        invitation.send()
+        new_agent = User.create("invitedagent@nyaruka.com", "Bob", "", "Qwerty123", "en-US")
+        invitation.accept(new_agent)
+
+        self.assertEqual({self.agent, new_agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
+        self.assertEqual({new_agent}, set(sales.get_users()))
 
     def test_expire_task(self):
         invitation1 = Invitation.objects.create(

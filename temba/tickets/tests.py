@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
-from temba.orgs.models import Export, Org, OrgMembership, OrgRole
+from temba.orgs.models import Export, Invitation, Org, OrgMembership, OrgRole
 from temba.orgs.tasks import squash_item_counts
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
@@ -603,6 +603,7 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
         team1 = Team.create(self.org, self.admin, "Sales", topics=[sales])
         team2 = Team.create(self.org, self.admin, "Other", topics=[sales])
         self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
+        invite = Invitation.create(self.org, self.admin, "newagent@nyaruka.com", OrgRole.AGENT, team=team1)
 
         delete_url = reverse("tickets.team_delete", args=[team1.id])
 
@@ -610,9 +611,17 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # deleting blocked for team with agents
         response = self.assertDeleteFetch(delete_url, [self.admin])
-        self.assertContains(response, "Sorry, the <b>Sales</b> team can't be deleted")
+        self.assertContains(response, "Sorry, the <b>Sales</b> team can't be deleted while it still has agents")
 
         self.org.add_user(self.agent, OrgRole.AGENT, team=team2)
+
+        # deleting blocked for team with pending invitations
+        response = self.assertDeleteFetch(delete_url, [self.admin])
+        self.assertContains(
+            response, "Sorry, the <b>Sales</b> team can't be deleted while it still has pending invitations"
+        )
+
+        invite.release()
 
         # try again...
         response = self.assertDeleteFetch(delete_url, [self.admin])

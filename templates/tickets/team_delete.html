@@ -6,6 +6,10 @@
     {% blocktrans trimmed %}
       Sorry, the <b>{{ object }}</b> team can't be deleted while it still has agents. Move the agents to another team first and then try again.
     {% endblocktrans %}
+  {% elif has_invitations %}
+    {% blocktrans trimmed %}
+      Sorry, the <b>{{ object }}</b> team can't be deleted while it still has pending invitations. Cancel the invitations and then try again.
+    {% endblocktrans %}
   {% else %}
     {% blocktrans trimmed %}
       You are about to delete the <b>{{ object }}</b> team. There is no way to undo this. Are you sure?
@@ -13,5 +17,5 @@
   {% endif %}
 {% endblock fields %}
 {% block form-buttons %}
-  {% if not has_agents %}<input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">{% endif %}
+  {% if not has_agents and not has_invitations %}<input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">{% endif %}
 {% endblock form-buttons %}
