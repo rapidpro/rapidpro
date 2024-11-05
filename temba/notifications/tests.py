@@ -8,7 +8,7 @@ from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ResultsExport
 from temba.msgs.models import MessageExport
 from temba.orgs.models import Invitation, OrgRole
-from temba.tests import CRUDLTestMixin, TembaTest, matchers
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
 from temba.tickets.models import TicketExport
 
 from .incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
@@ -598,3 +598,34 @@ class NotificationTest(TembaTest):
 
         self.assertFalse(Notification.objects.filter(id=notification1.id).exists())
         self.assertTrue(Notification.objects.filter(id=notification2.id).exists())
+
+
+class BackfillNewCountsTest(MigrationTest):
+    app = "notifications"
+    migrate_from = "0025_update_triggers"
+    migrate_to = "0026_backfill_new_counts"
+
+    def setUpBeforeMigration(self, apps):
+        imp = ContactImport.objects.create(
+            org=self.org, mappings={}, num_records=5, created_by=self.editor, modified_by=self.editor
+        )
+        Notification.create_all(
+            imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp, medium="UE"
+        )
+        Notification.create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor], medium="UE")
+        Notification.create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor], medium="UE")
+        Notification.create_all(self.org, "tickets:reply", scope="12", users=[self.editor], medium="E")  # email only
+        Notification.create_all(
+            self.org2, "tickets:activity", scope="", users=[self.editor], medium="UE"
+        )  # different org
+
+        self.org2.counts.all().delete()
+
+    def test_migration(self):
+        def assert_count(org, user, expected: int):
+            self.assertEqual(expected, Notification.get_unseen_count_new(org, user))
+
+        assert_count(self.org, self.agent, 2)
+        assert_count(self.org, self.editor, 3)
+        assert_count(self.org2, self.agent, 0)
+        assert_count(self.org2, self.editor, 1)
