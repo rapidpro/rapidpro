@@ -14,7 +14,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.orgs.models import Org
+from temba.orgs.models import OrgRole
 from temba.tests import TembaTest, matchers, override_brand
 from temba.utils import json, uuid
 from temba.utils.compose import compose_serialize
@@ -254,42 +254,59 @@ class CronsTest(TembaTest):
 
 class MiddlewareTest(TembaTest):
     def test_org(self):
+        index_url = reverse("public.public_index")
 
-        self.other_org = Org.objects.create(
-            name="Other Org",
-            timezone=ZoneInfo("Africa/Kigali"),
-            flow_languages=["eng", "kin"],
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-        self.other_org.initialize()
-
-        response = self.client.get(reverse("public.public_index"))
+        response = self.client.get(index_url)
         self.assertFalse(response.has_header("X-Temba-Org"))
+
+        # if a user has a single org, that becomes the current org
+        self.login(self.admin)
+
+        response = self.client.get(index_url)
+        self.assertEqual(str(self.org.id), response["X-Temba-Org"])
+
+        # if not, org isn't set
+        self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
+
+        response = self.client.get(index_url)
+        self.assertFalse(response.has_header("X-Temba-Org"))
+
+        # org will be read from session if set
+        s = self.client.session
+        s.update({"org_id": self.org.id})
+        s.save()
+
+        response = self.client.get(index_url)
+        self.assertEqual(str(self.org.id), response["X-Temba-Org"])
+
+        # org can be sent as a header too and we check it matches
+        response = self.client.post(reverse("flows.flow_create"), {}, headers={"X-Temba-Org": str(self.org.id)})
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.post(reverse("flows.flow_create"), {}, headers={"X-Temba-Org": str(self.org2.id)})
+        self.assertEqual(403, response.status_code)
 
         self.login(self.customer_support)
 
         # our staff user doesn't have a default org
-        response = self.client.get(reverse("public.public_index"))
+        response = self.client.get(index_url)
         self.assertFalse(response.has_header("X-Temba-Org"))
 
         # but they can specify an org to service as a header
-        response = self.client.get(reverse("public.public_index"), headers={"X-Temba-Service-Org": str(self.org.id)})
+        response = self.client.get(index_url, headers={"X-Temba-Service-Org": str(self.org.id)})
         self.assertEqual(response["X-Temba-Org"], str(self.org.id))
 
-        response = self.client.get(reverse("public.public_index"))
+        response = self.client.get(index_url)
         self.assertFalse(response.has_header("X-Temba-Org"))
 
-        self.login(self.admin)
+        self.login(self.editor)
 
-        response = self.client.get(reverse("public.public_index"))
+        response = self.client.get(index_url)
         self.assertEqual(response["X-Temba-Org"], str(self.org.id))
 
         # non-staff can't specify a different org from there own
-        response = self.client.get(
-            reverse("public.public_index"), headers={"X-Temba-Service-Org": str(self.other_org.id)}
-        )
-        self.assertNotEqual(response["X-Temba-Org"], str(self.other_org.id))
+        response = self.client.get(index_url, headers={"X-Temba-Service-Org": str(self.org2.id)})
+        self.assertNotEqual(response["X-Temba-Org"], str(self.org2.id))
 
     def test_redirect(self):
         self.assertNotRedirect(self.client.get(reverse("public.public_index")), None)

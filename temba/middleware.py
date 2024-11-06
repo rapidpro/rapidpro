@@ -6,6 +6,7 @@ from io import StringIO
 
 from django.conf import settings
 from django.contrib import messages
+from django.http import HttpResponseForbidden
 from django.utils import timezone, translation
 
 from temba.orgs.models import Org, User
@@ -42,6 +43,13 @@ class OrgMiddleware:
         assert hasattr(request, "user"), "must be called after django.contrib.auth.middleware.AuthenticationMiddleware"
 
         request.org = self.determine_org(request)
+
+        # if request is a POST with an org header, ensure it matches the current org
+        if request.method == "POST":
+            posted_org_id = request.headers.get("X-Temba-Org")
+            if posted_org_id and request.org and request.org.id != int(posted_org_id):
+                return HttpResponseForbidden()
+
         if request.org:
             # set our current role for this org
             request.role = request.org.get_user_role(request.user)
