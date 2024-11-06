@@ -214,80 +214,37 @@ class UserTest(TembaTest):
             (
                 self.org,
                 "contacts.contact_list",
-                {
-                    self.agent: False,
-                    self.user: True,
-                    self.admin: True,
-                    self.admin2: False,
-                    self.customer_support: True,
-                },
+                {self.agent: False, self.user: True, self.admin: True, self.admin2: False},
             ),
             (
                 self.org2,
                 "contacts.contact_list",
-                {
-                    self.agent: False,
-                    self.user: False,
-                    self.admin: False,
-                    self.admin2: True,
-                    self.customer_support: True,
-                },
+                {self.agent: False, self.user: False, self.admin: False, self.admin2: True},
             ),
             (
                 self.org2,
                 "contacts.contact_read",
-                {
-                    self.agent: False,
-                    self.user: False,
-                    self.admin: False,
-                    self.admin2: True,
-                    self.customer_support: True,  # needed for servicing
-                },
+                {self.agent: False, self.user: False, self.admin: False, self.admin2: True},
             ),
             (
                 self.org,
                 "orgs.org_edit",
-                {
-                    self.agent: False,
-                    self.user: False,
-                    self.admin: True,
-                    self.admin2: False,
-                    self.customer_support: True,
-                },
+                {self.agent: False, self.user: False, self.admin: True, self.admin2: False},
             ),
             (
                 self.org2,
                 "orgs.org_edit",
-                {
-                    self.agent: False,
-                    self.user: False,
-                    self.admin: False,
-                    self.admin2: True,
-                    self.customer_support: True,
-                },
+                {self.agent: False, self.user: False, self.admin: False, self.admin2: True},
             ),
             (
                 self.org,
                 "orgs.org_grant",
-                {
-                    self.agent: False,
-                    self.user: False,
-                    self.admin: False,
-                    self.admin2: False,
-                    self.customer_support: True,
-                    granter: True,
-                },
+                {self.agent: False, self.user: False, self.admin: False, self.admin2: False, granter: True},
             ),
             (
                 self.org,
                 "xxx.yyy_zzz",
-                {
-                    self.agent: False,
-                    self.user: False,
-                    self.admin: False,
-                    self.admin2: False,
-                    self.customer_support: True,  # staff have implicit all perm access
-                },
+                {self.agent: False, self.user: False, self.admin: False, self.admin2: False},
             ),
         )
         for org, perm, checks in tests:

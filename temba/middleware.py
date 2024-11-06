@@ -42,10 +42,6 @@ class OrgMiddleware:
         assert hasattr(request, "user"), "must be called after django.contrib.auth.middleware.AuthenticationMiddleware"
 
         request.org = self.determine_org(request)
-        if request.org:
-            # set our current role for this org
-            request.role = request.org.get_user_role(request.user)
-
         request.branding = settings.BRAND
 
         # continue the chain, which in the case of the API will set request.org

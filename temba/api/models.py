@@ -72,17 +72,17 @@ class APIPermission(BasePermission):
 
         if request.auth:
             # auth token was used
-            role = org.get_user_role(request.auth.user)
+            role = org.get_user_role(request.user)
 
-            # only editors and administrators can use API tokens
-            if role not in APIToken.ALLOWED_ROLES:
+            # only editors, administrators and servicing staff can use API tokens
+            if role not in APIToken.ALLOWED_ROLES and not request.user.is_staff:
                 return False
         elif org:
             role = org.get_user_role(request.user)
         else:
             return False
 
-        has_perm = role.has_api_perm(permission)
+        has_perm = request.user.is_staff or role.has_api_perm(permission)
 
         # viewers can only ever get from the API
         if role == OrgRole.VIEWER:
@@ -220,7 +220,7 @@ class APIToken(models.Model):
         Creates a new API token for this user
         """
 
-        assert org.get_user_role(user) in cls.ALLOWED_ROLES
+        assert org.get_user_role(user) in cls.ALLOWED_ROLES or user.is_staff
 
         return cls.objects.create(user=user, org=org, key=generate_secret(40))
 
