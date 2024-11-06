@@ -4116,6 +4116,31 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"email": "User has already been invited to this workspace."},
         )
 
+        # invite an agent (defaults to default team)
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "newagent@nyaruka.com", "role": "T"},
+            new_obj_query=Invitation.objects.filter(
+                org=self.org, email="newagent@nyaruka.com", role_code="T", team=self.org.default_ticket_team
+            ),
+        )
+
+        # if we have a teams feature, we can select a team
+        self.org.features += [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+        sales = Team.create(self.org, self.admin, "New Team", topics=[])
+
+        self.assertCreateFetch(create_url, [self.admin], form_fields={"email": None, "role": "E", "team": None})
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "otheragent@nyaruka.com", "role": "T", "team": sales.id},
+            new_obj_query=Invitation.objects.filter(
+                org=self.org, email="otheragent@nyaruka.com", role_code="T", team=sales
+            ),
+        )
+
     def test_delete(self):
         inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
         inv2 = Invitation.create(self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT)

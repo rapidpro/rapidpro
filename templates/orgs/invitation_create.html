@@ -1,5 +1,5 @@
 {% extends "includes/modax.html" %}
-{% load i18n %}
+{% load i18n smartmin %}
 
 {% block pre-form %}
   <div class="mb-8">
@@ -8,3 +8,29 @@
     {% endblocktrans %}
   </div>
 {% endblock pre-form %}
+{% block fields %}
+  {% render_field 'email' %}
+  {% render_field 'role' %}
+  {% if form.fields.team %}
+    <div class="team hidden">{% render_field 'team' %}</div>
+  {% endif %}
+{% endblock fields %}
+{% block modal-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    var modalBody = getModax("#invitation-create").shadowRoot;
+    var roleSelect = modalBody.querySelector("temba-select[name='role']");
+    var team = modalBody.querySelector(".team");
+    var teamSelect = modalBody.querySelector("temba-select[name='team']");
+
+    roleSelect.addEventListener("change", function(evt) {
+      var selected = evt.target.values[0];
+      if (selected.value === "T") {
+        team.classList.remove("hidden");
+      } else {
+        team.classList.add("hidden");
+        teamSelect.clear();
+      }
+    });
+  </script>
+{% endblock modal-script %}
