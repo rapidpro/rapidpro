@@ -4,7 +4,6 @@ import time
 from django.http import HttpResponseRedirect
 from django.urls import resolve
 
-
 logger = logging.getLogger(__name__)
 
 
