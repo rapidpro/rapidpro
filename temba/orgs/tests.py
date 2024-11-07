@@ -2832,7 +2832,18 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
 
-        self.assertListFetch(list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user])
+        response = self.assertListFetch(
+            list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user]
+        )
+        self.assertNotContains(response, "(All Topics)")
+
+        self.org.features += [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+
+        response = self.assertListFetch(
+            list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user]
+        )
+        self.assertContains(response, "(All Topics)")
 
         # can search by name or email
         self.assertListFetch(list_url + "?search=andy", [self.admin], context_objects=[self.admin])
@@ -4057,9 +4068,18 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
 
         inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
-        inv2 = Invitation.create(self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT)
+        inv2 = Invitation.create(
+            self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT, team=self.org.default_ticket_team
+        )
 
-        self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
+        response = self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
+        self.assertNotContains(response, "(All Topics)")
+
+        self.org.features += [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+
+        response = self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
+        self.assertContains(response, "(All Topics)")
 
     def test_create(self):
         create_url = reverse("orgs.invitation_create")
