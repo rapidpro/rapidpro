@@ -1,6 +1,6 @@
 var pendingRequests = [];
 
-const OMIT_ORG_URLS = ['/staff/'];
+const OMIT_ORG_URLS = ['/staff/', '/org/choose/'];
 
 function onSpload(fn) {
   var container = document.querySelector('.spa-container');
