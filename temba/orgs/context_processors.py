@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from .models import OrgRole
+
 
 class RolePermsWrapper:
     """
@@ -24,18 +26,22 @@ class RolePermsWrapper:
 
 def user_group_perms_processor(request):
     """
-    Sets user_org in the context, and org_perms if user belongs to an auth group.
+    Sets user_org in the context, as well as org_perms to determine org permissions.
     """
-    context = {}
 
-    if request.user.is_anonymous:
-        org = None
-        role = None
-    else:
+    org = None
+    role = None
+
+    if not request.user.is_anonymous:
         org = request.org
-        role = org.get_user_role(request.user) if org else None
 
-    context["user_org"] = org
+        if org:
+            if request.user.is_staff:
+                role = OrgRole.ADMINISTRATOR  # servicing staff get to see the UI like an org admin
+            else:
+                role = org.get_user_role(request.user)
+
+    context = {"user_org": org}
     if role:
         context["org_perms"] = RolePermsWrapper(role)
 
