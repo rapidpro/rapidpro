@@ -125,15 +125,6 @@ class BaseFlowForm(forms.ModelForm):
         fields = "__all__"
 
 
-class PartialTemplate(SmartTemplateView):  # pragma: no cover
-    def pre_process(self, request, *args, **kwargs):
-        self.template = kwargs["template"]
-        return
-
-    def get_template_names(self):
-        return "partials/%s.html" % self.template
-
-
 class FlowSessionCRUDL(SmartCRUDL):
     actions = ("json",)
     model = FlowSession
