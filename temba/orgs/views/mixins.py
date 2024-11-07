@@ -35,7 +35,7 @@ class OrgPermsMixin:
             return False
         if user.is_superuser:
             return True
-        if user.is_staff and self.request.method != "POST":
+        if user.is_staff and self.request.method == "GET":
             return True
 
         return self.get_user().has_org_perm(org, permission)
