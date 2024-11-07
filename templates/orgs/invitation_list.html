@@ -26,7 +26,10 @@
       {% for obj in object_list %}
         <tr>
           <td>{{ obj.email }}</td>
-          <td>{{ obj.role.display }}</td>
+          <td>
+            {{ obj.role.display }}
+            {% if obj.team and has_teams %}({{ obj.team.name }}){% endif %}
+          </td>
           <td>{{ obj.created_on|day }}</td>
           <td class="w-10">
             <temba-icon name="delete"

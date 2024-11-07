@@ -41,6 +41,7 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
+from temba.tickets.models import Team
 from temba.utils import analytics, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.email import EmailSender, parse_smtp_url
 from temba.utils.fields import (
@@ -372,9 +373,10 @@ class UserCRUDL(SmartCRUDL):
             for user in context["object_list"]:
                 membership = self.request.org.get_membership(user)
                 user.role = membership.role
-                # user.team = membership.team  # TODO enable this when orgs can create teams
+                user.team = membership.team
 
             context["has_viewers"] = self.request.org.get_users(roles=[OrgRole.VIEWER]).exists()
+            context["has_teams"] = Org.FEATURE_TEAMS in self.request.org.features
             context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
             return context
 
@@ -432,10 +434,18 @@ class UserCRUDL(SmartCRUDL):
     class Update(RequireFeatureMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             role = forms.ChoiceField(choices=OrgRole.choices(), required=True, label=_("Role"), widget=SelectWidget())
+            team = forms.ModelChoiceField(queryset=Team.objects.none(), required=False, widget=SelectWidget())
+
+            def __init__(self, org, *args, **kwargs):
+                self.org = org
+
+                super().__init__(*args, **kwargs)
+
+                self.fields["team"].queryset = org.teams.filter(is_active=True).order_by(Lower("name"))
 
             class Meta:
                 model = User
-                fields = ("role",)
+                fields = ("role", "team")
 
         form_class = Form
         require_feature = Org.FEATURE_USERS
@@ -446,20 +456,33 @@ class UserCRUDL(SmartCRUDL):
         def get_queryset(self):
             return self.request.org.get_users()
 
+        def derive_exclude(self):
+            return [] if Org.FEATURE_TEAMS in self.request.org.features else ["team"]
+
         def derive_initial(self):
-            # viewers default to editors
-            role = self.request.org.get_user_role(self.object)
-            return {"role": OrgRole.EDITOR.code if role == OrgRole.VIEWER else role.code}
+            membership = self.request.org.get_membership(self.object)
+            return {
+                # viewers default to editors
+                "role": OrgRole.EDITOR.code if membership.role == OrgRole.VIEWER else membership.role.code,
+                "team": membership.team,
+            }
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
 
         def save(self, obj):
             role = OrgRole.from_code(self.form.cleaned_data["role"])
+            team = self.form.cleaned_data.get("team")
+            team = (team or self.request.org.default_ticket_team) if role == OrgRole.AGENT else None
 
             # don't update if user is the last administrator and role is being changed to something else
             has_other_admins = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=obj.id).exists()
             if role != OrgRole.ADMINISTRATOR and not has_other_admins:
                 return obj
 
-            self.request.org.add_user(obj, role)
+            self.request.org.add_user(obj, role, team=team)
             return obj
 
         def get_success_url(self):
@@ -2140,11 +2163,18 @@ class InvitationCRUDL(SmartCRUDL):
         default_order = ("-created_on",)
 
         def build_context_menu(self, menu):
-            menu.add_modax(_("New"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
+            menu.add_modax(
+                _("New"),
+                "invitation-create",
+                reverse("orgs.invitation_create"),
+                title=_("New Invitation"),
+                as_button=True,
+            )
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["validity_days"] = settings.INVITATION_VALIDITY.days
+            context["has_teams"] = Org.FEATURE_TEAMS in self.request.org.features
             return context
 
     class Create(RequireFeatureMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
@@ -2153,11 +2183,14 @@ class InvitationCRUDL(SmartCRUDL):
             role = forms.ChoiceField(
                 choices=OrgRole.choices(), initial=OrgRole.EDITOR.code, label=_("Role"), widget=SelectWidget()
             )
+            team = forms.ModelChoiceField(queryset=Team.objects.none(), required=False, widget=SelectWidget())
 
             def __init__(self, org, *args, **kwargs):
                 self.org = org
 
                 super().__init__(*args, **kwargs)
+
+                self.fields["team"].queryset = org.teams.filter(is_active=True).order_by(Lower("name"))
 
             def clean_email(self):
                 email = self.cleaned_data["email"]
@@ -2172,13 +2205,16 @@ class InvitationCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Invitation
-                fields = ("email", "role")
+                fields = ("email", "role", "team")
 
         form_class = Form
         require_feature = Org.FEATURE_USERS
         title = ""
         submit_button_name = _("Send")
         success_url = "@orgs.invitation_list"
+
+        def derive_exclude(self):
+            return [] if Org.FEATURE_TEAMS in self.request.org.features else ["team"]
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2191,9 +2227,10 @@ class InvitationCRUDL(SmartCRUDL):
             return context
 
         def save(self, obj):
-            self.object = Invitation.create(
-                self.request.org, self.request.user, obj.email, OrgRole.from_code(self.form.cleaned_data["role"])
-            )
+            role = OrgRole.from_code(self.form.cleaned_data["role"])
+            team = (obj.team or self.request.org.default_ticket_team) if role == OrgRole.AGENT else None
+
+            self.object = Invitation.create(self.request.org, self.request.user, obj.email, role, team=team)
 
         def post_save(self, obj):
             obj.send()

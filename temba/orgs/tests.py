@@ -2789,7 +2789,18 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
 
-        self.assertListFetch(list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user])
+        response = self.assertListFetch(
+            list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user]
+        )
+        self.assertNotContains(response, "(All Topics)")
+
+        self.org.features += [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+
+        response = self.assertListFetch(
+            list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user]
+        )
+        self.assertContains(response, "(All Topics)")
 
         # can search by name or email
         self.assertListFetch(list_url + "?search=andy", [self.admin], context_objects=[self.admin])
@@ -2841,6 +2852,21 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("orgs.user_list"))
 
         self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+
+        # adding teams feature enables team selection for agents
+        self.org.features += [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+        sales = Team.create(self.org, self.admin, "Sales", topics=[])
+
+        update_url = reverse("orgs.user_update", args=[self.agent.id])
+
+        self.assertUpdateFetch(
+            update_url, [self.admin], form_fields={"role": "T", "team": self.org.default_ticket_team}
+        )
+        self.assertUpdateSubmit(update_url, self.admin, {"role": "T", "team": sales.id})
+
+        self.org._membership_cache = {}
+        self.assertEqual(sales, self.org.get_membership(self.agent).team)
 
         # try updating ourselves...
         update_url = reverse("orgs.user_update", args=[self.admin.id])
@@ -4014,9 +4040,18 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
 
         inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
-        inv2 = Invitation.create(self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT)
+        inv2 = Invitation.create(
+            self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT, team=self.org.default_ticket_team
+        )
 
-        self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
+        response = self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
+        self.assertNotContains(response, "(All Topics)")
+
+        self.org.features += [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+
+        response = self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
+        self.assertContains(response, "(All Topics)")
 
     def test_create(self):
         create_url = reverse("orgs.invitation_create")
@@ -4071,6 +4106,31 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             {"email": "newguy@nyaruka.com", "role": "E"},
             form_errors={"email": "User has already been invited to this workspace."},
+        )
+
+        # invite an agent (defaults to default team)
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "newagent@nyaruka.com", "role": "T"},
+            new_obj_query=Invitation.objects.filter(
+                org=self.org, email="newagent@nyaruka.com", role_code="T", team=self.org.default_ticket_team
+            ),
+        )
+
+        # if we have a teams feature, we can select a team
+        self.org.features += [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+        sales = Team.create(self.org, self.admin, "New Team", topics=[])
+
+        self.assertCreateFetch(create_url, [self.admin], form_fields={"email": None, "role": "E", "team": None})
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "otheragent@nyaruka.com", "role": "T", "team": sales.id},
+            new_obj_query=Invitation.objects.filter(
+                org=self.org, email="otheragent@nyaruka.com", role_code="T", team=sales
+            ),
         )
 
     def test_delete(self):

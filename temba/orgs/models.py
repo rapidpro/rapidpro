@@ -1515,7 +1515,7 @@ class Invitation(SmartModel):
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True, related_name="invitations")
 
     @classmethod
-    def create(cls, org, user, email: str, role: OrgRole, team=None):
+    def create(cls, org, user, email: str, role: OrgRole, *, team=None):
         assert not team or org == team.org
 
         return cls.objects.create(
