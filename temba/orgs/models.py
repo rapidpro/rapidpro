@@ -259,11 +259,6 @@ class User(AuthUser):
         """
         Determines if a user has the given permission in the given org.
         """
-        if self.is_staff:
-            return True
-
-        if self.is_anonymous:  # pragma: needs cover
-            return False
 
         # has it innately? e.g. Granter group
         if self.has_perm(permission):
@@ -1107,10 +1102,6 @@ class Org(SmartModel):
         """
 
         def get():
-            # for staff we return a faked membership: admin role, no team
-            if user.is_staff:
-                return OrgMembership(org=self, user=user, role_code=OrgRole.ADMINISTRATOR.code, team=None)
-
             return OrgMembership.objects.filter(org=self, user=user).first()
 
         if user not in self._membership_cache:

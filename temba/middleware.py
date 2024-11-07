@@ -44,15 +44,10 @@ class OrgMiddleware:
 
         request.org = self.determine_org(request)
 
-        # if request is a POST with an org header, ensure it matches the current org
-        if request.method == "POST":
-            posted_org_id = request.headers.get("X-Temba-Org")
-            if posted_org_id and request.org and request.org.id != int(posted_org_id):
-                return HttpResponseForbidden()
-
-        if request.org:
-            # set our current role for this org
-            request.role = request.org.get_user_role(request.user)
+        # if request has an org header, ensure it matches the current org (used to prevent cross-org form submissions)
+        posted_org_id = request.headers.get(self.header_name)
+        if posted_org_id and request.org and request.org.id != int(posted_org_id):
+            return HttpResponseForbidden()
 
         request.branding = settings.BRAND
 

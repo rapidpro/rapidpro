@@ -22,30 +22,32 @@ class OrgPermsMixin:
     def derive_org(self):
         return self.request.org
 
-    def has_org_perm(self, permission):
+    def has_org_perm(self, permission: str):
+        # nobody has an org perm without an org
         org = self.derive_org()
-        if org:
-            return self.get_user().has_org_perm(org, permission)
-        return False
+        if not org:
+            return False
+
+        user = self.get_user()
+
+        # check special cases
+        if user.is_anonymous:
+            return False
+        if user.is_superuser:
+            return True
+        if user.is_staff and self.request.method == "GET":
+            return True
+
+        return self.get_user().has_org_perm(org, permission)
 
     def has_permission(self, request, *args, **kwargs):
         """
         Figures out if the current user has permissions for this view.
         """
+
         self.kwargs = kwargs
         self.args = args
         self.request = request
-
-        org = self.derive_org()
-
-        if self.get_user().is_staff and org:
-            return True
-
-        if self.get_user().is_anonymous:
-            return False
-
-        if self.get_user().has_perm(self.permission):  # pragma: needs cover
-            return True
 
         return self.has_org_perm(self.permission)
 

@@ -1017,6 +1017,7 @@ class OrgCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def has_permission(self, request, *args, **kwargs):
+            # allow staff access without an org since this view includes staff menu
             if self.request.user.is_staff:
                 return True
 
@@ -2143,13 +2144,12 @@ class OrgCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-        def has_permission(self, request, *args, **kwargs):
-            perm = "orgs.org_country"
-
+        @property
+        def permission(self):
             if self.request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest" and self.request.method == "GET":
-                perm = "orgs.org_languages"
-
-            return self.request.user.has_perm(perm) or self.has_org_perm(perm)
+                return "orgs.org_languages"
+            else:
+                return "orgs.org_country"
 
 
 class InvitationCRUDL(SmartCRUDL):
