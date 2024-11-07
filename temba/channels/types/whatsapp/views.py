@@ -382,7 +382,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
 
             return self.cleaned_data
 
-    permission = "channels.types.whatsapp.connect"
+    permission = "channels.channel_claim"
     form_class = WhatsappCloudConnectForm
     success_url = "@channels.types.whatsapp.claim"
     field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
@@ -392,8 +392,8 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     menu_path = "/settings/workspace"
     title = "Connect WhatsApp"
 
-    def has_org_perm(self, permission):
-        return self.get_user().is_beta  # only beta users are allowed
+    def has_permission(self, request, *args, **kwargs) -> bool:
+        return super().has_permission(request, *args, **kwargs) and self.request.user.is_beta
 
     def pre_process(self, request, *args, **kwargs):
         session_token = self.request.session.get(self.channel_type.SESSION_USER_TOKEN, None)
