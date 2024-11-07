@@ -1,15 +1,7 @@
 {% extends "includes/modax.html" %}
 {% load i18n smartmin %}
 
-{% block pre-form %}
-  <div class="mb-8">
-    {% blocktrans trimmed with days=validity_days %}
-      This will send an email with a link to join this workspace. The link is valid for {{ days }} days.
-    {% endblocktrans %}
-  </div>
-{% endblock pre-form %}
 {% block fields %}
-  {% render_field 'email' %}
   {% render_field 'role' %}
   {% if form.fields.team %}
     <div class="team hidden">{% render_field 'team' %}</div>
@@ -18,7 +10,7 @@
 {% block modal-script %}
   {{ block.super }}
   <script type="text/javascript">
-    var modalBody = getModax("#invitation-create").shadowRoot;
+    var modalBody = getModax("#update-user").shadowRoot;
     var roleSelect = modalBody.querySelector("temba-select[name='role']");
     var team = modalBody.querySelector(".team");
     var teamSelect = modalBody.querySelector("temba-select[name='team']");
