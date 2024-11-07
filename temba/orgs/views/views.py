@@ -373,9 +373,10 @@ class UserCRUDL(SmartCRUDL):
             for user in context["object_list"]:
                 membership = self.request.org.get_membership(user)
                 user.role = membership.role
-                # user.team = membership.team  # TODO enable this when orgs can create teams
+                user.team = membership.team
 
             context["has_viewers"] = self.request.org.get_users(roles=[OrgRole.VIEWER]).exists()
+            context["has_teams"] = Org.FEATURE_TEAMS in self.request.org.features
             context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
             return context
 
@@ -2152,6 +2153,7 @@ class InvitationCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["validity_days"] = settings.INVITATION_VALIDITY.days
+            context["has_teams"] = Org.FEATURE_TEAMS in self.request.org.features
             return context
 
     class Create(RequireFeatureMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
