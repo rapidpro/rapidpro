@@ -41,6 +41,7 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
+from temba.tickets.models import Team
 from temba.utils import analytics, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.email import EmailSender, parse_smtp_url
 from temba.utils.fields import (
@@ -2140,7 +2141,13 @@ class InvitationCRUDL(SmartCRUDL):
         default_order = ("-created_on",)
 
         def build_context_menu(self, menu):
-            menu.add_modax(_("New"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
+            menu.add_modax(
+                _("New"),
+                "invitation-create",
+                reverse("orgs.invitation_create"),
+                title=_("New Invitation"),
+                as_button=True,
+            )
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2153,11 +2160,14 @@ class InvitationCRUDL(SmartCRUDL):
             role = forms.ChoiceField(
                 choices=OrgRole.choices(), initial=OrgRole.EDITOR.code, label=_("Role"), widget=SelectWidget()
             )
+            team = forms.ModelChoiceField(queryset=Team.objects.none(), required=False, widget=SelectWidget())
 
             def __init__(self, org, *args, **kwargs):
                 self.org = org
 
                 super().__init__(*args, **kwargs)
+
+                self.fields["team"].queryset = org.teams.filter(is_active=True).order_by(Lower("name"))
 
             def clean_email(self):
                 email = self.cleaned_data["email"]
@@ -2172,13 +2182,16 @@ class InvitationCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Invitation
-                fields = ("email", "role")
+                fields = ("email", "role", "team")
 
         form_class = Form
         require_feature = Org.FEATURE_USERS
         title = ""
         submit_button_name = _("Send")
         success_url = "@orgs.invitation_list"
+
+        def derive_exclude(self):
+            return [] if Org.FEATURE_TEAMS in self.request.org.features else ["team"]
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2191,9 +2204,10 @@ class InvitationCRUDL(SmartCRUDL):
             return context
 
         def save(self, obj):
-            self.object = Invitation.create(
-                self.request.org, self.request.user, obj.email, OrgRole.from_code(self.form.cleaned_data["role"])
-            )
+            role = OrgRole.from_code(self.form.cleaned_data["role"])
+            team = (obj.team or self.request.org.default_ticket_team) if role == OrgRole.AGENT else None
+
+            self.object = Invitation.create(self.request.org, self.request.user, obj.email, role, team=team)
 
         def post_save(self, obj):
             obj.send()
