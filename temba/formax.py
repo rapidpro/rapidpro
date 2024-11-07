@@ -4,8 +4,6 @@ import time
 from django.http import HttpResponseRedirect
 from django.urls import resolve
 
-from temba.orgs.context_processors import user_group_perms_processor
-
 logger = logging.getLogger(__name__)
 
 
@@ -28,8 +26,7 @@ class Formax:
     def __init__(self, request):
         self.sections = []
         self.request = request
-        context = user_group_perms_processor(self.request)
-        self.org = context["user_org"]
+        self.org = self.request.org
 
     def add_section(self, name, url, icon, action="formax", button="Save", nobutton=False, dependents=None, wide=False):
         resolver = resolve(url)

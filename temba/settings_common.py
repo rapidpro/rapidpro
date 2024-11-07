@@ -188,7 +188,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "temba.context_processors.branding",
                 "temba.context_processors.config",
-                "temba.orgs.context_processors.user_group_perms_processor",
+                "temba.orgs.views.context_processors.org_perms_processor",
             ],
             "loaders": [
                 "django.template.loaders.filesystem.Loader",

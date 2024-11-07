@@ -20,9 +20,9 @@ from temba.tests import CRUDLTestMixin, TembaTest
 from temba.tickets.models import Team, TicketExport
 from temba.utils import languages
 
-from ..context_processors import RolePermsWrapper
 from ..models import Invitation, Org, OrgRole, User
 from ..tasks import send_user_verification_email
+from .context_processors import RolePermsWrapper
 
 
 class OrgPermsMixinTest(TembaTest):
