@@ -190,8 +190,8 @@ class CRUDLTestMixin:
             user,
             checks=[StatusCode(200), ContentType("application/json")],
             choose_org=choose_org,
-            HTTP_TEMBA_CONTENT_MENU=1,
-            HTTP_TEMBA_SPA=1,
+            HTTP_X_TEMBA_CONTENT_MENU=1,
+            HTTP_X_TEMBA_SPA=1,
         )
         self.assertEqual(items, [item.get("label", "-") for item in response.json()["items"]])
 

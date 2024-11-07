@@ -809,7 +809,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # can as org viewer user
-        response = self.requestView(label3_url, self.user, HTTP_TEMBA_SPA=1)
+        response = self.requestView(label3_url, self.user, HTTP_X_TEMBA_SPA=1)
         self.assertEqual(f"/msg/labels/{label3.uuid}", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(200, response.status_code)
         self.assertEqual(("label",), response.context["actions"])

@@ -2446,7 +2446,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
-        response = self.client.post(create_url, {"name": "Child Org", "timezone": "Africa/Nairobi"}, HTTP_TEMBA_SPA=1)
+        response = self.client.post(create_url, {"name": "Child Org", "timezone": "Africa/Nairobi"}, HTTP_X_TEMBA_SPA=1)
 
         self.assertRedirect(response, reverse("orgs.org_list"))
 

@@ -751,7 +751,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(
             list_url,
             content_type="application/json",
-            HTTP_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
+            HTTP_X_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
         )
         self.assertEqual(("tickets", "mine", "open", str(ticket.uuid)), response.context["temba_referer"])
 

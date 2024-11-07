@@ -1,3 +1,11 @@
+v9.3.94 (2024-11-07)
+-------------------------
+ * Allow updating agent team from user list page
+ * User and invitation list views should show team for agent users if that feature is enabled
+ * Allow creating invitations with teams
+ * Remove experimental mailgun channel type
+ * Fix displaying of exports based on status "groups"
+
 v9.3.93 (2024-11-05)
 -------------------------
  * Allow invitations to specify team and block team deletion when it has pending invitations

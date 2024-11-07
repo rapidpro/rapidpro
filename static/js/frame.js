@@ -200,8 +200,9 @@ function spaRequest(url, options) {
   const body = options.body || null;
   const headers = options.headers || {};
 
-  headers['TEMBA-REFERER-PATH'] = refererPath;
-  headers['TEMBA-PATH'] = url;
+  headers['X-Temba-Referrer-Path'] = refererPath;
+  headers['X-Temba-Path'] = url;
+  headers['X-Temba-Org'] = window.org_id;
 
   if (!ignoreHistory) {
     addToHistory(url);
@@ -248,8 +249,8 @@ function fetchAjax(url, options) {
     options['headers']['X-CSRFToken'] = csrf;
   }
 
-  options['headers']['TEMBA-SPA'] = 1;
-  options['headers']['X-PJAX'] = 1;
+  options['headers']['X-Temba-Spa'] = 1;
+  options['headers']['X-Pjax'] = 1;
 
   let container = options['container'] || null;
 
@@ -279,8 +280,8 @@ function fetchAjax(url, options) {
       });
 
       // if we have a version mismatch, reload the page
-      var version = response.headers.get('x-temba-version');
-      var org = response.headers.get('x-temba-org');
+      var version = response.headers.get('X-Temba-Version');
+      var org = response.headers.get('X-Temba-Org');
 
       if (response.type !== 'cors' && org && org != org_id) {
         if (response.redirected) {
@@ -438,7 +439,7 @@ function showModax(header, endpoint, modaxOptions) {
       modax['-temba-redirected'] = refreshMenu;
     }
 
-    modax.headers = { 'TEMBA-SPA': 1 };
+    modax.headers = { 'X-Temba-Spa': 1 };
     modax.header = header;
     modax.endpoint = endpoint;
 

@@ -1,0 +1,18 @@
+{% if request.user.is_staff and request.session.servicing %}
+  <div class="servicing shadow-xl py-2" style="background:#ec0202">
+    <a href="{% url 'staff.org_service' %}"
+       style="text-decoration:none;
+              color:rgba(255,255,255,.8);
+              font-weight:bold;
+              justify-content:center;
+              font-size:1.1em;
+              align-items:center;
+              display:flex"
+       class="flex"
+       onclick="handlePosterizeClick(event)">
+      <temba-icon class="mr-2 -mt-1" name="service" size="1.2">
+      </temba-icon>
+      <div>{{ user_org.name }}</div>
+    </a>
+  </div>
+{% endif %}

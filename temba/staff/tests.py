@@ -166,9 +166,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(service_url, {"other_org": 325253256, "next": inbox_url})
         self.assertContains(response, "Invalid org")
 
-        # posting invalid org just redirects back to manage page
+        # posting invalid org takes you back out
         response = self.client.post(service_url, {"other_org": 325253256})
-        self.assertRedirect(response, "/staff/org/")
+        self.assertRedirect(response, "/")
 
         # then service our org
         response = self.client.get(service_url, {"other_org": self.org.id})
@@ -211,7 +211,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # stop servicing
         response = self.client.post(service_url, {})
-        self.assertRedirect(response, "/staff/org/")
+        self.assertRedirect(response, "/")
         self.assertIsNone(self.client.session["org_id"])
         self.assertFalse(self.client.session["servicing"])
 

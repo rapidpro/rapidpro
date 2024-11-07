@@ -6,6 +6,7 @@ from io import StringIO
 
 from django.conf import settings
 from django.contrib import messages
+from django.http import HttpResponseForbidden
 from django.utils import timezone, translation
 
 from temba.orgs.models import Org, User
@@ -42,6 +43,12 @@ class OrgMiddleware:
         assert hasattr(request, "user"), "must be called after django.contrib.auth.middleware.AuthenticationMiddleware"
 
         request.org = self.determine_org(request)
+
+        # if request has an org header, ensure it matches the current org (used to prevent cross-org form submissions)
+        posted_org_id = request.headers.get(self.header_name)
+        if posted_org_id and request.org and request.org.id != int(posted_org_id):
+            return HttpResponseForbidden()
+
         request.branding = settings.BRAND
 
         # continue the chain, which in the case of the API will set request.org

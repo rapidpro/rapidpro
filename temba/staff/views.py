@@ -253,10 +253,10 @@ class OrgCRUDL(SmartCRUDL):
             success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
             return HttpResponseRedirect(success_url)
 
-        # invalid form login 'logs out' the user from the org and takes them to the org manage page
+        # invalid form login 'logs out' the user from the org and takes them to the root
         def form_invalid(self, form):
             switch_to_org(self.request, None)
-            return HttpResponseRedirect(reverse("staff.org_list"))
+            return HttpResponseRedirect("/")
 
 
 class UserCRUDL(SmartCRUDL):
