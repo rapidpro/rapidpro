@@ -1,5 +1,7 @@
 var pendingRequests = [];
 
+const OMIT_ORG_URLS = ['/staff/'];
+
 function onSpload(fn) {
   var container = document.querySelector('.spa-container');
   if (!container) {
@@ -202,7 +204,17 @@ function spaRequest(url, options) {
 
   headers['X-Temba-Referrer-Path'] = refererPath;
   headers['X-Temba-Path'] = url;
-  headers['X-Temba-Org'] = window.org_id;
+
+  // don't include temba org for service changes
+  const omitted = !!OMIT_ORG_URLS.find((omitUrl) => {
+    if (url.includes(omitUrl)) {
+      return true;
+    }
+  });
+
+  if (!omitted) {
+    headers['X-Temba-Org'] = window.org_id;
+  }
 
   if (!ignoreHistory) {
     addToHistory(url);
