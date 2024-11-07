@@ -57,6 +57,39 @@ class OrgPermsMixinTest(TembaTest):
         self.assertEqual(200, self.client.get(create_url).status_code)
         self.assertRedirect(self.client.post(create_url, {"name": "Sales"}), "hide")
 
+    def test_org_obj_perms_mixin(self):
+        contact1 = self.create_contact("Bob", phone="+18001234567", org=self.org)
+        contact2 = self.create_contact("Zob", phone="+18001234567", org=self.org2)
+
+        contact1_url = reverse("contacts.contact_update", args=[contact1.id])
+        contact2_url = reverse("contacts.contact_update", args=[contact2.id])
+
+        # no anon access
+        self.assertLoginRedirect(self.client.get(contact1_url))
+        self.assertLoginRedirect(self.client.get(contact2_url))
+
+        # no agent role access to this specific view
+        self.login(self.agent)
+        self.assertLoginRedirect(self.client.get(contact1_url))
+        self.assertLoginRedirect(self.client.get(contact2_url))
+
+        # editor role does have access tho.. when the URL is for a group in their org
+        self.login(self.editor)
+        self.assertEqual(200, self.client.get(contact1_url).status_code)
+        self.assertLoginRedirect(self.client.get(contact2_url))
+
+        # staff can't access without org
+        self.login(self.customer_support)
+        self.assertRedirect(self.client.get(contact1_url), "/staff/org/service/")
+
+        self.login(self.customer_support, choose_org=self.org)
+        self.assertEqual(200, self.client.get(contact1_url).status_code)
+        self.assertRedirect(self.client.get(contact2_url), "/staff/org/service/")  # wrong org
+
+        # staff still can't POST
+        self.assertLoginRedirect(self.client.post(contact1_url, {"name": "Bob"}))
+        self.assertRedirect(self.client.get(contact2_url), "/staff/org/service/")
+
 
 class OrgContextProcessorTest(TembaTest):
     def test_role_perms_wrapper(self):

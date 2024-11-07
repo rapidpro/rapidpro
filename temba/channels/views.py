@@ -676,7 +676,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = DomainForm
 
         def get_queryset(self):
-            return self.request.org.channels.filter(is_active=True, channel_type="FB")
+            return Channel.objects.filter(is_active=True, channel_type="FB")
 
         def execute_action(self):
             # curl -X POST -H "Content-Type: application/json" -d '{

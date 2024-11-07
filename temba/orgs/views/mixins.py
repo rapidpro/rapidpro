@@ -65,28 +65,25 @@ class OrgObjPermsMixin(OrgPermsMixin):
     def get_object_org(self):
         return self.get_object().org
 
-    def has_org_perm(self, codename):
-        has_org_perm = super().has_org_perm(codename)
-        if has_org_perm:
-            return self.request.org == self.get_object_org()
-
-        return False
-
-    def has_permission(self, request, *args, **kwargs):
-        user = self.request.user
-        if user.is_staff:
+    def has_org_perm(self, permission: str):
+        # allow staff to GET any object because they'll be redirected on org mismatch
+        if self.request.user.is_staff and self.request.method == "GET":
             return True
 
-        has_perm = super().has_permission(request, *args, **kwargs)
-        if has_perm:
-            return self.request.org == self.get_object_org()
+        has_perm = super().has_org_perm(permission)
+
+        return has_perm and self.request.org == self.get_object_org()
 
     def pre_process(self, request, *args, **kwargs):
         org = self.get_object_org()
+
+        # staff users are redirected to service page if org doesn't match
         if request.user.is_staff and self.request.org != org:
             return HttpResponseRedirect(
                 f"{reverse('staff.org_service')}?next={quote_plus(request.path)}&other_org={org.id}"
             )
+
+        return super().pre_process(request, *args, **kwargs)
 
 
 class RequireFeatureMixin:
