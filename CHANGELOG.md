@@ -1,3 +1,10 @@
+v9.3.96 (2024-11-07)
+-------------------------
+ * Fix org obj perms mixin for staff users
+ * Omit temba-org header in some cases
+ * Fix org start view and org_perms context processor for servicing staff users
+ * Remove no longer used partial template view
+
 v9.3.95 (2024-11-07)
 -------------------------
  * Only allow GET requests by servicing staff users
