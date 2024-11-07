@@ -1,3 +1,11 @@
+v9.3.95 (2024-11-07)
+-------------------------
+ * Only allow GET requests by servicing staff users
+ * Send temba-org header from components
+ * More obvious account servicing
+ * Restrict staff servicing org perms to non-POST requests
+ * OrgMiddleware should prevent cross-org POSTs
+
 v9.3.94 (2024-11-07)
 -------------------------
  * Allow updating agent team from user list page
