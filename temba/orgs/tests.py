@@ -2896,6 +2896,21 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
 
+        # adding teams feature enables team selection for agents
+        self.org.features += [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+        sales = Team.create(self.org, self.admin, "Sales", topics=[])
+
+        update_url = reverse("orgs.user_update", args=[self.agent.id])
+
+        self.assertUpdateFetch(
+            update_url, [self.admin], form_fields={"role": "T", "team": self.org.default_ticket_team}
+        )
+        self.assertUpdateSubmit(update_url, self.admin, {"role": "T", "team": sales.id})
+
+        self.org._membership_cache = {}
+        self.assertEqual(sales, self.org.get_membership(self.agent).team)
+
         # try updating ourselves...
         update_url = reverse("orgs.user_update", args=[self.admin.id])
 
