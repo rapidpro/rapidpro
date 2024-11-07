@@ -2168,14 +2168,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             [
                 {
-                    "user": {"email": "admin@nyaruka.com", "name": "Andy"},
+                    "user": {"email": "admin@textit.com", "name": "Andy"},
                     "created_on": matchers.ISODate(),
                     "id": revisions[0].id,
                     "version": Flow.CURRENT_SPEC_VERSION,
                     "revision": 2,
                 },
                 {
-                    "user": {"email": "admin@nyaruka.com", "name": "Andy"},
+                    "user": {"email": "admin@textit.com", "name": "Andy"},
                     "created_on": matchers.ISODate(),
                     "id": revisions[1].id,
                     "version": "11.12",
@@ -5167,7 +5167,7 @@ class SimulationTest(TembaTest):
                             "redaction_policy": "none",
                             "input_collation": "default",
                         },
-                        "user": {"email": "admin@nyaruka.com", "name": "Andy"},
+                        "user": {"email": "admin@textit.com", "name": "Andy"},
                     },
                     json.loads(mock_post.call_args[1]["data"])["trigger"],
                 )
@@ -5346,7 +5346,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Test Flow 1")
         self.assertNotContains(response, "Test Flow 2")
         self.assertContains(response, "A deleted flow")
-        self.assertContains(response, "was started by admin@nyaruka.com")
+        self.assertContains(response, "was started by admin@textit.com")
         self.assertContains(response, "was started by an API call")
         self.assertContains(response, "was started by Zapier")
         self.assertContains(response, "Not in a flow")

@@ -27,7 +27,7 @@ class WhatsAppUtilsTest(TembaTest):
             "WhatsApp: 1234",
             "1234",
             config={
-                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://textit.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
                 Channel.CONFIG_PASSWORD: "tembapasswd",
                 Channel.CONFIG_AUTH_TOKEN: "authtoken123",

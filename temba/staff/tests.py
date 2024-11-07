@@ -232,10 +232,10 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(list_url + "?filter=staff", self.customer_support)
         self.assertEqual({self.customer_support, self.superuser}, set(response.context["object_list"]))
 
-        response = self.requestView(list_url + "?search=admin@nyaruka.com", self.customer_support)
+        response = self.requestView(list_url + "?search=admin@textit.com", self.customer_support)
         self.assertEqual({self.admin}, set(response.context["object_list"]))
 
-        response = self.requestView(list_url + "?search=admin@nyaruka.com", self.customer_support)
+        response = self.requestView(list_url + "?search=admin@textit.com", self.customer_support)
         self.assertEqual({self.admin}, set(response.context["object_list"]))
 
         response = self.requestView(list_url + "?search=Andy", self.customer_support)
@@ -268,7 +268,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             self.customer_support,
             post_data={
-                "email": "eddy@nyaruka.com",
+                "email": "eddy@textit.com",
                 "first_name": "Edward",
                 "last_name": "",
                 "groups": [alphas.id, betas.id],
@@ -277,8 +277,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         self.editor.refresh_from_db()
-        self.assertEqual("eddy@nyaruka.com", self.editor.email)
-        self.assertEqual("eddy@nyaruka.com", self.editor.username)  # should match email
+        self.assertEqual("eddy@textit.com", self.editor.email)
+        self.assertEqual("eddy@textit.com", self.editor.username)  # should match email
         self.assertEqual(current_password, self.editor.password)
         self.assertEqual("Edward", self.editor.first_name)
         self.assertEqual("", self.editor.last_name)
@@ -289,7 +289,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             self.customer_support,
             post_data={
-                "email": "eddy@nyaruka.com",
+                "email": "eddy@textit.com",
                 "new_password": "Asdf1234",
                 "first_name": "Edward",
                 "last_name": "",
@@ -299,8 +299,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         self.editor.refresh_from_db()
-        self.assertEqual("eddy@nyaruka.com", self.editor.email)
-        self.assertEqual("eddy@nyaruka.com", self.editor.username)
+        self.assertEqual("eddy@textit.com", self.editor.email)
+        self.assertEqual("eddy@textit.com", self.editor.username)
         self.assertNotEqual(current_password, self.editor.password)
         self.assertEqual("Edward", self.editor.first_name)
         self.assertEqual("", self.editor.last_name)

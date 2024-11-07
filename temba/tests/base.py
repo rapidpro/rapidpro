@@ -65,12 +65,12 @@ class TembaTest(SmartminTest):
         )
 
         # create different user types
-        self.non_org_user = self.create_user("nonorg@nyaruka.com")
-        self.admin = self.create_user("admin@nyaruka.com", first_name="Andy")
-        self.editor = self.create_user("editor@nyaruka.com", first_name="Ed", last_name="McEdits")
-        self.user = self.create_user("viewer@nyaruka.com")
-        self.agent = self.create_user("agent@nyaruka.com", first_name="Agnes")
-        self.customer_support = self.create_user("support@nyaruka.com", is_staff=True)
+        self.non_org_user = self.create_user("nonorg@textit.com")
+        self.admin = self.create_user("admin@textit.com", first_name="Andy")
+        self.editor = self.create_user("editor@textit.com", first_name="Ed", last_name="McEdits")
+        self.user = self.create_user("viewer@textit.com")
+        self.agent = self.create_user("agent@textit.com", first_name="Agnes")
+        self.customer_support = self.create_user("support@textit.com", is_staff=True)
 
         self.org = Org.objects.create(
             name="Nyaruka",

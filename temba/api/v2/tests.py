@@ -343,14 +343,14 @@ class FieldsTest(APITest):
         self.assert_field(
             fields.UserField(source="test"),
             submissions={
-                "VIEWER@NYARUKA.COM": self.user,
-                "admin@nyaruka.com": self.admin,
+                "VIEWER@TEXTIT.COM": self.user,
+                "admin@textit.com": self.admin,
                 self.editor.email: serializers.ValidationError,  # deleted
                 self.admin2.email: serializers.ValidationError,  # not in org
             },
             representations={
-                self.user: {"email": "viewer@nyaruka.com", "name": ""},
-                self.editor: {"email": "editor@nyaruka.com", "name": "Ed McEdits"},
+                self.user: {"email": "viewer@textit.com", "name": ""},
+                self.editor: {"email": "editor@textit.com", "name": "Ed McEdits"},
             },
         )
         self.assert_field(
@@ -360,7 +360,7 @@ class FieldsTest(APITest):
                 self.admin.email: self.admin,
                 self.agent.email: self.agent,
             },
-            representations={self.agent: {"email": "agent@nyaruka.com", "name": "Agnes"}},
+            representations={self.agent: {"email": "agent@textit.com", "name": "Agnes"}},
         )
 
     def test_serialize_urn(self):
@@ -4921,7 +4921,7 @@ class EndpointsTest(APITest):
             results=[
                 {
                     "uuid": str(ticket3.uuid),
-                    "assignee": {"email": "agent@nyaruka.com", "name": "Agnes"},
+                    "assignee": {"email": "agent@textit.com", "name": "Agnes"},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
@@ -4953,7 +4953,7 @@ class EndpointsTest(APITest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": None,
                     "opened_on": format_datetime(ticket1.opened_on),
-                    "opened_by": {"email": "admin@nyaruka.com", "name": "Andy"},
+                    "opened_by": {"email": "admin@textit.com", "name": "Andy"},
                     "opened_in": None,
                     "modified_on": format_datetime(ticket1.modified_on),
                     "closed_on": "2021-01-01T12:30:45.123456Z",
@@ -5040,7 +5040,7 @@ class EndpointsTest(APITest):
         self.assertPost(
             endpoint_url,
             self.agent,
-            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "assign", "assignee": "agent@nyaruka.com"},
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "assign", "assignee": "agent@textit.com"},
             status=204,
         )
 
@@ -5240,7 +5240,7 @@ class EndpointsTest(APITest):
             results=[
                 {
                     "avatar": None,
-                    "email": "agent@nyaruka.com",
+                    "email": "agent@textit.com",
                     "first_name": "Agnes",
                     "last_name": "",
                     "role": "agent",
@@ -5248,7 +5248,7 @@ class EndpointsTest(APITest):
                 },
                 {
                     "avatar": None,
-                    "email": "viewer@nyaruka.com",
+                    "email": "viewer@textit.com",
                     "first_name": "",
                     "last_name": "",
                     "role": "viewer",
@@ -5256,7 +5256,7 @@ class EndpointsTest(APITest):
                 },
                 {
                     "avatar": None,
-                    "email": "editor@nyaruka.com",
+                    "email": "editor@textit.com",
                     "first_name": "Ed",
                     "last_name": "McEdits",
                     "role": "editor",
@@ -5264,7 +5264,7 @@ class EndpointsTest(APITest):
                 },
                 {
                     "avatar": None,
-                    "email": "admin@nyaruka.com",
+                    "email": "admin@textit.com",
                     "first_name": "Andy",
                     "last_name": "",
                     "role": "administrator",
