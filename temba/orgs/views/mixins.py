@@ -12,35 +12,41 @@ logger = logging.getLogger(__name__)
 
 class OrgPermsMixin:
     """
-    Get the organization and the user within the inheriting view so that it be come easy to decide
-    whether this user has a certain permission for that particular organization to perform the view's actions
+    Mixin for views that require org permissions. `has_permission` will be called to determine if the current view is
+    accessible to the current user. `has_org_perm` can be called when rendering the view to determine what other content
+    (e.g. menu items) is also accessible to the user.
     """
-
-    def get_user(self):
-        return self.request.user
 
     def derive_org(self):
         return self.request.org
 
-    def has_org_perm(self, permission: str):
-        # nobody has an org perm without an org
+    def _check_org_perm(self, permission: str) -> tuple[bool, bool]:
+        """
+        Checks if the current user has the given permission for the current org and whether they have it by servicing.
+        """
+
         org = self.derive_org()
+        user = self.request.user
+
+        # can't have an org perm without an org
         if not org:
-            return False
+            return False, False
 
-        user = self.get_user()
-
-        # check special cases
         if user.is_anonymous:
-            return False
-        if user.is_superuser:
-            return True
-        if user.is_staff and self.request.method == "GET":
-            return True
+            return False, False
 
-        return self.get_user().has_org_perm(org, permission)
+        has_perm = user.has_org_perm(org, permission)
 
-    def has_permission(self, request, *args, **kwargs):
+        if not has_perm and user.is_staff:
+            return True, True
+
+        return has_perm, False
+
+    def has_org_perm(self, permission: str) -> bool:
+        has_perm, by_servicing = self._check_org_perm(permission)
+        return has_perm
+
+    def has_permission(self, request, *args, **kwargs) -> bool:
         """
         Figures out if the current user has permissions for this view.
         """
@@ -49,11 +55,17 @@ class OrgPermsMixin:
         self.args = args
         self.request = request
 
-        return self.has_org_perm(self.permission)
+        has_perm, by_servicing = self._check_org_perm(self.permission)
+
+        # staff are only allowed to GET views when servicing
+        if by_servicing and request.method != "GET":
+            return False
+
+        return has_perm
 
     def dispatch(self, request, *args, **kwargs):
         # non admin authenticated users without orgs get the org chooser
-        user = self.get_user()
+        user = self.request.user
         if user.is_authenticated and not user.is_staff:
             if not self.derive_org():
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
@@ -65,12 +77,12 @@ class OrgObjPermsMixin(OrgPermsMixin):
     def get_object_org(self):
         return self.get_object().org
 
-    def has_org_perm(self, permission: str):
+    def has_permission(self, request, *args, **kwargs) -> bool:
+        has_perm = super().has_permission(request, *args, **kwargs)
+
         # allow staff to GET any object because they'll be redirected on org mismatch
         if self.request.user.is_staff and self.request.method == "GET":
             return True
-
-        has_perm = super().has_org_perm(permission)
 
         return has_perm and self.request.org == self.get_object_org()
 

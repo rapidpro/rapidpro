@@ -57,6 +57,13 @@ class OrgPermsMixinTest(TembaTest):
         self.assertEqual(200, self.client.get(create_url).status_code)
         self.assertRedirect(self.client.post(create_url, {"name": "Sales"}), "hide")
 
+        # however if a staff user also belongs to an org, they aren't limited to GETs
+        self.admin.is_staff = True
+        self.admin.save(update_fields=("is_staff",))
+
+        self.assertEqual(200, self.client.get(create_url).status_code)
+        self.assertRedirect(self.client.post(create_url, {"name": "Support"}), "hide")
+
     def test_org_obj_perms_mixin(self):
         contact1 = self.create_contact("Bob", phone="+18001234567", org=self.org)
         contact2 = self.create_contact("Zob", phone="+18001234567", org=self.org2)
