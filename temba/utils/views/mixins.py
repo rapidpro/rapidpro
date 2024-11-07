@@ -21,8 +21,8 @@ from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMu
 logger = logging.getLogger(__name__)
 
 TEMBA_MENU_SELECTION = "temba_menu_selection"
-TEMBA_CONTENT_ONLY = "x-temba-content-only"
-TEMBA_VERSION = "x-temba-version"
+TEMBA_CONTENT_ONLY = "X-Temba-Content-Only"
+TEMBA_VERSION = "X-Temba-Version"
 
 
 class NoNavMixin:
@@ -211,7 +211,7 @@ class ContextMenuMixin:
         pass
 
     def get(self, request, *args, **kwargs):
-        if "HTTP_TEMBA_CONTENT_MENU" in self.request.META:
+        if "HTTP_X_TEMBA_CONTENT_MENU" in self.request.META:
             return JsonResponse({"items": self._get_context_menu()})
 
         return super().get(request, *args, **kwargs)
@@ -264,7 +264,7 @@ class ModalFormMixin(SmartFormView):
 
             messages.success(self.request, self.derive_success_message())
 
-            if "HTTP_X_PJAX" not in self.request.META:
+            if "HTTP_X_TEBMA_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
                 return self.render_modal_response(form)
@@ -282,14 +282,14 @@ class SpaMixin:
 
     @cached_property
     def spa_path(self) -> tuple:
-        return tuple(s for s in self.request.META.get("HTTP_TEMBA_PATH", "").split("/") if s)
+        return tuple(s for s in self.request.META.get("HTTP_X_TEMBA_PATH", "").split("/") if s)
 
     @cached_property
     def spa_referrer_path(self) -> tuple:
-        return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
+        return tuple(s for s in self.request.META.get("HTTP_X_TEMBA_REFERER_PATH", "").split("/") if s)
 
     def is_content_only(self):
-        return "HTTP_TEMBA_SPA" in self.request.META
+        return "HTTP_X_TEMBA_SPA" in self.request.META
 
     def get_template_names(self):
         templates = super().get_template_names()
