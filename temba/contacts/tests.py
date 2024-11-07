@@ -152,7 +152,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         active_contacts = self.org.active_contacts_group
 
         # fetch with spa flag
-        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
+        response = self.client.get(list_url, content_type="application/json", HTTP_X_TEMBA_SPA="1")
         self.assertEqual(response.context["base_template"], "spa.html")
 
         mr_mocks.contact_search("age = 18", contacts=[frank])

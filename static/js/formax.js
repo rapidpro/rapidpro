@@ -43,13 +43,13 @@ window.fetchData = function (section) {
   var url;
 
   const headers = {
-    'X-FORMAX': true,
-    'X-PJAX': true,
-    'X-FORMAX-ACTION': section.dataset.action,
+    'X-Formax': true,
+    'X-Formax-Action': section.dataset.action,
+    'X-Pjax': true
   };
 
   if (section.closest('.spa-container')) {
-    headers['TEMBA-SPA'] = 1;
+    headers['X-Temba-Spa'] = 1;
   }
 
   if (section.dataset.href) {
@@ -59,7 +59,7 @@ window.fetchData = function (section) {
     const options = {
       headers: headers,
       method: 'GET',
-      container: id,
+      container: id
     };
 
     return fetchAjax(url, options).then(function () {
@@ -127,13 +127,13 @@ var _submitFormax = function (e) {
   const followRedirects = section.dataset.action === 'redirect';
 
   const headers = {
-    'X-FORMAX': true,
-    'X-PJAX': true,
-    'X-FORMAX-ACTION': section.dataset.action,
+    'X-Formax': true,
+    'X-Formax-Action': section.dataset.action,
+    'X-Pjax': true
   };
 
   if (section.closest('.spa-container')) {
-    headers['TEMBA-SPA'] = 1;
+    headers['X-Temba-Spa'] = 1;
   }
 
   var formData = new FormData(form);
@@ -142,7 +142,7 @@ var _submitFormax = function (e) {
     headers: headers,
     method: 'POST',
     body: formData,
-    container: id,
+    container: id
   };
 
   if (followRedirects) {
