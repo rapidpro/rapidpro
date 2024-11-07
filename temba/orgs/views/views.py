@@ -1627,13 +1627,11 @@ class OrgCRUDL(SmartCRUDL):
             org = self.request.org
 
             if not org:
-                if user.is_staff:
-                    return HttpResponseRedirect(reverse("staff.org_list"))
-
-                return HttpResponseRedirect(reverse("orgs.org_choose"))
+                return HttpResponseRedirect(reverse("staff.org_list" if user.is_staff else "orgs.org_choose"))
 
             role = org.get_user_role(user)
-            return HttpResponseRedirect(reverse(role.start_view))
+
+            return HttpResponseRedirect(reverse(role.start_view if role else "msgs.msg_inbox"))
 
     class Choose(NoNavMixin, SpaMixin, SmartFormView):
         class Form(forms.Form):
