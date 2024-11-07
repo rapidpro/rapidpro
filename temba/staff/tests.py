@@ -187,13 +187,22 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(service_url, {"other_org": self.org.id, "next": "/flow/"})
         self.assertRedirect(response, "/flow/")
 
-        # create a new contact
+        # try to create a new contact (should fail because servicing staff can't POST)
         response = self.client.post(
-            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", phone="0788123123")
+            reverse("contacts.contact_create"), data={"name": "Ben Haggerty", "phone": "0788123123"}
         )
-        self.assertNoFormErrors(response)
+        self.assertLoginRedirect(response)
 
-        # make sure that contact's created on is our cs rep
+        # become super user
+        self.customer_support.is_superuser = True
+        self.customer_support.save(update_fields=("is_superuser",))
+
+        # now it should work
+        response = self.client.post(
+            reverse("contacts.contact_create"), data={"name": "Ben Haggerty", "phone": "0788123123"}
+        )
+        self.assertEqual(200, response.status_code)
+
         contact = Contact.objects.get(urns__path="+250788123123", org=self.org)
         self.assertEqual(self.customer_support, contact.created_by)
 

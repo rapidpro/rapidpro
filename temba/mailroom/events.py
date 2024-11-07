@@ -262,7 +262,9 @@ class Event:
 
 
 def _url_for_user(org: Org, user: User, view_name: str, args: list, perm: str = None) -> str:
-    return reverse(view_name, args=args) if user.has_org_perm(org, perm or view_name) else None
+    allowed = user.has_org_perm(org, perm or view_name) or user.is_staff
+
+    return reverse(view_name, args=args) if allowed else None
 
 
 def _msg_in(obj) -> dict:
