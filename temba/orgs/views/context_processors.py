@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from .models import OrgRole
+from ..models import OrgRole
 
 
 class RolePermsWrapper:
@@ -24,7 +24,7 @@ class RolePermsWrapper:
         raise TypeError(f"{type(self)} is not iterable.")  # I am large, I contain multitudes
 
 
-def user_group_perms_processor(request):
+def org_perms_processor(request):
     """
     Sets user_org in the context, as well as org_perms to determine org permissions.
     """
