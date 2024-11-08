@@ -11,7 +11,7 @@
       enter one of your backup tokens below.
     {% endblocktrans %}
   </div>
-  <form method="POST">
+  <form method="post">
     {% csrf_token %}
     <div class="mt-4">
       <temba-textinput name="token" maxlength="8" placeholder="{{ _("8-character token") |escape }}">
