@@ -1,3 +1,7 @@
+v9.3.99 (2024-11-08)
+-------------------------
+ * Fix resolving ticket topics for servicing staff users
+
 v9.3.98 (2024-11-08)
 -------------------------
  * Add readonly_servicing to OrgPermsMixin
