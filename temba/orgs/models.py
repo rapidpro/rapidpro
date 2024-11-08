@@ -1546,7 +1546,7 @@ class Invitation(SmartModel):
 
         self.org.add_user(user, self.role, team=self.team)
 
-        InvitationAcceptedNotificationType.create(self)
+        InvitationAcceptedNotificationType.create(self, user)
 
         self.release()
 
