@@ -317,7 +317,7 @@ class MiddlewareTest(TembaTest):
 
     def test_language(self):
         def assert_text(text: str):
-            self.assertContains(self.client.get(reverse("users.user_login")), text)
+            self.assertContains(self.client.get(reverse("orgs.user_login")), text)
 
         # default is English
         assert_text("Sign In")

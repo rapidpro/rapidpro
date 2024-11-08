@@ -18,7 +18,7 @@
     </div>
     {% if form.otp.errors %}<div class="alert alert-error mt-4">{{ form.otp.errors }}</div>{% endif %}
     <div class="mt-2 text-right">
-      <a href="{% url 'users.two_factor_backup' %}">{% trans "Use Backup Token" %}</a>
+      <a href="{% url 'orgs.two_factor_backup' %}">{% trans "Use Backup Token" %}</a>
     </div>
     <div class="mt-6">
       <input type="submit" value="{{ _("Verify") |escape }}" class="button-primary">

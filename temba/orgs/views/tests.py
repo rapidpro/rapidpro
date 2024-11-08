@@ -878,13 +878,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response.context["form"], "email", "That email address is already used")
 
         # if we hit /login we'll be taken back to the channel page
-        response = self.client.get(reverse("users.user_check_login"))
+        response = self.client.get(reverse("orgs.check_login"))
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # but if we log out, same thing takes us to the login page
         self.client.logout()
 
-        response = self.client.get(reverse("users.user_check_login"))
+        response = self.client.get(reverse("orgs.check_login"))
         self.assertLoginRedirect(response)
 
         # try going to the org home page, no dice
@@ -1293,7 +1293,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_login_case_not_sensitive(self):
-        login_url = reverse("users.user_login")
+        login_url = reverse("orgs.user_login")
 
         response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"}, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
@@ -1929,7 +1929,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(verify_url)
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "This email verification link is for a different user.")
-        self.assertContains(response, reverse("users.user_login"))
+        self.assertContains(response, reverse("orgs.user_login"))
 
         # and isn't verified
         self.admin2.settings.refresh_from_db()
