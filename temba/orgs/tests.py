@@ -214,7 +214,7 @@ class UserTest(TembaTest):
                 )
 
     def test_login(self):
-        login_url = reverse("orgs.user_login")
+        login_url = reverse("orgs.login")
         verify_url = reverse("orgs.two_factor_verify")
         backup_url = reverse("orgs.two_factor_backup")
 
@@ -298,7 +298,7 @@ class UserTest(TembaTest):
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_login_lockouts(self):
-        login_url = reverse("orgs.user_login")
+        login_url = reverse("orgs.login")
         verify_url = reverse("orgs.two_factor_verify")
         backup_url = reverse("orgs.two_factor_backup")
         failed_url = reverse("users.user_failed")
@@ -464,7 +464,7 @@ class UserTest(TembaTest):
         self.assertRedirect(response, enable_url)
 
     def test_two_factor_time_limit(self):
-        login_url = reverse("orgs.user_login")
+        login_url = reverse("orgs.login")
         verify_url = reverse("orgs.two_factor_verify")
         backup_url = reverse("orgs.two_factor_backup")
 

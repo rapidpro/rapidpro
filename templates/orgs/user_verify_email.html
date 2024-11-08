@@ -9,7 +9,7 @@
       <div class="mb-8">{% trans "This email verification link is for a different user. Please login as that user." %}</div>
       <div class="text-center">
         <a class="button-primary"
-           href="{% url 'orgs.user_login' %}?next={% url 'orgs.user_verify_email' email_secret %}">{% trans "Login" %}</a>
+           href="{% url 'orgs.login' %}?next={% url 'orgs.user_verify_email' email_secret %}">{% trans "Login" %}</a>
       </div>
     {% else %}
       <div class="mb-8">

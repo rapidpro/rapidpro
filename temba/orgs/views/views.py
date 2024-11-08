@@ -172,7 +172,7 @@ class BaseTwoFactorView(AuthLoginView):
         # redirect back to login view if user hasn't completed that yet
         user = self.get_user()
         if not user:
-            return HttpResponseRedirect(reverse("orgs.user_login"))
+            return HttpResponseRedirect(reverse("orgs.login"))
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -545,7 +545,7 @@ class UserCRUDL(SmartCRUDL):
         permission = None
         title = _("Password Reset")
         success_message = _("An email has been sent to your account with further instructions.")
-        success_url = "@orgs.user_login"
+        success_url = "@orgs.login"
         fields = ("email",)
 
         def form_valid(self, form):
@@ -599,7 +599,7 @@ class UserCRUDL(SmartCRUDL):
         form_class = Form
         permission = None
         title = _("Password Reset")
-        success_url = "@orgs.user_login"
+        success_url = "@orgs.login"
         success_message = _("Your password has been updated successfully.")
 
         @classmethod
@@ -1238,7 +1238,7 @@ class OrgCRUDL(SmartCRUDL):
                                 name=_("Sign Out"),
                                 icon="logout",
                                 posterize=True,
-                                href=f"{reverse('orgs.user_logout')}?next={reverse('orgs.user_login')}",
+                                href=f"{reverse('orgs.logout')}?next={reverse('orgs.login')}",
                             ),
                             *other_org_items,
                             self.create_space(),
@@ -1673,7 +1673,7 @@ class OrgCRUDL(SmartCRUDL):
                     # for regular users, if there's no orgs, log them out with a message
                     messages.info(request, _("No workspaces for this account, please contact your administrator."))
                     logout(request)
-                    return HttpResponseRedirect(reverse("orgs.user_login"))
+                    return HttpResponseRedirect(reverse("orgs.login"))
             return None
 
         def get_context_data(self, **kwargs):
