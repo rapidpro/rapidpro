@@ -212,7 +212,7 @@ function spaRequest(url, options) {
     }
   });
 
-  if (!omitted) {
+  if (!omitted && window.org_id) {
     headers['X-Temba-Org'] = window.org_id;
   }
 
