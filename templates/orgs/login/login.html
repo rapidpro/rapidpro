@@ -28,7 +28,7 @@
     </div>
     {% if form.password.errors %}<div class="alert alert-error mt-4">{{ form.password.errors }}</div>{% endif %}
     <div class="mt-2 text-right">
-      <a href="/user/forget/">Forgot your password?</a>
+      <a href="{% url 'orgs.user_forget' %}">{% trans "Forgot your password?" %}</a>
     </div>
     <div class="mt-6">
       <input type="submit" value="{{ _("Sign In") }}" class="button-primary">
