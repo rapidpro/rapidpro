@@ -1879,6 +1879,16 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, FailedLogin.objects.filter(username="admin@textit.com").count())  # deleted
         self.assertEqual(1, FailedLogin.objects.filter(username="editor@textit.com").count())  # unaffected
 
+    def test_failed(self):
+        failed_url = reverse("orgs.user_failed")
+
+        # make sure smartmin view is redirecting to our view
+        response = self.client.get(reverse("users.user_failed"))
+        self.assertRedirect(response, failed_url, status_code=301)
+
+        response = self.requestView(failed_url, None)
+        self.assertContains(response, "Please wait 10 minutes")
+
     def test_verify_email(self):
         self.assertEqual(self.admin.settings.email_status, "U")
         self.assertTrue(self.admin.settings.email_verification_secret)

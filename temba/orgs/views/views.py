@@ -344,6 +344,7 @@ class UserCRUDL(SmartCRUDL):
         "edit",
         "forget",
         "recover",
+        "failed",
         "two_factor_enable",
         "two_factor_disable",
         "two_factor_tokens",
@@ -638,6 +639,14 @@ class UserCRUDL(SmartCRUDL):
             FailedLogin.objects.filter(username__iexact=obj.username).delete()
 
             return obj
+
+    class Failed(SmartTemplateView):
+        permission = None
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["lockout_timeout"] = getattr(settings, "USER_LOCKOUT_TIMEOUT", 10)
+            return context
 
     class Edit(ComponentFormMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):
