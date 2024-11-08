@@ -37,11 +37,12 @@ urlpatterns += [
     re_path(r"^", include("temba.orgs.urls")),
     re_path(r"^staff/", include("temba.staff.urls")),
     re_path(r"^jsi18n/$", JavaScriptCatalog.as_view(), js_info_dict, name="django.views.i18n.javascript_catalog"),
-    # import smartmin users app urls but redirect forget and recover
+    # import smartmin users app urls but redirect some of the views
     re_path(r"^users/user/forget/$", RedirectView.as_view(pattern_name="orgs.user_forget", permanent=True)),
     re_path(
         r"^users/user/recover/(?P<token>\w+)/$", RedirectView.as_view(pattern_name="orgs.user_recover", permanent=True)
     ),
+    re_path(r"^users/user/failed/$", RedirectView.as_view(pattern_name="orgs.user_failed", permanent=True)),
     re_path(r"^users/", include("smartmin.users.urls")),
 ]
 
