@@ -338,6 +338,11 @@ function fetchAjax(url, options) {
         }
 
         return response.text().then(function (body) {
+          if (body.startsWith('<!DOCTYPE HTML>')) {
+            document.location.href = response.url;
+            return;
+          }
+
           var containerEle = document.querySelector(container);
           if (containerEle) {
             // special care to unmount the editor
@@ -600,27 +605,26 @@ document.addEventListener('DOMContentLoaded', function () {
   var container = document.querySelector('.spa-container');
   if (container) {
     container.classList.remove('initial-load');
-  }
+    container.addEventListener('click', function (event) {
+      // get our immediate path
+      const path = event.composedPath().slice(0, 10);
 
-  container.addEventListener('click', function (event) {
-    // get our immediate path
-    const path = event.composedPath().slice(0, 10);
+      // find the first anchor tag
+      const ele = path.find((ele) => ele.tagName === 'A');
 
-    // find the first anchor tag
-    const ele = path.find((ele) => ele.tagName === 'A');
+      if (ele) {
+        const url = new URL(ele.href);
+        event.preventDefault();
+        event.stopPropagation();
 
-    if (ele) {
-      const url = new URL(ele.href);
-      event.preventDefault();
-      event.stopPropagation();
-
-      // if we are working within the app, use spaGet
-      if (url.host === window.location.host && !event.metaKey) {
-        spaGet(ele.href);
-      } else {
-        // otherwise open a new tab
-        window.open(ele.href, '_blank');
+        // if we are working within the app, use spaGet
+        if (url.host === window.location.host && !event.metaKey) {
+          spaGet(ele.href);
+        } else {
+          // otherwise open a new tab
+          window.open(ele.href, '_blank');
+        }
       }
-    }
-  });
+    });
+  }
 });
