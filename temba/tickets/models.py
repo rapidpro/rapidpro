@@ -88,9 +88,10 @@ class Topic(TembaModel, DependencyMixin):
         Gets the topics accessible to the given user in the given org.
         """
 
-        membership = org.get_membership(user)
-        if membership.team and not membership.team.all_topics:
-            return membership.team.topics.all()
+        if not user.is_staff:
+            membership = org.get_membership(user)
+            if membership.team and not membership.team.all_topics:
+                return membership.team.topics.all()
 
         return org.topics.filter(is_active=True)
 
