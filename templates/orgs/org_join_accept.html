@@ -2,19 +2,27 @@
 {% load i18n %}
 
 {% block content %}
-  <div class="flex w-full mb-4">
-    <div class="flex-grow ml-1">
-      {% blocktrans trimmed with org=invitation.org.name %}
-        You have been invited to join the <b>{{ org }}</b> workspace.
-      {% endblocktrans %}
-    </div>
+  <div class="mb-8">
+    {% blocktrans trimmed with org=invitation.org.name %}
+      You have been invited to join the <b>{{ org }}</b> workspace.
+    {% endblocktrans %}
   </div>
-  <div class="flex w-full mb-4">
-    <div class="flex-grow ml-1">
-      <form method="post" encrypt="multipart/form-data" class="mb-4">
-        {% csrf_token %}
-        <input type="submit" value="{{ submit_button_name }}" class="button-primary">
-      </form>
-    </div>
+  <div class="mb-4">
+    <form method="post" encrypt="multipart/form-data" class="mb-4">
+      {% csrf_token %}
+      <input type="submit" value="{{ submit_button_name }}" class="button-primary">
+    </form>
   </div>
 {% endblock content %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    input {
+      width: 100%;
+    }
+
+    .content-card {
+      width: 28em;
+    }
+  </style>
+{% endblock extra-style %}
