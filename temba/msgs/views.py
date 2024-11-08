@@ -5,7 +5,7 @@ from functools import cached_property
 from urllib.parse import quote_plus
 
 import magic
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartUpdateView
 
 from django import forms
 from django.conf import settings
@@ -33,14 +33,7 @@ from temba.utils import json
 from temba.utils.compose import compose_deserialize, compose_serialize
 from temba.utils.fields import CompletionTextarea, ContactSearchWidget, InputWidget, SelectWidget
 from temba.utils.models import patch_queryset_count
-from temba.utils.views.mixins import (
-    ContextMenuMixin,
-    ModalFormMixin,
-    NonAtomicMixin,
-    PostOnlyMixin,
-    SpaMixin,
-    StaffOnlyMixin,
-)
+from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, NonAtomicMixin, PostOnlyMixin, StaffOnlyMixin
 from temba.utils.views.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .forms import ComposeForm, ScheduleForm, TargetForm
@@ -148,7 +141,6 @@ class BroadcastCRUDL(SmartCRUDL):
         "create",
         "update",
         "scheduled",
-        "scheduled_read",
         "scheduled_delete",
         "preview",
         "to_node",
@@ -402,41 +394,10 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class ScheduledRead(SpaMixin, ContextMenuMixin, OrgObjPermsMixin, SmartReadView):
-        title = _("Broadcast")
-        menu_path = "/msg/broadcasts"
-
-        def derive_title(self):
-            return _("Broadcast")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["send_history"] = self.get_object().children.order_by("-created_on")
-            return context
-
-        def build_context_menu(self, menu):
-            obj = self.get_object()
-
-            if self.has_org_perm("msgs.broadcast_update") and obj.schedule.next_fire:
-                menu.add_modax(
-                    _("Edit"),
-                    "edit-broadcast",
-                    reverse("msgs.broadcast_update", args=[obj.id]),
-                    title=_("Edit Broadcast"),
-                )
-
-            if self.has_org_perm("msgs.broadcast_scheduled_delete"):
-                menu.add_modax(
-                    _("Delete"),
-                    "delete-scheduled",
-                    reverse("msgs.broadcast_scheduled_delete", args=[obj.id]),
-                    title=_("Delete Broadcast"),
-                )
-
     class ScheduledDelete(ModalFormMixin, OrgObjPermsMixin, SmartDeleteView):
         default_template = "broadcast_scheduled_delete.html"
-        cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
+        cancel_url = "@msgs.broadcast_scheduled"
         fields = ("id",)
         submit_button_name = _("Delete")
 
