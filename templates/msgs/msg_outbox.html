@@ -45,8 +45,3 @@
     </tbody>
   </table>
 {% endblock message-list %}
-{% block paginator %}
-  {% if object_list.count %}
-    <div class="paginator">{% include "smartmin/sidebar_pagination.html" %}</div>
-  {% endif %}
-{% endblock paginator %}

@@ -2552,56 +2552,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(scheduled_url, [self.editor], context_objects=[bc2, bc1])
 
-    def test_scheduled_read(self):
-        schedule = Schedule.create(self.org, timezone.now(), "D", repeat_days_of_week="MWF")
-        broadcast = self.create_broadcast(
-            self.admin,
-            {"eng": {"text": "Daily reminder"}},
-            groups=[self.joe_and_frank],
-            schedule=schedule,
-        )
-
-        read_url = reverse("msgs.broadcast_scheduled_read", args=[broadcast.id])
-
-        self.login(self.editor)
-
-        # view with empty send history
-        response = self.client.get(read_url)
-        self.assertEqual(broadcast, response.context["object"])
-        self.assertEqual([], list(response.context["send_history"]))
-
-        # add some send history
-        sends = []
-        for i in range(3):
-            text = "Daily Reminder"
-            media = Media.from_upload(
-                self.org,
-                self.admin,
-                self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
-                process=False,
-            )
-            attachment = {"content_type": media.content_type, "url": media.url}
-            attachments = compose_deserialize_attachments([attachment])
-
-            sends.append(
-                self.create_broadcast(
-                    self.admin,
-                    translations={"eng": {"text": text, "attachments": attachments}},
-                    groups=[self.joe_and_frank],
-                    status=Msg.STATUS_PENDING,
-                    parent=broadcast,
-                )
-            )
-
-        # sends are listed newest first
-        response = self.client.get(read_url)
-
-        # we should see lines for broadcast with recipient counts, though no messages have been sent
-        self.assertContains(response, "0 recipients")
-
-        self.assertEqual(response.context["object"], broadcast)
-        self.assertEqual(list(reversed(sends)), list(response.context["send_history"]))
-
     def test_scheduled_delete(self):
         self.login(self.editor)
         schedule = Schedule.create(self.org, timezone.now(), "D", repeat_days_of_week="MWF")

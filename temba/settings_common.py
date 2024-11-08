@@ -356,11 +356,7 @@ PERMISSIONS = {
     "flows.flowsession": ("json",),
     "globals.global": ("unused",),
     "locations.adminboundary": ("alias", "boundaries", "geometry"),
-    "msgs.broadcast": (
-        "scheduled",
-        "scheduled_read",
-        "scheduled_delete",
-    ),
+    "msgs.broadcast": ("scheduled", "scheduled_delete"),
     "msgs.msg": ("archive", "export", "label", "menu"),
     "orgs.export": ("download",),
     "orgs.org": (
@@ -626,7 +622,6 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_list",
         "msgs.broadcast_list",
         "msgs.broadcast_scheduled",
-        "msgs.broadcast_scheduled_read",
         "msgs.label_list",
         "msgs.label_read",
         "msgs.msg_export",
