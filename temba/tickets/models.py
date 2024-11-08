@@ -347,9 +347,10 @@ class TicketFolder(metaclass=ABCMeta):
     def get_queryset(self, org, user, *, ordered: bool):
         qs = org.tickets.all()
 
-        membership = org.get_membership(user)
-        if membership.team and not membership.team.all_topics:
-            qs = qs.filter(topic__in=list(membership.team.topics.all()))
+        if not user.is_staff:
+            membership = org.get_membership(user)
+            if membership.team and not membership.team.all_topics:
+                qs = qs.filter(topic__in=list(membership.team.topics.all()))
 
         if ordered:
             qs = qs.order_by("-last_activity_on", "-id")
