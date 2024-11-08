@@ -8,7 +8,7 @@
   {% blocktrans trimmed %}
     To access this page please confirm your current password.
   {% endblocktrans %}
-  <form method="POST">
+  <form method="post">
     {% csrf_token %}
     <div class="mt-4">
       <temba-textinput name="password" placeholder="{{ _("Password") |escape }}" password="true">

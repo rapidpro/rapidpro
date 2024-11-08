@@ -11,7 +11,7 @@
       and enter the code below to verify your identity.
     {% endblocktrans %}
   </div>
-  <form method="POST">
+  <form method="post">
     {% csrf_token %}
     <div class="mt-4">
       <input name="otp" maxlength="6" placeholder="{{ _("6-digit code") |escape }}" class="input">
