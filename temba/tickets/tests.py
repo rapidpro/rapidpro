@@ -1584,6 +1584,9 @@ class TopicTest(TembaTest):
         )
         self.assertEqual({topic1, topic2}, set(Topic.get_accessible(self.org, agent2)))
         self.assertEqual(set(), set(Topic.get_accessible(self.org, agent3)))
+        self.assertEqual(
+            {self.org.default_ticket_topic, topic1, topic2}, set(Topic.get_accessible(self.org, self.customer_support))
+        )
 
     def test_release(self):
         topic1 = Topic.create(self.org, self.admin, "Sales")
