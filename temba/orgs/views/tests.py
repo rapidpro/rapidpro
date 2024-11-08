@@ -885,11 +885,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.logout()
 
         response = self.client.get(reverse("users.user_check_login"))
-        self.assertRedirect(response, reverse("users.user_login"))
+        self.assertLoginRedirect(response)
 
         # try going to the org home page, no dice
         response = self.client.get(reverse("orgs.org_workspace"))
-        self.assertRedirect(response, reverse("users.user_login"))
+        self.assertLoginRedirect(response)
 
         # log in as the user
         self.client.login(username="myal12345678901234567890@relieves.org", password="HelloWorld1")

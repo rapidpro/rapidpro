@@ -1621,7 +1621,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # no login, no list
         response = self.client.get(reverse("flows.flow_list"))
-        self.assertRedirect(response, reverse("users.user_login"))
+        self.assertLoginRedirect(response)
 
         user = self.admin
         user.first_name = "Test"

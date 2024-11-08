@@ -268,7 +268,7 @@ class CampaignTest(TembaTest):
 
         # don't log in, try to create a new campaign
         response = self.client.get(reverse("campaigns.campaign_create"))
-        self.assertRedirect(response, reverse("users.user_login"))
+        self.assertLoginRedirect(response)
 
         # ok log in as an org
         self.login(self.admin)
