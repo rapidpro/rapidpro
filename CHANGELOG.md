@@ -1,3 +1,8 @@
+v9.3.97 (2024-11-08)
+-------------------------
+ * Handle ajax response redirects
+ * Only include temba org if it is set
+
 v9.3.96 (2024-11-07)
 -------------------------
  * Fix org obj perms mixin for staff users
