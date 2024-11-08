@@ -1011,6 +1011,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(open_url + "?_format=json")
             self.assertIsNotNone(response.json()["next"])
 
+        # requesting my tickets as servicing staff should return empty list
+        response = self.requestView(mine_url, self.customer_support, choose_org=self.org)
+        assert_tickets(response, [])
+
+        response = self.requestView(unassigned_url, self.customer_support, choose_org=self.org)
+        assert_tickets(response, [c2_t1, c1_t2])
+
     @mock_mailroom
     def test_note(self, mr_mocks):
         ticket = self.create_ticket(self.contact)
