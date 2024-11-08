@@ -20,8 +20,6 @@
     {% csrf_token %}
     <temba-textinput name="email" placeholder="{{ _("Email Address") }}">
     </temba-textinput>
-    <div class="mt-4">
-      <input type="submit" value="{{ _("Reset") }}" class="button-primary">
-    </div>
+    <input type="submit" value="{{ _("Reset") }}" class="mt-4 button-primary">
   </form>
 {% endblock login-content %}
