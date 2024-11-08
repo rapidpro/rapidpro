@@ -17,6 +17,8 @@ class OrgPermsMixin:
     (e.g. menu items) is also accessible to the user.
     """
 
+    readonly_servicing = True
+
     def derive_org(self):
         return self.request.org
 
@@ -57,8 +59,8 @@ class OrgPermsMixin:
 
         has_perm, by_servicing = self._check_org_perm(self.permission)
 
-        # staff are only allowed to GET views when servicing
-        if by_servicing and request.method != "GET":
+        # by default staff are only allowed to GET views when servicing
+        if self.readonly_servicing and by_servicing and request.method != "GET":
             return False
 
         return has_perm
@@ -74,6 +76,10 @@ class OrgPermsMixin:
 
 
 class OrgObjPermsMixin(OrgPermsMixin):
+    """
+    Mixin for views with an object (and corresponding `get_object` method) that belongs to an org.
+    """
+
     def get_object_org(self):
         return self.get_object().org
 
