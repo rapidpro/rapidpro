@@ -1,3 +1,7 @@
+v9.3.98 (2024-11-08)
+-------------------------
+ * Add readonly_servicing to OrgPermsMixin
+
 v9.3.97 (2024-11-08)
 -------------------------
  * Handle ajax response redirects
