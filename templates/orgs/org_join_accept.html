@@ -1,9 +1,6 @@
 {% extends "smartmin/update.html" %}
 {% load i18n %}
 
-{% block alert-messages %}
-  {# confusing to show org warnings on this page #}
-{% endblock alert-messages %}
 {% block content %}
   <div class="mb-8">
     {% blocktrans trimmed with org=invitation.org.name %}
