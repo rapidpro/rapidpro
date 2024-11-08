@@ -174,7 +174,7 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your contact export is ready", mail.outbox[0].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["editor@textit.com"], mail.outbox[0].recipients())
 
         # calling task again won't send more emails
         send_notification_emails()
@@ -215,7 +215,7 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your message export is ready", mail.outbox[0].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["editor@textit.com"], mail.outbox[0].recipients())
 
         # calling task again won't send more emails
         send_notification_emails()
@@ -266,7 +266,7 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your results export is ready", mail.outbox[0].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["editor@textit.com"], mail.outbox[0].recipients())
 
         # calling task again won't send more emails
         send_notification_emails()
@@ -305,7 +305,7 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your ticket export is ready", mail.outbox[0].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["editor@textit.com"], mail.outbox[0].recipients())
 
         # if a user visits the export download page, their notification for that export is now read
         self.login(self.editor)
@@ -415,9 +415,9 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(2, len(mail.outbox))
         self.assertEqual("[Nyaruka] Incident: WhatsApp Templates Sync Failed", mail.outbox[0].subject)
-        self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["admin@textit.com"], mail.outbox[0].recipients())
         self.assertEqual("[Nyaruka] Incident: WhatsApp Templates Sync Failed", mail.outbox[1].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[1].recipients())
+        self.assertEqual(["editor@textit.com"], mail.outbox[1].recipients())
 
         # if a user visits the incident page, all incident notifications are now read
         self.login(self.editor)
@@ -451,9 +451,9 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(2, len(mail.outbox))
         self.assertEqual("[Nyaruka] Incident: Workspace Flagged", mail.outbox[0].subject)
-        self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["admin@textit.com"], mail.outbox[0].recipients())
         self.assertEqual("[Nyaruka] Incident: Workspace Flagged", mail.outbox[1].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[1].recipients())
+        self.assertEqual(["editor@textit.com"], mail.outbox[1].recipients())
 
         # if a user visits the incident page, all incident notifications are now read
         self.login(self.editor)
@@ -481,7 +481,7 @@ class NotificationTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your email has been changed", mail.outbox[0].subject)
         self.assertEqual(["prevaddr@trileet.com"], mail.outbox[0].recipients())  # previous address
-        self.assertIn("Your email has been changed to editor@nyaruka.com", mail.outbox[0].body)  # new address
+        self.assertIn("Your email has been changed to editor@textit.com", mail.outbox[0].body)  # new address
 
     def test_user_password(self):
         UserPasswordNotificationType.create(self.org, self.editor)
@@ -501,12 +501,12 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your password has been changed", mail.outbox[0].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["editor@textit.com"], mail.outbox[0].recipients())
         self.assertIn("Your password has been changed.", mail.outbox[0].body)
 
     def test_invitation_accepted(self):
         invitation = Invitation.objects.create(
-            org=self.org, email="bob@nyaruka.com", created_by=self.admin, modified_by=self.admin
+            org=self.org, email="bob@textit.com", created_by=self.admin, modified_by=self.admin
         )
 
         InvitationAcceptedNotificationType.create(invitation)
@@ -526,8 +526,8 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] New user joined your workspace", mail.outbox[0].subject)
-        self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())  # previous address
-        self.assertIn("User bob@nyaruka.com accepted an invitation to join your workspace.", mail.outbox[0].body)
+        self.assertEqual(["admin@textit.com"], mail.outbox[0].recipients())  # previous address
+        self.assertIn("User bob@textit.com accepted an invitation to join your workspace.", mail.outbox[0].body)
 
     def test_counts(self):
         imp = ContactImport.objects.create(

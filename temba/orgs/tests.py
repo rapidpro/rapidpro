@@ -70,18 +70,18 @@ class OrgRoleTest(TembaTest):
 
 class InvitationTest(TembaTest):
     def test_model(self):
-        invitation = Invitation.create(self.org, self.admin, "invitededitor@nyaruka.com", OrgRole.EDITOR)
+        invitation = Invitation.create(self.org, self.admin, "invitededitor@textit.com", OrgRole.EDITOR)
 
         self.assertEqual(OrgRole.EDITOR, invitation.role)
 
         invitation.send()
 
         self.assertEqual(1, len(mail.outbox))
-        self.assertEqual(["invitededitor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["invitededitor@textit.com"], mail.outbox[0].recipients())
         self.assertEqual("RapidPro Invitation", mail.outbox[0].subject)
         self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", mail.outbox[0].body)
 
-        new_editor = User.create("invitededitor@nyaruka.com", "Bob", "", "Qwerty123", "en-US")
+        new_editor = User.create("invitededitor@textit.com", "Bob", "", "Qwerty123", "en-US")
         invitation.accept(new_editor)
 
         self.assertEqual(1, self.admin.notifications.count())
@@ -90,13 +90,13 @@ class InvitationTest(TembaTest):
 
         # invite an agent user to a specific team
         sales = Team.create(self.org, self.admin, "Sales", topics=[])
-        invitation = Invitation.create(self.org, self.admin, "invitedagent@nyaruka.com", OrgRole.AGENT, team=sales)
+        invitation = Invitation.create(self.org, self.admin, "invitedagent@textit.com", OrgRole.AGENT, team=sales)
 
         self.assertEqual(OrgRole.AGENT, invitation.role)
         self.assertEqual(sales, invitation.team)
 
         invitation.send()
-        new_agent = User.create("invitedagent@nyaruka.com", "Bob", "", "Qwerty123", "en-US")
+        new_agent = User.create("invitedagent@textit.com", "Bob", "", "Qwerty123", "en-US")
         invitation.accept(new_agent)
 
         self.assertEqual({self.agent, new_agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
@@ -106,7 +106,7 @@ class InvitationTest(TembaTest):
         invitation1 = Invitation.objects.create(
             org=self.org,
             role_code="E",
-            email="neweditor@nyaruka.com",
+            email="neweditor@textit.com",
             created_by=self.admin,
             created_on=timezone.now() - timedelta(days=31),
             modified_by=self.admin,
@@ -114,7 +114,7 @@ class InvitationTest(TembaTest):
         invitation2 = Invitation.objects.create(
             org=self.org,
             role_code="T",
-            email="newagent@nyaruka.com",
+            email="newagent@textit.com",
             created_by=self.admin,
             created_on=timezone.now() - timedelta(days=29),
             modified_by=self.admin,
@@ -239,7 +239,7 @@ class UserTest(TembaTest):
         )
 
         # submit correct username and password
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         self.admin.settings.refresh_from_db()
@@ -255,7 +255,7 @@ class UserTest(TembaTest):
 
         # login via login page again
         response = self.client.post(
-            login_url + "?next=/msg/", {"username": "admin@nyaruka.com", "password": "Qwerty123"}
+            login_url + "?next=/msg/", {"username": "admin@textit.com", "password": "Qwerty123"}
         )
         self.assertRedirect(response, verify_url)
         self.assertTrue(response.url.endswith("?next=/msg/"))
@@ -278,7 +278,7 @@ class UserTest(TembaTest):
         self.client.logout()
 
         # login via login page again
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"})
         self.assertRedirect(response, verify_url)
 
         # but this time we've lost our phone so go to the page for backup tokens
@@ -304,9 +304,9 @@ class UserTest(TembaTest):
         failed_url = reverse("users.user_failed")
 
         # submit incorrect username and password 3 times
-        self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
-        self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
+        self.client.post(login_url, {"username": "admin@textit.com", "password": "pass123"})
+        self.client.post(login_url, {"username": "admin@textit.com", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "pass123"})
 
         self.assertRedirect(response, failed_url)
         self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
@@ -315,7 +315,7 @@ class UserTest(TembaTest):
         FailedLogin.objects.all().update(failed_on=timezone.now() - timedelta(minutes=3))
 
         # now we're allowed to make failed logins again
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "pass123"})
         self.assertFormError(
             response.context["form"],
             None,
@@ -323,7 +323,7 @@ class UserTest(TembaTest):
         )
 
         # and successful logins
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # try again with 2FA enabled
@@ -331,16 +331,16 @@ class UserTest(TembaTest):
         self.admin.enable_2fa()
 
         # submit incorrect username and password 3 times
-        self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
-        self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
+        self.client.post(login_url, {"username": "admin@textit.com", "password": "pass123"})
+        self.client.post(login_url, {"username": "admin@textit.com", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "pass123"})
 
         self.assertRedirect(response, failed_url)
         self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
 
         # login correctly
         FailedLogin.objects.all().delete()
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"})
         self.assertRedirect(response, verify_url)
 
         # now enter a backup token 3 times incorrectly
@@ -360,7 +360,7 @@ class UserTest(TembaTest):
         response = self.client.post(backup_url, {"token": "nope"})
         self.assertRedirect(response, login_url)
 
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"})
         self.assertRedirect(response, verify_url)
 
         response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
@@ -472,7 +472,7 @@ class UserTest(TembaTest):
 
         # simulate a login for a 2FA user 10 minutes ago
         with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(minutes=10)):
-            response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
+            response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"})
             self.assertRedirect(response, verify_url)
 
             response = self.client.get(verify_url)
@@ -596,7 +596,7 @@ class OrgTest(TembaTest):
         self.assertEqual(str(new_org.timezone), "America/Los_Angeles")
 
     def test_get_users(self):
-        admin3 = self.create_user("bob@nyaruka.com")
+        admin3 = self.create_user("bob@textit.com")
 
         self.org.add_user(admin3, OrgRole.ADMINISTRATOR)
         self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
@@ -875,7 +875,7 @@ class OrgTest(TembaTest):
         self.assertIsNotNone(self.org.prometheus_token)
 
         # other admin sees it enabled too
-        self.other_admin = self.create_user("other_admin@nyaruka.com")
+        self.other_admin = self.create_user("other_admin@textit.com")
         self.org.add_user(self.other_admin, OrgRole.ADMINISTRATOR)
         self.login(self.other_admin)
 

@@ -603,7 +603,7 @@ class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
         team1 = Team.create(self.org, self.admin, "Sales", topics=[sales])
         team2 = Team.create(self.org, self.admin, "Other", topics=[sales])
         self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
-        invite = Invitation.create(self.org, self.admin, "newagent@nyaruka.com", OrgRole.AGENT, team=team1)
+        invite = Invitation.create(self.org, self.admin, "newagent@textit.com", OrgRole.AGENT, team=team1)
 
         delete_url = reverse("tickets.team_delete", args=[team1.id])
 
@@ -665,11 +665,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.support = Topic.create(self.org, self.admin, "Support")
 
         # create other agent users in teams with limited topic access
-        self.agent2 = self.create_user("agent2@nyaruka.com")
+        self.agent2 = self.create_user("agent2@textit.com")
         sales_only = Team.create(self.org, self.admin, "Sales", topics=[self.sales])
         self.org.add_user(self.agent2, OrgRole.AGENT, team=sales_only)
 
-        self.agent3 = self.create_user("agent3@nyaruka.com")
+        self.agent3 = self.create_user("agent3@textit.com")
         support_only = Team.create(self.org, self.admin, "Support", topics=[self.support])
         self.org.add_user(self.agent3, OrgRole.AGENT, team=support_only)
 
@@ -912,7 +912,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "direction": "O",
                         "type": "T",
                         "created_on": matchers.ISODate(),
-                        "sender": {"id": self.admin.id, "email": "admin@nyaruka.com"},
+                        "sender": {"id": self.admin.id, "email": "admin@textit.com"},
                         "attachments": [],
                     },
                     "ticket": {
@@ -932,7 +932,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "direction": "O",
                         "type": "T",
                         "created_on": matchers.ISODate(),
-                        "sender": {"id": self.admin.id, "email": "admin@nyaruka.com"},
+                        "sender": {"id": self.admin.id, "email": "admin@textit.com"},
                         "attachments": [],
                     },
                     "ticket": {
@@ -941,7 +941,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                             "id": self.admin.id,
                             "first_name": "Andy",
                             "last_name": "",
-                            "email": "admin@nyaruka.com",
+                            "email": "admin@textit.com",
                         },
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
                         "last_activity_on": matchers.ISODate(),
@@ -988,7 +988,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "direction": "O",
                     "type": "T",
                     "created_on": matchers.ISODate(),
-                    "sender": {"id": self.agent.id, "email": "agent@nyaruka.com"},
+                    "sender": {"id": self.agent.id, "email": "agent@textit.com"},
                     "attachments": [],
                 },
                 "ticket": {
@@ -1571,9 +1571,9 @@ class TopicTest(TembaTest):
         topic2 = Topic.create(self.org, self.admin, "Support")
         team1 = Team.create(self.org, self.admin, "Sales & Support", topics=[topic1, topic2])
         team2 = Team.create(self.org, self.admin, "Nothing", topics=[])
-        agent2 = self.create_user("agent2@nyaruka.com")
+        agent2 = self.create_user("agent2@textit.com")
         self.org.add_user(agent2, OrgRole.AGENT, team=team1)
-        agent3 = self.create_user("agent3@nyaruka.com")
+        agent3 = self.create_user("agent3@textit.com")
         self.org.add_user(agent3, OrgRole.AGENT, team=team2)
 
         self.assertEqual(
@@ -1631,7 +1631,7 @@ class TeamTest(TembaTest):
         sales = Topic.create(self.org, self.admin, "Sales")
         support = Topic.create(self.org, self.admin, "Support")
         team1 = Team.create(self.org, self.admin, "Sales & Support", topics=[sales, support])
-        agent2 = self.create_user("tickets@nyaruka.com")
+        agent2 = self.create_user("tickets@textit.com")
         self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
         self.org.add_user(agent2, OrgRole.AGENT, team=team1)
 

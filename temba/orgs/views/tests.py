@@ -407,7 +407,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("orgs.org_join", args=["invalid"]))
         self.assertRedirect(response, reverse("public.public_index"))
 
-        invitation = Invitation.create(self.org, self.admin, "edwin@nyaruka.com", OrgRole.EDITOR)
+        invitation = Invitation.create(self.org, self.admin, "edwin@textit.com", OrgRole.EDITOR)
 
         join_url = reverse("orgs.org_join", args=[invitation.secret])
         join_signup_url = reverse("orgs.org_join_signup", args=[invitation.secret])
@@ -417,7 +417,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(join_url)
         self.assertRedirect(response, join_signup_url)
 
-        user = self.create_user("edwin@nyaruka.com")
+        user = self.create_user("edwin@textit.com")
         self.login(user)
 
         response = self.client.get(join_url)
@@ -434,7 +434,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, len(self.client.session.keys()))
 
         # invitation with mismatching case email
-        invitation2 = Invitation.create(self.org2, self.admin, "eDwin@nyaruka.com", OrgRole.EDITOR)
+        invitation2 = Invitation.create(self.org2, self.admin, "eDwin@textit.com", OrgRole.EDITOR)
 
         join_accept_url = reverse("orgs.org_join_accept", args=[invitation2.secret])
         join_url = reverse("orgs.org_join", args=[invitation2.secret])
@@ -465,13 +465,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(join_signup_url)
         self.assertRedirect(response, join_url)
 
-        invitation = Invitation.create(self.org, self.admin, "edwin@nyaruka.com", OrgRole.EDITOR)
+        invitation = Invitation.create(self.org, self.admin, "edwin@textit.com", OrgRole.EDITOR)
 
         join_signup_url = reverse("orgs.org_join_signup", args=[invitation.secret])
         join_url = reverse("orgs.org_join", args=[invitation.secret])
 
         response = self.client.get(join_signup_url)
-        self.assertContains(response, "edwin@nyaruka.com")
+        self.assertContains(response, "edwin@textit.com")
         self.assertEqual(["first_name", "last_name", "password", "loc"], list(response.context["form"].fields.keys()))
 
         response = self.client.post(join_signup_url, {})
@@ -498,7 +498,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("orgs.org_join_accept", args=["invalid"]))
         self.assertRedirect(response, reverse("public.public_index"))
 
-        invitation = Invitation.create(self.org, self.admin, "edwin@nyaruka.com", OrgRole.EDITOR)
+        invitation = Invitation.create(self.org, self.admin, "edwin@textit.com", OrgRole.EDITOR)
 
         join_accept_url = reverse("orgs.org_join_accept", args=[invitation.secret])
         join_url = reverse("orgs.org_join", args=[invitation.secret])
@@ -507,7 +507,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(join_accept_url)
         self.assertRedirect(response, join_url)
 
-        user = self.create_user("edwin@nyaruka.com")
+        user = self.create_user("edwin@textit.com")
 
         # if user exists but we're logged in as other user, also redirect
         response = self.client.get(join_accept_url)
@@ -532,7 +532,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(grant_url)
         self.assertRedirect(response, "/users/login/")
 
-        self.user = self.create_user("tito@nyaruka.com")
+        self.user = self.create_user("tito@textit.com")
 
         self.login(self.user)
         response = self.client.get(grant_url)
@@ -562,7 +562,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check user exists and is admin
         self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="john@carmack.com")))
-        self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="tito@nyaruka.com")))
+        self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="tito@textit.com")))
 
         # try a new org with a user that already exists instead
         del post_data["password"]
@@ -575,7 +575,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
         self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="john@carmack.com")))
-        self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="tito@nyaruka.com")))
+        self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="tito@textit.com")))
 
         # try a new org with US timezone
         post_data["name"] = "Bulls"
@@ -656,11 +656,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        # user with email admin@nyaruka.com already exists and we set a password
+        # user with email admin@textit.com already exists and we set a password
         response = self.client.post(
             grant_url,
             {
-                "email": "admin@nyaruka.com",
+                "email": "admin@textit.com",
                 "first_name": "John",
                 "last_name": "Carmack",
                 "name": "Oculus",
@@ -675,7 +675,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             grant_url,
             {
-                "email": "a_new_user@nyaruka.com",
+                "email": "a_new_user@textit.com",
                 "first_name": "John",
                 "last_name": "Carmack",
                 "name": "Oculus",
@@ -690,7 +690,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             grant_url,
             {
-                "email": "a_new_user@nyaruka.com",
+                "email": "a_new_user@textit.com",
                 "first_name": "John",
                 "last_name": "Carmack",
                 "name": "Oculus",
@@ -707,7 +707,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_new_signup_with_user_logged_in(self, mock_pre_process):
         mock_pre_process.return_value = None
         signup_url = reverse("orgs.org_signup")
-        self.user = self.create_user("tito@nyaruka.com")
+        self.user = self.create_user("tito@textit.com")
 
         self.login(self.user)
 
@@ -1295,14 +1295,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_login_case_not_sensitive(self):
         login_url = reverse("users.user_login")
 
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"}, follow=True)
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"}, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
 
-        response = self.client.post(login_url, {"username": "ADMIN@nyaruka.com", "password": "Qwerty123"}, follow=True)
+        response = self.client.post(login_url, {"username": "ADMIN@textit.com", "password": "Qwerty123"}, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
 
         # passwords stay case sensitive
-        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "QWERTY123"}, follow=True)
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "QWERTY123"}, follow=True)
         self.assertIn("form", response.context)
         self.assertTrue(response.context["form"].errors)
 
@@ -1423,7 +1423,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can search by name or email
         self.assertListFetch(list_url + "?search=andy", [self.admin], context_objects=[self.admin])
-        self.assertListFetch(list_url + "?search=editor@nyaruka.com", [self.admin], context_objects=[self.editor])
+        self.assertListFetch(list_url + "?search=editor@textit.com", [self.admin], context_objects=[self.editor])
 
     def test_team(self):
         team_url = reverse("orgs.user_team", args=[self.org.default_ticket_team.id])
@@ -1611,7 +1611,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "language": "pt-br",
                 "first_name": "Admin",
                 "last_name": "User",
-                "email": "admin@nyaruka.com",
+                "email": "admin@textit.com",
                 "current_password": "",
             },
         )
@@ -1667,7 +1667,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # should have a email changed notification using old address
         self.assertEqual({"user:email"}, set(self.admin.notifications.values_list("notification_type", flat=True)))
-        self.assertEqual("admin@nyaruka.com", self.admin.notifications.get().email_address)
+        self.assertEqual("admin@textit.com", self.admin.notifications.get().email_address)
 
         # try to change password without entering current password
         self.assertUpdateSubmit(
@@ -1751,29 +1751,29 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("users.user_forget"))
         self.assertRedirect(response, forget_url, status_code=301)
 
-        FailedLogin.objects.create(username="admin@nyaruka.com")
-        invitation = Invitation.create(self.org, self.admin, "invited@nyaruka.com", OrgRole.ADMINISTRATOR)
+        FailedLogin.objects.create(username="admin@textit.com")
+        invitation = Invitation.create(self.org, self.admin, "invited@textit.com", OrgRole.ADMINISTRATOR)
 
         # no login required to access
         response = self.client.get(forget_url)
         self.assertEqual(200, response.status_code)
 
         # try submitting email addess that don't exist in the system
-        response = self.client.post(forget_url, {"email": "foo@nyaruka.com"})
+        response = self.client.post(forget_url, {"email": "foo@textit.com"})
         self.assertLoginRedirect(response)
         self.assertEqual(0, len(mail.outbox))  # no emails sent
 
         # try submitting email address that has been invited
-        response = self.client.post(forget_url, {"email": "invited@nyaruka.com"})
+        response = self.client.post(forget_url, {"email": "invited@textit.com"})
         self.assertLoginRedirect(response)
 
         # invitation email should have been resent
         self.assertEqual(1, len(mail.outbox))
-        self.assertEqual(["invited@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["invited@textit.com"], mail.outbox[0].recipients())
         self.assertIn(invitation.secret, mail.outbox[0].body)
 
         # try submitting email address for existing user
-        response = self.client.post(forget_url, {"email": "admin@nyaruka.com"})
+        response = self.client.post(forget_url, {"email": "admin@textit.com"})
         self.assertLoginRedirect(response)
 
         # will have a recovery token
@@ -1781,11 +1781,11 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # and a recovery link email sent
         self.assertEqual(2, len(mail.outbox))
-        self.assertEqual(["admin@nyaruka.com"], mail.outbox[1].recipients())
+        self.assertEqual(["admin@textit.com"], mail.outbox[1].recipients())
         self.assertIn(token1.token, mail.outbox[1].body)
 
         # try submitting again for same email address - should error because it's too soon after last one
-        response = self.client.post(forget_url, {"email": "admin@nyaruka.com"})
+        response = self.client.post(forget_url, {"email": "admin@textit.com"})
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "A recovery email was already sent to this address recently.")
 
@@ -1793,7 +1793,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         token1.created_on = timezone.now() - timedelta(minutes=30)
         token1.save(update_fields=("created_on",))
 
-        response = self.client.post(forget_url, {"email": "admin@nyaruka.com"})
+        response = self.client.post(forget_url, {"email": "admin@textit.com"})
         self.assertLoginRedirect(response)
 
         # will have a new recovery token and the previous one is deleted
@@ -1801,17 +1801,17 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(RecoveryToken.objects.filter(id=token1.id).exists())
 
         self.assertEqual(3, len(mail.outbox))
-        self.assertEqual(["admin@nyaruka.com"], mail.outbox[2].recipients())
+        self.assertEqual(["admin@textit.com"], mail.outbox[2].recipients())
         self.assertIn(token2.token, mail.outbox[2].body)
 
         # failed login records unaffected
-        self.assertEqual(1, FailedLogin.objects.filter(username="admin@nyaruka.com").count())
+        self.assertEqual(1, FailedLogin.objects.filter(username="admin@textit.com").count())
 
     def test_recover(self):
         recover_url = reverse("orgs.user_recover", args=["1234567890"])
 
-        FailedLogin.objects.create(username="admin@nyaruka.com")
-        FailedLogin.objects.create(username="editor@nyaruka.com")
+        FailedLogin.objects.create(username="admin@textit.com")
+        FailedLogin.objects.create(username="editor@textit.com")
 
         # make sure smartmin view is redirecting to our view
         response = self.client.get(reverse("users.user_recover", args=["1234567890"]))
@@ -1876,8 +1876,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(self.admin.check_password("Azerty123"))
         self.assertEqual(0, self.admin.recovery_tokens.count())
 
-        self.assertEqual(0, FailedLogin.objects.filter(username="admin@nyaruka.com").count())  # deleted
-        self.assertEqual(1, FailedLogin.objects.filter(username="editor@nyaruka.com").count())  # unaffected
+        self.assertEqual(0, FailedLogin.objects.filter(username="admin@textit.com").count())  # deleted
+        self.assertEqual(1, FailedLogin.objects.filter(username="editor@textit.com").count())  # unaffected
 
     def test_verify_email(self):
         self.assertEqual(self.admin.settings.email_status, "U")
@@ -1991,9 +1991,9 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
 
-        inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
+        inv1 = Invitation.create(self.org, self.admin, "bob@textit.com", OrgRole.EDITOR)
         inv2 = Invitation.create(
-            self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT, team=self.org.default_ticket_team
+            self.org, self.admin, "jim@textit.com", OrgRole.AGENT, team=self.org.default_ticket_team
         )
 
         response = self.assertListFetch(list_url, [self.admin], context_objects=[inv2, inv1])
@@ -2035,7 +2035,7 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"email": "EDITOR@nyaruka.com", "role": "E"},
+            {"email": "EDITOR@textit.com", "role": "E"},
             form_errors={"email": "User is already a member of this workspace."},
         )
 
@@ -2043,8 +2043,8 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"email": "newguy@nyaruka.com", "role": "A"},
-            new_obj_query=Invitation.objects.filter(org=self.org, email="newguy@nyaruka.com", role_code="A").exclude(
+            {"email": "newguy@textit.com", "role": "A"},
+            new_obj_query=Invitation.objects.filter(org=self.org, email="newguy@textit.com", role_code="A").exclude(
                 secret=None
             ),
         )
@@ -2056,7 +2056,7 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"email": "newguy@nyaruka.com", "role": "E"},
+            {"email": "newguy@textit.com", "role": "E"},
             form_errors={"email": "User has already been invited to this workspace."},
         )
 
@@ -2064,9 +2064,9 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"email": "newagent@nyaruka.com", "role": "T"},
+            {"email": "newagent@textit.com", "role": "T"},
             new_obj_query=Invitation.objects.filter(
-                org=self.org, email="newagent@nyaruka.com", role_code="T", team=self.org.default_ticket_team
+                org=self.org, email="newagent@textit.com", role_code="T", team=self.org.default_ticket_team
             ),
         )
 
@@ -2079,15 +2079,15 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"email": "otheragent@nyaruka.com", "role": "T", "team": sales.id},
+            {"email": "otheragent@textit.com", "role": "T", "team": sales.id},
             new_obj_query=Invitation.objects.filter(
-                org=self.org, email="otheragent@nyaruka.com", role_code="T", team=sales
+                org=self.org, email="otheragent@textit.com", role_code="T", team=sales
             ),
         )
 
     def test_delete(self):
-        inv1 = Invitation.create(self.org, self.admin, "bob@nyaruka.com", OrgRole.EDITOR)
-        inv2 = Invitation.create(self.org, self.admin, "jim@nyaruka.com", OrgRole.AGENT)
+        inv1 = Invitation.create(self.org, self.admin, "bob@textit.com", OrgRole.EDITOR)
+        inv2 = Invitation.create(self.org, self.admin, "jim@textit.com", OrgRole.AGENT)
 
         delete_url = reverse("orgs.invitation_delete", args=[inv1.id])
 
@@ -2102,7 +2102,7 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertDeleteFetch(delete_url, [self.admin], as_modal=True)
         self.assertContains(
-            response, "You are about to cancel the invitation sent to <b>bob@nyaruka.com</b>. Are you sure?"
+            response, "You are about to cancel the invitation sent to <b>bob@textit.com</b>. Are you sure?"
         )
 
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=inv1)

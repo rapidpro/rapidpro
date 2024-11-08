@@ -3389,7 +3389,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
         {
             "tickets": ["55b6606d-9e89-45d1-a3e2-dc11f19f78df", "bef96b71-865d-480a-a660-33db466a210a"],
             "action": "assign",
-            "assignee": "jim@nyaruka.com"
+            "assignee": "jim@textit.com"
         }
 
     You will receive an empty response with status code 204 if successful.
@@ -3583,7 +3583,7 @@ class WorkspaceEndpoint(BaseEndpoint):
 
         {
             "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
-            "name": "Nyaruka",
+            "name": "TextIt",
             "country": "RW",
             "languages": ["eng", "fra"],
             "timezone": "Africa/Kigali",
