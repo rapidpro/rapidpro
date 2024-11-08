@@ -2435,7 +2435,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 9, "flow_entered", flow__name="Colors")
         assertHistoryEvent(history, 10, "msg_received", msg__text="Message caption")
         assertHistoryEvent(
-            history, 11, "msg_created", msg__text="A beautiful broadcast", created_by__email="viewer@nyaruka.com"
+            history, 11, "msg_created", msg__text="A beautiful broadcast", created_by__email="viewer@textit.com"
         )
         assertHistoryEvent(history, 12, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
@@ -2579,7 +2579,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             .set_contact_name("Joe")
             .set_contact_name("")
             .set_result("Color", "red", "Red", "it's red")
-            .send_email(["joe@nyaruka.com"], "Test", "Hello there Joe")
+            .send_email(["joe@textit.com"], "Test", "Hello there Joe")
             .error("unable to send email")
             .fail("this is a failure")
             .save()

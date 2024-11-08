@@ -102,7 +102,6 @@
     remarkable "^2.0.1"
     serialize-javascript "^6.0.2"
     tiny-lru "^11.2.5"
-
 "@nyaruka/temba-components@0.111.3":
   version "0.111.3"
   resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.111.3.tgz#8b931409658d2035ed2ca34c810fb90ecd9300dc"

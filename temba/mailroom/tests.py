@@ -259,7 +259,7 @@ class EventTest(TembaTest):
                 },
                 "created_by": {
                     "id": self.agent.id,
-                    "email": "agent@nyaruka.com",
+                    "email": "agent@textit.com",
                     "first_name": "Agnes",
                     "last_name": "",
                 },
@@ -331,7 +331,7 @@ class EventTest(TembaTest):
                 },
                 "created_by": {
                     "id": self.admin.id,
-                    "email": "admin@nyaruka.com",
+                    "email": "admin@textit.com",
                     "first_name": "Andy",
                     "last_name": "",
                 },
@@ -365,7 +365,7 @@ class EventTest(TembaTest):
                 },
                 "created_by": {
                     "id": self.admin.id,
-                    "email": "admin@nyaruka.com",
+                    "email": "admin@textit.com",
                     "first_name": "Andy",
                     "last_name": "",
                 },
@@ -537,7 +537,7 @@ class EventTest(TembaTest):
                     "id": self.agent.id,
                     "first_name": "Agnes",
                     "last_name": "",
-                    "email": "agent@nyaruka.com",
+                    "email": "agent@textit.com",
                 },
             },
             Event.from_ticket_event(self.org, self.user, event1),
