@@ -323,7 +323,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.create_incoming_msg(joe, "This incoming message will be counted", channel=self.tel_channel)
             self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
 
-            response = self.fetch_protected(chart_url, self.admin)
+            response = self.requestView(chart_url, self.admin)
             chart = response.json()
 
             # an entry for each incoming and outgoing
@@ -368,11 +368,11 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(f"/settings/channels/{self.tel_channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
         # org users can
-        response = self.fetch_protected(tel_channel_read_url, self.user)
+        response = self.requestView(tel_channel_read_url, self.user)
 
         self.assertTrue(len(response.context["latest_sync_events"]) <= 5)
 
-        response = self.fetch_protected(tel_channel_read_url, self.admin)
+        response = self.requestView(tel_channel_read_url, self.admin)
         self.assertContains(response, self.tel_channel.name)
 
         test_date = datetime(2020, 1, 20, 0, 0, 0, 0, tzone.utc)
@@ -393,7 +393,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.create_outgoing_msg(bob, "delayed message", status=Msg.STATUS_QUEUED, channel=self.tel_channel)
 
         with patch("django.utils.timezone.now", return_value=test_date):
-            response = self.fetch_protected(tel_channel_read_url, self.admin)
+            response = self.requestView(tel_channel_read_url, self.admin)
             self.assertIn("delayed_sync_event", response.context_data.keys())
             self.assertIn("unsent_msgs_count", response.context_data.keys())
 
@@ -413,7 +413,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
 
             # now we have an inbound message and two outbounds
-            response = self.fetch_protected(tel_channel_read_url, self.admin)
+            response = self.requestView(tel_channel_read_url, self.admin)
             self.assertEqual(200, response.status_code)
 
             # message stats table have an inbound and two outbounds in the last month
@@ -430,7 +430,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             # now let's create an ivr interaction
             self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, voice=True)
             self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, voice=True)
-            response = self.fetch_protected(tel_channel_read_url, self.admin)
+            response = self.requestView(tel_channel_read_url, self.admin)
 
             self.assertEqual(1, len(response.context["message_stats_table"]))
             self.assertEqual(1, response.context["message_stats_table"][0]["incoming_messages_count"])
@@ -440,7 +440,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
             # look at the chart for our messages
             chart_url = reverse("channels.channel_chart", args=[self.tel_channel.uuid])
-            response = self.fetch_protected(chart_url, self.admin)
+            response = self.requestView(chart_url, self.admin)
 
             # incoming, outgoing for both text and our ivr messages
             self.assertEqual(4, len(response.json()["series"]))
