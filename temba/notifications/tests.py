@@ -505,11 +505,11 @@ class NotificationTest(TembaTest):
         self.assertIn("Your password has been changed.", mail.outbox[0].body)
 
     def test_invitation_accepted(self):
-        invitation = Invitation.objects.create(
-            org=self.org, email="bob@textit.com", created_by=self.admin, modified_by=self.admin
-        )
+        invitation = Invitation.create(self.org, self.admin, "bob@textit.com", OrgRole.ADMINISTRATOR)
+        user = self.create_user("bob@textit.com")
+        invitation.accept(user)
 
-        InvitationAcceptedNotificationType.create(invitation)
+        InvitationAcceptedNotificationType.create(invitation, user)
 
         self.assert_notifications(
             expected_json={
@@ -526,7 +526,7 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] New user joined your workspace", mail.outbox[0].subject)
-        self.assertEqual(["admin@textit.com"], mail.outbox[0].recipients())  # previous address
+        self.assertEqual(["admin@textit.com"], mail.outbox[0].recipients())  # only the other admins
         self.assertIn("User bob@textit.com accepted an invitation to join your workspace.", mail.outbox[0].body)
 
     def test_counts(self):

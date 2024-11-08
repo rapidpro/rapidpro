@@ -186,7 +186,7 @@ class InvitationAcceptedNotificationType(NotificationType):
     slug = "invitation:accepted"
 
     @classmethod
-    def create(cls, invitation):
+    def create(cls, invitation, new_user):
         """
         Creates a user joined notification for all admins in the workspace.
         """
@@ -195,7 +195,7 @@ class InvitationAcceptedNotificationType(NotificationType):
             invitation.org,
             cls.slug,
             scope=str(invitation.id),
-            users=invitation.org.get_admins(),
+            users=invitation.org.get_admins().exclude(id=new_user.id),
             medium=Notification.MEDIUM_EMAIL,
             email_status=Notification.EMAIL_STATUS_PENDING,
             data={"email": invitation.email},
