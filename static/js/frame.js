@@ -216,16 +216,13 @@ function spaRequest(url, options) {
     headers['X-Temba-Org'] = window.org_id;
   }
 
-  if (!ignoreHistory) {
-    addToHistory(url);
-  }
-
   const ajaxOptions = {
     container: '.spa-content',
     headers,
     ignoreEvents: ignoreEvents,
     cancel: true,
-    showErrors: !!options.showErrors
+    showErrors: !!options.showErrors,
+    ignoreHistory
   };
 
   if (body) {
@@ -278,6 +275,15 @@ function fetchAjax(url, options) {
 
   return fetch(toFetch, options)
     .then(function (response) {
+      if (response.status >= 400) {
+        showErrorDialog();
+        return;
+      }
+
+      if (!options.ignoreHistory) {
+        addToHistory(url);
+      }
+
       const toasts = response.headers.get('x-temba-toasts');
       if (toasts) {
         const toastEle = document.querySelector('temba-toast');

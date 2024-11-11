@@ -133,6 +133,11 @@
         <link type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/temba-components.css">
         <link type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/frame.css">
         <link type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/mobile.css">
+        <style>
+          #error-dialog {
+            --header-bg: var(--color-alert);
+          }
+        </style>
       {% endcompress %}
     {% endblock styles %}
     {% include "includes/frame_top.html" %}
@@ -170,10 +175,19 @@
           <!-- {{temba_version}} -->
           <temba-mask>
           </temba-mask>
-          <temba-modax id="shared-modax">
+          <temba-modax id="shared-modax" -temba-error="showErrorDialog();">
           </temba-modax>
           <temba-dialog id="shared-dialog">
           </temba-dialog>
+          {% block error-dialog %}
+            <temba-dialog id="error-dialog" header="Uh oh!">
+              <div class="p-6">
+                {% blocktrans trimmed %}
+                  We tried our best, but there was an error processing your request. If this keeps happening, please refresh your browser.
+                {% endblocktrans %}
+              </div>
+            </temba-dialog>
+          {% endblock error-dialog %}
           <temba-toast duration="5000" error-sticky>
           </temba-toast>
           <div class="ajax-scripts"></div>
