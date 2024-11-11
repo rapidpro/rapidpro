@@ -28,6 +28,7 @@ function showLightbox(evt, url) {
 
 function showErrorDialog() {
   var dialog = document.querySelector('#error-dialog');
+  dialog.style = 'display:block';
   dialog.width = 'initial';
   dialog.buttons = [{ type: 'secondary', name: 'Ok', closes: true }];
   dialog.open = true;

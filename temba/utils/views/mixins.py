@@ -246,7 +246,7 @@ class ModalFormMixin(SmartFormView):
             )
         )
 
-        response["Temba-Success"] = success_url
+        response["X-Temba-Success"] = success_url
         return response
 
     def form_valid(self, form):
@@ -264,7 +264,7 @@ class ModalFormMixin(SmartFormView):
 
             messages.success(self.request, self.derive_success_message())
 
-            if "HTTP_X_TEBMA_PJAX" not in self.request.META:
+            if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
                 return self.render_modal_response(form)

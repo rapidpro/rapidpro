@@ -405,7 +405,7 @@ class BroadcastCRUDL(SmartCRUDL):
             self.get_object().delete(self.request.user, soft=True)
 
             response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
+            response["X-Temba-Success"] = self.get_success_url()
             return response
 
     class Preview(OrgPermsMixin, SmartCreateView):

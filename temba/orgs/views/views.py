@@ -1624,7 +1624,7 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-                response["Temba-Success"] = success_url
+                response["X-Temba-Success"] = success_url
                 return response
 
     class Start(SmartTemplateView):

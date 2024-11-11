@@ -1061,7 +1061,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteSubmit(
             delete_url, self.admin, object_deactivated=self.ex_channel, success_status=200
         )
-        self.assertEqual("/org/workspace/", response["Temba-Success"])
+        self.assertEqual("/org/workspace/", response["X-Temba-Success"])
 
         # reactivate
         self.ex_channel.is_active = True

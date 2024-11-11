@@ -189,7 +189,7 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("name", "features", "is_anon")
 
         form_class = Form
-        success_url = "hide"
+        success_url = "id@staff.org_read"
 
         def derive_title(self):
             return None
@@ -337,7 +337,7 @@ class UserCRUDL(SmartCRUDL):
 
             messages.info(request, self.derive_success_message())
             response = HttpResponse()
-            response["Temba-Success"] = reverse("staff.user_list")
+            response["X-Temba-Success"] = reverse("staff.user_list")
             return response
 
     class List(StaffOnlyMixin, SpaMixin, SmartListView):
