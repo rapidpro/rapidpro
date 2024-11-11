@@ -7,7 +7,6 @@ import pyotp
 from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.users.models import FailedLogin, RecoveryToken
-from smartmin.users.views import Login
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -142,12 +141,52 @@ class IntegrationFormaxView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
         return response
 
 
-class LoginView(Login):
+class LoginView(AuthLoginView):
     """
-    Overrides the smartmin login view to redirect users with 2FA enabled to a second verification view.
+    Overrides the auth login view to add support for tracking failed logins and 2FA.
     """
 
     template_name = "orgs/login/login.html"
+
+    def post(self, request, *args, **kwargs):
+        form = self.get_form()
+
+        form_is_valid = form.is_valid()  # clean form data
+
+        lockout_timeout = getattr(settings, "USER_LOCKOUT_TIMEOUT", 10)
+        failed_login_limit = getattr(settings, "USER_FAILED_LOGIN_LIMIT", 5)
+
+        username = self.get_username(form)
+        if not username:
+            return self.form_invalid(form)
+
+        user = User.objects.filter(username__iexact=username).first()
+        valid_password = False
+
+        # this could be a valid login by a user
+        if user:
+            # incorrect password?  create a failed login token
+            valid_password = user.check_password(form.cleaned_data.get("password"))
+
+        if not user or not valid_password:
+            FailedLogin.objects.create(username=username)
+
+        failures = FailedLogin.objects.filter(username__iexact=username)
+
+        # if the failures reset after a period of time, then limit our query to that interval
+        if lockout_timeout > 0:
+            bad_interval = timezone.now() - timedelta(minutes=lockout_timeout)
+            failures = failures.filter(failed_on__gt=bad_interval)
+
+        # if there are too many failed logins, take them to the failed page
+        if len(failures) >= failed_login_limit:
+            return HttpResponseRedirect(reverse("orgs.user_failed"))
+
+        # pass through the normal login process
+        if form_is_valid:
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
 
     def form_valid(self, form):
         user = form.get_user()
@@ -164,7 +203,14 @@ class LoginView(Login):
             return HttpResponseRedirect(verify_url)
 
         user.record_auth()
+
+        # clean up any failed logins for this username
+        FailedLogin.objects.filter(username__iexact=self.get_username(form)).delete()
+
         return super().form_valid(form)
+
+    def get_username(self, form):
+        return form.cleaned_data.get("username")
 
 
 class LogoutView(View):
@@ -294,9 +340,9 @@ class TwoFactorBackupView(BaseTwoFactorView):
     template_name = "orgs/login/two_factor_backup.html"
 
 
-class ConfirmAccessView(Login):
+class ConfirmAccessView(LoginView):
     """
-    Overrides the smartmin login view to provide a view for an already logged in user to re-authenticate.
+    Overrides the login view to provide a view for an already logged in user to re-authenticate.
     """
 
     class Form(forms.Form):

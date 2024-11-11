@@ -1886,10 +1886,6 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_failed(self):
         failed_url = reverse("orgs.user_failed")
 
-        # make sure smartmin view is redirecting to our view
-        response = self.client.get(reverse("users.user_failed"))
-        self.assertRedirect(response, failed_url, status_code=301)
-
         response = self.requestView(failed_url, None)
         self.assertContains(response, "Please wait 10 minutes")
 
