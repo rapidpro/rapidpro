@@ -301,7 +301,7 @@ class UserTest(TembaTest):
         login_url = reverse("orgs.login")
         verify_url = reverse("orgs.two_factor_verify")
         backup_url = reverse("orgs.two_factor_backup")
-        failed_url = reverse("users.user_failed")
+        failed_url = reverse("orgs.user_failed")
 
         # submit incorrect username and password 3 times
         self.client.post(login_url, {"username": "admin@textit.com", "password": "pass123"})
@@ -512,43 +512,6 @@ class UserTest(TembaTest):
 
         response = self.client.get(tokens_url)
         self.assertEqual(200, response.status_code)
-
-    @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
-    def test_confirm_access(self):
-        confirm_url = reverse("orgs.confirm_access") + "?next=/msg/"
-        failed_url = reverse("users.user_failed")
-
-        # try to access before logging in
-        response = self.client.get(confirm_url)
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.get(confirm_url)
-        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
-
-        # try to submit with incorrect password
-        response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertFormError(response.context["form"], "password", "Password incorrect.")
-
-        # 2 more times..
-        self.client.post(confirm_url, {"password": "nope"})
-        response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertRedirect(response, failed_url)
-
-        # even correct password now redirects to failed page
-        response = self.client.post(confirm_url, {"password": "Qwerty123"})
-        self.assertRedirect(response, failed_url)
-
-        FailedLogin.objects.all().delete()
-
-        # can once again submit incorrect passwords
-        response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertFormError(response.context["form"], "password", "Password incorrect.")
-
-        # and also correct ones
-        response = self.client.post(confirm_url, {"password": "Qwerty123"})
-        self.assertRedirect(response, "/msg/")
 
     @mock_mailroom
     def test_release(self, mr_mocks):

@@ -154,6 +154,50 @@ class LoginViewsTest(TembaTest):
         response = self.client.post(logout_url)
         self.assertLoginRedirect(response)
 
+    @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
+    def test_confirm_access(self):
+        confirm_url = reverse("orgs.confirm_access") + "?next=/msg/"
+        failed_url = reverse("orgs.user_failed")
+
+        # try to access before logging in
+        response = self.client.get(confirm_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response.context["form"], "password", "Password incorrect.")
+
+        # 2 more times..
+        self.client.post(confirm_url, {"password": "nope"})
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertRedirect(response, failed_url)
+
+        # and we are logged out
+        self.assertLoginRedirect(self.client.get(confirm_url))
+        self.assertLoginRedirect(self.client.get(reverse("msgs.msg_inbox")))
+
+        FailedLogin.objects.all().delete()
+
+        # can once again submit incorrect passwords
+        self.login(self.admin)
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response.context["form"], "password", "Password incorrect.")
+
+        # and also correct ones
+        response = self.client.post(confirm_url, {"password": "Qwerty123"})
+        self.assertRedirect(response, "/msg/")
+
+        # check we don't require 2FA even if enabled
+        self.admin.enable_2fa()
+
+        response = self.client.post(confirm_url, {"password": "Qwerty123"})
+        self.assertRedirect(response, "/msg/")
+
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):

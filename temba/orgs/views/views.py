@@ -27,7 +27,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404, resolve_url
+from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
@@ -147,6 +147,7 @@ class LoginView(AuthLoginView):
     """
 
     template_name = "orgs/login/login.html"
+    two_factor = True
 
     def post(self, request, *args, **kwargs):
         form = self.get_form()
@@ -180,6 +181,8 @@ class LoginView(AuthLoginView):
 
         # if there are too many failed logins, take them to the failed page
         if len(failures) >= failed_login_limit:
+            logout(request)
+
             return HttpResponseRedirect(reverse("orgs.user_failed"))
 
         # pass through the normal login process
@@ -191,7 +194,7 @@ class LoginView(AuthLoginView):
     def form_valid(self, form):
         user = form.get_user()
 
-        if user.settings.two_factor_enabled:
+        if self.two_factor and user.settings.two_factor_enabled:
             self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
             self.request.session[TWO_FACTOR_STARTED_SESSION_KEY] = timezone.now().isoformat()
 
@@ -272,7 +275,7 @@ class BaseTwoFactorView(AuthLoginView):
         if failures.count() >= failed_login_limit:
             self.reset_user()
 
-            return HttpResponseRedirect(reverse("users.user_failed"))
+            return HttpResponseRedirect(reverse("orgs.user_failed"))
 
         return super().form_invalid(form)
 
@@ -366,20 +369,16 @@ class ConfirmAccessView(LoginView):
 
     template_name = "orgs/login/confirm_access.html"
     form_class = Form
+    two_factor = False
 
     def dispatch(self, request, *args, **kwargs):
         if not self.request.user.is_authenticated:
-            return HttpResponseRedirect(resolve_url(settings.LOGIN_URL))
+            return HttpResponseRedirect(reverse("orgs.login"))
 
         return super().dispatch(request, *args, **kwargs)
 
     def get_username(self, form):
         return self.request.user.username
-
-    def form_valid(self, form):
-        form.get_user().record_auth()
-
-        return super().form_valid(form)
 
 
 class UserCRUDL(SmartCRUDL):
