@@ -1,3 +1,15 @@
+v9.3.100 (2024-11-11)
+-------------------------
+ * Show error dialog for http errors in more places
+ * Remove old scheduled bcast read view and legacy paginator template
+ * Create our own view for user failed login
+ * Don't include smartmin.csv_imports urls and move relayer urls to channels app
+ * Tweak appearance of login page
+ * Don't show org suspended warning on any no-nav pages
+ * Fix styling on join-accept page
+ * Don't notify new admins that they joined a workspace
+ * Fix fetching tickets as servicing staff user
+
 v9.3.99 (2024-11-08)
 -------------------------
  * Fix resolving ticket topics for servicing staff users
