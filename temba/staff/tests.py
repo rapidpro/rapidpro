@@ -327,7 +327,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Nyaruka")
 
         response = self.requestView(delete_url, self.customer_support, post_data={})
-        self.assertEqual(reverse("staff.user_list"), response["Temba-Success"])
+        self.assertEqual(reverse("staff.user_list"), response["X-Temba-Success"])
 
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.is_active)

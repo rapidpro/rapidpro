@@ -1162,7 +1162,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # go through with it, redirects to workspaces list page
         response = self.client.post(delete_url)
-        self.assertEqual(reverse("orgs.org_list"), response["Temba-Success"])
+        self.assertEqual(reverse("orgs.org_list"), response["X-Temba-Success"])
 
         child.refresh_from_db()
         self.assertFalse(child.is_active)

@@ -343,3 +343,7 @@ temba-menu.servicing {
   background: var(--color-widget-bg-focused);
   box-shadow: var(--widget-box-shadow-focused);
 }
+
+#error-dialog {
+  display: none;
+}

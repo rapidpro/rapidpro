@@ -2572,7 +2572,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # submit the delete modal
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=broadcast, success_status=200)
-        self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
+        self.assertEqual("/broadcast/scheduled/", response["X-Temba-Success"])
 
         broadcast.refresh_from_db()
 
@@ -2806,7 +2806,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # submit to delete it
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=label, success_status=200)
-        self.assertEqual("/msg/", response["Temba-Success"])
+        self.assertEqual("/msg/", response["X-Temba-Success"])
 
         # reactivate
         label.is_active = True

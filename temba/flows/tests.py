@@ -3179,7 +3179,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with no language
         response = self.assertUpdateSubmit(export_url, self.admin, {}, success_status=200)
 
-        download_url = response["Temba-Success"]
+        download_url = response["X-Temba-Success"]
         self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", download_url)
 
         # check fetching the PO from the download link
@@ -3195,7 +3195,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with a language
         response = self.assertUpdateSubmit(export_url, self.admin, {"language": "spa"}, success_status=200)
 
-        download_url = response["Temba-Success"]
+        download_url = response["X-Temba-Success"]
         self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa", download_url)
 
         # check fetching the PO from the download link

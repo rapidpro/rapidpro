@@ -284,7 +284,7 @@ function fetchAjax(url, options) {
         addToHistory(url);
       }
 
-      const toasts = response.headers.get('x-temba-toasts');
+      const toasts = response.headers.get('X-Temba-Toasts');
       if (toasts) {
         const toastEle = document.querySelector('temba-toast');
         if (toastEle) {
@@ -337,7 +337,7 @@ function fetchAjax(url, options) {
         // special case for spa content, break out into a full page load
         if (
           container === '.spa-content' &&
-          response.headers.get('x-temba-content-only') != 1
+          response.headers.get('X-Temba-Content-Only') != 1
         ) {
           document.location.href = response.url;
           return;
