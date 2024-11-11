@@ -684,9 +684,7 @@ API_PERMISSIONS = {
 # -----------------------------------------------------------------------------------
 
 LOGIN_URL = "/users/login/"
-LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
-LOGOUT_REDIRECT_URL = "/"
 
 AUTHENTICATION_BACKENDS = ("temba.orgs.backend.AuthenticationBackend",)
 

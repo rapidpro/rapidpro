@@ -129,6 +129,32 @@ class OrgContextProcessorTest(TembaTest):
             list(perms)
 
 
+class LoginViewsTest(TembaTest):
+    def test_login(self):
+        login_url = reverse("orgs.login")
+
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"}, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
+
+        response = self.client.post(login_url, {"username": "ADMIN@textit.com", "password": "Qwerty123"}, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
+
+        # passwords stay case sensitive
+        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "QWERTY123"}, follow=True)
+        self.assertIn("form", response.context)
+        self.assertTrue(response.context["form"].errors)
+
+    def test_logout(self):
+        logout_url = reverse("orgs.logout")
+
+        self.assertEqual(405, self.client.get(logout_url).status_code)
+
+        self.login(self.admin)
+
+        response = self.client.post(logout_url)
+        self.assertLoginRedirect(response)
+
+
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         menu_url = reverse("orgs.org_menu")
@@ -1291,20 +1317,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             {URN.TEL_SCHEME, URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE)
         )
-
-    def test_login_case_not_sensitive(self):
-        login_url = reverse("orgs.login")
-
-        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "Qwerty123"}, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
-
-        response = self.client.post(login_url, {"username": "ADMIN@textit.com", "password": "Qwerty123"}, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
-
-        # passwords stay case sensitive
-        response = self.client.post(login_url, {"username": "admin@textit.com", "password": "QWERTY123"}, follow=True)
-        self.assertIn("form", response.context)
-        self.assertTrue(response.context["form"].errors)
 
     def test_languages(self):
         settings_url = reverse("orgs.org_workspace")

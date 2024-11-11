@@ -1,6 +1,4 @@
-from django.conf import settings
 from django.conf.urls import include
-from django.contrib.auth.views import LogoutView
 from django.urls import re_path
 from django.views.generic import RedirectView
 
@@ -10,6 +8,7 @@ from .views import (
     ExportCRUDL,
     InvitationCRUDL,
     LoginView,
+    LogoutView,
     OrgCRUDL,
     OrgImportCRUDL,
     TwoFactorBackupView,
@@ -17,8 +16,6 @@ from .views import (
     UserCRUDL,
     check_login,
 )
-
-logout_url = getattr(settings, "LOGOUT_REDIRECT_URL", None)
 
 urlpatterns = OrgCRUDL().as_urlpatterns()
 urlpatterns += OrgImportCRUDL().as_urlpatterns()
@@ -40,12 +37,7 @@ for integration in IntegrationType.get_all():
 urlpatterns += [
     re_path(r"^login/$", check_login, name="orgs.check_login"),
     re_path(r"^users/login/$", LoginView.as_view(), name="orgs.login"),
-    re_path(
-        r"^users/logout/$",
-        LogoutView.as_view(),
-        dict(redirect_field_name="go", next_page=logout_url),
-        name="orgs.logout",
-    ),
+    re_path(r"^users/logout/$", LogoutView.as_view(), name="orgs.logout"),
     re_path(
         r"^users/user/failed/$",
         RedirectView.as_view(pattern_name="orgs.user_failed", permanent=True),
