@@ -2,32 +2,32 @@
 {% load i18n %}
 
 {% block content %}
-    <div class="w-full mb-4">
-        {% if not email_user %}
-            <div class="mb-8">{% trans "This email verification link is invalid." %}</div>
-        {% elif email_user != request.user %}
-            <div class="mb-8">{% trans "This email verification link is for a different user. Please login as that user." %}</div>
-            <div class="text-center">
-                <a class="button-primary"
-                   href="{% url 'users.user_login' %}?next={% url 'orgs.user_verify_email' email_secret %}">{% trans "Login" %}</a>
-            </div>
-        {% else %}
-            <div class="mb-8">
-                {% blocktrans trimmed with email=request.user.email %}
-                    Your email address <b>{{ email }}</b> has been verified successfully!
-                {% endblocktrans %}
-            </div>
-            <div class="text-center">
-                <a class="button-primary" href={% url 'orgs.org_start' %}>{% trans "Continue" %}</a>
-            </div>
-        {% endif %}
-    </div>
+  <div class="w-full mb-4">
+    {% if not email_user %}
+      <div class="mb-8">{% trans "This email verification link is invalid." %}</div>
+    {% elif email_user != request.user %}
+      <div class="mb-8">{% trans "This email verification link is for a different user. Please login as that user." %}</div>
+      <div class="text-center">
+        <a class="button-primary"
+           href="{% url 'orgs.login' %}?next={% url 'orgs.user_verify_email' email_secret %}">{% trans "Login" %}</a>
+      </div>
+    {% else %}
+      <div class="mb-8">
+        {% blocktrans trimmed with email=request.user.email %}
+          Your email address <b>{{ email }}</b> has been verified successfully!
+        {% endblocktrans %}
+      </div>
+      <div class="text-center">
+        <a class="button-primary" href={% url 'orgs.org_start' %}>{% trans "Continue" %}</a>
+      </div>
+    {% endif %}
+  </div>
 {% endblock content %}
 {% block styles %}
-    {{ block.super }}
-    <style type="text/css">
-      .content-card {
-        width: 28em;
-      }
-    </style>
+  {{ block.super }}
+  <style type="text/css">
+    .content-card {
+      width: 28em;
+    }
+  </style>
 {% endblock styles %}

@@ -156,7 +156,7 @@ class LoginView(Login):
             self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
             self.request.session[TWO_FACTOR_STARTED_SESSION_KEY] = timezone.now().isoformat()
 
-            verify_url = reverse("users.two_factor_verify")
+            verify_url = reverse("orgs.two_factor_verify")
             redirect_url = self.get_redirect_url()
             if redirect_url:
                 verify_url += f"?{self.redirect_field_name}={quote(redirect_url)}"
@@ -172,7 +172,7 @@ class BaseTwoFactorView(AuthLoginView):
         # redirect back to login view if user hasn't completed that yet
         user = self.get_user()
         if not user:
-            return HttpResponseRedirect(reverse("users.login"))
+            return HttpResponseRedirect(reverse("orgs.login"))
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -545,7 +545,7 @@ class UserCRUDL(SmartCRUDL):
         permission = None
         title = _("Password Reset")
         success_message = _("An email has been sent to your account with further instructions.")
-        success_url = "@users.user_login"
+        success_url = "@orgs.login"
         fields = ("email",)
 
         def form_valid(self, form):
@@ -599,7 +599,7 @@ class UserCRUDL(SmartCRUDL):
         form_class = Form
         permission = None
         title = _("Password Reset")
-        success_url = "@users.user_login"
+        success_url = "@orgs.login"
         success_message = _("Your password has been updated successfully.")
 
         @classmethod
@@ -1238,7 +1238,7 @@ class OrgCRUDL(SmartCRUDL):
                                 name=_("Sign Out"),
                                 icon="logout",
                                 posterize=True,
-                                href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
+                                href=f"{reverse('orgs.logout')}?next={reverse('orgs.login')}",
                             ),
                             *other_org_items,
                             self.create_space(),
@@ -1673,7 +1673,7 @@ class OrgCRUDL(SmartCRUDL):
                     # for regular users, if there's no orgs, log them out with a message
                     messages.info(request, _("No workspaces for this account, please contact your administrator."))
                     logout(request)
-                    return HttpResponseRedirect(reverse("users.user_login"))
+                    return HttpResponseRedirect(reverse("orgs.login"))
             return None
 
         def get_context_data(self, **kwargs):

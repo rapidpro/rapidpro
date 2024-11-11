@@ -2454,7 +2454,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # fetch next page
         before = datetime_to_timestamp(timezone.now() - timedelta(days=90))
-        response = self.fetch_protected(url + "?limit=100&before=%d" % before, self.admin)
+        response = self.requestView(url + "?limit=100&before=%d" % before, self.admin)
         self.assertFalse(response.json()["has_older"])
 
         # activity should include 11 remaining messages and the event fire
@@ -2464,7 +2464,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 10, "msg_received", msg__text="Inbound message 0")
         assertHistoryEvent(history, 11, "msg_received", msg__text="Very old inbound message")
 
-        response = self.fetch_protected(url + "?limit=100", self.admin)
+        response = self.requestView(url + "?limit=100", self.admin)
         history = response.json()["events"]
 
         self.assertEqual(96, len(history))
@@ -2472,7 +2472,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # if a new message comes in
         self.create_incoming_msg(self.joe, "Newer message")
-        response = self.fetch_protected(url, self.admin)
+        response = self.requestView(url, self.admin)
 
         # now we'll see the message that just came in first, followed by the call event
         history = response.json()["events"]
@@ -2480,7 +2480,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 1, "call_started", status="E", status_display="Errored (No Answer)")
 
         recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
-        response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
+        response = self.requestView(url + "?limit=100&after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
         events = response.json()["events"]
@@ -2506,7 +2506,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             .save()
         )
 
-        response = self.fetch_protected(url + "?limit=200", self.admin)
+        response = self.requestView(url + "?limit=200", self.admin)
         history = response.json()["events"]
         self.assertEqual(100, len(history))
 
@@ -2541,13 +2541,13 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         EventFire.objects.create(event=self.message_event, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
         # when fetched with limit of 1, it should be the only event we see
-        response = self.fetch_protected(
+        response = self.requestView(
             url + "?limit=1&before=%d" % datetime_to_timestamp(scheduled + timedelta(minutes=5)), self.admin
         )
         assertHistoryEvent(response.json()["events"], 0, "campaign_fired", campaign_event__id=self.message_event.id)
 
         # now try the proper max history to test truncation
-        response = self.fetch_protected(url + "?before=%d" % datetime_to_timestamp(timezone.now()), self.admin)
+        response = self.requestView(url + "?before=%d" % datetime_to_timestamp(timezone.now()), self.admin)
 
         # our before should be the same as the last item
         resp_json = response.json()
@@ -2662,13 +2662,13 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("contacts.contact_update", args=[self.joe.pk])
 
         # we have a field to add new urns
-        response = self.fetch_protected(update_url, self.admin)
+        response = self.requestView(update_url, self.admin)
         self.assertEqual(self.joe, response.context["object"])
         self.assertContains(response, "Add Connection")
 
         # no field to add new urns for anon org
         with self.anonymous(self.org):
-            response = self.fetch_protected(update_url, self.admin)
+            response = self.requestView(update_url, self.admin)
             self.assertEqual(self.joe, response.context["object"])
             self.assertNotContains(response, "Add Connection")
 

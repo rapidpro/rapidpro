@@ -76,7 +76,7 @@ class PublicTest(TembaTest):
         welcome_url = reverse("public.public_welcome")
         response = self.client.get(welcome_url, follow=True)
         self.assertIn("next", response.request["QUERY_STRING"])
-        self.assertEqual(response.request["PATH_INFO"], reverse("users.user_login"))
+        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.login"))
 
         self.login(self.user)
         response = self.client.get(welcome_url, follow=True)

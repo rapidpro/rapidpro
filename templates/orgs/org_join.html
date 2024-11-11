@@ -16,7 +16,7 @@
     {% endblocktrans %}
   </div>
   <form method="post"
-        action="{% url 'users.user_login' %}?next={% url 'orgs.org_join_accept' invitation.secret %}"
+        action="{% url 'orgs.login' %}?next={% url 'orgs.org_join_accept' invitation.secret %}"
         class="mt-6"
         id="login-form">
     <fieldset>

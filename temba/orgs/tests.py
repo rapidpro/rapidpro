@@ -214,9 +214,9 @@ class UserTest(TembaTest):
                 )
 
     def test_login(self):
-        login_url = reverse("users.user_login")
-        verify_url = reverse("users.two_factor_verify")
-        backup_url = reverse("users.two_factor_backup")
+        login_url = reverse("orgs.login")
+        verify_url = reverse("orgs.two_factor_verify")
+        backup_url = reverse("orgs.two_factor_backup")
 
         self.assertIsNone(self.admin.settings.last_auth_on)
 
@@ -298,9 +298,9 @@ class UserTest(TembaTest):
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_login_lockouts(self):
-        login_url = reverse("users.user_login")
-        verify_url = reverse("users.two_factor_verify")
-        backup_url = reverse("users.two_factor_backup")
+        login_url = reverse("orgs.login")
+        verify_url = reverse("orgs.two_factor_verify")
+        backup_url = reverse("orgs.two_factor_backup")
         failed_url = reverse("users.user_failed")
 
         # submit incorrect username and password 3 times
@@ -464,9 +464,9 @@ class UserTest(TembaTest):
         self.assertRedirect(response, enable_url)
 
     def test_two_factor_time_limit(self):
-        login_url = reverse("users.user_login")
-        verify_url = reverse("users.two_factor_verify")
-        backup_url = reverse("users.two_factor_backup")
+        login_url = reverse("orgs.login")
+        verify_url = reverse("orgs.two_factor_verify")
+        backup_url = reverse("orgs.two_factor_backup")
 
         self.admin.enable_2fa()
 
@@ -515,7 +515,7 @@ class UserTest(TembaTest):
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
-        confirm_url = reverse("users.confirm_access") + "?next=/msg/"
+        confirm_url = reverse("orgs.confirm_access") + "?next=/msg/"
         failed_url = reverse("users.user_failed")
 
         # try to access before logging in
