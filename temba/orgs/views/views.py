@@ -34,6 +34,8 @@ from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import View
 
 from temba.api.models import Resthook
 from temba.campaigns.models import Campaign
@@ -165,6 +167,21 @@ class LoginView(Login):
 
         user.record_auth()
         return super().form_valid(form)
+
+
+class LogoutView(View):
+    """
+    Logouts user on a POST and redirects to the login page.
+    """
+
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        logout(request)
+
+        return HttpResponseRedirect(reverse("orgs.login"))
 
 
 class BaseTwoFactorView(AuthLoginView):
@@ -1238,7 +1255,7 @@ class OrgCRUDL(SmartCRUDL):
                                 name=_("Sign Out"),
                                 icon="logout",
                                 posterize=True,
-                                href=f"{reverse('orgs.logout')}?next={reverse('orgs.login')}",
+                                href=reverse("orgs.logout"),
                             ),
                             *other_org_items,
                             self.create_space(),
