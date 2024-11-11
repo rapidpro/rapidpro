@@ -1,3 +1,10 @@
+v9.3.101 (2024-11-11)
+-------------------------
+ * Fix issues with inconsistent header names
+ * Add our own simple logout view
+ * Ending servicing of an org should redirect to org list page
+ * Stop exposing the Smartmin UserCRUDL
+
 v9.3.100 (2024-11-11)
 -------------------------
  * Show error dialog for http errors in more places
