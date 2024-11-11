@@ -81,7 +81,7 @@ from ..models import (
 )
 from .base import BaseDeleteModal, BaseListView, BaseMenuView
 from .forms import SignupForm, SMTPForm
-from .mixins import InferOrgMixin, OrgObjPermsMixin, OrgPermsMixin, RequireFeatureMixin
+from .mixins import InferOrgMixin, InferUserMixin, OrgObjPermsMixin, OrgPermsMixin, RequireFeatureMixin
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -108,35 +108,33 @@ def check_login(request):
         return HttpResponseRedirect(settings.LOGIN_URL)
 
 
-class IntegrationViewMixin(OrgPermsMixin):
-    permission = "orgs.org_manage_integrations"
-    integration_type = None
-
-    def __init__(self, integration_type):
-        self.integration_type = integration_type
-        super().__init__()
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["integration_type"] = self.integration_type
-        context["integration_connected"] = self.integration_type.is_connected(self.request.org)
-        return context
-
-
-class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormView):
+class IntegrationFormaxView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
     class Form(forms.Form):
         def __init__(self, request, integration_type, **kwargs):
             self.request = request
             self.channel_type = integration_type
             super().__init__(**kwargs)
 
+    permission = "orgs.org_manage_integrations"
+    integration_type = None
     success_url = "@orgs.org_workspace"
+
+    def __init__(self, integration_type):
+        self.integration_type = integration_type
+
+        super().__init__()
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["request"] = self.request
         kwargs["integration_type"] = self.integration_type
         return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["integration_type"] = self.integration_type
+        context["integration_connected"] = self.integration_type.is_connected(self.request.org)
+        return context
 
     def form_valid(self, form):
         response = self.render_to_response(self.get_context_data(form=form))
@@ -336,19 +334,6 @@ class ConfirmAccessView(Login):
         form.get_user().record_auth()
 
         return super().form_valid(form)
-
-
-class InferUserMixin:
-    """
-    Mixin for view whose object is the current user
-    """
-
-    @classmethod
-    def derive_url_pattern(cls, path, action):
-        return r"^%s/%s/$" % (path, action)
-
-    def get_object(self, *args, **kwargs):
-        return self.request.user
 
 
 class UserCRUDL(SmartCRUDL):

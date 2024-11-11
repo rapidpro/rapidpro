@@ -131,6 +131,19 @@ class InferOrgMixin:
         return self.request.org
 
 
+class InferUserMixin:
+    """
+    Mixin for view whose object is the current user
+    """
+
+    @classmethod
+    def derive_url_pattern(cls, path, action):
+        return r"^%s/%s/$" % (path, action)
+
+    def get_object(self, *args, **kwargs):
+        return self.request.user
+
+
 class BulkActionMixin:
     """
     Mixin for list views which have bulk actions
