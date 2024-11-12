@@ -1,3 +1,8 @@
+v9.3.102 (2024-11-12)
+-------------------------
+ * Make sure agents can still edit accounts
+ * Reorganize staff menu
+
 v9.3.101 (2024-11-11)
 -------------------------
  * Fix issues with inconsistent header names
