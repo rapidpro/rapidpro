@@ -104,7 +104,7 @@ class OrgCRUDL(SmartCRUDL):
             return super().derive_title()
 
         def derive_menu_path(self):
-            return f"/staff/{self.request.GET.get('filter', 'all')}"
+            return f"/staff/workspaces/{self.request.GET.get('filter', 'all')}"
 
         def get_owner(self, obj):
             owner = obj.get_owner()
@@ -189,7 +189,7 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("name", "features", "is_anon")
 
         form_class = Form
-        success_url = "hide"
+        success_url = "id@staff.org_read"
 
         def derive_title(self):
             return None
@@ -253,7 +253,7 @@ class OrgCRUDL(SmartCRUDL):
             success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
             return HttpResponseRedirect(success_url)
 
-        # invalid form login 'logs out' the user from the org and takes them to the org list
+        # invalid form login 'logs out' the user from the org and takes them to the root
         def form_invalid(self, form):
             switch_to_org(self.request, None)
             return HttpResponseRedirect(reverse("staff.org_list"))
@@ -337,7 +337,7 @@ class UserCRUDL(SmartCRUDL):
 
             messages.info(request, self.derive_success_message())
             response = HttpResponse()
-            response["Temba-Success"] = reverse("staff.user_list")
+            response["X-Temba-Success"] = reverse("staff.user_list")
             return response
 
     class List(StaffOnlyMixin, SpaMixin, SmartListView):

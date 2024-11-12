@@ -103,10 +103,10 @@
     serialize-javascript "^6.0.2"
     tiny-lru "^11.2.5"
 
-"@nyaruka/temba-components@0.111.4":
-  version "0.111.4"
-  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.111.4.tgz#e26df69ca56356d63f12e08660d2228ef90d0333"
-  integrity sha512-vERkH+PQxDN+CoCGZkSua7/u9hTLWgBdOyciEjAFpx54R/VdNjwHc+OnVAifVqqeq8b2KpjkuChEzCwc4AqWmA==
+"@nyaruka/temba-components@0.111.5":
+  version "0.111.5"
+  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.111.5.tgz#eb9f426dcc829aaa3899d13a04a7a636481e53dd"
+  integrity sha512-suiCzQoZfWy9vjVRzDAjf5mCoEDYbwXozRvcIac07zeteorBFOhOQheWAlYYEnoWOK1mmw9kUQGirZ7xIk0qoA==
   dependencies:
     "@lit/localize" "^0.12.1"
     color-hash "^2.0.2"

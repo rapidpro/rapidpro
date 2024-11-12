@@ -720,7 +720,7 @@ class ChannelCRUDL(SmartCRUDL):
                 )
 
                 response = HttpResponse()
-                response["Temba-Success"] = self.cancel_url
+                response["X-Temba-Success"] = self.cancel_url
                 return response
 
             # override success message for Twilio channels
@@ -730,7 +730,7 @@ class ChannelCRUDL(SmartCRUDL):
                 messages.info(request, self.success_message)
 
             response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
+            response["X-Temba-Success"] = self.get_success_url()
             return response
 
     class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):

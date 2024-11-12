@@ -367,5 +367,5 @@ class BaseDependencyDeleteModal(DependencyMixin, ModalFormMixin, OrgObjPermsMixi
 
         messages.info(request, self.derive_success_message())
         response = HttpResponse()
-        response["Temba-Success"] = self.get_success_url()
+        response["X-Temba-Success"] = self.get_success_url()
         return response

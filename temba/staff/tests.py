@@ -168,7 +168,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # posting invalid org takes you back out
         response = self.client.post(service_url, {"other_org": 325253256})
-        self.assertRedirect(response, "/staff/org/")
+        self.assertRedirect(response, reverse("staff.org_list"))
 
         # then service our org
         response = self.client.get(service_url, {"other_org": self.org.id})
@@ -211,7 +211,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # stop servicing
         response = self.client.post(service_url, {})
-        self.assertRedirect(response, "/staff/org/")
+        self.assertRedirect(response, reverse("staff.org_list"))
         self.assertIsNone(self.client.session["org_id"])
         self.assertFalse(self.client.session["servicing"])
 
@@ -327,7 +327,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Nyaruka")
 
         response = self.requestView(delete_url, self.customer_support, post_data={})
-        self.assertEqual(reverse("staff.user_list"), response["Temba-Success"])
+        self.assertEqual(reverse("staff.user_list"), response["X-Temba-Success"])
 
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.is_active)

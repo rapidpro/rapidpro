@@ -259,8 +259,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-        # customer support without an org will see settings as profile, and staff section
-        self.assertPageMenu(menu_url, self.customer_support, ["Settings", "Staff"])
+        # staff without an org on have the staff section
+        self.assertPageMenu(menu_url, self.customer_support, ["Staff"])
 
         self.assertPageMenu(f"{menu_url}staff/", self.customer_support, ["Workspaces", "Users"])
 
@@ -1206,7 +1206,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # go through with it, redirects to workspaces list page
         response = self.client.post(delete_url)
-        self.assertEqual(reverse("orgs.org_list"), response["Temba-Success"])
+        self.assertEqual(reverse("orgs.org_list"), response["X-Temba-Success"])
 
         child.refresh_from_db()
         self.assertFalse(child.is_active)

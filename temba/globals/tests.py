@@ -204,7 +204,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "You are about to delete")
 
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.global2, success_status=200)
-        self.assertEqual("/global/", response["Temba-Success"])
+        self.assertEqual("/global/", response["X-Temba-Success"])
 
         # should see warning if global is being used
         delete_url = reverse("globals.global_delete", args=[self.global1.uuid])
@@ -216,7 +216,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Color Flow")
 
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.global1, success_status=200)
-        self.assertEqual("/global/", response["Temba-Success"])
+        self.assertEqual("/global/", response["X-Temba-Success"])
 
         self.flow.refresh_from_db()
         self.assertTrue(self.flow.has_issues)

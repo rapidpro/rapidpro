@@ -172,6 +172,7 @@ function spaPost(url, options) {
   const requestOptions = {
     ignoreEvents: false,
     ignoreHistory: false,
+    fullPage: options.fullPage || false,
     headers: options.headers || {}
   };
 
@@ -201,6 +202,7 @@ function spaRequest(url, options) {
   const ignoreHistory = options.ignoreHistory || false;
   const body = options.body || null;
   const headers = options.headers || {};
+  const fullPage = options.fullPage || false;
 
   headers['X-Temba-Referrer-Path'] = refererPath;
   headers['X-Temba-Path'] = url;
@@ -230,10 +232,10 @@ function spaRequest(url, options) {
     ajaxOptions.body = body;
   }
 
-  return fetchAjax(url, ajaxOptions).then(hideLoading);
+  return fetchAjax(url, ajaxOptions, fullPage).then(hideLoading);
 }
 
-function fetchAjax(url, options) {
+function fetchAjax(url, options, fullPage = false) {
   // create our default options
   options = options || {};
 
@@ -258,8 +260,10 @@ function fetchAjax(url, options) {
     options['headers']['X-CSRFToken'] = csrf;
   }
 
-  options['headers']['X-Temba-Spa'] = 1;
-  options['headers']['X-Pjax'] = 1;
+  if (!fullPage) {
+    options['headers']['X-Temba-Spa'] = 1;
+    options['headers']['X-Pjax'] = 1;
+  }
 
   let container = options['container'] || null;
 
@@ -284,7 +288,7 @@ function fetchAjax(url, options) {
         addToHistory(url);
       }
 
-      const toasts = response.headers.get('x-temba-toasts');
+      const toasts = response.headers.get('X-Temba-Toasts');
       if (toasts) {
         const toastEle = document.querySelector('temba-toast');
         if (toastEle) {
@@ -337,7 +341,7 @@ function fetchAjax(url, options) {
         // special case for spa content, break out into a full page load
         if (
           container === '.spa-content' &&
-          response.headers.get('x-temba-content-only') != 1
+          response.headers.get('X-Temba-Content-Only') != 1
         ) {
           document.location.href = response.url;
           return;
@@ -545,7 +549,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function posterize(href) {
   var url = new URL(href, window.location.origin);
-  spaPost(url.pathname, { queryString: url.searchParams });
+  spaPost(url.pathname, { queryString: url.searchParams, fullPage: true });
 }
 
 function handlePosterize(ele) {
