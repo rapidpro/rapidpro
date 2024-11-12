@@ -445,39 +445,67 @@ class EndpointsTest(APITest):
         self.assertEqual(OrderedDict([("a", "x" * 640)]), normalize_extra({"a": "x" * 641}))
 
     def test_authentication(self):
-        def request(endpoint, **headers):
-            return self.client.get(
-                f"{endpoint}.json", content_type="application/json", HTTP_X_FORWARDED_HTTPS="https", **headers
-            )
+        def _request(endpoint, post_data, **kwargs):
+            if post_data:
+                return self.client.post(endpoint, post_data, content_type="application/json", secure=True, **kwargs)
+            else:
+                return self.client.get(endpoint, secure=True, **kwargs)
 
-        def request_by_token(endpoint, token):
-            return request(endpoint, HTTP_AUTHORIZATION=f"Token {token}")
+        def request_by_token(endpoint, token, post_data=None):
+            return _request(endpoint, post_data, HTTP_AUTHORIZATION=f"Token {token}")
 
-        def request_by_basic_auth(endpoint, username, token):
-            credentials_base64 = base64.b64encode(f"{username}:{token}".encode()).decode()
-            return request(endpoint, HTTP_AUTHORIZATION=f"Basic {credentials_base64}")
+        def request_by_basic_auth(endpoint, username, password, post_data=None):
+            credentials_base64 = base64.b64encode(f"{username}:{password}".encode()).decode()
+            return _request(endpoint, post_data, HTTP_AUTHORIZATION=f"Basic {credentials_base64}")
 
-        def request_by_session(endpoint, user):
-            self.login(user)
-            resp = request(endpoint)
+        def request_by_session(endpoint, user, post_data=None):
+            self.login(user, choose_org=self.org)
+            resp = _request(endpoint, post_data)
             self.client.logout()
             return resp
 
-        contacts_url = reverse("api.v2.contacts")
-        campaigns_url = reverse("api.v2.campaigns")
-        fields_url = reverse("api.v2.fields")
+        contacts_url = reverse("api.v2.contacts") + ".json"
+        campaigns_url = reverse("api.v2.campaigns") + ".json"
+        fields_url = reverse("api.v2.fields") + ".json"
 
         token1 = APIToken.create(self.org, self.admin)
         token2 = APIToken.create(self.org, self.editor)
         token3 = APIToken.create(self.org, self.customer_support)
 
-        # can request fields endpoint using all 3 methods
+        # can GET fields endpoint using all 3 tokens
         response = request_by_token(fields_url, token1.key)
         self.assertEqual(200, response.status_code)
+        response = request_by_token(fields_url, token2.key)
+        self.assertEqual(200, response.status_code)
+        response = request_by_token(fields_url, token3.key)
+        self.assertEqual(200, response.status_code)
+
+        # can POST from 2 regular user tokens but not staff
+        response = request_by_token(fields_url, token1.key, {"name": "Field 1", "type": "text"})
+        self.assertEqual(201, response.status_code)
+        response = request_by_token(fields_url, token2.key, {"name": "Field 2", "type": "text"})
+        self.assertEqual(201, response.status_code)
+        response = request_by_token(fields_url, token3.key, {"name": "Field 3", "type": "text"})
+        self.assertEqual(403, response.status_code)
+
         response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
         self.assertEqual(200, response.status_code)
+
+        # can GET using session auth for all users
         response = request_by_session(fields_url, self.admin)
         self.assertEqual(200, response.status_code)
+        response = request_by_session(fields_url, self.editor)
+        self.assertEqual(200, response.status_code)
+        response = request_by_session(fields_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
+
+        # can POST using session auth for 2 regular users but not staff
+        response = request_by_session(fields_url, self.admin, {"name": "Field 4", "type": "text"})
+        self.assertEqual(201, response.status_code)
+        response = request_by_session(fields_url, self.editor, {"name": "Field 5", "type": "text"})
+        self.assertEqual(201, response.status_code)
+        response = request_by_session(fields_url, self.customer_support, {"name": "Field 6", "type": "text"})
+        self.assertEqual(403, response.status_code)
 
         # can't fetch endpoint with invalid token
         response = request_by_token(contacts_url, "1234567890")
