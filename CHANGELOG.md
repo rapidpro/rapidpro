@@ -1,3 +1,7 @@
+v9.3.104 (2024-11-12)
+-------------------------
+ * Revert change to disallow API posts from staff users
+
 v9.3.103 (2024-11-12)
 -------------------------
  * Only allow GET requests to API by servicing staff members
