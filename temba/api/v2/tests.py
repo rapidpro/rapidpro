@@ -480,13 +480,13 @@ class EndpointsTest(APITest):
         response = request_by_token(fields_url, token3.key)
         self.assertEqual(200, response.status_code)
 
-        # can POST from 2 regular user tokens but not staff
+        # can POST with all tokens
         response = request_by_token(fields_url, token1.key, {"name": "Field 1", "type": "text"})
         self.assertEqual(201, response.status_code)
         response = request_by_token(fields_url, token2.key, {"name": "Field 2", "type": "text"})
         self.assertEqual(201, response.status_code)
         response = request_by_token(fields_url, token3.key, {"name": "Field 3", "type": "text"})
-        self.assertEqual(403, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
         self.assertEqual(200, response.status_code)
@@ -499,13 +499,13 @@ class EndpointsTest(APITest):
         response = request_by_session(fields_url, self.customer_support)
         self.assertEqual(200, response.status_code)
 
-        # can POST using session auth for 2 regular users but not staff
+        # can POST using session auth for all users
         response = request_by_session(fields_url, self.admin, {"name": "Field 4", "type": "text"})
         self.assertEqual(201, response.status_code)
         response = request_by_session(fields_url, self.editor, {"name": "Field 5", "type": "text"})
         self.assertEqual(201, response.status_code)
         response = request_by_session(fields_url, self.customer_support, {"name": "Field 6", "type": "text"})
-        self.assertEqual(403, response.status_code)
+        self.assertEqual(201, response.status_code)
 
         # can't fetch endpoint with invalid token
         response = request_by_token(contacts_url, "1234567890")
