@@ -20,7 +20,7 @@ class CRUDLTestMixin:
 
         self.client.logout()
         if user:
-            self.login(user, True, choose_org)
+            self.login(user, choose_org=choose_org)
 
         for check in checks:
             check.pre_check(self, pre_msg_prefix)

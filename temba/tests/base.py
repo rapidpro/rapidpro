@@ -153,7 +153,7 @@ class TembaTest(SmartminTest):
         r = get_redis_connection()
         r.flushdb()
 
-    def login(self, user, update_last_auth_on: bool = True, choose_org=None):
+    def login(self, user, *, update_last_auth_on: bool = True, choose_org=None):
         self.assertTrue(
             self.client.login(username=user.username, password=self.default_password),
             f"couldn't login as {user.username}:{self.default_password}",
