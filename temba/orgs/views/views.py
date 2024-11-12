@@ -1109,8 +1109,8 @@ class OrgCRUDL(SmartCRUDL):
                             )
                         )
 
-                menu.append(self.create_divider())
                 if self.has_org_perm("orgs.org_export"):
+                    menu.append(self.create_divider())
                     menu.append(self.create_menu_item(name=_("Export"), icon="export", href="orgs.org_export"))
 
                 if self.has_org_perm("orgs.orgimport_create"):
@@ -1320,13 +1320,17 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-            if org and self.has_org_perm("orgs.org_workspace"):
+                if not self.has_org_perm("orgs.org_workspace"):
+                    settings_view = "orgs.user_account"
+                else:
+                    settings_view = "orgs.org_workspace"
+
                 menu.append(
                     {
                         "id": "settings",
                         "name": _("Settings"),
                         "icon": "home",
-                        "href": reverse("orgs.org_workspace"),
+                        "href": reverse(settings_view),
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
                         "show_header": True,
