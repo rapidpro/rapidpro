@@ -1,3 +1,8 @@
+v9.3.103 (2024-11-12)
+-------------------------
+ * Only allow GET requests to API by servicing staff members
+ * Allow requests to break out of spa on demand
+
 v9.3.102 (2024-11-12)
 -------------------------
  * Make sure agents can still edit accounts
