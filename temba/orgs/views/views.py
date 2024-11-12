@@ -1109,8 +1109,8 @@ class OrgCRUDL(SmartCRUDL):
                             )
                         )
 
-                menu.append(self.create_divider())
                 if self.has_org_perm("orgs.org_export"):
+                    menu.append(self.create_divider())
                     menu.append(self.create_menu_item(name=_("Export"), icon="export", href="orgs.org_export"))
 
                 if self.has_org_perm("orgs.orgimport_create"):
@@ -1320,22 +1320,22 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-            if not org or not self.has_org_perm("orgs.org_workspace"):
-                settings_view = "orgs.user_account"
-            else:
-                settings_view = "orgs.org_workspace"
+                if not self.has_org_perm("orgs.org_workspace"):
+                    settings_view = "orgs.user_account"
+                else:
+                    settings_view = "orgs.org_workspace"
 
-            menu.append(
-                {
-                    "id": "settings",
-                    "name": _("Settings"),
-                    "icon": "home",
-                    "href": reverse(settings_view),
-                    "endpoint": f"{reverse('orgs.org_menu')}settings/",
-                    "bottom": True,
-                    "show_header": True,
-                }
-            )
+                menu.append(
+                    {
+                        "id": "settings",
+                        "name": _("Settings"),
+                        "icon": "home",
+                        "href": reverse(settings_view),
+                        "endpoint": f"{reverse('orgs.org_menu')}settings/",
+                        "bottom": True,
+                        "show_header": True,
+                    }
+                )
 
             if self.request.user.is_staff:
                 menu.append(
@@ -1638,7 +1638,10 @@ class OrgCRUDL(SmartCRUDL):
             org = self.request.org
 
             if not org:
-                return HttpResponseRedirect(reverse("staff.org_list" if user.is_staff else "orgs.org_choose"))
+                no_org_page = reverse("orgs.org_choose")
+                if user.is_staff:
+                    no_org_page = f"{reverse('staff.org_list')}?filter=active"
+                return HttpResponseRedirect(no_org_page)
 
             role = org.get_user_role(user)
 

@@ -215,8 +215,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-        # customer support without an org will see settings as profile, and staff section
-        self.assertPageMenu(menu_url, self.customer_support, ["Settings", "Staff"])
+        # staff without an org on have the staff section
+        self.assertPageMenu(menu_url, self.customer_support, ["Staff"])
 
         self.assertPageMenu(f"{menu_url}staff/", self.customer_support, ["Workspaces", "Users"])
 
