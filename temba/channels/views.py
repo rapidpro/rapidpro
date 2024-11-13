@@ -35,7 +35,7 @@ from temba.contacts.models import URN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views.base import BaseDependencyDeleteModal
+from temba.orgs.views.base import BaseDependencyDeleteModal, BaseReadView
 from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
@@ -473,15 +473,12 @@ class ChannelCRUDL(SmartCRUDL):
         "facebook_whitelist",
     )
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, NotificationTargetMixin, SmartReadView):
+    class Read(SpaMixin, ContextMenuMixin, NotificationTargetMixin, BaseReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def derive_menu_path(self):
-            return f"/settings/channels/{self.get_object().uuid}"
-
-        def get_queryset(self):
-            return Channel.objects.filter(is_active=True)
+            return f"/settings/channels/{self.object.uuid}"
 
         def get_notification_scope(self) -> tuple:
             return "incident:started", str(self.object.id)
@@ -597,12 +594,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             return context
 
-    class Chart(OrgObjPermsMixin, SmartReadView):
+    class Chart(BaseReadView):
         permission = "channels.channel_read"
         slug_url_kwarg = "uuid"
-
-        def get_queryset(self):
-            return Channel.objects.filter(is_active=True)
 
         def render_to_response(self, context, **response_kwargs):
             channel = self.object
@@ -813,7 +807,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return recommended_channels, types_by_category, False
 
-    class Configuration(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Configuration(SpaMixin, BaseReadView):
         slug_url_kwarg = "uuid"
 
         def pre_process(self, *args, **kwargs):
