@@ -424,7 +424,7 @@ class TriggerCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
-    class BaseList(BulkActionMixin, BaseListView):
+    class BaseList(SpaMixin, BulkActionMixin, BaseListView):
         """
         Base class for list views
         """

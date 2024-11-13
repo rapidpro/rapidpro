@@ -33,14 +33,21 @@ from temba.utils import json
 from temba.utils.compose import compose_deserialize, compose_serialize
 from temba.utils.fields import CompletionTextarea, ContactSearchWidget, InputWidget, SelectWidget
 from temba.utils.models import patch_queryset_count
-from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, NonAtomicMixin, PostOnlyMixin, StaffOnlyMixin
+from temba.utils.views.mixins import (
+    ContextMenuMixin,
+    ModalFormMixin,
+    NonAtomicMixin,
+    PostOnlyMixin,
+    SpaMixin,
+    StaffOnlyMixin,
+)
 from temba.utils.views.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .forms import ComposeForm, ScheduleForm, TargetForm
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
 
 
-class SystemLabelView(BaseListView):
+class SystemLabelView(SpaMixin, BaseListView):
     """
     Base class for views backed by a system label or message label queryset
     """
@@ -961,7 +968,7 @@ class MediaCRUDL(SmartCRUDL):
                 }
             )
 
-    class List(StaffOnlyMixin, BaseListView):
+    class List(StaffOnlyMixin, SpaMixin, BaseListView):
         fields = ("url", "content_type", "size", "created_by", "created_on")
         default_order = ("-created_on",)
 

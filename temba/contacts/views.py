@@ -1071,7 +1071,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
-    class List(ContextMenuMixin, BaseListView):
+    class List(SpaMixin, ContextMenuMixin, BaseListView):
         menu_path = "/contact/fields"
         title = _("Fields")
         default_order = "name"

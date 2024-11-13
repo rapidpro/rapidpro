@@ -162,7 +162,7 @@ class CampaignCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class BaseList(ContextMenuMixin, BulkActionMixin, BaseListView):
+    class BaseList(SpaMixin, ContextMenuMixin, BulkActionMixin, BaseListView):
         permission = "campaigns.campaign_list"
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"

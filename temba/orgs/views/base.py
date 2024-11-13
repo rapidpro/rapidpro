@@ -22,7 +22,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import on_transaction_commit
 from temba.utils.fields import SelectMultipleWidget, TembaDateField
-from temba.utils.views.mixins import ComponentFormMixin, ModalFormMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ModalFormMixin
 
 from .mixins import DependencyMixin, OrgObjPermsMixin, OrgPermsMixin
 
@@ -101,7 +101,7 @@ class BaseDeleteModal(OrgObjPermsMixin, SmartDeleteView):
         return HttpResponseRedirect(self.get_redirect_url())
 
 
-class BaseListView(SpaMixin, OrgPermsMixin, SmartListView):
+class BaseListView(OrgPermsMixin, SmartListView):
     """
     Base list view for objects that belong to the current org
     """

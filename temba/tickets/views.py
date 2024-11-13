@@ -64,7 +64,7 @@ class ShortcutCRUDL(SmartCRUDL):
         cancel_url = "@tickets.shortcut_list"
         redirect_url = "@tickets.shortcut_list"
 
-    class List(ContextMenuMixin, BaseListView):
+    class List(SpaMixin, ContextMenuMixin, BaseListView):
         menu_path = "/ticket/shortcuts"
 
         def derive_queryset(self, **kwargs):
@@ -134,7 +134,7 @@ class TeamCRUDL(SmartCRUDL):
             context["has_invitations"] = self.object.invitations.filter(is_active=True).exists()
             return context
 
-    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+    class List(RequireFeatureMixin, SpaMixin, ContextMenuMixin, BaseListView):
         require_feature = Org.FEATURE_TEAMS
         menu_path = "/settings/teams"
 

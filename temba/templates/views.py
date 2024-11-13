@@ -11,7 +11,7 @@ class TemplateCRUDL(SmartCRUDL):
     model = Template
     actions = ("list", "read", "usages")
 
-    class List(BaseListView):
+    class List(SpaMixin, BaseListView):
         default_order = ("-created_on",)
 
         def derive_menu_path(self):

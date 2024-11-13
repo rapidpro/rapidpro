@@ -401,7 +401,7 @@ class UserCRUDL(SmartCRUDL):
         "send_verification_email",
     )
 
-    class List(RequireFeatureMixin, BaseListView):
+    class List(RequireFeatureMixin, SpaMixin, BaseListView):
         require_feature = Org.FEATURE_USERS
         title = _("Users")
         menu_path = "/settings/users"
@@ -430,7 +430,7 @@ class UserCRUDL(SmartCRUDL):
             context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
             return context
 
-    class Team(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+    class Team(RequireFeatureMixin, SpaMixin, ContextMenuMixin, BaseListView):
         permission = "orgs.user_list"
         require_feature = Org.FEATURE_TEAMS
         menu_path = "/settings/teams"
@@ -1584,7 +1584,7 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+    class List(RequireFeatureMixin, SpaMixin, ContextMenuMixin, BaseListView):
         require_feature = Org.FEATURE_CHILD_ORGS
         title = _("Workspaces")
         menu_path = "/settings/workspaces"
@@ -2215,7 +2215,7 @@ class InvitationCRUDL(SmartCRUDL):
     model = Invitation
     actions = ("list", "create", "delete")
 
-    class List(RequireFeatureMixin, ContextMenuMixin, BaseListView):
+    class List(RequireFeatureMixin, SpaMixin, ContextMenuMixin, BaseListView):
         require_feature = Org.FEATURE_USERS
         title = _("Invitations")
         menu_path = "/settings/invitations"
