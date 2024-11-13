@@ -1,14 +1,11 @@
-from smartmin.views import SmartCRUDL, SmartReadView
+from smartmin.views import SmartCRUDL
 
-from django.db.models import Prefetch
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import URN, ContactURN
-from temba.orgs.views.base import BaseListView
-from temba.orgs.views.mixins import OrgObjPermsMixin
-from temba.request_logs.models import HTTPLog
+from temba.orgs.views.base import BaseListView, BaseReadView
 from temba.utils.views.mixins import SpaMixin
 
 
@@ -45,7 +42,7 @@ class AirtimeCRUDL(SmartCRUDL):
             context["org"] = self.derive_org()
             return context
 
-    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, BaseReadView):
         menu_path = "/settings/workspace"
         title = _("Airtime Transfer Details")
         fields = (
@@ -70,14 +67,13 @@ class AirtimeCRUDL(SmartCRUDL):
             org = self.derive_org()
             return ContactURN.ANON_MASK_HTML if org.is_anon else URN.format(obj.recipient, international=True)
 
-        def derive_queryset(self, **kwargs):
-            logs_prefetch = Prefetch("http_logs", HTTPLog.objects.order_by("created_on", "id"))
-            return AirtimeTransfer.objects.filter(org=self.derive_org()).prefetch_related(logs_prefetch)
-
         def get_context_data(self, **kwargs):
             org = self.derive_org()
             user = self.request.user
 
             context = super().get_context_data(**kwargs)
+
             context["show_logs"] = not org.is_anon or user.is_staff
+            context["http_logs"] = self.get_object().http_logs.order_by("created_on", "id")
+
             return context

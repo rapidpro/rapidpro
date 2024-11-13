@@ -31,6 +31,7 @@ from temba.orgs.views.base import (
     BaseExportModal,
     BaseListView,
     BaseMenuView,
+    BaseReadView,
     BaseUsagesModal,
 )
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -309,7 +310,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return JsonResponse({"results": results, "more": False, "total": len(results), "err": "nil"})
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
+    class Read(SpaMixin, ContextMenuMixin, BaseReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
         select_related = ("current_flow",)
@@ -319,9 +320,6 @@ class ContactCRUDL(SmartCRUDL):
 
         def derive_title(self):
             return self.object.get_display()
-
-        def get_queryset(self):
-            return Contact.objects.filter(is_active=True)
 
         def build_context_menu(self, menu):
             obj = self.get_object()
@@ -352,7 +350,7 @@ class ContactCRUDL(SmartCRUDL):
                 if self.has_org_perm("contacts.contact_interrupt") and obj.current_flow:
                     menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(obj.id,)))
 
-    class Scheduled(OrgObjPermsMixin, SmartReadView):
+    class Scheduled(BaseReadView):
         """
         Merged list of upcoming scheduled events (campaign event fires and scheduled broadcasts)
         """
@@ -360,21 +358,15 @@ class ContactCRUDL(SmartCRUDL):
         permission = "contacts.contact_read"
         slug_url_kwarg = "uuid"
 
-        def get_queryset(self):
-            return Contact.objects.filter(is_active=True).select_related("org")
-
         def render_to_response(self, context, **response_kwargs):
             return JsonResponse({"results": self.object.get_scheduled()})
 
-    class History(OrgObjPermsMixin, SmartReadView):
+    class History(BaseReadView):
         slug_url_kwarg = "uuid"
-
-        def get_queryset(self):
-            return Contact.objects.filter(is_active=True).select_related("org")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            contact = self.get_object()
+            contact = self.object
 
             # since we create messages with timestamps from external systems, always a chance a contact's initial
             # message has a timestamp slightly earlier than the contact itself.

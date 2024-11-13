@@ -27,6 +27,24 @@ from temba.utils.views.mixins import ComponentFormMixin, ModalFormMixin, SpaMixi
 from .mixins import DependencyMixin, OrgObjPermsMixin, OrgPermsMixin
 
 
+class BaseReadView(OrgObjPermsMixin, SmartReadView):
+    """
+    Base detail view for an object that belong to the current org
+    """
+
+    def derive_queryset(self, **kwargs):
+        qs = super().derive_queryset(**kwargs)
+
+        # don't filter by org for staff users but let OrgObjPermsMixin provide a redirect
+        if not self.request.user.is_staff:
+            qs = qs.filter(org=self.request.org)
+
+        if hasattr(self.model, "is_active"):
+            qs = qs.filter(is_active=True)
+
+        return qs.select_related("org")
+
+
 class BaseCreateModal(ComponentFormMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
     """
     Base create modal view

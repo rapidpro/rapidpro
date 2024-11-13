@@ -14,7 +14,7 @@
   {% if show_logs %}
     <h3>
       {% trans "HTTP Logs" %}
-      {% for log in object.http_logs.all %}
+      {% for log in http_logs %}
         <hr>
         <pre style="margin-top:10px;" class="data prettyprint">{{ log.request|default:"" }}</pre>
         <pre style="margin-top:10px;" class="data prettyprint">{% if log.response %}{{ log.response|default:"" }}{% else %}{% trans "No Data" %}{% endif %}</pre>

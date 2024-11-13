@@ -987,7 +987,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can't view configuration of channel in other org
         response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
-        self.assertLoginRedirect(response)
+        self.assertEqual(response.status_code, 404)
 
     def test_update(self):
         android_channel = self.create_channel(

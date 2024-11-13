@@ -2408,7 +2408,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(25):
             response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2487,15 +2487,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(13, len(events))
         self.assertContains(response, "file.mp4")
 
-        # can't view history of contact in another org
-        hans = self.create_contact("Hans", urns=["twitter:hans"], org=self.org2)
-        response = self.client.get(reverse("contacts.contact_history", args=[hans.uuid]))
-        self.assertLoginRedirect(response)
-
-        # invalid UUID should return 404
-        response = self.client.get(reverse("contacts.contact_history", args=["bad-uuid"]))
-        self.assertEqual(response.status_code, 404)
-
         # add a new run
         (
             MockSessionWriter(self.joe, flow)
@@ -2563,7 +2554,11 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # can't view history of contact in other org
         response = self.client.get(reverse("contacts.contact_history", args=[self.other_org_contact.uuid]))
-        self.assertLoginRedirect(response)
+        self.assertEqual(response.status_code, 404)
+
+        # invalid UUID should return 404
+        response = self.client.get(reverse("contacts.contact_history", args=["837d0842-4f6b-4751-bf21-471df75ce786"]))
+        self.assertEqual(response.status_code, 404)
 
     def test_history_session_events(self):
         flow = self.get_flow("color_v13")

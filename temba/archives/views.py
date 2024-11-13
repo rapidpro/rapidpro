@@ -1,11 +1,10 @@
 from gettext import gettext as _
 
-from smartmin.views import SmartCRUDL, SmartReadView
+from smartmin.views import SmartCRUDL
 
 from django.http import HttpResponseRedirect
 
-from temba.orgs.views.base import BaseListView
-from temba.orgs.views.mixins import OrgObjPermsMixin
+from temba.orgs.views.base import BaseListView, BaseReadView
 
 from .models import Archive
 
@@ -50,6 +49,6 @@ class ArchiveCRUDL(SmartCRUDL):
         def get_archive_type(self):
             return Archive.TYPE_MSG
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(BaseReadView):
         def render_to_response(self, context, **response_kwargs):
-            return HttpResponseRedirect(self.get_object().get_download_link())
+            return HttpResponseRedirect(self.object.get_download_link())
