@@ -1,3 +1,7 @@
+v9.3.105 (2024-11-13)
+-------------------------
+ * Allow staff to create invitations to workspaces
+
 v9.3.104 (2024-11-12)
 -------------------------
  * Revert change to disallow API posts from staff users
