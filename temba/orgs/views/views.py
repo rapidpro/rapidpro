@@ -2190,6 +2190,8 @@ class InvitationCRUDL(SmartCRUDL):
             return context
 
     class Create(RequireFeatureMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
+        readonly_servicing = False
+
         class Form(forms.ModelForm):
             email = forms.EmailField(widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}))
             role = forms.ChoiceField(
