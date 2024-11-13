@@ -367,6 +367,7 @@ class UserCRUDL(SmartCRUDL):
                 .derive_queryset(**kwargs)
                 .filter(id__in=self.request.org.get_users().values_list("id", flat=True))
                 .order_by(Lower("email"))
+                .select_related("settings")
             )
 
         def get_context_data(self, **kwargs):

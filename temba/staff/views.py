@@ -341,7 +341,7 @@ class UserCRUDL(SmartCRUDL):
             return response
 
     class List(StaffOnlyMixin, SpaMixin, SmartListView):
-        fields = ("email", "name", "date_joined")
+        fields = ("email", "name", "date_joined", "2fa")
         ordering = ("-date_joined",)
         search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
         filters = (("all", _("All")), ("beta", _("Beta")), ("staff", _("Staff")))
@@ -355,15 +355,20 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
+
             obj_filter = self.request.GET.get("filter")
             if obj_filter == "beta":
                 qs = qs.filter(groups__name="Beta")
             elif obj_filter == "staff":
                 qs = qs.filter(is_staff=True)
-            return qs
+
+            return qs.select_related("settings")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["filter"] = self.request.GET.get("filter", "all")
             context["filters"] = self.filters
             return context
+
+        def get_2fa(self, obj):
+            return _("Yes") if obj.settings.two_factor_enabled else _("No")
