@@ -16,7 +16,7 @@ from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
 from temba.orgs.views.base import BaseDeleteModal, BaseListView
 from temba.utils.models import TembaModel
-from temba.utils.views.mixins import ContextMenuMixin, NonAtomicMixin
+from temba.utils.views.mixins import ContextMenuMixin, NonAtomicMixin, SpaMixin
 
 from .models import APIToken, BulkActionFailure
 
@@ -281,7 +281,7 @@ class APITokenCRUDL(SmartCRUDL):
     model = APIToken
     actions = ("list", "delete")
 
-    class List(ContextMenuMixin, BaseListView):
+    class List(SpaMixin, ContextMenuMixin, BaseListView):
         title = _("API Tokens")
         menu_path = "/settings/account"
         paginate_by = None

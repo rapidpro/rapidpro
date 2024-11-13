@@ -58,7 +58,7 @@ class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
     actions = ("webhooks", "channel", "classifier", "read")
 
-    class Webhooks(ContextMenuMixin, BaseListView):
+    class Webhooks(SpaMixin, ContextMenuMixin, BaseListView):
         default_order = ("-created_on",)
         select_related = ("flow",)
         fields = ("flow", "url", "status_code", "request_time", "created_on")

@@ -657,7 +657,7 @@ class FlowCRUDL(SmartCRUDL):
                         match_type=Trigger.MATCH_FIRST_WORD,
                     )
 
-    class BaseList(BulkActionMixin, ContextMenuMixin, BaseListView):
+    class BaseList(SpaMixin, BulkActionMixin, ContextMenuMixin, BaseListView):
         permission = "flows.flow_list"
         title = _("Flows")
         fields = ("name", "modified_on")
@@ -1782,7 +1782,7 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list", "interrupt", "status")
 
-    class List(BaseListView):
+    class List(SpaMixin, BaseListView):
         title = _("Flow Starts")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
