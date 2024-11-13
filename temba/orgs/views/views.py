@@ -95,16 +95,17 @@ def switch_to_org(request, org, *, servicing: bool = False):
 
 def check_login(request):
     """
-    Simple view that checks whether we actually need to log in.  This is needed on the live site
+    Simple view that checks whether we actually need to log in. This is needed on the live site
     because we serve the main page as http:// but the logged in pages as https:// and only store
-    the cookies on the SSL connection.  This view will be called in https:// land where we will
-    check whether we are logged in, if so then we will redirect to the LOGIN_URL, otherwise we take
-    them to the normal user login page
+    the cookies on the SSL connection. This view will be called in https:// land where we will
+    check whether we are logged in, if so then we will redirect to the org chooser, otherwise we take
+    them to the user login page.
     """
+
     if request.user.is_authenticated:
-        return HttpResponseRedirect(settings.LOGIN_REDIRECT_URL)
+        return HttpResponseRedirect(reverse("orgs.org_choose"))
     else:
-        return HttpResponseRedirect(settings.LOGIN_URL)
+        return HttpResponseRedirect(reverse("orgs.login"))
 
 
 class IntegrationFormaxView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
