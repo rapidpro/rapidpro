@@ -1647,7 +1647,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # also shouldn't be able to view other flow
         response = self.client.get(reverse("flows.flow_editor", args=[other_flow.uuid]))
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(404, response.status_code)
 
         # get our create page
         response = self.client.get(create_url)

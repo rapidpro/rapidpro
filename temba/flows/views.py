@@ -32,11 +32,18 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.channels.models import Channel
 from temba.contacts.models import URN
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
+from temba.flows.models import Flow, FlowPathCount, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views.base import BaseDependencyDeleteModal, BaseExportModal, BaseListView, BaseMenuView
+from temba.orgs.views.base import (
+    BaseDependencyDeleteModal,
+    BaseExportModal,
+    BaseListView,
+    BaseMenuView,
+    BaseReadView,
+    BaseUpdateModal,
+)
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
@@ -158,6 +165,7 @@ class FlowRunCRUDL(SmartCRUDL):
 
 
 class FlowCRUDL(SmartCRUDL):
+    model = Flow
     actions = (
         "list",
         "archived",
@@ -185,13 +193,6 @@ class FlowCRUDL(SmartCRUDL):
         "recent_contacts",
         "assets",
     )
-
-    model = Flow
-
-    class AllowOnlyActiveFlowMixin:
-        def get_queryset(self):
-            initial_queryset = super().get_queryset()
-            return initial_queryset.filter(is_active=True)
 
     class Menu(BaseMenuView):
         @classmethod
@@ -249,7 +250,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return menu
 
-    class RecentContacts(OrgObjPermsMixin, SmartReadView):
+    class RecentContacts(BaseReadView):
         """
         Used by the editor for the rollover of recent contacts coming out of a split
         """
@@ -266,7 +267,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return JsonResponse(self.object.get_recent_contacts(exit_uuid, dest_uuid), safe=False)
 
-    class Revisions(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class Revisions(BaseReadView):
         """
         Used by the editor for fetching and saving flow definitions
         """
@@ -486,7 +487,7 @@ class FlowCRUDL(SmartCRUDL):
             # redirect to the newly created flow
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))
 
-    class Update(AllowOnlyActiveFlowMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(BaseUpdateModal):
         class BaseForm(BaseFlowForm):
             class Meta:
                 model = Flow
@@ -784,7 +785,7 @@ class FlowCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             return qs.filter(org=self.request.org, labels=self.label, is_archived=False).order_by("-created_on")
 
-    class Editor(SpaMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
+    class Editor(SpaMixin, ContextMenuMixin, BaseReadView):
         slug_url_kwarg = "uuid"
 
         def derive_menu_path(self):
@@ -1144,7 +1145,7 @@ class FlowCRUDL(SmartCRUDL):
                 extra_urns=form.cleaned_data.get("extra_urns", []),
             )
 
-    class ActivityData(OrgObjPermsMixin, SmartReadView):
+    class ActivityData(BaseReadView):
         # the min number of responses to show a histogram
         HISTOGRAM_MIN = 0
 
@@ -1155,8 +1156,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def render_to_response(self, context, **response_kwargs):
             total_responses = 0
-            flow = self.get_object()
-            from temba.flows.models import FlowPathCount
+            flow = self.object
 
             from_uuids = flow.metadata["waiting_exit_uuids"]
             dates = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).aggregate(
@@ -1286,10 +1286,10 @@ class FlowCRUDL(SmartCRUDL):
                 encoder=json.EpochEncoder,
             )
 
-    class ActivityChart(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class ActivityChart(SpaMixin, BaseReadView):
         permission = "flows.flow_results"
 
-    class CategoryCounts(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class CategoryCounts(BaseReadView):
         """
         Used by the editor for the counts on split exits
         """
@@ -1298,9 +1298,9 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def render_to_response(self, context, **response_kwargs):
-            return JsonResponse({"counts": self.get_object().get_category_counts()})
+            return JsonResponse({"counts": self.object.get_category_counts()})
 
-    class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContextMenuMixin, SmartReadView):
+    class Results(SpaMixin, ContextMenuMixin, BaseReadView):
         slug_url_kwarg = "uuid"
 
         def build_context_menu(self, menu):
@@ -1319,7 +1319,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            flow = self.get_object()
+            flow = self.object
 
             result_fields = []
             for result_field in flow.metadata[Flow.METADATA_RESULTS]:
@@ -1333,7 +1333,7 @@ class FlowCRUDL(SmartCRUDL):
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
 
-    class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class Activity(BaseReadView):
         """
         Used by the editor for the counts on paths between nodes
         """
@@ -1346,7 +1346,7 @@ class FlowCRUDL(SmartCRUDL):
             (active, visited) = flow.get_activity()
             return JsonResponse(dict(nodes=active, segments=visited))
 
-    class Simulate(OrgObjPermsMixin, SmartReadView):
+    class Simulate(BaseReadView):
         permission = "flows.flow_editor"
 
         @csrf_exempt
@@ -1425,7 +1425,7 @@ class FlowCRUDL(SmartCRUDL):
                 except mailroom.RequestException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-    class PreviewStart(OrgObjPermsMixin, SmartReadView):
+    class PreviewStart(BaseReadView):
         permission = "flows.flow_start"
 
         blockers = {
