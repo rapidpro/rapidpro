@@ -1,3 +1,9 @@
+v9.3.106 (2024-11-13)
+-------------------------
+ * Show on user list pages whether user has 2FA enabled
+ * Change confirm access view to logout on failed attempts limit
+ * Move login view functionality from smartmin and remove no longer needed redirect
+
 v9.3.105 (2024-11-13)
 -------------------------
  * Allow staff to create invitations to workspaces
