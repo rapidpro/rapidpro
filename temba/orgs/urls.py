@@ -1,6 +1,5 @@
 from django.conf.urls import include
 from django.urls import re_path
-from django.views.generic import RedirectView
 
 from .models import IntegrationType
 from .views import (
@@ -38,11 +37,6 @@ urlpatterns += [
     re_path(r"^login/$", check_login, name="orgs.check_login"),
     re_path(r"^users/login/$", LoginView.as_view(), name="orgs.login"),
     re_path(r"^users/logout/$", LogoutView.as_view(), name="orgs.logout"),
-    re_path(
-        r"^users/user/failed/$",
-        RedirectView.as_view(pattern_name="orgs.user_failed", permanent=True),
-        name="users.user_failed",  # TODO rework login to not need this redirect
-    ),
     re_path(r"^users/two-factor/verify/$", TwoFactorVerifyView.as_view(), name="orgs.two_factor_verify"),
     re_path(r"^users/two-factor/backup/$", TwoFactorBackupView.as_view(), name="orgs.two_factor_backup"),
     re_path(r"^users/confirm-access/$", ConfirmAccessView.as_view(), name="orgs.confirm_access"),

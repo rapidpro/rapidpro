@@ -7,7 +7,6 @@ import pyotp
 from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.users.models import FailedLogin, RecoveryToken
-from smartmin.users.views import Login
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -28,7 +27,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404, resolve_url
+from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
@@ -96,16 +95,17 @@ def switch_to_org(request, org, *, servicing: bool = False):
 
 def check_login(request):
     """
-    Simple view that checks whether we actually need to log in.  This is needed on the live site
+    Simple view that checks whether we actually need to log in. This is needed on the live site
     because we serve the main page as http:// but the logged in pages as https:// and only store
-    the cookies on the SSL connection.  This view will be called in https:// land where we will
-    check whether we are logged in, if so then we will redirect to the LOGIN_URL, otherwise we take
-    them to the normal user login page
+    the cookies on the SSL connection. This view will be called in https:// land where we will
+    check whether we are logged in, if so then we will redirect to the org chooser, otherwise we take
+    them to the user login page.
     """
+
     if request.user.is_authenticated:
-        return HttpResponseRedirect(settings.LOGIN_REDIRECT_URL)
+        return HttpResponseRedirect(reverse("orgs.org_choose"))
     else:
-        return HttpResponseRedirect(settings.LOGIN_URL)
+        return HttpResponseRedirect(reverse("orgs.login"))
 
 
 class IntegrationFormaxView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -142,17 +142,60 @@ class IntegrationFormaxView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
         return response
 
 
-class LoginView(Login):
+class LoginView(AuthLoginView):
     """
-    Overrides the smartmin login view to redirect users with 2FA enabled to a second verification view.
+    Overrides the auth login view to add support for tracking failed logins and 2FA.
     """
 
     template_name = "orgs/login/login.html"
+    two_factor = True
+
+    def post(self, request, *args, **kwargs):
+        form = self.get_form()
+
+        form_is_valid = form.is_valid()  # clean form data
+
+        lockout_timeout = getattr(settings, "USER_LOCKOUT_TIMEOUT", 10)
+        failed_login_limit = getattr(settings, "USER_FAILED_LOGIN_LIMIT", 5)
+
+        username = self.get_username(form)
+        if not username:
+            return self.form_invalid(form)
+
+        user = User.objects.filter(username__iexact=username).first()
+        valid_password = False
+
+        # this could be a valid login by a user
+        if user:
+            # incorrect password?  create a failed login token
+            valid_password = user.check_password(form.cleaned_data.get("password"))
+
+        if not user or not valid_password:
+            FailedLogin.objects.create(username=username)
+
+        failures = FailedLogin.objects.filter(username__iexact=username)
+
+        # if the failures reset after a period of time, then limit our query to that interval
+        if lockout_timeout > 0:
+            bad_interval = timezone.now() - timedelta(minutes=lockout_timeout)
+            failures = failures.filter(failed_on__gt=bad_interval)
+
+        # if there are too many failed logins, take them to the failed page
+        if len(failures) >= failed_login_limit:
+            logout(request)
+
+            return HttpResponseRedirect(reverse("orgs.user_failed"))
+
+        # pass through the normal login process
+        if form_is_valid:
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
 
     def form_valid(self, form):
         user = form.get_user()
 
-        if user.settings.two_factor_enabled:
+        if self.two_factor and user.settings.two_factor_enabled:
             self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
             self.request.session[TWO_FACTOR_STARTED_SESSION_KEY] = timezone.now().isoformat()
 
@@ -164,7 +207,14 @@ class LoginView(Login):
             return HttpResponseRedirect(verify_url)
 
         user.record_auth()
+
+        # clean up any failed logins for this username
+        FailedLogin.objects.filter(username__iexact=self.get_username(form)).delete()
+
         return super().form_valid(form)
+
+    def get_username(self, form):
+        return form.cleaned_data.get("username")
 
 
 class LogoutView(View):
@@ -226,7 +276,7 @@ class BaseTwoFactorView(AuthLoginView):
         if failures.count() >= failed_login_limit:
             self.reset_user()
 
-            return HttpResponseRedirect(reverse("users.user_failed"))
+            return HttpResponseRedirect(reverse("orgs.user_failed"))
 
         return super().form_invalid(form)
 
@@ -294,9 +344,9 @@ class TwoFactorBackupView(BaseTwoFactorView):
     template_name = "orgs/login/two_factor_backup.html"
 
 
-class ConfirmAccessView(Login):
+class ConfirmAccessView(LoginView):
     """
-    Overrides the smartmin login view to provide a view for an already logged in user to re-authenticate.
+    Overrides the login view to provide a view for an already logged in user to re-authenticate.
     """
 
     class Form(forms.Form):
@@ -320,20 +370,16 @@ class ConfirmAccessView(Login):
 
     template_name = "orgs/login/confirm_access.html"
     form_class = Form
+    two_factor = False
 
     def dispatch(self, request, *args, **kwargs):
         if not self.request.user.is_authenticated:
-            return HttpResponseRedirect(resolve_url(settings.LOGIN_URL))
+            return HttpResponseRedirect(reverse("orgs.login"))
 
         return super().dispatch(request, *args, **kwargs)
 
     def get_username(self, form):
         return self.request.user.username
-
-    def form_valid(self, form):
-        form.get_user().record_auth()
-
-        return super().form_valid(form)
 
 
 class UserCRUDL(SmartCRUDL):
