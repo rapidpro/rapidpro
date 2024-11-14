@@ -468,8 +468,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         read_url = reverse("contacts.contact_read", args=[joe.uuid])
 
-        response = self.client.get(read_url)
-        self.assertLoginRedirect(response)
+        self.assertRequestDisallowed(read_url, [None, self.agent])
 
         self.assertContentMenu(read_url, self.user, [])
         self.assertContentMenu(read_url, self.editor, ["Edit", "Start Flow", "Open Ticket"])

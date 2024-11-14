@@ -191,7 +191,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             reverse("contacts.contact_create"), data={"name": "Ben Haggerty", "phone": "0788123123"}
         )
-        self.assertLoginRedirect(response)
+        self.assertEqual(403, response.status_code)
 
         # become super user
         self.customer_support.is_superuser = True
