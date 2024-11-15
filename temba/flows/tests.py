@@ -2349,8 +2349,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax."}, response.json())
 
         # suspended orgs should block
-        self.org.is_suspended = True
-        self.org.save()
+        self.org.suspend()
         mr_mocks.flow_start_preview(query="age > 30", total=2)
         response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
         self.assertEqual(
@@ -2361,9 +2360,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # flagged orgs should block
-        self.org.is_suspended = False
-        self.org.is_flagged = True
-        self.org.save()
+        self.org.unsuspend()
+        self.org.flag()
         mr_mocks.flow_start_preview(query="age > 30", total=2)
         response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
         self.assertEqual(
@@ -2373,8 +2371,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.json()["blockers"],
         )
 
-        self.org.is_flagged = False
-        self.org.save()
+        self.org.unflag()
 
         # create a pending flow start to test warning
         FlowStart.create(flow, self.admin, query="age > 30")

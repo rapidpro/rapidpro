@@ -348,6 +348,10 @@ class OrgTest(TembaTest):
         def assert_org(org, is_suspended):
             org.refresh_from_db()
             self.assertEqual(is_suspended, org.is_suspended)
+            if is_suspended:
+                self.assertIsNotNone(org.suspended_on)
+            else:
+                self.assertIsNone(org.suspended_on)
 
         self.org.features += [Org.FEATURE_CHILD_ORGS]
         org1_child1 = self.org.create_new(self.admin, "Child 1", tzone.utc, as_child=True)
@@ -504,8 +508,7 @@ class OrgTest(TembaTest):
 
         # unflag org and suspend it instead
         self.org.unflag()
-        self.org.is_suspended = True
-        self.org.save(update_fields=("is_suspended",))
+        self.org.suspend()
 
         expected_message = "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
 

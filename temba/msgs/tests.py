@@ -772,8 +772,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual([call(self.org, [msg2])], mr_mocks.calls["msg_resend"])
 
         # suspended orgs don't see resend as option
-        self.org.is_suspended = True
-        self.org.save(update_fields=("is_suspended",))
+        self.org.suspend()
 
         response = self.client.get(failed_url)
         self.assertNotIn("resend", response.context["actions"])
@@ -2401,8 +2400,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax."}, response.json())
 
         # suspended orgs should block
-        self.org.is_suspended = True
-        self.org.save()
+        self.org.suspend()
         mr_mocks.msg_broadcast_preview(query="age > 30", total=2)
         response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
         self.assertEqual(
@@ -2413,9 +2411,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # flagged orgs should block
-        self.org.is_suspended = False
-        self.org.is_flagged = True
-        self.org.save()
+        self.org.unsuspend()
+        self.org.flag()
         mr_mocks.msg_broadcast_preview(query="age > 30", total=2)
         response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
         self.assertEqual(
@@ -2425,8 +2422,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             response.json()["blockers"],
         )
 
-        self.org.is_flagged = False
-        self.org.save()
+        self.org.unflag()
 
         # if we have too many messages in our outbox we should block
         mr_mocks.msg_broadcast_preview(query="age > 30", total=2)
