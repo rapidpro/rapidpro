@@ -943,7 +943,8 @@ class OrgDeleteTest(TembaTest):
         ticket1.events.create(org=org, contact=contacts[0], event_type="N", note="spam", created_by=user)
 
         add(self.create_ticket(contacts[0], opened_in=flows[0]))
-        add(Team.create(org, user, "Spam Only", topics=[topic]))
+        team = add(Team.create(org, user, "Spam Only", topics=[topic]))
+        Invitation.create(org, user, "newagent@textit.com", OrgRole.AGENT, team=team)
 
     def _create_export_content(self, org, user, flows, groups, fields, labels, add):
         results = add(
