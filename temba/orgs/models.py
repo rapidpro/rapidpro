@@ -1310,6 +1310,7 @@ class Org(SmartModel):
 
         delete_in_batches(self.notifications.all())
         delete_in_batches(self.incidents.all())
+        delete_in_batches(self.invitations.all())
         delete_in_batches(self.flow_labels.all())
 
         for exp in self.exports.all():
@@ -1397,7 +1398,6 @@ class Org(SmartModel):
 
         # delete other related objects
         delete_in_batches(self.api_tokens.all(), pk="key")
-        delete_in_batches(self.invitations.all())
         delete_in_batches(self.schedules.all())
         delete_in_batches(self.boundaryalias_set.all())
         delete_in_batches(self.templates.all())
