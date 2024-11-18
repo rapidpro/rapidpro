@@ -1,3 +1,8 @@
+v9.3.108 (2024-11-18)
+-------------------------
+ * Add Org.suspended_on to track when an org was suspended
+ * Rework org perms again
+
 v9.3.107 (2024-11-15)
 -------------------------
  * Fix deleting orgs with invitations to teams
