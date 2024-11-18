@@ -972,8 +972,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])
 
         # can't view configuration if not logged in
-        response = self.client.get(config_url)
-        self.assertLoginRedirect(response)
+        self.assertRequestDisallowed(config_url, [None, self.agent])
 
         self.login(self.admin)
 

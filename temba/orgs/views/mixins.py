@@ -22,9 +22,9 @@ class OrgPermsMixin:
     def derive_org(self):
         return self.request.org
 
-    def _check_org_perm(self, permission: str) -> tuple[bool, bool]:
+    def has_org_perm(self, permission: str) -> bool:
         """
-        Checks if the current user has the given permission for the current org and whether they have it by servicing.
+        Figures out if the current user has the given permission.
         """
 
         org = self.derive_org()
@@ -32,44 +32,35 @@ class OrgPermsMixin:
 
         # can't have an org perm without an org
         if not org:
-            return False, False
+            return False
 
         if user.is_anonymous:
-            return False, False
+            return False
 
-        has_perm = user.has_org_perm(org, permission)
-
-        if not has_perm and user.is_staff:
-            return True, True
-
-        return has_perm, False
-
-    def has_org_perm(self, permission: str) -> bool:
-        has_perm, by_servicing = self._check_org_perm(permission)
-        return has_perm
+        return user.is_staff or user.has_org_perm(org, permission)
 
     def has_permission(self, request, *args, **kwargs) -> bool:
         """
-        Figures out if the current user has permissions for this view.
+        Figures out if the current user has the required permission for this view.
         """
 
         self.kwargs = kwargs
         self.args = args
         self.request = request
 
-        has_perm, by_servicing = self._check_org_perm(self.permission)
-
-        # by default staff are only allowed to GET views when servicing
-        if self.readonly_servicing and by_servicing and request.method != "GET":
-            return False
-
-        return has_perm
+        return self.has_org_perm(self.permission)
 
     def dispatch(self, request, *args, **kwargs):
-        # non admin authenticated users without orgs get the org chooser
+        org = self.derive_org()
         user = self.request.user
-        if user.is_authenticated and not user.is_staff:
-            if not self.derive_org():
+
+        if org:
+            # when servicing, non-superuser staff can only GET
+            is_servicing = request.user.is_staff and not org.users.filter(id=request.user.id).exists()
+            if is_servicing and not request.user.is_superuser and request.method != "GET":
+                return HttpResponseForbidden()
+        else:
+            if user.is_authenticated and not user.is_staff:
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
 
         return super().dispatch(request, *args, **kwargs)
@@ -86,20 +77,30 @@ class OrgObjPermsMixin(OrgPermsMixin):
     def has_permission(self, request, *args, **kwargs) -> bool:
         has_perm = super().has_permission(request, *args, **kwargs)
 
-        # allow staff to GET any object because they'll be redirected on org mismatch
-        if self.request.user.is_staff and self.request.method == "GET":
+        # even without a current org, staff can switch to the object's org
+        if request.user.is_staff:
             return True
 
-        return has_perm and self.request.org == self.get_object_org()
+        if not has_perm:
+            return False
+
+        obj_org = self.get_object_org()
+        is_this_org = self.request.org == obj_org
+
+        return has_perm and (is_this_org or obj_org.get_users().filter(id=request.user.id).exists())
 
     def pre_process(self, request, *args, **kwargs):
         org = self.get_object_org()
 
-        # staff users are redirected to service page if org doesn't match
-        if request.user.is_staff and self.request.org != org:
-            return HttpResponseRedirect(
-                f"{reverse('staff.org_service')}?next={quote_plus(request.path)}&other_org={org.id}"
-            )
+        if self.request.org != org:
+            if request.user.is_staff:
+                # staff users are redirected to service page if org doesn't match
+                return HttpResponseRedirect(
+                    f"{reverse('staff.org_service')}?next={quote_plus(request.path)}&other_org={org.id}"
+                )
+            else:
+                # TODO implement view to let regular users switch orgs as well
+                return HttpResponseRedirect(reverse("orgs.org_choose"))
 
         return super().pre_process(request, *args, **kwargs)
 
