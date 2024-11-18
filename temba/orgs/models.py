@@ -532,7 +532,7 @@ class Org(SmartModel):
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
 
-    # when this org was released and when it was actually deleted
+    suspended_on = models.DateTimeField(null=True)
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
@@ -652,10 +652,13 @@ class Org(SmartModel):
 
         if not self.is_suspended:
             self.is_suspended = True
+            self.suspended_on = timezone.now()
             self.modified_on = timezone.now()
-            self.save(update_fields=("is_suspended", "modified_on"))
+            self.save(update_fields=("is_suspended", "suspended_on", "modified_on"))
 
-            self.children.filter(is_active=True).update(is_suspended=True, modified_on=timezone.now())
+            self.children.filter(is_active=True).update(
+                is_suspended=True, suspended_on=timezone.now(), modified_on=timezone.now()
+            )
 
             OrgSuspendedIncidentType.get_or_create(self)  # create incident which will notify admins
 
@@ -669,10 +672,13 @@ class Org(SmartModel):
 
         if self.is_suspended:
             self.is_suspended = False
+            self.suspended_on = None
             self.modified_on = timezone.now()
-            self.save(update_fields=("is_suspended", "modified_on"))
+            self.save(update_fields=("is_suspended", "suspended_on", "modified_on"))
 
-            self.children.filter(is_active=True).update(is_suspended=False, modified_on=timezone.now())
+            self.children.filter(is_active=True).update(
+                is_suspended=False, suspended_on=None, modified_on=timezone.now()
+            )
 
             OrgSuspendedIncidentType.get_or_create(self).end()
 
@@ -1310,6 +1316,7 @@ class Org(SmartModel):
 
         delete_in_batches(self.notifications.all())
         delete_in_batches(self.incidents.all())
+        delete_in_batches(self.invitations.all())
         delete_in_batches(self.flow_labels.all())
 
         for exp in self.exports.all():
@@ -1397,7 +1404,6 @@ class Org(SmartModel):
 
         # delete other related objects
         delete_in_batches(self.api_tokens.all(), pk="key")
-        delete_in_batches(self.invitations.all())
         delete_in_batches(self.schedules.all())
         delete_in_batches(self.boundaryalias_set.all())
         delete_in_batches(self.templates.all())

@@ -1,3 +1,8 @@
+v9.3.107 (2024-11-15)
+-------------------------
+ * Fix deleting orgs with invitations to teams
+ * More view refactoring
+
 v9.3.106 (2024-11-13)
 -------------------------
  * Show on user list pages whether user has 2FA enabled

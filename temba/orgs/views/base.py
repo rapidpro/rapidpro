@@ -35,9 +35,9 @@ class BaseReadView(OrgObjPermsMixin, SmartReadView):
     def derive_queryset(self, **kwargs):
         qs = super().derive_queryset(**kwargs)
 
-        # don't filter by org for staff users but let OrgObjPermsMixin provide a redirect
+        # filter by allowed org as we'll let OrgObjPermsMixin provide a redirect
         if not self.request.user.is_staff:
-            qs = qs.filter(org__users=self.request.user)
+            qs = qs.filter(org__in=self.request.user.orgs.all())
 
         if hasattr(self.model, "is_active"):
             qs = qs.filter(is_active=True)
