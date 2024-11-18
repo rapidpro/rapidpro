@@ -1,3 +1,7 @@
+v9.3.109 (2024-11-18)
+-------------------------
+ * Add support for TST type testing channels
+
 v9.3.108 (2024-11-18)
 -------------------------
  * Add Org.suspended_on to track when an org was suspended
