@@ -13,10 +13,10 @@ class TestType(ChannelType):
 
     code = "TST"
     name = "Test"
-    category = ChannelType.Category.PHONE
-    schemes = [URN.TEL_SCHEME]
+    category = ChannelType.Category.API
+    schemes = [URN.EXTERNAL_SCHEME]
 
-    claim_blurb = _("Only staff users can see this option. Used for load testing.")
+    claim_blurb = _("Only staff users can see this option. Used for load testing. Uses ext URNs.")
     claim_view = ClaimView
 
     def is_available_to(self, org, user):

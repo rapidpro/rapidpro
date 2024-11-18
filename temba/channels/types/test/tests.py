@@ -19,3 +19,4 @@ class TestTypeTest(TembaTest, CRUDLTestMixin):
 
         self.assertIsNotNone(channel)
         self.assertEqual(50, channel.tps)
+        self.assertEqual(["ext"], channel.schemes)
