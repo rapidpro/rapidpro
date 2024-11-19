@@ -5300,7 +5300,7 @@ class EndpointsTest(APITest):
                 },
             ],
             # one query per user for their settings
-            num_queries=NUM_BASE_SESSION_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
         # filter by roles
