@@ -9,7 +9,6 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
-from django.contrib.auth.models import User
 
 from temba import mailroom
 from temba.archives.models import Archive
@@ -22,7 +21,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
 from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
-from temba.orgs.models import Org, OrgRole
+from temba.orgs.models import Org, OrgRole, User
 from temba.tickets.models import Ticket, Topic
 from temba.utils import json
 from temba.utils.fields import NameValidator

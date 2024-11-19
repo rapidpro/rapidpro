@@ -11,7 +11,6 @@ from urllib.parse import unquote, urlparse
 import iso8601
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.storage import default_storage
 from django.db import models
@@ -23,7 +22,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, ContactGroup, ContactURN
-from temba.orgs.models import DependencyMixin, Export, ExportType, Org
+from temba.orgs.models import DependencyMixin, Export, ExportType, Org, User
 from temba.schedules.models import Schedule
 from temba.utils import languages, on_transaction_commit
 from temba.utils.export.models import MultiSheetExporter

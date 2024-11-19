@@ -4,7 +4,6 @@ from datetime import datetime
 import iso8601
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 
@@ -14,7 +13,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import Call
 from temba.msgs.models import Msg, OptIn
-from temba.orgs.models import Org
+from temba.orgs.models import Org, User
 from temba.tickets.models import Ticket, TicketEvent, Topic
 
 

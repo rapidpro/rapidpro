@@ -1,7 +1,6 @@
 import logging
 from abc import abstractmethod
 
-from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
 from django.urls import reverse
@@ -9,7 +8,7 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactImport
-from temba.orgs.models import Export, Org
+from temba.orgs.models import Export, Org, User
 from temba.utils.email import EmailSender
 
 logger = logging.getLogger(__name__)
