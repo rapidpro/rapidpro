@@ -1414,95 +1414,97 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_update(self, mr_mocks):
-        url = reverse("contacts.contactgroup_update", args=[self.joe_and_frank.id])
-
+        manual = self.create_group("Customers", [self.joe, self.frank])
+        smart = self.create_group("Dynamic", query="tel is 1234")
         open_tickets = self.org.groups.get(name="Open Tickets")
-        dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
-        # can't create group as viewer
-        self.login(self.user)
-        response = self.client.post(url, dict(name="Spammers"))
-        self.assertLoginRedirect(response)
+        update_url = reverse("contacts.contactgroup_update", args=[manual.id])
 
-        self.login(self.admin)
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=("name",))
 
         # try to update name to only whitespace
-        response = self.client.post(url, dict(name="   "))
-        self.assertFormError(response.context["form"], "name", "This field is required.")
-
-        # try to update name to contain a disallowed character
-        response = self.client.post(url, dict(name='"People"'))
-        self.assertFormError(response.context["form"], "name", 'Cannot contain the character: "')
-
-        # update with valid name (that will be trimmed)
-        response = self.client.post(url, dict(name="new name   "))
-        self.assertNoFormErrors(response)
-
-        self.joe_and_frank.refresh_from_db()
-        self.assertEqual(self.joe_and_frank.name, "new name")
-
-        # now try a dynamic group
-        url = reverse("contacts.contactgroup_update", args=[dynamic_group.id])
-
-        # mark our group as ready
-        ContactGroup.objects.filter(id=dynamic_group.id).update(status=ContactGroup.STATUS_READY)
-
-        # update both name and query, form should fail, because query is not parsable
-        mr_mocks.exception(mailroom.QueryValidationException("error at !", "syntax"))
-        response = self.client.post(url, dict(name="Frank", query="(!))!)"))
-        self.assertFormError(response.context["form"], "query", "Invalid query syntax.")
-
-        # try to update a group with an invalid query
-        mr_mocks.exception(mailroom.QueryValidationException("error at >", "syntax"))
-        response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
-        self.assertFormError(response.context["form"], "query", "Invalid query syntax.")
-
-        # dependent on id
-        response = self.client.post(url, dict(name="Frank", query="id = 123"))
-        self.assertFormError(
-            response.context["form"], "query", 'You cannot create a smart group based on "id" or "group".'
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "    "},
+            form_errors={"name": "This field is required."},
+            object_unchanged=manual,
         )
 
-        response = self.client.post(url, dict(name="Frank", query='twitter = "hola"'))
+        # try to update name to contain a disallowed character
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": '"People"'},
+            form_errors={"name": 'Cannot contain the character: "'},
+            object_unchanged=manual,
+        )
 
-        self.assertNoFormErrors(response)
+        # update with valid name (that will be trimmed)
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "new name   "})
 
-        dynamic_group.refresh_from_db()
-        self.assertEqual(dynamic_group.query, 'twitter = "hola"')
+        manual.refresh_from_db()
+        self.assertEqual(manual.name, "new name")
+
+        # now try a smart group
+        update_url = reverse("contacts.contactgroup_update", args=[smart.id])
+
+        # mark our group as ready
+        smart.status = ContactGroup.STATUS_READY
+        smart.save(update_fields=("status",))
+
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=("name", "query"))
+
+        # simulate submitting an unparseable query
+        mr_mocks.exception(mailroom.QueryValidationException("error at !", "syntax"))
+
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "Frank", "query": "(!))!)"},
+            form_errors={"query": "Invalid query syntax."},
+            object_unchanged=smart,
+        )
+
+        # or a query that depends on id
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "Frank", "query": "id = 123"},
+            form_errors={"query": 'You cannot create a smart group based on "id" or "group".'},
+            object_unchanged=smart,
+        )
+
+        # update with valid query
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Frank", "query": 'twitter = "hola"'})
+
+        smart.refresh_from_db()
+        self.assertEqual(smart.query, 'twitter = "hola"')
 
         # mark our dynamic group as evaluating
-        dynamic_group.status = ContactGroup.STATUS_EVALUATING
-        dynamic_group.save(update_fields=("status",))
+        smart.status = ContactGroup.STATUS_EVALUATING
+        smart.save(update_fields=("status",))
 
         # and check we can't change the query while that is the case
-        response = self.client.post(url, dict(name="Frank", query='twitter = "hello"'))
-        self.assertFormError(
-            response.context["form"], "query", "You cannot update the query of a group that is evaluating."
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "Frank", "query": 'twitter = "hello"'},
+            form_errors={"query": "You cannot update the query of a group that is populating."},
+            object_unchanged=smart,
         )
 
         # but can change the name
-        response = self.client.post(url, dict(name="Frank2", query='twitter = "hola"'))
-        self.assertNoFormErrors(response)
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Frank2", "query": 'twitter = "hola"'})
 
-        dynamic_group.refresh_from_db()
-        self.assertEqual(dynamic_group.name, "Frank2")
+        smart.refresh_from_db()
+        self.assertEqual(smart.name, "Frank2")
 
         # try to update a system group
-        response = self.client.post(
-            reverse("contacts.contactgroup_update", args=[open_tickets.id]), {"name": "new name"}
-        )
+        response = self.requestView(reverse("contacts.contactgroup_update", args=[open_tickets.id]), self.admin)
         self.assertEqual(404, response.status_code)
-        self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
-
-        # try to update group in other org
-        response = self.client.post(
-            reverse("contacts.contactgroup_update", args=[self.other_org_group.id]), {"name": "new name"}
-        )
-        self.assertLoginRedirect(response)
-
-        # check group is unchanged
-        self.other_org_group.refresh_from_db()
-        self.assertEqual("Customers", self.other_org_group.name)
 
     def test_usages(self):
         flow = self.get_flow("dependencies", name="Dependencies")

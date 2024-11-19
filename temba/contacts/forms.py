@@ -186,7 +186,7 @@ class ContactGroupForm(forms.ModelForm):
                 and self.instance.status != ContactGroup.STATUS_READY
                 and parsed.query != self.instance.query
             ):
-                raise forms.ValidationError(_("You cannot update the query of a group that is evaluating."))
+                raise forms.ValidationError(_("You cannot update the query of a group that is populating."))
 
             return parsed.query
 
