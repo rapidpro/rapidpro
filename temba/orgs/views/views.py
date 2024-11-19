@@ -408,13 +408,18 @@ class UserCRUDL(SmartCRUDL):
         search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
 
         def derive_queryset(self, **kwargs):
-            return (
+            qs = (
                 super(BaseListView, self)
                 .derive_queryset(**kwargs)
                 .filter(id__in=self.request.org.get_users().values_list("id", flat=True))
                 .order_by(Lower("email"))
                 .select_related("settings")
             )
+
+            if not self.request.user.is_staff:
+                qs = qs.exclude(settings__is_system=True)
+
+            return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -504,7 +509,7 @@ class UserCRUDL(SmartCRUDL):
             return self.request.org
 
         def get_queryset(self):
-            return self.request.org.get_users()
+            return self.request.org.get_users().exclude(settings__is_system=True)
 
         def derive_exclude(self):
             return [] if Org.FEATURE_TEAMS in self.request.org.features else ["team"]
@@ -528,7 +533,12 @@ class UserCRUDL(SmartCRUDL):
             team = (team or self.request.org.default_ticket_team) if role == OrgRole.AGENT else None
 
             # don't update if user is the last administrator and role is being changed to something else
-            has_other_admins = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=obj.id).exists()
+            has_other_admins = (
+                self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR])
+                .exclude(id=obj.id)
+                .exclude(settings__is_system=True)
+                .exists()
+            )
             if role != OrgRole.ADMINISTRATOR and not has_other_admins:
                 return obj
 
@@ -550,7 +560,7 @@ class UserCRUDL(SmartCRUDL):
             return self.request.org
 
         def get_queryset(self):
-            return self.request.org.get_users()
+            return self.request.org.get_users().exclude(settings__is_system=True)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -560,8 +570,13 @@ class UserCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             user = self.get_object()
 
-            # only actually remove user if they're not the last administator
-            if self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(id=user.id).exists():
+            # only actually remove user if they're not the last administator or a system user only for staff
+            if (
+                self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR])
+                .exclude(id=user.id)
+                .exclude(settings__is_system=True)
+                .exists()
+            ):
                 self.request.org.remove_user(user)
 
             return HttpResponseRedirect(self.get_redirect_url())

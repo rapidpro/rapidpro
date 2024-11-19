@@ -3543,7 +3543,7 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
         else:
             roles = None
 
-        return org.get_users(roles=roles).prefetch_related("settings")
+        return org.get_users(roles=roles)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

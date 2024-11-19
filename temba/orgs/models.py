@@ -1043,7 +1043,7 @@ class Org(SmartModel):
         """
         Gets users in this org, filtered by role or permission.
         """
-        qs = self.users.filter(is_active=True)
+        qs = self.users.filter(is_active=True).select_related("settings")
 
         if with_perm:
             app_label, codename = with_perm.split(".")
