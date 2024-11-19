@@ -21,6 +21,7 @@ class JustCallType(ChannelType):
 
     courier_url = r"^jcl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
+    async_activation = False
 
     claim_view = ClaimView
     claim_blurb = _("If you have a %(link)s number, you can quickly connect it using their APIs.") % {
