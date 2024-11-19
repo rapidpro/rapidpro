@@ -32,6 +32,7 @@ from temba.orgs.views.base import (
     BaseListView,
     BaseMenuView,
     BaseReadView,
+    BaseUpdateModal,
     BaseUsagesModal,
 )
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -863,32 +864,25 @@ class ContactGroupCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(BaseUpdateModal):
         form_class = ContactGroupForm
-        fields = ("name",)
         success_url = "uuid@contacts.contact_group"
 
-        def get_queryset(self):
-            return super().get_queryset().filter(is_system=False)
-
         def derive_fields(self):
-            return ("name", "query") if self.get_object().is_smart else ("name",)
+            return ("name", "query") if self.object.is_smart else ("name",)
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
+        def pre_save(self, obj):
+            obj._prev_query = self.get_object().query
 
-        def form_valid(self, form):
-            self.prev_query = self.get_object().query
-
-            return super().form_valid(form)
+            return super().pre_save(obj)
 
         def post_save(self, obj):
             obj = super().post_save(obj)
 
-            if obj.query and obj.query != self.prev_query:
+            # if query actually changed, update it
+            if obj.query and obj.query != obj._prev_query:
                 obj.update_query(obj.query)
+
             return obj
 
     class Usages(BaseUsagesModal):
