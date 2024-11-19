@@ -1,3 +1,11 @@
+v9.3.110 (2024-11-19)
+-------------------------
+ * Prevent workspace admins to modify the system user on a workspace
+ * Cleanup group update view
+ * Show on read page for a smart group if it's being populated.
+ * Disable async activation for channel types not showing config page
+ * Add is_system to user settings
+
 v9.3.109 (2024-11-18)
 -------------------------
  * Add support for TST type testing channels
