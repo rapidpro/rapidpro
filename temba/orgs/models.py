@@ -334,6 +334,7 @@ class UserSettings(models.Model):
     email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
     email_verification_secret = models.CharField(max_length=64, db_index=True)
     avatar = models.ImageField(upload_to=UploadToIdPathAndRename("avatars/"), storage=public_file_storage, null=True)
+    is_system = models.BooleanField(default=False)
 
 
 @receiver(post_save, sender=User)
