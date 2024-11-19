@@ -1755,11 +1755,20 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(
             list_url, [self.admin], context_objects=[self.admin, self.agent, self.editor, self.user]
         )
+        self.assertEqual(response.context["admin_count"], 1)
         self.assertContains(response, "(All Topics)")
 
         # can search by name or email
         self.assertListFetch(list_url + "?search=andy", [self.admin], context_objects=[self.admin])
         self.assertListFetch(list_url + "?search=editor@textit.com", [self.admin], context_objects=[self.editor])
+
+        response = self.requestView(list_url, self.customer_support, choose_org=self.org)
+        self.assertEqual(
+            set(list(response.context["object_list"])),
+            {self.admin, self.agent, self.editor, self.user, system_user},
+        )
+        self.assertContains(response, "(All Topics)")
+        self.assertEqual(response.context["admin_count"], 2)
 
     def test_team(self):
         team_url = reverse("orgs.user_team", args=[self.org.default_ticket_team.id])

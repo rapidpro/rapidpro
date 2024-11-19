@@ -432,7 +432,12 @@ class UserCRUDL(SmartCRUDL):
 
             context["has_viewers"] = self.request.org.get_users(roles=[OrgRole.VIEWER]).exists()
             context["has_teams"] = Org.FEATURE_TEAMS in self.request.org.features
-            context["admin_count"] = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR]).count()
+
+            admins = self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR])
+            if not self.request.user.is_staff:
+                admins = admins.exclude(settings__is_system=True)
+            context["admin_count"] = admins.count()
+
             return context
 
     class Team(RequireFeatureMixin, SpaMixin, ContextMenuMixin, BaseListView):
