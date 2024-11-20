@@ -17,6 +17,7 @@ from temba.utils.models import delete_in_batches
 
 from .models import (
     Flow,
+    FlowActivityCount,
     FlowCategoryCount,
     FlowNodeCount,
     FlowPathCount,
@@ -46,6 +47,8 @@ def update_session_wait_expires(flow_id):
 
 @cron_task(lock_timeout=7200)
 def squash_flow_counts():
+    FlowActivityCount.squash()
+
     FlowNodeCount.squash()
     FlowRunStatusCount.squash()
     FlowCategoryCount.squash()

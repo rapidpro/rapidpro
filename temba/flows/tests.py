@@ -834,6 +834,24 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             flow.get_run_stats(),
         )
 
+    def test_activity_new(self):
+        # for now just check squashing works
+        flow = self.create_flow("Test")
+        flow.counts.create(scope="foo:1", count=1)
+        flow.counts.create(scope="foo:1", count=2)
+        flow.counts.create(scope="foo:2", count=4)
+
+        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
+        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
+        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
+
+        squash_flow_counts()
+
+        self.assertEqual(2, flow.counts.count())
+        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
+        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
+        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
+
     def test_category_counts(self):
         def assertCount(counts, result_key, category_name, truth):
             found = False
