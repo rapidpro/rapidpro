@@ -74,8 +74,8 @@ class APIPermission(BasePermission):
             # auth token was used
             role = org.get_user_role(request.user)
 
-            # only editors, administrators and servicing staff can use API tokens
-            if role not in APIToken.ALLOWED_ROLES and not request.user.is_staff:
+            # only editors, administrators can use API tokens
+            if role not in APIToken.ALLOWED_ROLES:
                 return False
         elif org:
             role = org.get_user_role(request.user)
@@ -83,12 +83,14 @@ class APIPermission(BasePermission):
             return False
 
         has_perm = request.user.is_staff or role.has_api_perm(permission)
+        if not has_perm:
+            return False
 
-        # viewers can only ever GET from the API
-        if role == OrgRole.VIEWER:
-            return has_perm and request.method == "GET"
+        # viewers and servicing staff can only ever GET from the API
+        if role == OrgRole.VIEWER or (not role and request.user.is_staff):
+            return request.method == "GET"
 
-        return has_perm
+        return True
 
 
 class SSLPermission(BasePermission):  # pragma: no cover
@@ -220,7 +222,7 @@ class APIToken(models.Model):
         Creates a new API token for this user
         """
 
-        assert org.get_user_role(user) in cls.ALLOWED_ROLES or user.is_staff
+        assert org.get_user_role(user) in cls.ALLOWED_ROLES
 
         return cls.objects.create(user=user, org=org, key=generate_secret(40))
 

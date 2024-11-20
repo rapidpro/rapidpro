@@ -470,14 +470,11 @@ class EndpointsTest(APITest):
 
         token1 = APIToken.create(self.org, self.admin)
         token2 = APIToken.create(self.org, self.editor)
-        token3 = APIToken.create(self.org, self.customer_support)
 
         # can GET fields endpoint using all 3 tokens
         response = request_by_token(fields_url, token1.key)
         self.assertEqual(200, response.status_code)
         response = request_by_token(fields_url, token2.key)
-        self.assertEqual(200, response.status_code)
-        response = request_by_token(fields_url, token3.key)
         self.assertEqual(200, response.status_code)
 
         # can POST with all tokens
@@ -485,13 +482,11 @@ class EndpointsTest(APITest):
         self.assertEqual(201, response.status_code)
         response = request_by_token(fields_url, token2.key, {"name": "Field 2", "type": "text"})
         self.assertEqual(201, response.status_code)
-        response = request_by_token(fields_url, token3.key, {"name": "Field 3", "type": "text"})
-        self.assertEqual(201, response.status_code)
 
         response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
         self.assertEqual(200, response.status_code)
 
-        # can GET using session auth for all users
+        # can GET using session auth for admins, editors and servicing staff
         response = request_by_session(fields_url, self.admin)
         self.assertEqual(200, response.status_code)
         response = request_by_session(fields_url, self.editor)
@@ -499,11 +494,16 @@ class EndpointsTest(APITest):
         response = request_by_session(fields_url, self.customer_support)
         self.assertEqual(200, response.status_code)
 
-        # can POST using session auth for all users
+        # can POST using session auth for admins and editors
         response = request_by_session(fields_url, self.admin, {"name": "Field 4", "type": "text"})
         self.assertEqual(201, response.status_code)
         response = request_by_session(fields_url, self.editor, {"name": "Field 5", "type": "text"})
         self.assertEqual(201, response.status_code)
+        response = request_by_session(fields_url, self.customer_support, {"name": "Field 6", "type": "text"})
+        self.assertEqual(403, response.status_code)
+
+        # if a staff user is actually a member of the org, they can POST
+        self.org.add_user(self.customer_support, OrgRole.ADMINISTRATOR)
         response = request_by_session(fields_url, self.customer_support, {"name": "Field 6", "type": "text"})
         self.assertEqual(201, response.status_code)
 
@@ -545,10 +545,6 @@ class EndpointsTest(APITest):
 
         # but they can still make a request if they have a session
         response = request_by_session(fields_url, self.admin)
-        self.assertEqual(response.status_code, 200)
-
-        # or if they're a staff user because they are user-scoped
-        response = request_by_token(fields_url, token3.key)
         self.assertEqual(response.status_code, 200)
 
         # are allowed to access if we have not reached the configured org api rates
