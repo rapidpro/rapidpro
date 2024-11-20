@@ -1,4 +1,5 @@
 import base64
+import logging
 
 import requests
 
@@ -23,6 +24,8 @@ CONFIG_FB_TEMPLATE_LIST_DOMAIN = "fb_template_list_domain"
 CONFIG_FB_TEMPLATE_API_VERSION = "fb_template_list_domain_api_version"
 
 TEMPLATE_LIST_URL = "https://%s/%s/%s/message_templates"
+
+logger = logging.getLogger(__name__)
 
 
 class WhatsAppLegacyType(ChannelType):
@@ -117,10 +120,12 @@ class WhatsAppLegacyType(ChannelType):
         try:
             response = requests.get(channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=headers)
         except Exception as ex:
-            raise Exception(f"Could not establish a connection with the WhatsApp server: {ex}")
+            logger.debug(f"Could not establish a connection with the WhatsApp server: {ex}")
+            return
 
         if response.status_code >= 400:
-            raise requests.RequestException(f"Error checking API health: {response.content}", response=response)
+            logger.debug(f"Error checking API health: {response.content}")
+            return
 
         return response
 
