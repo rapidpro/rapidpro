@@ -51,28 +51,42 @@ class SquashableModel(models.Model):
         abstract = True
 
 
-class ScopedCountModel(SquashableModel):
+class DailyCountModel(SquashableModel):
     """
-    Base for scoped count squashable models
+    Base for daily scoped count squashable models
     """
 
-    squash_over = ("count_type", "scope")
+    squash_over = ("count_type", "scope", "day")
 
     count_type = models.CharField(max_length=1)
     scope = models.CharField(max_length=32)
+    day = models.DateField()
     count = models.IntegerField()
 
     @classmethod
-    def get_squash_query(cls, distinct_set):  # pragma: no cover
+    def get_squash_query(cls, distinct_set):
         sql = f"""
         WITH removed as (
-            DELETE FROM {cls._meta.db_table} WHERE count_type = %s AND scope = %s RETURNING count
+            DELETE FROM {cls._meta.db_table} WHERE count_type = %s AND scope = %s AND day = %s RETURNING count
         )
-        INSERT INTO {cls._meta.db_table}(count_type, scope, count, is_squashed)
-        VALUES (%s, %s, GREATEST(0, (SELECT SUM(count) FROM removed)), TRUE);
+        INSERT INTO {cls._meta.db_table}(count_type, scope, day, count, is_squashed)
+        VALUES (%s, %s, %s, GREATEST(0, (SELECT SUM(count) FROM removed)), TRUE);
         """
 
-        return sql, (distinct_set.count_type, distinct_set.scope)
+        return sql, (distinct_set.count_type, distinct_set.scope, distinct_set.day) * 2
+
+    @classmethod
+    def _get_counts(cls, count_type: str, scopes: dict, since, until):
+        counts = cls.objects.filter(count_type=count_type, scope__in=scopes.keys())
+        if since:
+            counts = counts.filter(day__gte=since)
+        if until:
+            counts = counts.filter(day__lt=until)
+        return counts
+
+    @classmethod
+    def _get_count_set(cls, count_type: str, scopes: dict, since, until):
+        return DailyCountModel.CountSet(cls._get_counts(count_type, scopes, since, until), scopes)
 
     class CountSet:
         """
@@ -102,49 +116,6 @@ class ScopedCountModel(SquashableModel):
                 total_by_scope[scope] = total_by_encoded_scope.get(encoded_scope, 0)
 
             return total_by_scope
-
-    class Meta:
-        abstract = True
-
-
-class DailyCountModel(ScopedCountModel):
-    """
-    Base for daily scoped count squashable models
-    """
-
-    squash_over = ("count_type", "scope", "day")
-
-    day = models.DateField()
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = f"""
-        WITH removed as (
-            DELETE FROM {cls._meta.db_table} WHERE count_type = %s AND scope = %s AND day = %s RETURNING count
-        )
-        INSERT INTO {cls._meta.db_table}(count_type, scope, day, count, is_squashed)
-        VALUES (%s, %s, %s, GREATEST(0, (SELECT SUM(count) FROM removed)), TRUE);
-        """
-
-        return sql, (distinct_set.count_type, distinct_set.scope, distinct_set.day) * 2
-
-    @classmethod
-    def _get_counts(cls, count_type: str, scopes: dict, since, until):
-        counts = cls.objects.filter(count_type=count_type, scope__in=scopes.keys())
-        if since:
-            counts = counts.filter(day__gte=since)
-        if until:
-            counts = counts.filter(day__lt=until)
-        return counts
-
-    @classmethod
-    def _get_count_set(cls, count_type: str, scopes: dict, since, until):
-        return DailyCountModel.CountSet(cls._get_counts(count_type, scopes, since, until), scopes)
-
-    class CountSet(ScopedCountModel.CountSet):
-        """
-        A queryset of counts which can be aggregated in different ways
-        """
 
         def day_totals(self):
             """
