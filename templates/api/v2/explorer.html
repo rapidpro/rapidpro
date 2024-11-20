@@ -17,16 +17,9 @@
     </div>
     <div class="mb-4">
       <temba-alert level="warning">
-        {% if api_token %}
-          {% blocktrans trimmed with org=user_org.name %}
-            All operations work against real data in the <b>{{ org }}</b> workspace.
-          {% endblocktrans %}
-        {% else %}
-          {% url "api.apitoken_list" as tokens_url %}
-          {% blocktrans trimmed with org=user_org.name %}
-            To use the explorer you need to first create <a href="{{ tokens_url }}">an API token</a>.
-          {% endblocktrans %}
-        {% endif %}
+        {% blocktrans trimmed with org=user_org.name %}
+          All operations work against real data in the <b>{{ org }}</b> workspace.
+        {% endblocktrans %}
       </temba-alert>
     </div>
     {% for endpoint in endpoints %}
@@ -90,10 +83,10 @@
                 https://{{ branding.domain }}{{ endpoint.url }}.json<span class="query-display"></span>
                 <br />
               </div>
-              {% if api_token %}
-                <b class="font-bold">Authorization:</b>
-                <div class="md:text-base md:inline whitespace-nowrap text-sm">Token {{ api_token }}</div>
-              {% endif %}
+              <b class="font-bold">Authorization:</b>
+              <div class="md:text-base md:inline whitespace-nowrap text-sm">
+                Token <span class="italic">[{% trans "your API Token" %}]</span>
+              </div>
             </div>
             {% if endpoint.params %}
               <div class="md:flex form-group items-center">
@@ -119,10 +112,8 @@
             <div class="pull-left">
               <a href="{{ endpoint.url }}">{% trans "View Full Documentation" %}</a>
             </div>
-            {% if api_token %}
-              <div onclick="javascript:handleRequest('{{ endpoint.slug }}', '{{ endpoint.method }}', '{{ endpoint.url }}.json')"
-                   class="button-primary">{{ endpoint.method|upper }}</div>
-            {% endif %}
+            <div onclick="javascript:handleRequest('{{ endpoint.slug }}', '{{ endpoint.method }}', '{{ endpoint.url }}.json')"
+                 class="button-primary">{{ endpoint.method|upper }}</div>
           </div>
           <pre style="margin-bottom:0;" class="prettyprint result mb-0 mt-4 p-4" id="result-{{ endpoint.slug }}"></pre>
         </div>
