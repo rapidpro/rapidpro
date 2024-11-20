@@ -34,6 +34,6 @@ DROP FUNCTION temba_insert_ticketcount_for_topic(INTEGER, INTEGER, CHAR(1), INT)
 
 class Migration(migrations.Migration):
 
-    dependencies = [("tickets", "0071_backfill_item_counts")]
+    dependencies = [("tickets", "0071_backfill_item_counts"), ("sql", "0006_squashed")]
 
     operations = [migrations.RunSQL(SQL)]
