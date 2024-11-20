@@ -1,3 +1,8 @@
+v9.3.111 (2024-11-20)
+-------------------------
+ * Allow using the API explorer without creating an API token
+ * Use temba.orgs.models.User consistently
+
 v9.3.110 (2024-11-19)
 -------------------------
  * Prevent workspace admins to modify the system user on a workspace
