@@ -125,10 +125,6 @@ class OrgUserRateThrottle(ScopedRateThrottle):
         if user.is_authenticated:
             ident = f"{org.id if org else 0}"  # scope to org
 
-            # but staff users get their own scope within the org
-            if user.is_staff:
-                ident += f"-{user.id}"
-
         return self.cache_format % {"scope": self.scope, "ident": ident or self.get_ident(request)}
 
 
