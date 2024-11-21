@@ -374,6 +374,7 @@
     </temba-tab>
     <temba-tab name="{{ _("Runs") |escapejs }}" icon="runs">
       <temba-run-list flow="{{ object.uuid }}"
+                      {% if org_perms.flows.flowrun_delete %}allowDelete{% endif %}
                       -temba-refreshed="handleRunsRefreshed"
                       class="p-4 flex flex-col flex-grow overflow-hidden">
       </temba-run-list>
