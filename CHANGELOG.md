@@ -1,3 +1,12 @@
+v9.3.112 (2024-11-21)
+-------------------------
+ * Update editor
+ * Hide option to delete runs for viewers
+ * Don't rewind path counts for deleted runs
+ * Add new FlowActivityCount model
+ * Use debug logging for channel types errors
+ * Limit servicing staff users to API GETs
+
 v9.3.111 (2024-11-20)
 -------------------------
  * Allow using the API explorer without creating an API token
