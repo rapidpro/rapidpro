@@ -833,24 +833,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             flow.get_run_stats(),
         )
 
-    def test_activity_new(self):
-        # for now just check squashing works
-        flow = self.create_flow("Test")
-        flow.counts.create(scope="foo:1", count=1)
-        flow.counts.create(scope="foo:1", count=2)
-        flow.counts.create(scope="foo:2", count=4)
-
-        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
-        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
-        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
-
-        squash_flow_counts()
-
-        self.assertEqual(2, flow.counts.count())
-        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
-        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
-        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
-
     def test_category_counts(self):
         def assertCount(counts, result_key, category_name, truth):
             found = False
@@ -5498,3 +5480,69 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=flow2).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=flow1).count())
+
+
+class FlowActivityCountTest(TembaTest):
+    def test_msgsin_counts(self):
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
+
+        def handle(msg, flow):
+            msg.status = "H"
+            msg.flow = flow
+            msg.save(update_fields=("status", "flow"))
+
+        contact = self.create_contact("Bob", phone="+1234567890")
+        self.create_outgoing_msg(contact, "Out")  # should be ignored
+        in1 = self.create_incoming_msg(
+            contact, "In 1", status="P", created_on=datetime(2024, 11, 21, 16, 39, tzinfo=tzone.utc)
+        )
+        in2 = self.create_incoming_msg(
+            contact, "In 2", status="P", created_on=datetime(2024, 11, 21, 16, 40, tzinfo=tzone.utc)
+        )
+        in3 = self.create_incoming_msg(
+            contact, "In 3", status="P", created_on=datetime(2024, 11, 22, 17, 10, tzinfo=tzone.utc)
+        )
+
+        self.assertEqual(0, flow1.counts.count())
+        self.assertEqual(0, flow2.counts.count())
+
+        handle(in1, flow1)
+        handle(in2, flow1)
+        handle(in3, flow2)
+
+        self.assertEqual(6, flow1.counts.count())
+        self.assertEqual(3, flow2.counts.count())
+
+        self.assertEqual(
+            {"msgsin:date:2024-11-21": 2, "msgsin:dow:4": 2, "msgsin:hour:16": 2},
+            flow1.counts.filter(scope__startswith="msgsin:").scope_totals(),
+        )
+        self.assertEqual(
+            {"msgsin:date:2024-11-22": 1, "msgsin:dow:5": 1, "msgsin:hour:17": 1},
+            flow2.counts.filter(scope__startswith="msgsin:").scope_totals(),
+        )
+
+        # other changes to msgs shouldn't create new counts
+        in1.archive()
+        in2.archive()
+
+        self.assertEqual(6, flow1.counts.count())
+        self.assertEqual(3, flow2.counts.count())
+
+    def test_squashing(self):
+        flow = self.create_flow("Test")
+        flow.counts.create(scope="foo:1", count=1)
+        flow.counts.create(scope="foo:1", count=2)
+        flow.counts.create(scope="foo:2", count=4)
+
+        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
+        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
+        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
+
+        squash_flow_counts()
+
+        self.assertEqual(2, flow.counts.count())
+        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
+        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
+        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
