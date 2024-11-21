@@ -10,6 +10,7 @@ from packaging.version import Version
 
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import OpClass
 from django.db import models, transaction
 from django.db.models import Max, Prefetch, Q, Sum
 from django.db.models.functions import Lower, TruncDate
@@ -1366,6 +1367,47 @@ class FlowRevision(models.Model):
 
     def release(self):
         self.delete()
+
+
+class FlowActivityCount(SquashableModel):
+    """
+    Flow-level counts of activity.
+    """
+
+    squash_over = ("flow_id", "scope")
+
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
+    scope = models.CharField(max_length=128)
+    count = models.IntegerField(default=0)
+
+    class QuerySet(models.QuerySet):
+        def sum(self) -> int:
+            return self.aggregate(count_sum=Sum("count"))["count_sum"] or 0
+
+    objects = QuerySet.as_manager()
+
+    @classmethod
+    def get_squash_query(cls, distinct_set) -> tuple:
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "scope" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("flow_id", "scope", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {
+            "table": cls._meta.db_table
+        }
+
+        params = (distinct_set.flow_id, distinct_set.scope) * 2
+
+        return sql, params
+
+    class Meta:
+        indexes = [
+            models.Index("flow", OpClass("scope", name="varchar_pattern_ops"), name="flowactivitycount_flow_scope"),
+            # for squashing task
+            models.Index(name="flowactivitycount_unsquashed", fields=("flow", "scope"), condition=Q(is_squashed=False)),
+        ]
 
 
 class FlowCategoryCount(SquashableModel):
