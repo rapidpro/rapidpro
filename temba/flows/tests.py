@@ -591,8 +591,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             flow.get_category_counts(),
         )
 
-        # now let's delete our contact, we'll still have one active node, but
-        # our visit path counts will go down by two since he went there twice
+        # now let's delete our contact, we'll still have one active node, and path counts will be unchanged
         self.contact.release(self.user)
 
         (active, visited) = flow.get_activity()
@@ -600,14 +599,14 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({beer_split["uuid"]: 1}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 1,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 1,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 0,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 0,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 0,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 1,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 1,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 1,
             },
             visited,
         )
@@ -652,14 +651,14 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 1,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 1,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 1,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 1,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 1,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
             },
             visited,
         )
@@ -672,7 +671,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             flow.get_run_stats(),
         )
 
-        # delete our last contact to make sure activity is gone without first expiring, zeros abound
+        # delete our last contact.. path counts should be unchanged
         ryan.release(self.admin)
 
         (active, visited) = flow.get_activity()
@@ -680,14 +679,14 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 0,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 0,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 0,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 0,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 0,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 0,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 0,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 0,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
             },
             visited,
         )
@@ -738,14 +737,14 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({color_split["uuid"]: 1}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 0,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 0,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 0,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 0,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 0,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 4,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 4,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
             },
             visited,
         )
@@ -769,14 +768,14 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 0,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 0,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 0,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 0,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 0,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 4,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 4,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
             },
             visited,
         )
