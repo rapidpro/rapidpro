@@ -1,3 +1,5 @@
+import logging
+
 import requests
 
 from django.forms import ValidationError
@@ -12,6 +14,8 @@ from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp import update_api_version
 
 from ...models import ChannelType, ConfigUI
+
+logger = logging.getLogger(__name__)
 
 
 class Dialog360LegacyType(ChannelType):
@@ -67,12 +71,20 @@ class Dialog360LegacyType(ChannelType):
         return response.json()["waba_templates"]
 
     def check_health(self, channel):
+        start = timezone.now()
         response = requests.get(
             channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=self.get_headers(channel)
         )
 
         if response.status_code != 200:
-            raise requests.RequestException("Could not check api status", response=response)
+            HTTPLog.from_exception(
+                HTTPLog.WHATSAPP_CHECK_HEALTH,
+                requests.RequestException("Could not check api status", response=response),
+                start,
+                channel=channel,
+            )
+            logger.debug(f"Error checking API health: {response.content}")
+            return
 
         return response
 

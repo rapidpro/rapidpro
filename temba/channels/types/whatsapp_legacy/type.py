@@ -116,6 +116,7 @@ class WhatsAppLegacyType(ChannelType):
 
     def check_health(self, channel):
         headers = self.get_api_headers(channel)
+        start = timezone.now()
 
         try:
             response = requests.get(channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=headers)
@@ -124,6 +125,12 @@ class WhatsAppLegacyType(ChannelType):
             return
 
         if response.status_code >= 400:
+            HTTPLog.from_exception(
+                HTTPLog.WHATSAPP_CHECK_HEALTH,
+                requests.RequestException(f"Error checking API health: {response.content}", response=response),
+                start,
+                channel=channel,
+            )
             logger.debug(f"Error checking API health: {response.content}")
             return
 
