@@ -39,7 +39,7 @@ def backfill_for_flow(apps, flow) -> int:
 
         def add_count(scope: str, count: int):
             if count > 0:
-                to_create.append(FlowActivityCount(flow=flow, scope=scope, count=count))
+                to_create.append(FlowActivityCount(flow=flow, scope=scope, count=count, is_squashed=True))
 
         by_dow = exit_counts.extra({"dow": "extract(isodow FROM period)"}).values("dow").annotate(total=Sum("count"))
         for count in by_dow:
