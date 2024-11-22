@@ -23,7 +23,7 @@ from temba.msgs.models import SystemLabel, SystemLabelCount
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, MockJsonResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
@@ -5545,3 +5545,86 @@ class FlowActivityCountTest(TembaTest):
         self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
         self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
         self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
+
+
+class BackfillEngagementCountsTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0340_update_triggers"
+    migrate_to = "0341_backfill_engagement_counts"
+
+    def setUpBeforeMigration(self, apps):
+        def create_flow(name, waiting_exit_uuids):
+            flow = self.create_flow(name)
+            flow.metadata["waiting_exit_uuids"] = waiting_exit_uuids
+            flow.save(update_fields=("metadata",))
+            return flow
+
+        def path_count(flow, from_uuid, period, count):
+            FlowPathCount.objects.create(flow=flow, from_uuid=from_uuid, to_uuid=uuid4(), period=period, count=count)
+
+        self.flow1 = create_flow(
+            "Flow 1", ["cf65941c-39cd-4e01-ae05-f7c1efb54975", "78238e17-e79e-449a-8f35-82c088ea2987"]
+        )
+        self.flow2 = create_flow("Flow 2", ["ae72b4c7-d3bb-4675-b5d4-b2b3205e940d"])
+        self.flow3 = create_flow("Flow 3", [])
+
+        path_count(
+            self.flow1,
+            "cf65941c-39cd-4e01-ae05-f7c1efb54975",
+            datetime(2024, 11, 22, 11, 0, tzinfo=tzone.utc),
+            3,
+        )
+        path_count(
+            self.flow1,
+            "cf65941c-39cd-4e01-ae05-f7c1efb54975",
+            datetime(2024, 11, 22, 11, 0, tzinfo=tzone.utc),
+            2,
+        )
+        path_count(
+            self.flow1,
+            "78238e17-e79e-449a-8f35-82c088ea2987",
+            datetime(2024, 11, 22, 10, 0, tzinfo=tzone.utc),
+            4,
+        )
+        path_count(
+            self.flow1,
+            "78238e17-e79e-449a-8f35-82c088ea2987",
+            datetime(2024, 11, 20, 8, 0, tzinfo=tzone.utc),
+            1,
+        )
+        path_count(
+            self.flow1,
+            "78238e17-e79e-449a-8f35-82c088ea2987",
+            datetime(2024, 11, 14, 7, 0, tzinfo=tzone.utc),
+            0,  # zero counts should be ignored
+        )
+        path_count(
+            self.flow1,
+            "ccc610b9-5745-48ec-9305-57112501841a",  # not a waiting exit
+            datetime(2024, 11, 22, 10, 0, tzinfo=tzone.utc),
+            4,
+        )
+        path_count(
+            self.flow2,
+            "ae72b4c7-d3bb-4675-b5d4-b2b3205e940d",
+            datetime(2024, 11, 22, 11, 0, tzinfo=tzone.utc),
+            7,
+        )
+
+    def test_migration(self):
+        self.assertEqual(
+            {
+                "msgsin:date:2024-11-20": 1,
+                "msgsin:date:2024-11-22": 9,
+                "msgsin:dow:3": 1,
+                "msgsin:dow:5": 9,
+                "msgsin:hour:8": 1,
+                "msgsin:hour:10": 4,
+                "msgsin:hour:11": 5,
+            },
+            self.flow1.counts.scope_totals(),
+        )
+        self.assertEqual(
+            {"msgsin:date:2024-11-22": 7, "msgsin:dow:5": 7, "msgsin:hour:11": 7}, self.flow2.counts.scope_totals()
+        )
+        self.assertEqual({}, self.flow3.counts.scope_totals())
