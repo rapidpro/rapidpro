@@ -32,7 +32,7 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.channels.models import Channel
 from temba.contacts.models import URN
-from temba.flows.models import Flow, FlowPathCount, FlowRevision, FlowRun, FlowSession, FlowStart
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
 from temba.orgs.models import IntegrationType, Org
@@ -1154,35 +1154,52 @@ class FlowCRUDL(SmartCRUDL):
 
         permission = "flows.flow_results"
 
+        day_names = (
+            _("Sunday"),
+            _("Monday"),
+            _("Tuesday"),
+            _("Wednesday"),
+            _("Thursday"),
+            _("Friday"),
+            _("Saturday"),
+        )
+
+        def get_day_of_week_counts(self, exit_uuids: list) -> dict:
+            dow = (
+                self.object.path_counts.filter(from_uuid__in=exit_uuids)
+                .extra({"day": "extract(dow from period::timestamp)"})
+                .values("day")
+                .annotate(count=Sum("count"))
+            )
+
+            return {int(d.get("day")): d.get("count") for d in dow}
+
+        def get_hour_of_day_counts(self, exit_uuids: list) -> dict:
+            hod = (
+                self.object.path_counts.filter(from_uuid__in=exit_uuids)
+                .extra({"hour": "extract(hour from period::timestamp)"})
+                .values("hour")
+                .annotate(count=Sum("count"))
+                .order_by("hour")
+            )
+
+            return {int(h.get("hour")): h.get("count") for h in hod}
+
         def render_to_response(self, context, **response_kwargs):
             total_responses = 0
             flow = self.object
 
-            from_uuids = flow.metadata["waiting_exit_uuids"]
-            dates = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).aggregate(
-                Max("period"), Min("period")
-            )
+            exit_uuids = flow.metadata["waiting_exit_uuids"]
+            dates = self.object.path_counts.filter(from_uuid__in=exit_uuids).aggregate(Max("period"), Min("period"))
             start_date = dates.get("period__min")
             end_date = dates.get("period__max")
 
-            # by hour of the day
-            hod = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).extra(
-                {"hour": "extract(hour from period::timestamp)"}
-            )
-            hod = hod.values("hour").annotate(count=Sum("count")).order_by("hour")
-            hod_dict = {int(h.get("hour")): h.get("count") for h in hod}
-
+            hour_dict = self.get_hour_of_day_counts(exit_uuids)
             hours = []
             for x in range(0, 24):
-                hours.append([x, hod_dict.get(x, 0)])
+                hours.append([x, hour_dict.get(x, 0)])
 
-            # by day of the week
-            dow = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).extra(
-                {"day": "extract(dow from period::timestamp)"}
-            )
-            dow = dow.values("day").annotate(count=Sum("count"))
-            dow_dict = {int(d.get("day")): d.get("count") for d in dow}
-
+            dow_dict = self.get_day_of_week_counts(exit_uuids)
             dow = []
             for x in range(0, 7):
                 day_count = dow_dict.get(x, 0)
@@ -1191,18 +1208,9 @@ class FlowCRUDL(SmartCRUDL):
 
             if total_responses > self.PERIOD_MIN:
                 dow = sorted(dow, key=lambda k: k["name"])
-                days = (
-                    _("Sunday"),
-                    _("Monday"),
-                    _("Tuesday"),
-                    _("Wednesday"),
-                    _("Thursday"),
-                    _("Friday"),
-                    _("Saturday"),
-                )
                 dow = [
                     {
-                        "name": days[d["name"]],
+                        "name": self.day_names[d["name"]],
                         "msgs": d["msgs"],
                         "y": 100 * float(d["msgs"]) / float(total_responses),
                     }
@@ -1215,7 +1223,7 @@ class FlowCRUDL(SmartCRUDL):
             if total_responses > self.HISTOGRAM_MIN:
                 # our main histogram
                 date_range = end_date - start_date
-                histogram = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids)
+                histogram = self.object.path_counts.filter(from_uuid__in=exit_uuids)
                 if date_range < timedelta(days=21):
                     histogram = histogram.extra({"bucket": "date_trunc('hour', period)"})
                     min_date = start_date - timedelta(hours=1)
