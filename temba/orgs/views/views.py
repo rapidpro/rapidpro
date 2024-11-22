@@ -538,12 +538,7 @@ class UserCRUDL(SmartCRUDL):
             team = (team or self.request.org.default_ticket_team) if role == OrgRole.AGENT else None
 
             # don't update if user is the last administrator and role is being changed to something else
-            has_other_admins = (
-                self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR])
-                .exclude(id=obj.id)
-                .exclude(settings__is_system=True)
-                .exists()
-            )
+            has_other_admins = self.request.org.get_admins().exclude(id=obj.id).exists()
             if role != OrgRole.ADMINISTRATOR and not has_other_admins:
                 return obj
 
@@ -575,13 +570,8 @@ class UserCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             user = self.get_object()
 
-            # only actually remove user if they're not the last administator or a system user only for staff
-            if (
-                self.request.org.get_users(roles=[OrgRole.ADMINISTRATOR])
-                .exclude(id=user.id)
-                .exclude(settings__is_system=True)
-                .exists()
-            ):
+            # only actually remove user if they're not the last administator
+            if self.request.org.get_admins().exclude(id=user.id).exists():
                 self.request.org.remove_user(user)
 
             return HttpResponseRedirect(self.get_redirect_url())
