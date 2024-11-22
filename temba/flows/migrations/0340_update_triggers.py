@@ -40,20 +40,16 @@ BEGIN
 
     -- add new flow activity counts for incoming messages now marked as handled by a flow
     INSERT INTO flows_flowactivitycount("flow_id", "scope", "count", "is_squashed")
-    SELECT n.flow_id, format('msgsin:hour:%s', extract(hour FROM n.created_on)), count(*), FALSE FROM newtab n
-    INNER JOIN oldtab o ON o.id = n.id
-    WHERE n.direction = 'I' AND o.flow_id IS NULL AND n.flow_id IS NOT NULL
-    GROUP BY 1, 2;
-    INSERT INTO flows_flowactivitycount("flow_id", "scope", "count", "is_squashed")
-    SELECT n.flow_id, format('msgsin:dow:%s', extract(isodow FROM n.created_on)), count(*), FALSE FROM newtab n
-    INNER JOIN oldtab o ON o.id = n.id
-    WHERE n.direction = 'I' AND o.flow_id IS NULL AND n.flow_id IS NOT NULL
-    GROUP BY 1, 2;
-    INSERT INTO flows_flowactivitycount("flow_id", "scope", "count", "is_squashed")
-    SELECT n.flow_id, format('msgsin:date:%s', n.created_on::date), count(*), FALSE FROM newtab n
-    INNER JOIN oldtab o ON o.id = n.id
-    WHERE n.direction = 'I' AND o.flow_id IS NULL AND n.flow_id IS NOT NULL
-    GROUP BY 1, 2;
+    SELECT s.flow_id, unnest(ARRAY[
+            format('msgsin:hour:%s', extract(hour FROM NOW())),
+            format('msgsin:dow:%s', extract(isodow FROM NOW())),
+            format('msgsin:date:%s', NOW()::date)
+        ]), s.msgs, FALSE
+    FROM (
+        SELECT n.flow_id, count(*) AS msgs FROM newtab n INNER JOIN oldtab o ON o.id = n.id
+        WHERE n.direction = 'I' AND o.flow_id IS NULL AND n.flow_id IS NOT NULL
+        GROUP BY 1
+    ) s;
 
     RETURN NULL;
 END;

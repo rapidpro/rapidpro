@@ -5495,15 +5495,9 @@ class FlowActivityCountTest(TembaTest):
 
         contact = self.create_contact("Bob", phone="+1234567890")
         self.create_outgoing_msg(contact, "Out")  # should be ignored
-        in1 = self.create_incoming_msg(
-            contact, "In 1", status="P", created_on=datetime(2024, 11, 21, 16, 39, tzinfo=tzone.utc)
-        )
-        in2 = self.create_incoming_msg(
-            contact, "In 2", status="P", created_on=datetime(2024, 11, 21, 16, 40, tzinfo=tzone.utc)
-        )
-        in3 = self.create_incoming_msg(
-            contact, "In 3", status="P", created_on=datetime(2024, 11, 22, 17, 10, tzinfo=tzone.utc)
-        )
+        in1 = self.create_incoming_msg(contact, "In 1", status="P")
+        in2 = self.create_incoming_msg(contact, "In 2", status="P")
+        in3 = self.create_incoming_msg(contact, "In 3", status="P")
 
         self.assertEqual(0, flow1.counts.count())
         self.assertEqual(0, flow2.counts.count())
@@ -5515,12 +5509,16 @@ class FlowActivityCountTest(TembaTest):
         self.assertEqual(6, flow1.counts.count())
         self.assertEqual(3, flow2.counts.count())
 
+        today = date.today().isoformat()  # date as YYYY-MM-DD
+        dow = date.today().isoweekday()  # weekday as 1(Mon)-7(Sun)
+        hour = timezone.now().astimezone(tzone.utc).hour
+
         self.assertEqual(
-            {"msgsin:date:2024-11-21": 2, "msgsin:dow:4": 2, "msgsin:hour:16": 2},
+            {f"msgsin:date:{today}": 2, f"msgsin:dow:{dow}": 2, f"msgsin:hour:{hour}": 2},
             flow1.counts.filter(scope__startswith="msgsin:").scope_totals(),
         )
         self.assertEqual(
-            {"msgsin:date:2024-11-22": 1, "msgsin:dow:5": 1, "msgsin:hour:17": 1},
+            {f"msgsin:date:{today}": 1, f"msgsin:dow:{dow}": 1, f"msgsin:hour:{hour}": 1},
             flow2.counts.filter(scope__startswith="msgsin:").scope_totals(),
         )
 
