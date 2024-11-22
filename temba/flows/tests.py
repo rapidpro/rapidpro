@@ -50,8 +50,8 @@ from .models import (
 )
 from .tasks import (
     interrupt_flow_sessions,
+    squash_activity_counts,
     squash_flow_counts,
-    squash_legacy_counts,
     trim_flow_revisions,
     trim_flow_sessions,
     update_session_wait_expires,
@@ -551,7 +551,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         )
 
         # check squashing doesn't change anything
-        squash_legacy_counts()
+        squash_flow_counts()
 
         (active, visited) = flow.get_activity()
 
@@ -3386,7 +3386,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual({"W": 2}, FlowRunStatusCount.get_totals(flow2))
 
         # no difference after squashing
-        squash_legacy_counts()
+        squash_flow_counts()
 
         self.assertEqual({"A": 2, "W": 1, "C": 1}, FlowRunStatusCount.get_totals(flow1))
         self.assertEqual({"W": 2}, FlowRunStatusCount.get_totals(flow2))
@@ -3411,7 +3411,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual({"W": 0, "X": 1, "I": 2}, FlowRunStatusCount.get_totals(flow2))
 
         # no difference after squashing
-        squash_legacy_counts()
+        squash_flow_counts()
 
         self.assertEqual({"A": 2, "W": 0, "C": 0, "I": 4}, FlowRunStatusCount.get_totals(flow1))
         self.assertEqual({"W": 0, "X": 1, "I": 2}, FlowRunStatusCount.get_totals(flow2))
@@ -5539,7 +5539,7 @@ class FlowActivityCountTest(TembaTest):
         self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
         self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
 
-        squash_flow_counts()
+        squash_activity_counts()
 
         self.assertEqual(2, flow.counts.count())
         self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
