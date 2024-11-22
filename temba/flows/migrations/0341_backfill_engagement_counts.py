@@ -58,6 +58,12 @@ def backfill_for_flow(apps, flow) -> int:
         return len(to_create)
 
 
+def apply_manual():  # pragma: no cover
+    from django.apps import apps
+
+    backfill_engagement_counts(apps, None)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [("flows", "0340_update_triggers")]
