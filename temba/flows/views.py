@@ -1224,10 +1224,8 @@ class FlowCRUDL(SmartCRUDL):
                 # our main histogram
                 date_range = end_date - start_date
                 histogram = self.object.path_counts.filter(from_uuid__in=exit_uuids)
-                if date_range < timedelta(days=21):
-                    histogram = histogram.extra({"bucket": "date_trunc('hour', period)"})
-                    min_date = start_date - timedelta(hours=1)
-                elif date_range < timedelta(days=500):
+
+                if date_range < timedelta(days=500):
                     histogram = histogram.extra({"bucket": "date_trunc('day', period)"})
                     min_date = end_date - timedelta(days=100)
                 else:
