@@ -935,6 +935,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for start in self.starts.all():
             start.delete()
 
+        delete_in_batches(self.counts.all())
         delete_in_batches(self.category_counts.all())
         delete_in_batches(self.path_counts.all())
         delete_in_batches(self.node_counts.all())
@@ -1383,6 +1384,10 @@ class FlowActivityCount(SquashableModel):
     class QuerySet(models.QuerySet):
         def sum(self) -> int:
             return self.aggregate(count_sum=Sum("count"))["count_sum"] or 0
+
+        def scope_totals(self) -> dict:
+            counts = self.values_list("scope").annotate(count_sum=Sum("count"))
+            return {c[0]: c[1] for c in counts}
 
     objects = QuerySet.as_manager()
 

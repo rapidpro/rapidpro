@@ -51,6 +51,7 @@ from .models import (
 from .tasks import (
     interrupt_flow_sessions,
     squash_flow_counts,
+    squash_legacy_counts,
     trim_flow_revisions,
     trim_flow_sessions,
     update_session_wait_expires,
@@ -550,7 +551,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         )
 
         # check squashing doesn't change anything
-        squash_flow_counts()
+        squash_legacy_counts()
 
         (active, visited) = flow.get_activity()
 
@@ -832,24 +833,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             },
             flow.get_run_stats(),
         )
-
-    def test_activity_new(self):
-        # for now just check squashing works
-        flow = self.create_flow("Test")
-        flow.counts.create(scope="foo:1", count=1)
-        flow.counts.create(scope="foo:1", count=2)
-        flow.counts.create(scope="foo:2", count=4)
-
-        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
-        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
-        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
-
-        squash_flow_counts()
-
-        self.assertEqual(2, flow.counts.count())
-        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
-        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
-        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
 
     def test_category_counts(self):
         def assertCount(counts, result_key, category_name, truth):
@@ -3403,7 +3386,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual({"W": 2}, FlowRunStatusCount.get_totals(flow2))
 
         # no difference after squashing
-        squash_flow_counts()
+        squash_legacy_counts()
 
         self.assertEqual({"A": 2, "W": 1, "C": 1}, FlowRunStatusCount.get_totals(flow1))
         self.assertEqual({"W": 2}, FlowRunStatusCount.get_totals(flow2))
@@ -3428,7 +3411,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual({"W": 0, "X": 1, "I": 2}, FlowRunStatusCount.get_totals(flow2))
 
         # no difference after squashing
-        squash_flow_counts()
+        squash_legacy_counts()
 
         self.assertEqual({"A": 2, "W": 0, "C": 0, "I": 4}, FlowRunStatusCount.get_totals(flow1))
         self.assertEqual({"W": 0, "X": 1, "I": 2}, FlowRunStatusCount.get_totals(flow2))
@@ -5498,3 +5481,67 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=flow2).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=flow1).count())
+
+
+class FlowActivityCountTest(TembaTest):
+    def test_msgsin_counts(self):
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
+
+        def handle(msg, flow):
+            msg.status = "H"
+            msg.flow = flow
+            msg.save(update_fields=("status", "flow"))
+
+        contact = self.create_contact("Bob", phone="+1234567890")
+        self.create_outgoing_msg(contact, "Out")  # should be ignored
+        in1 = self.create_incoming_msg(contact, "In 1", status="P")
+        in2 = self.create_incoming_msg(contact, "In 2", status="P")
+        in3 = self.create_incoming_msg(contact, "In 3", status="P")
+
+        self.assertEqual(0, flow1.counts.count())
+        self.assertEqual(0, flow2.counts.count())
+
+        handle(in1, flow1)
+        handle(in2, flow1)
+        handle(in3, flow2)
+
+        self.assertEqual(6, flow1.counts.count())
+        self.assertEqual(3, flow2.counts.count())
+
+        today = date.today().isoformat()  # date as YYYY-MM-DD
+        dow = date.today().isoweekday()  # weekday as 1(Mon)-7(Sun)
+        hour = timezone.now().astimezone(tzone.utc).hour
+
+        self.assertEqual(
+            {f"msgsin:date:{today}": 2, f"msgsin:dow:{dow}": 2, f"msgsin:hour:{hour}": 2},
+            flow1.counts.filter(scope__startswith="msgsin:").scope_totals(),
+        )
+        self.assertEqual(
+            {f"msgsin:date:{today}": 1, f"msgsin:dow:{dow}": 1, f"msgsin:hour:{hour}": 1},
+            flow2.counts.filter(scope__startswith="msgsin:").scope_totals(),
+        )
+
+        # other changes to msgs shouldn't create new counts
+        in1.archive()
+        in2.archive()
+
+        self.assertEqual(6, flow1.counts.count())
+        self.assertEqual(3, flow2.counts.count())
+
+    def test_squashing(self):
+        flow = self.create_flow("Test")
+        flow.counts.create(scope="foo:1", count=1)
+        flow.counts.create(scope="foo:1", count=2)
+        flow.counts.create(scope="foo:2", count=4)
+
+        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
+        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
+        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
+
+        squash_flow_counts()
+
+        self.assertEqual(2, flow.counts.count())
+        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
+        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
+        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())

@@ -48,11 +48,14 @@ def update_session_wait_expires(flow_id):
 @cron_task(lock_timeout=7200)
 def squash_flow_counts():
     FlowActivityCount.squash()
+    FlowStartCount.squash()
 
+
+@cron_task(lock_timeout=7200)
+def squash_legacy_counts():
     FlowNodeCount.squash()
     FlowRunStatusCount.squash()
     FlowCategoryCount.squash()
-    FlowStartCount.squash()
     FlowPathCount.squash()
 
 
