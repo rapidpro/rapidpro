@@ -1,3 +1,7 @@
+v9.3.115 (2024-11-22)
+-------------------------
+ * Tweak migration to allow offline use
+
 v9.3.114 (2024-11-22)
 -------------------------
  * Data migration to backfill new flow engagement counts
