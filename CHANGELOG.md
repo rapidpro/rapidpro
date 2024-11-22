@@ -1,3 +1,10 @@
+v9.3.113 (2024-11-22)
+-------------------------
+ * Use debug logging for channel types errors, D3 and WA
+ * Don't send notifications to system users
+ * Split up flow count squashing tasks so we can track performance separately
+ * Start tracking incoming message counts by flow
+
 v9.3.112 (2024-11-21)
 -------------------------
  * Update editor
