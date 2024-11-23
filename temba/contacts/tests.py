@@ -912,42 +912,42 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
 
         read_url = reverse("contacts.contact_read", args=[contact.uuid])
-        interrupt_url = reverse("contacts.contact_interrupt", args=[contact.id])
+        interrupt_url = reverse("contacts.contact_interrupt", args=[contact.uuid])
 
         self.login(self.admin)
 
-        # no interrupt option if not in a flow
+        # shoud see start flow option
         response = self.client.get(read_url)
-        self.assertNotContains(response, interrupt_url)
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Start Flow", "Open Ticket"])
 
         MockSessionWriter(contact, self.create_flow("Test")).wait().save()
         MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
 
-        # now it's an option
-        self.assertContentMenu(read_url, self.admin, ["Edit", "Start Flow", "Open Ticket", "Interrupt"])
+        # start option should be gone
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Open Ticket"])
 
         # can't interrupt if not logged in
         self.client.logout()
-        response = self.client.post(interrupt_url, {"id": contact.id})
+        response = self.client.post(interrupt_url)
         self.assertLoginRedirect(response)
 
         self.login(self.user)
 
         # can't interrupt if just regular user
-        response = self.client.post(interrupt_url, {"id": contact.id})
+        response = self.client.post(interrupt_url)
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
-        response = self.client.post(interrupt_url, {"id": contact.id})
+        response = self.client.post(interrupt_url)
         self.assertEqual(302, response.status_code)
 
         contact.refresh_from_db()
         self.assertIsNone(contact.current_flow)
 
         # can't interrupt contact in other org
-        restore_url = reverse("contacts.contact_interrupt", args=[other_org_contact.id])
-        response = self.client.post(restore_url, {"id": other_org_contact.id})
+        other_contact_interrupt = reverse("contacts.contact_interrupt", args=[other_org_contact.uuid])
+        response = self.client.post(other_contact_interrupt)
         self.assertLoginRedirect(response)
 
         # contact should be unchanged

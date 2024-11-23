@@ -29,7 +29,7 @@ html {
   --color-borders: rgba(0, 0, 0, 0.07);
   --color-placeholder: #ccc;
   --color-primary-light: #eee;
-  --color-secondary-light: rgba(var(--secondary-rgb), .3);
+  --color-secondary-light: rgba(var(--secondary-rgb), 0.3);
   --color-primary-dark: rgb(var(--primary-rgb));
   --color-secondary-dark: rgb(var(--secondary-rgb));
   --color-focus: #a4cafe;
@@ -38,7 +38,7 @@ html {
   --color-widget-border: rgb(225, 225, 225);
   --color-options-bg: var(--color-widget-bg);
   --color-selection: #f0f6ff;
-  --color-row-hover: rgba(var(--selection-light-rgb), .4);
+  --color-row-hover: rgba(var(--selection-light-rgb), 0.4);
   --color-available: #00f100;
   --color-tertiary: rgb(var(--tertiary-rgb));
   --color-text-light: rgba(255, 255, 255, 1);
@@ -59,7 +59,7 @@ html {
   --color-button-secondary-text: var(--color-text-dark);
   --color-button-destructive: rgb(var(--error-rgb));
   --color-button-destructive-text: var(--color-text-light);
-  --color-button-attention: #2ecc71;
+  --color-button-attention: #3ca96a;
   --color-label-primary: var(--color-primary-dark);
   --color-label-primary-text: var(--color-text-light);
   --color-label-secondary: var(--color-secondary-dark);
@@ -77,27 +77,31 @@ html {
   --color-alert: rgb(var(--error-rgb));
   --icon-color: var(--text-color);
   --icon-color-circle: rgb(240, 240, 240);
-  --icon-color-circle-hover: rgba(245, 245, 245, .8);
+  --icon-color-circle-hover: rgba(245, 245, 245, 0.8);
   --header-bg: var(--color-primary-dark);
   --header-text: var(--color-text-light);
   --color-text-help: rgb(120, 120, 120);
   --color-automated: rgb(78, 205, 106);
 
-
   /* Shadows */
-  --widget-box-shadow: rgba(-1, -1, 0, .1) 0px 1px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
-  --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45), rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+  --widget-box-shadow: rgba(-1, -1, 0, 0.1) 0px 1px 7px 0px,
+    rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+  --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, 0.45),
+    rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
   --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.3);
   --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow-widget: 0 3px 20px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  --shadow-widget: 0 3px 20px 0 rgba(0, 0, 0, 0.04),
+    0 1px 2px 0 rgba(0, 0, 0, 0.02);
 
   /* temba-select */
   --select-input-height: inherit;
   --temba-select-selected-font-size: 1em;
-  --temba-select-selected-padding: .6em .8em;
+  --temba-select-selected-padding: 0.6em 0.8em;
   --temba-select-selected-line-height: 1.2em;
-  --options-block-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  --options-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --options-block-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --options-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --dropdown-shadow: rgb(0 0 0 / 15%) 0px 0px 30px, rgb(0 0 0 / 12%) 0px 2px 6px;
 
   /* buttons */
@@ -106,7 +110,7 @@ html {
   --button-x: 1.5em;
 
   /* textinput */
-  --temba-textinput-padding: 0.6em .8em;
+  --temba-textinput-padding: 0.6em 0.8em;
   --temba-textinput-font-size: 1;
 
   /* charcount */
@@ -126,6 +130,4 @@ html {
   --event-padding: 0.5em 1em;
   --control-margin-bottom: 15px;
   --menu-padding: 1em;
-
-
 }

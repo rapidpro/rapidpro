@@ -46,6 +46,12 @@
   {{ block.super }}
   <script type="text/javascript">
     onSpload(function() {
+      const store = document.querySelector('temba-store');
+      if (store) {
+        store.makeRequest("/api/v2/users.json?email={{user.email}}", {
+          force: true
+        })
+      }
 
       // hide our password field by default
       var passwordContainer = document.getElementById("current-password");

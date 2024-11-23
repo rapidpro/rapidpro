@@ -491,6 +491,21 @@
       }
     }
 
+    function handleInterruptContact(event) {
+      const options = {
+        onSubmit: "contactUpdated()"
+      }
+      showModax("{{_('Interrupt Contact')|escapejs}}", "/contact/interrupt/" + event.detail.contact.uuid + "/", options);
+    }
+
+    function contactUpdated() {
+      const chat = document.querySelector('temba-contact-chat');
+      chat.refresh();
+
+      const contentMenu = document.querySelector("temba-content-menu#default-content-menu");
+      contentMenu.refresh();
+    }
+
     function handleTabChanged() {
       var tab = document.querySelector("temba-tabs").index;
       var url = window.location.pathname + "?tab=" + tab;
@@ -620,6 +635,8 @@
               <temba-contact-chat agent="{{ request.user.email }}"
                                   monitor="true"
                                   -temba-message-sent="handleMessageSent"
+                                  -temba-interrupt="handleInterruptContact"
+                                  {% if org_perms.contacts.contact_interrupt %}showInterrupt{% endif %}
                                   avatar="{{ branding.logos.avatar }}">
               </temba-contact-chat>
             </div>
