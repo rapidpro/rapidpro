@@ -1,3 +1,11 @@
+v9.3.116 (2024-11-25)
+-------------------------
+ * Improve and simplify flow engagement charts
+ * Allow releasing FBA channels even if we cannot reach the API to deactivate new conversation triggers
+ * Move active flow bar into chat component  
+ * Add email filtering for api users endpoint 
+ * Fix safari font rendering
+
 v9.3.115 (2024-11-22)
 -------------------------
  * Tweak migration to allow offline use
