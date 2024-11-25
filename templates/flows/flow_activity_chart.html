@@ -44,7 +44,7 @@
     }
   </style>
   <div class="chart" id="timeline_container">
-    <h4 id="timeline-title">Responses</h4>
+    <h4>{% trans "Responses" %}</h4>
     <div id="timeline"></div>
   </div>
   <div class="chart" id="completion_container">
@@ -68,21 +68,16 @@
       }).then(function(response) {
         const chartData = response.json;
 
-        document.getElementById('timeline-title').innerText = chartData.timeline.title;
-
         // hour of day histogram
         new Highcharts.Chart({
-          credits: {
-            enabled: false
+          title: {
+            text: null
           },
           colors: ['#2387CA'],
           chart: {
             renderTo: 'hod',
             type: 'column',
             backgroundColor: 'transparent',
-          },
-          title: {
-            text: null
           },
           xAxis: {
             title: {
@@ -132,13 +127,16 @@
           },
           series: [{
             data: chartData.hod.data
-          }]
+          }],
+          credits: {
+            enabled: false
+          }
         });
 
         // load our run status pie chart
         new Highcharts.chart({
-          credits: {
-            enabled: false
+          title: {
+            text: null
           },
           chart: {
             renderTo: 'completion',
@@ -149,12 +147,6 @@
             spacingBottom: 0,
             spacingLeft: 0,
             spacingRight: 0
-          },
-          title: {
-            text: chartData.completion.title,
-            align: 'center',
-            verticalAlign: 'middle',
-            y: 40
           },
           legend: {
             enabled: false
@@ -183,22 +175,22 @@
               endAngle: 90,
               center: ['50%', '75%']
             }
+          },
+          credits: {
+            enabled: false
           }
         });
 
         // day of week histogram
         new Highcharts.Chart({
-          credits: {
-            enabled: false
+          title: {
+            text: null
           },
           colors: ['#2387CA'],
           chart: {
             renderTo: 'dow',
             type: 'column',
             backgroundColor: 'transparent'
-          },
-          title: {
-            text: null
           },
           xAxis: {
             title: {
@@ -251,21 +243,21 @@
           },
           series: [{
             data: chartData.dow.data
-          }]
+          }],
+          credits: {
+            enabled: false
+          }
         });
 
         // timeline histogram
         new Highcharts.chart({
-          credits: {
-            enabled: false
+          title: {
+            text: null
           },
           chart: {
             renderTo: 'timeline',
             type: 'column',
             backgroundColor: 'transparent',
-          },
-          title: {
-            text: null
           },
           xAxis: {
             title: {
@@ -322,7 +314,10 @@
           series: [{
             name: '{{ _("Messages")|escapejs }}',
             data: chartData.timeline.data
-          }]
+          }],
+          credits: {
+            enabled: false
+          }
         });
       });
     }();

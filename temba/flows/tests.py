@@ -2832,7 +2832,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             {
                 "timeline": {
-                    "title": "0 Responses",
                     "data": [],
                     "min": 1729900800000,  # 2024-10-26
                 },
@@ -2849,7 +2848,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 },
                 "hod": {"data": [[i, 0] for i in range(24)]},
                 "completion": {
-                    "title": "0 runs",
                     "summary": [
                         {"name": "Active", "y": 0, "drilldown": None, "color": "#2387CA"},
                         {"name": "Completed", "y": 0, "drilldown": None, "color": "#8FC93A"},
@@ -2903,7 +2901,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             {
                 "timeline": {
-                    "title": "10 Responses",
                     "data": [[1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
                     "min": 1729900800000,  # 2024-10-26
                 },
@@ -2947,7 +2944,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                     ]
                 },
                 "completion": {
-                    "title": "10 runs",
                     "summary": [
                         {"name": "Active", "y": 4, "drilldown": None, "color": "#2387CA"},
                         {"name": "Completed", "y": 3, "drilldown": None, "color": "#8FC93A"},

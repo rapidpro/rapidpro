@@ -17,7 +17,6 @@ from smartmin.views import (
 
 from django import forms
 from django.conf import settings
-from django.contrib.humanize.templatetags import humanize
 from django.core.exceptions import ValidationError
 from django.db.models import Min, Sum
 from django.db.models.functions import Lower
@@ -26,7 +25,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
-from django.utils.translation import gettext_lazy as _, ngettext_lazy as _p
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
@@ -1221,13 +1220,10 @@ class FlowCRUDL(SmartCRUDL):
             timeline_data = self.get_date_counts(exit_uuids, truncate)
 
             run_status = self.object.get_run_stats()["status"]
-            run_total = sum(run_status.values())
 
             return JsonResponse(
                 {
                     "timeline": {
-                        "title": _p("%(total)s Response", "%(total)s Responses", msgsin_total)
-                        % {"total": humanize.intcomma(msgsin_total)},
                         "data": timeline_data,
                         "min": timeline_min,
                     },
@@ -1238,7 +1234,6 @@ class FlowCRUDL(SmartCRUDL):
                         "data": hod_data,
                     },
                     "completion": {
-                        "title": _("%(total)s runs") % {"total": humanize.intcomma(run_total)},
                         "summary": [
                             {
                                 "name": _("Active"),
