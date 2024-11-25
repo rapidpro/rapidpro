@@ -8,6 +8,13 @@ logger = logging.getLogger(__name__)
 
 
 class FormaxSectionMixin:
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        response = self.render_to_response(self.get_context_data(form=form))
+        response["X-Formax-Redirect"] = self.get_success_url()
+        return response
+
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
         context["base_template"] = "formax_section.html"
