@@ -1167,7 +1167,10 @@ class FlowCRUDL(SmartCRUDL):
                 .order_by("hour")
             )
 
-            return {int(h.get("hour")): h.get("count") for h in hod}
+            # hour counts are stored in UTC and need to be adjusted to the org's timezone
+            offset = self.object.org.timezone.utcoffset(timezone.now()).total_seconds() // 3600
+
+            return {(int(h["hour"]) + offset) % 24: h["count"] for h in hod}
 
         def get_date_counts(self, exit_uuids: list, truncate: str) -> list[tuple]:
             dates = (

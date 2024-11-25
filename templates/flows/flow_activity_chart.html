@@ -1,63 +1,22 @@
-{% load humanize i18n compress temba l10n %}
+{% load humanize i18n temba %}
 
 {% block extra-style %}
-  <style type="text/css">
-    #overview>div {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    #overview>div>div {
-      flex-basis: 400px;
-    }
-
-    #timeline_container {
-      height: 200px;
-    }
-
-    #timeline {
-      height: 200px;
-    }
-
-    #completion_container {}
-
-    #completion_container #completion {
-      height: 200px;
-    }
-
-    #dow_container {
-      width: 49%;
-    }
-
-    #dow_container #dow {
-      height: 200px;
-    }
-
-    #hod_container #hod {
-      height: 200px;
-    }
-
-    .datalabel {
-      size: 75%;
-      color: red;
-    }
-  </style>
-  <div class="chart" id="timeline_container">
+  <style type="text/css"></style>
+  <div id="timeline_container">
     <h4>{% trans "Responses" %}</h4>
-    <div id="timeline"></div>
+    <div id="timeline" class="p-2" style="height: 200px"></div>
   </div>
-  <div class="chart" id="completion_container">
+  <div id="completion_container">
     <h4>{% trans "Completion" %}</h4>
-    <div id="completion"></div>
+    <div id="completion" class="p-2" style="height: 200px"></div>
   </div>
-  <div class="chart" id="dow_container">
+  <div id="dow_container">
     <h4>{% trans "Day of Week" %}</h4>
-    <div id="dow"></div>
+    <div id="dow" class="p-2" style="height: 200px"></div>
   </div>
-  <div class="chart" id="hod_container">
-    <h4>{% trans "Time of Day" %}</h4>
-    <div id="hod"></div>
+  <div id="hod_container">
+    <h4>{% trans "Time of Day" %} ({{ user_org.timezone }})</h4>
+    <div id="hod" class="p-2" style="height: 200px"></div>
   </div>
   <script type="text/javascript">
     new function() {

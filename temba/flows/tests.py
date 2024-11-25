@@ -2961,7 +2961,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
             to_uuid="6174d6f6-5a78-425c-bde7-48625a2f992a",
             period=datetime(2024, 11, 26, 9, 0, 0, tzinfo=tzone.utc),
-            count=5,
+            count=4,
+        )
+        flow1.path_counts.create(  # 2024-11-26 23:00 (Tue)
+            from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
+            to_uuid="6174d6f6-5a78-425c-bde7-48625a2f992a",
+            period=datetime(2024, 11, 26, 23, 0, 0, tzinfo=tzone.utc),
+            count=1,
         )
         flow1.status_counts.create(status=FlowRun.STATUS_WAITING, count=4)
         flow1.status_counts.create(status=FlowRun.STATUS_COMPLETED, count=3)
@@ -2989,7 +2995,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 "hod": {
                     "data": [
                         [0, 0],
-                        [1, 0],
+                        [1, 1],  # 23:00 UTC is 01:00 in Kigali
                         [2, 0],
                         [3, 0],
                         [4, 0],
@@ -2997,12 +3003,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                         [6, 0],
                         [7, 0],
                         [8, 0],
-                        [9, 8],
+                        [9, 0],
                         [10, 0],
-                        [11, 0],
-                        [12, 2],
+                        [11, 7],
+                        [12, 0],
                         [13, 0],
-                        [14, 0],
+                        [14, 2],
                         [15, 0],
                         [16, 0],
                         [17, 0],
