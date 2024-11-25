@@ -1146,12 +1146,6 @@ class FlowCRUDL(SmartCRUDL):
             )
 
     class ActivityData(BaseReadView):
-        # the min number of responses to show a histogram
-        HISTOGRAM_MIN = 0
-
-        # the min number of responses to show the period charts
-        PERIOD_MIN = 0
-
         permission = "flows.flow_results"
 
         day_names = (
@@ -1186,7 +1180,6 @@ class FlowCRUDL(SmartCRUDL):
             return {int(h.get("hour")): h.get("count") for h in hod}
 
         def render_to_response(self, context, **response_kwargs):
-            total_responses = 0
             flow = self.object
 
             exit_uuids = flow.metadata["waiting_exit_uuids"]
@@ -1200,27 +1193,18 @@ class FlowCRUDL(SmartCRUDL):
                 hours.append([x, hour_dict.get(x, 0)])
 
             dow_dict = self.get_day_of_week_counts(exit_uuids)
-            dow = []
-            for x in range(0, 7):
-                day_count = dow_dict.get(x, 0)
-                dow.append({"name": x, "msgs": day_count})
-                total_responses += day_count
+            total_responses = sum(dow_dict.values())
 
-            if total_responses > self.PERIOD_MIN:
-                dow = sorted(dow, key=lambda k: k["name"])
-                dow = [
-                    {
-                        "name": self.day_names[d["name"]],
-                        "msgs": d["msgs"],
-                        "y": 100 * float(d["msgs"]) / float(total_responses),
-                    }
-                    for d in dow
-                ]
+            dow = []
+            for d in range(0, 7):
+                day_count = dow_dict.get(d, 0)
+                y = 100 * float(day_count) / float(total_responses) if total_responses else 0.0
+                dow.append({"name": self.day_names[d], "msgs": day_count, "y": y})
 
             min_date = None
             histogram = []
 
-            if total_responses > self.HISTOGRAM_MIN:
+            if total_responses > 0:
                 # our main histogram
                 date_range = end_date - start_date
                 histogram = self.object.path_counts.filter(from_uuid__in=exit_uuids)
@@ -1235,58 +1219,53 @@ class FlowCRUDL(SmartCRUDL):
                 histogram = histogram.values("bucket").annotate(count=Sum("count")).order_by("bucket")
                 histogram = [[_["bucket"], _["count"]] for _ in histogram]
 
-            summary = {
-                "responses": total_responses,
-            }
-
-            stats = flow.get_run_stats()
-            for status, count in stats["status"].items():
-                summary[status] = count
-
-            completion = {
-                "summary": [
-                    {
-                        "name": _("Active"),
-                        "y": summary.get("active", 0) + summary.get("waiting", 0),
-                        "drilldown": None,
-                        "color": "#2387CA",
-                    },
-                    {"name": _("Completed"), "y": summary.get("completed", 0), "drilldown": None, "color": "#8FC93A"},
-                    {
-                        "name": _("Interrupted, Expired and Failed"),
-                        "y": summary.get("interrupted", 0) + summary.get("expired", 0) + summary.get("failed", 0),
-                        "drilldown": "incomplete",
-                        "color": "#CCC",
-                    },
-                ],
-                "drilldown": [
-                    {
-                        "name": "Interrupted, Expired and Failed",
-                        "id": "incomplete",
-                        "innerSize": "50%",
-                        "data": [
-                            {"name": _("Expired"), "y": summary.get("expired", 0), "color": "#CCC"},
-                            {"name": _("Interrupted"), "y": summary.get("interrupted", 0), "color": "#EEE"},
-                            {"name": _("Failed"), "y": summary.get("failed", 0), "color": "#FEE"},
-                        ],
-                    }
-                ],
-            }
-
-            summary["title"] = _p("%(total)s Response", "%(total)s Responses", summary["responses"]) % {
-                "total": humanize.intcomma(summary["responses"])
-            }
+            run_status = flow.get_run_stats()["status"]
 
             return JsonResponse(
                 {
-                    "start_date": start_date,
-                    "end_date": end_date,
                     "min_date": min_date,
-                    "summary": summary,
+                    "summary": {
+                        "responses": total_responses,
+                        "title": _p("%(total)s Response", "%(total)s Responses", total_responses)
+                        % {"total": humanize.intcomma(total_responses)},
+                    },
                     "dow": dow,
                     "hod": hours,
                     "histogram": histogram,
-                    "completion": completion,
+                    "completion": {
+                        "summary": [
+                            {
+                                "name": _("Active"),
+                                "y": run_status["active"] + run_status["waiting"],
+                                "drilldown": None,
+                                "color": "#2387CA",
+                            },
+                            {
+                                "name": _("Completed"),
+                                "y": run_status["completed"],
+                                "drilldown": None,
+                                "color": "#8FC93A",
+                            },
+                            {
+                                "name": _("Interrupted, Expired and Failed"),
+                                "y": run_status["interrupted"] + run_status["expired"] + run_status["failed"],
+                                "drilldown": "incomplete",
+                                "color": "#CCC",
+                            },
+                        ],
+                        "drilldown": [
+                            {
+                                "name": "Interrupted, Expired and Failed",
+                                "id": "incomplete",
+                                "innerSize": "50%",
+                                "data": [
+                                    {"name": _("Expired"), "y": run_status["expired"], "color": "#CCC"},
+                                    {"name": _("Interrupted"), "y": run_status["interrupted"], "color": "#EEE"},
+                                    {"name": _("Failed"), "y": run_status["failed"], "color": "#FEE"},
+                                ],
+                            }
+                        ],
+                    },
                 },
                 json_dumps_params={"indent": 2},
                 encoder=json.EpochEncoder,

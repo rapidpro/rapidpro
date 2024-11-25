@@ -56,7 +56,6 @@ from .tasks import (
     trim_flow_sessions,
     update_session_wait_expires,
 )
-from .views import FlowCRUDL
 
 
 class FlowTest(TembaTest, CRUDLTestMixin):
@@ -2888,20 +2887,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Color", counts[0]["name"])
         self.assertEqual(2, counts[0]["total"])
 
-        FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
-        FlowCRUDL.ActivityChart.PERIOD_MIN = 0
-
         # and some charts
         response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
         data = response.json()
 
-        # we have two waiting runs, one failed run
-        self.assertEqual(data["summary"]["failed"], 1)
-        self.assertEqual(data["summary"]["active"], 0)
-        self.assertEqual(data["summary"]["waiting"], 2)
-        self.assertEqual(data["summary"]["completed"], 0)
-        self.assertEqual(data["summary"]["expired"], 0)
-        self.assertEqual(data["summary"]["interrupted"], 0)
         self.assertEqual(data["summary"]["title"], "3 Responses")
 
         # now complete the flow for Pete
@@ -2922,12 +2911,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
         data = response.json()
 
-        self.assertEqual(data["summary"]["failed"], 1)
-        self.assertEqual(data["summary"]["active"], 0)
-        self.assertEqual(data["summary"]["waiting"], 1)
-        self.assertEqual(data["summary"]["completed"], 1)
-        self.assertEqual(data["summary"]["expired"], 0)
-        self.assertEqual(data["summary"]["interrupted"], 0)
         self.assertEqual(data["summary"]["title"], "5 Responses")
 
         # they all happened on the same day
@@ -2968,6 +2951,147 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
         self.assertEqual(404, response.status_code)
+
+    @patch("django.utils.timezone.now")
+    def test_activity_data(self, mock_now):
+        # this test runs as if it's 2024-11-25 12:05:00
+        mock_now.return_value = datetime(2024, 11, 25, 12, 5, 0, tzinfo=tzone.utc)
+
+        flow1 = self.create_flow("Test 1")
+
+        data_url = reverse("flows.flow_activity_data", args=[flow1.id])
+
+        self.assertRequestDisallowed(data_url, [None, self.agent])
+
+        # check with no data
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        self.assertEqual(
+            {
+                "min_date": None,
+                "summary": {
+                    "responses": 0,
+                    "title": "0 Responses",
+                },
+                "dow": [
+                    {"name": "Sunday", "msgs": 0, "y": 0.0},
+                    {"name": "Monday", "msgs": 0, "y": 0.0},
+                    {"name": "Tuesday", "msgs": 0, "y": 0.0},
+                    {"name": "Wednesday", "msgs": 0, "y": 0.0},
+                    {"name": "Thursday", "msgs": 0, "y": 0.0},
+                    {"name": "Friday", "msgs": 0, "y": 0.0},
+                    {"name": "Saturday", "msgs": 0, "y": 0.0},
+                ],
+                "hod": [[i, 0] for i in range(24)],
+                "histogram": [],
+                "completion": {
+                    "summary": [
+                        {"name": "Active", "y": 0, "drilldown": None, "color": "#2387CA"},
+                        {"name": "Completed", "y": 0, "drilldown": None, "color": "#8FC93A"},
+                        {"name": "Interrupted, Expired and Failed", "y": 0, "drilldown": "incomplete", "color": "#CCC"},
+                    ],
+                    "drilldown": [
+                        {
+                            "name": "Interrupted, Expired and Failed",
+                            "id": "incomplete",
+                            "innerSize": "50%",
+                            "data": [
+                                {"name": "Expired", "y": 0, "color": "#CCC"},
+                                {"name": "Interrupted", "y": 0, "color": "#EEE"},
+                                {"name": "Failed", "y": 0, "color": "#FEE"},
+                            ],
+                        }
+                    ],
+                },
+            },
+            response.json(),
+        )
+
+        flow1.metadata["waiting_exit_uuids"] = ["326354b3-1086-4add-8b0e-abf4a9a6aef3"]
+        flow1.save(update_fields=("metadata",))
+
+        flow1.path_counts.create(
+            from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
+            to_uuid="a7b1b3b3-1086-4add-8b0e-abf4a9a6aef3",
+            period=datetime(2024, 11, 25, 12, 0, 0, tzinfo=tzone.utc),
+            count=2,
+        )
+        flow1.path_counts.create(
+            from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
+            to_uuid="6174d6f6-5a78-425c-bde7-48625a2f992a",
+            period=datetime(2024, 11, 24, 9, 0, 0, tzinfo=tzone.utc),
+            count=3,
+        )
+        flow1.status_counts.create(status=FlowRun.STATUS_WAITING, count=4)
+        flow1.status_counts.create(status=FlowRun.STATUS_COMPLETED, count=3)
+        flow1.status_counts.create(status=FlowRun.STATUS_EXPIRED, count=2)
+        flow1.status_counts.create(status=FlowRun.STATUS_INTERRUPTED, count=1)
+
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        self.assertEqual(
+            {
+                "min_date": 1723896000000,
+                "summary": {
+                    "responses": 5,
+                    "title": "5 Responses",
+                },
+                "dow": [
+                    {"name": "Sunday", "msgs": 3, "y": 60.0},
+                    {"name": "Monday", "msgs": 2, "y": 40.0},
+                    {"name": "Tuesday", "msgs": 0, "y": 0.0},
+                    {"name": "Wednesday", "msgs": 0, "y": 0.0},
+                    {"name": "Thursday", "msgs": 0, "y": 0.0},
+                    {"name": "Friday", "msgs": 0, "y": 0.0},
+                    {"name": "Saturday", "msgs": 0, "y": 0.0},
+                ],
+                "hod": [
+                    [0, 0],
+                    [1, 0],
+                    [2, 0],
+                    [3, 0],
+                    [4, 0],
+                    [5, 0],
+                    [6, 0],
+                    [7, 0],
+                    [8, 0],
+                    [9, 3],
+                    [10, 0],
+                    [11, 0],
+                    [12, 2],
+                    [13, 0],
+                    [14, 0],
+                    [15, 0],
+                    [16, 0],
+                    [17, 0],
+                    [18, 0],
+                    [19, 0],
+                    [20, 0],
+                    [21, 0],
+                    [22, 0],
+                    [23, 0],
+                ],
+                "histogram": [[1732406400000, 3], [1732492800000, 2]],
+                "completion": {
+                    "summary": [
+                        {"name": "Active", "y": 4, "drilldown": None, "color": "#2387CA"},
+                        {"name": "Completed", "y": 3, "drilldown": None, "color": "#8FC93A"},
+                        {"name": "Interrupted, Expired and Failed", "y": 3, "drilldown": "incomplete", "color": "#CCC"},
+                    ],
+                    "drilldown": [
+                        {
+                            "name": "Interrupted, Expired and Failed",
+                            "id": "incomplete",
+                            "innerSize": "50%",
+                            "data": [
+                                {"name": "Expired", "y": 2, "color": "#CCC"},
+                                {"name": "Interrupted", "y": 1, "color": "#EEE"},
+                                {"name": "Failed", "y": 0, "color": "#FEE"},
+                            ],
+                        }
+                    ],
+                },
+            },
+            response.json(),
+        )
 
     def test_activity(self):
         flow = self.get_flow("favorites_v13")
