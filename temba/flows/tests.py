@@ -2816,6 +2816,77 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.json(),
         )
 
+    def test_category_counts(self):
+        flow1 = self.create_flow("Test 1")
+
+        counts_url = reverse("flows.flow_category_counts", args=[flow1.uuid])
+
+        self.assertRequestDisallowed(counts_url, [None, self.agent])
+
+        # check with no data
+        response = self.assertReadFetch(counts_url, [self.user, self.editor, self.admin])
+        self.assertEqual({"counts": []}, response.json())
+
+        # simulate some category data
+        flow1.metadata["results"] = [{"key": "color", "name": "Color"}, {"key": "beer", "name": "Beer"}]
+        flow1.save(update_fields=("metadata",))
+
+        flow1.category_counts.create(
+            node_uuid="9b00751c-0d46-4e5f-86b1-7ccfae76ea10",
+            result_key="color",
+            result_name="Color",
+            category_name="Red",
+            count=3,
+        )
+        flow1.category_counts.create(
+            node_uuid="9b00751c-0d46-4e5f-86b1-7ccfae76ea10",
+            result_key="color",
+            result_name="Color",
+            category_name="Blue",
+            count=2,
+        )
+        flow1.category_counts.create(
+            node_uuid="9b00751c-0d46-4e5f-86b1-7ccfae76ea10",
+            result_key="color",
+            result_name="Color",
+            category_name="Other",
+            count=1,
+        )
+        flow1.category_counts.create(
+            node_uuid="300fd49b-c69d-4e8c-aba9-b6036d0b83d9",
+            result_key="beer",
+            result_name="Beer",
+            category_name="Primus",
+            count=7,
+        )
+
+        response = self.assertReadFetch(counts_url, [self.user, self.editor, self.admin])
+        self.assertEqual(
+            {
+                "counts": [
+                    {
+                        "key": "color",
+                        "name": "Color",
+                        "categories": [
+                            {"name": "Blue", "count": 2, "pct": 0.3333333333333333},
+                            {"name": "Other", "count": 1, "pct": 0.16666666666666666},
+                            {"name": "Red", "count": 3, "pct": 0.5},
+                        ],
+                        "total": 6,
+                    },
+                    {
+                        "key": "beer",
+                        "name": "Beer",
+                        "categories": [
+                            {"name": "Primus", "count": 7, "pct": 1.0},
+                        ],
+                        "total": 7,
+                    },
+                ]
+            },
+            response.json(),
+        )
+
     @patch("django.utils.timezone.now")
     def test_activity_data(self, mock_now):
         # this test runs as if it's 2024-11-25 12:05:00
