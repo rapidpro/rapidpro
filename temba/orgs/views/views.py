@@ -707,7 +707,7 @@ class UserCRUDL(SmartCRUDL):
             context["lockout_timeout"] = getattr(settings, "USER_LOCKOUT_TIMEOUT", 10)
             return context
 
-    class Edit(ComponentFormMixin, InferUserMixin, SmartUpdateView):
+    class Edit(FormaxSectionMixin, ComponentFormMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             first_name = forms.CharField(
                 label=_("First Name"), widget=InputWidget(attrs={"placeholder": _("Required")})
