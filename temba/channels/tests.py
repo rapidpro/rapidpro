@@ -266,6 +266,34 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(Channel.objects.filter(id=channel1.id).exists())
 
     @mock_mailroom
+    def test_release_facebook(self, mr_mocks):
+        channel = Channel.create(
+            self.org,
+            self.admin,
+            None,
+            "FBA",
+            name="Facebook",
+            address="12345",
+            role="SR",
+            schemes=["facebook"],
+            config={"auth_token": "09876543"},
+        )
+
+        flow = self.create_flow("Test")
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
+            Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, channel=channel)
+            self.assertEqual(1, channel.triggers.filter(is_active=True).count())
+
+        with patch("requests.delete") as mock_delete:
+            mock_delete.return_value = MockResponse(400, "error")
+
+            channel.release(self.admin)
+            self.assertEqual(0, channel.triggers.filter(is_active=True).count())
+            self.assertEqual(1, channel.triggers.filter(is_active=False).count())
+            self.assertFalse(channel.is_active)
+
+    @mock_mailroom
     def test_release_android(self, mr_mocks):
         android = self.claim_new_android()
         self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
