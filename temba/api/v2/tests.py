@@ -5293,6 +5293,24 @@ class EndpointsTest(APITest):
             num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
+        # filter by email
+        self.assertGet(
+            f"{endpoint_url}?email=agent@textit.com",
+            [self.agent],
+            results=[
+                {
+                    "avatar": None,
+                    "email": "agent@textit.com",
+                    "first_name": "Agnes",
+                    "last_name": "",
+                    "role": "agent",
+                    "created_on": format_datetime(self.agent.date_joined),
+                }
+            ],
+            # one query per user for their settings
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
+        )
+
         # filter by roles
         self.assertGet(endpoint_url + "?role=agent&role=editor", [self.editor], results=[self.agent, self.editor])
 
