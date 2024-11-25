@@ -645,7 +645,11 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         # any triggers associated with our channel get archived and released
         for trigger in self.triggers.filter(is_active=True):
-            trigger.archive(user)
+            try:
+                trigger.archive(user)
+            except Exception as e:
+                logger.error(f"Unable to deactivate a channel trigger: {str(e)}", exc_info=True)
+
             trigger.release(user)
 
         # any open incidents are ended
