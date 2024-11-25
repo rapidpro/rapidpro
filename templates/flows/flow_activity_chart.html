@@ -12,11 +12,11 @@
       flex-basis: 400px;
     }
 
-    #histogram_container {
+    #timeline_container {
       height: 200px;
     }
 
-    #histogram {
+    #timeline {
       height: 200px;
     }
 
@@ -43,61 +43,41 @@
       color: red;
     }
   </style>
-  <div class="hidden" id="no-results">
-    {% blocktrans trimmed %}
-      No responses have been received for this flow yet.
-    {% endblocktrans %}
+  <div class="chart" id="timeline_container">
+    <h4>{% trans "Responses" %}</h4>
+    <div id="timeline"></div>
   </div>
-  <div class="chart hidden" id="histogram_container">
-    <h4 id="summary-title">Responses</h4>
-    <div id="histogram"></div>
-  </div>
-  <div class="chart hidden" id="completion_container">
+  <div class="chart" id="completion_container">
     <h4>{% trans "Completion" %}</h4>
     <div id="completion"></div>
   </div>
-  <div class="chart hidden" id="dow_container">
+  <div class="chart" id="dow_container">
     <h4>{% trans "Day of Week" %}</h4>
     <div id="dow"></div>
   </div>
-  <div class="chart hidden" id="hod_container">
+  <div class="chart" id="hod_container">
     <h4>{% trans "Time of Day" %}</h4>
     <div id="hod"></div>
   </div>
   <script type="text/javascript">
     new function() {
-      const dataUrl = "{% url 'flows.flow_activity_data' flow.id %}";
       const store = document.querySelector('temba-store');
 
-      store.getUrl(dataUrl, {
+      store.getUrl("{% url 'flows.flow_activity_data' flow.id %}", {
         force: true
       }).then(function(response) {
         const chartData = response.json;
-        const hasResponses = chartData.summary.responses > 0;
-
-        if (hasResponses) {
-          document.querySelectorAll('#overview-charts .chart').forEach(function(chart) {
-            chart.classList.remove('hidden')
-          });
-        } else {
-          document.getElementById('no-results').classList.remove('hidden');
-        }
-
-        document.getElementById('summary-title').innerText = chartData.summary.title;
 
         // hour of day histogram
         new Highcharts.Chart({
-          credits: {
-            enabled: false
+          title: {
+            text: null
           },
           colors: ['#2387CA'],
           chart: {
             renderTo: 'hod',
             type: 'column',
             backgroundColor: 'transparent',
-          },
-          title: {
-            text: null
           },
           xAxis: {
             title: {
@@ -116,7 +96,7 @@
             minorGridLineWidth: 0,
             minorTickLength: 0,
             tickLength: 0,
-            categories: ['12a', '', '', '', '', '', '6a', '', '', '', '', '', '12p', '', '', '', '', '', '6p', '', '', '', '', '']
+            categories: ['00:00', '', '', '', '', '', '06:00', '', '', '', '', '', '12:00', '', '', '', '', '', '18:00', '', '', '', '', '']
           },
           yAxis: {
             title: {
@@ -146,14 +126,17 @@
             }
           },
           series: [{
-            data: chartData.hod
-          }]
+            data: chartData.hod.data
+          }],
+          credits: {
+            enabled: false
+          }
         });
 
         // load our run status pie chart
         new Highcharts.chart({
-          credits: {
-            enabled: false
+          title: {
+            text: null
           },
           chart: {
             renderTo: 'completion',
@@ -164,12 +147,6 @@
             spacingBottom: 0,
             spacingLeft: 0,
             spacingRight: 0
-          },
-          title: {
-            text: chartData.summary.responses + '<br />runs',
-            align: 'center',
-            verticalAlign: 'middle',
-            y: 40
           },
           legend: {
             enabled: false
@@ -198,22 +175,22 @@
               endAngle: 90,
               center: ['50%', '75%']
             }
+          },
+          credits: {
+            enabled: false
           }
         });
 
         // day of week histogram
         new Highcharts.Chart({
-          credits: {
-            enabled: false
+          title: {
+            text: null
           },
           colors: ['#2387CA'],
           chart: {
             renderTo: 'dow',
             type: 'column',
             backgroundColor: 'transparent'
-          },
-          title: {
-            text: null
           },
           xAxis: {
             title: {
@@ -227,7 +204,6 @@
             lineColor: '#2387CA',
             minorTickLength: 0,
             tickLength: 0,
-
             categories: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
           },
           yAxis: {
@@ -266,22 +242,22 @@
             }
           },
           series: [{
-            data: chartData.dow
-          }]
-        });
-
-        // response history histogram
-        new Highcharts.chart({
+            data: chartData.dow.data
+          }],
           credits: {
             enabled: false
-          },
-          chart: {
-            renderTo: 'histogram',
-            type: 'column',
-            backgroundColor: 'transparent',
-          },
+          }
+        });
+
+        // timeline histogram
+        new Highcharts.chart({
           title: {
             text: null
+          },
+          chart: {
+            renderTo: 'timeline',
+            type: 'column',
+            backgroundColor: 'transparent',
           },
           xAxis: {
             title: {
@@ -295,7 +271,7 @@
             lineColor: '#2980b9',
             minorTickLength: 0,
             tickLength: 0,
-            min: chartData.min_date,
+            min: chartData.timeline.min,
             type: 'datetime',
             dateTimeLabelFormats: {
               millisecond: '%H:%M:%S.%L',
@@ -337,8 +313,11 @@
           },
           series: [{
             name: '{{ _("Messages")|escapejs }}',
-            data: chartData.histogram
-          }]
+            data: chartData.timeline.data
+          }],
+          credits: {
+            enabled: false
+          }
         });
       });
     }();

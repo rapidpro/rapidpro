@@ -17,15 +17,15 @@ from smartmin.views import (
 
 from django import forms
 from django.conf import settings
-from django.contrib.humanize.templatetags import humanize
 from django.core.exceptions import ValidationError
-from django.db.models import Max, Min, Sum
+from django.db.models import Min, Sum
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
-from django.utils.translation import gettext_lazy as _, ngettext_lazy as _p
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
@@ -1148,17 +1148,7 @@ class FlowCRUDL(SmartCRUDL):
     class ActivityData(BaseReadView):
         permission = "flows.flow_results"
 
-        day_names = (
-            _("Sunday"),
-            _("Monday"),
-            _("Tuesday"),
-            _("Wednesday"),
-            _("Thursday"),
-            _("Friday"),
-            _("Saturday"),
-        )
-
-        def get_day_of_week_counts(self, exit_uuids: list) -> dict:
+        def get_day_of_week_counts(self, exit_uuids: list) -> dict[int, int]:
             dow = (
                 self.object.path_counts.filter(from_uuid__in=exit_uuids)
                 .extra({"day": "extract(dow from period::timestamp)"})
@@ -1168,7 +1158,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return {int(d.get("day")): d.get("count") for d in dow}
 
-        def get_hour_of_day_counts(self, exit_uuids: list) -> dict:
+        def get_hour_of_day_counts(self, exit_uuids: list) -> dict[int, int]:
             hod = (
                 self.object.path_counts.filter(from_uuid__in=exit_uuids)
                 .extra({"hour": "extract(hour from period::timestamp)"})
@@ -1179,59 +1169,70 @@ class FlowCRUDL(SmartCRUDL):
 
             return {int(h.get("hour")): h.get("count") for h in hod}
 
+        def get_date_counts(self, exit_uuids: list, truncate: str) -> list[tuple]:
+            dates = (
+                self.object.path_counts.filter(from_uuid__in=exit_uuids)
+                .extra({"date": f"date_trunc('{truncate}', period::date)"})
+                .values("date")
+                .annotate(count=Sum("count"))
+                .order_by("date")
+            )
+
+            return [(d.get("date"), d.get("count")) for d in dates]
+
         def render_to_response(self, context, **response_kwargs):
-            flow = self.object
+            today = timezone.now().date()
+            exit_uuids = self.object.metadata["waiting_exit_uuids"]
 
-            exit_uuids = flow.metadata["waiting_exit_uuids"]
-            dates = self.object.path_counts.filter(from_uuid__in=exit_uuids).aggregate(Max("period"), Min("period"))
-            start_date = dates.get("period__min")
-            end_date = dates.get("period__max")
-
-            hour_dict = self.get_hour_of_day_counts(exit_uuids)
-            hours = []
+            hod_counts = self.get_hour_of_day_counts(exit_uuids)
+            hod_data = []
             for x in range(0, 24):
-                hours.append([x, hour_dict.get(x, 0)])
+                hod_data.append([x, hod_counts.get(x, 0)])
 
-            dow_dict = self.get_day_of_week_counts(exit_uuids)
-            total_responses = sum(dow_dict.values())
+            dow_counts = self.get_day_of_week_counts(exit_uuids)
+            msgsin_total = sum(dow_counts.values())
 
-            dow = []
+            dow_data = []
             for d in range(0, 7):
-                day_count = dow_dict.get(d, 0)
-                y = 100 * float(day_count) / float(total_responses) if total_responses else 0.0
-                dow.append({"name": self.day_names[d], "msgs": day_count, "y": y})
+                day_count = dow_counts.get(d, 0)
+                dow_data.append(
+                    {"msgs": day_count, "y": 100 * float(day_count) / float(msgsin_total) if msgsin_total else 0.0}
+                )
 
-            min_date = None
-            histogram = []
+            # figure out the earliest date we have data for
+            timeline_min = (
+                self.object.path_counts.filter(from_uuid__in=exit_uuids).aggregate(Min("period")).get("period__min")
+            )
+            timeline_min = timeline_min.date() if timeline_min else None
 
-            if total_responses > 0:
-                # our main histogram
-                date_range = end_date - start_date
-                histogram = self.object.path_counts.filter(from_uuid__in=exit_uuids)
+            # if we have no data or it's all from the last 30 days, use that as the min date
+            if not timeline_min or timeline_min > today - timedelta(days=30):
+                timeline_min = today - timedelta(days=30)
 
-                if date_range < timedelta(days=500):
-                    histogram = histogram.extra({"bucket": "date_trunc('day', period)"})
-                    min_date = end_date - timedelta(days=100)
-                else:
-                    histogram = histogram.extra({"bucket": "date_trunc('week', period)"})
-                    min_date = end_date - timedelta(days=500)
+            # bucket dates into months or weeks depending on the range
+            if timeline_min < today - timedelta(days=365 * 3):
+                truncate = "month"
+            elif timeline_min < today - timedelta(days=365):
+                truncate = "week"
+            else:
+                truncate = "day"
 
-                histogram = histogram.values("bucket").annotate(count=Sum("count")).order_by("bucket")
-                histogram = [[_["bucket"], _["count"]] for _ in histogram]
+            timeline_data = self.get_date_counts(exit_uuids, truncate)
 
-            run_status = flow.get_run_stats()["status"]
+            run_status = self.object.get_run_stats()["status"]
 
             return JsonResponse(
                 {
-                    "min_date": min_date,
-                    "summary": {
-                        "responses": total_responses,
-                        "title": _p("%(total)s Response", "%(total)s Responses", total_responses)
-                        % {"total": humanize.intcomma(total_responses)},
+                    "timeline": {
+                        "data": timeline_data,
+                        "min": timeline_min,
                     },
-                    "dow": dow,
-                    "hod": hours,
-                    "histogram": histogram,
+                    "dow": {
+                        "data": dow_data,
+                    },
+                    "hod": {
+                        "data": hod_data,
+                    },
                     "completion": {
                         "summary": [
                             {

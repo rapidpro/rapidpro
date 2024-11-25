@@ -2816,141 +2816,76 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.json(),
         )
 
-    def test_results(self):
-        flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.get_definition()["nodes"]
-        color_prompt = flow_nodes[0]
-        color_split = flow_nodes[2]
-        beer_prompt = flow_nodes[3]
-        beer_split = flow_nodes[5]
-        name_prompt = flow_nodes[6]
-        name_split = flow_nodes[7]
-        end_prompt = flow_nodes[8]
+    def test_category_counts(self):
+        flow1 = self.create_flow("Test 1")
 
-        pete = self.create_contact("Pete", phone="+12065553027")
-        pete_session = (
-            MockSessionWriter(pete, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(pete, "blue"))
-            .set_result("Color", "blue", "Blue", "blue")
-            .visit(beer_prompt, exit_index=2)
-            .send_msg("Good choice, I like Blue too! What is your favorite beer?")
-            .visit(beer_split)
-            .wait()
-            .save()
+        counts_url = reverse("flows.flow_category_counts", args=[flow1.uuid])
+
+        self.assertRequestDisallowed(counts_url, [None, self.agent])
+
+        # check with no data
+        response = self.assertReadFetch(counts_url, [self.user, self.editor, self.admin])
+        self.assertEqual({"counts": []}, response.json())
+
+        # simulate some category data
+        flow1.metadata["results"] = [{"key": "color", "name": "Color"}, {"key": "beer", "name": "Beer"}]
+        flow1.save(update_fields=("metadata",))
+
+        flow1.category_counts.create(
+            node_uuid="9b00751c-0d46-4e5f-86b1-7ccfae76ea10",
+            result_key="color",
+            result_name="Color",
+            category_name="Red",
+            count=3,
+        )
+        flow1.category_counts.create(
+            node_uuid="9b00751c-0d46-4e5f-86b1-7ccfae76ea10",
+            result_key="color",
+            result_name="Color",
+            category_name="Blue",
+            count=2,
+        )
+        flow1.category_counts.create(
+            node_uuid="9b00751c-0d46-4e5f-86b1-7ccfae76ea10",
+            result_key="color",
+            result_name="Color",
+            category_name="Other",
+            count=1,
+        )
+        flow1.category_counts.create(
+            node_uuid="300fd49b-c69d-4e8c-aba9-b6036d0b83d9",
+            result_key="beer",
+            result_name="Beer",
+            category_name="Primus",
+            count=7,
         )
 
-        jimmy = self.create_contact("Jimmy", phone="+12065553026")
-        (
-            MockSessionWriter(jimmy, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(jimmy, "red"))
-            .set_result("Color", "red", "Red", "red")
-            .visit(beer_prompt, exit_index=2)
-            .send_msg("Good choice, I like Red too! What is your favorite beer?")
-            .visit(beer_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(jimmy, "turbo"))
-            .set_result("Beer", "turbo", "Turbo King", "turbo")
-            .visit(name_prompt, exit_index=2)
-            .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
-            .visit(name_split)
-            .wait()
-            .save()
+        response = self.assertReadFetch(counts_url, [self.user, self.editor, self.admin])
+        self.assertEqual(
+            {
+                "counts": [
+                    {
+                        "key": "color",
+                        "name": "Color",
+                        "categories": [
+                            {"name": "Blue", "count": 2, "pct": 0.3333333333333333},
+                            {"name": "Other", "count": 1, "pct": 0.16666666666666666},
+                            {"name": "Red", "count": 3, "pct": 0.5},
+                        ],
+                        "total": 6,
+                    },
+                    {
+                        "key": "beer",
+                        "name": "Beer",
+                        "categories": [
+                            {"name": "Primus", "count": 7, "pct": 1.0},
+                        ],
+                        "total": 7,
+                    },
+                ]
+            },
+            response.json(),
         )
-
-        john = self.create_contact("John", phone="+12065553028")
-        (
-            MockSessionWriter(john, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .fail("some error")
-            .save()
-        )
-
-        self.login(self.admin)
-
-        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
-        self.assertEqual(200, response.status_code)
-
-        # fetch counts endpoint, should have 2 color results (one is a test contact)
-        response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
-        counts = response.json()["counts"]
-        self.assertEqual("Color", counts[0]["name"])
-        self.assertEqual(2, counts[0]["total"])
-
-        # and some charts
-        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
-        data = response.json()
-
-        self.assertEqual(data["summary"]["title"], "3 Responses")
-
-        # now complete the flow for Pete
-        (
-            pete_session.resume(msg=self.create_incoming_msg(pete, "primus"))
-            .set_result("Beer", "primus", "Primus", "primus")
-            .visit(name_prompt)
-            .send_msg("Mmmmm... delicious Primus. Lastly, what is your name?")
-            .visit(name_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(pete, "Pete"))
-            .visit(end_prompt)
-            .complete()
-            .save()
-        )
-
-        # now only one waiting, one completed, one failed and 5 total responses
-        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
-        data = response.json()
-
-        self.assertEqual(data["summary"]["title"], "5 Responses")
-
-        # they all happened on the same day
-        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
-        data = response.json()
-        points = data["histogram"]
-        self.assertEqual(1, len(points))
-
-        # put one of our counts way in the past so we get a different histogram scale
-        count = FlowPathCount.objects.filter(flow=flow).order_by("id")[1]
-        count.period = count.period - timedelta(days=25)
-        count.save()
-
-        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
-        data = response.json()
-        points = data["histogram"]
-        self.assertTrue(timedelta(days=24).total_seconds() * 1000 < (points[1][0] - points[0][0]))
-
-        # pick another scale
-        count.period = count.period - timedelta(days=600)
-        count.save()
-        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
-
-        # this should give us a more compressed histogram
-        data = response.json()
-        points = data["histogram"]
-        self.assertTrue(timedelta(days=620).total_seconds() * 1000 < (points[1][0] - points[0][0]))
-
-        self.assertEqual(24, len(data["hod"]))
-        self.assertEqual(7, len(data["dow"]))
-
-        # check that views return 404 for inactive flows
-        flow = self.create_flow("Deleted")
-        flow.release(self.admin)
-
-        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-        self.assertEqual(404, response.status_code)
-
-        response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
-        self.assertEqual(404, response.status_code)
 
     @patch("django.utils.timezone.now")
     def test_activity_data(self, mock_now):
@@ -2967,22 +2902,22 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
         self.assertEqual(
             {
-                "min_date": None,
-                "summary": {
-                    "responses": 0,
-                    "title": "0 Responses",
+                "timeline": {
+                    "data": [],
+                    "min": 1729900800000,  # 2024-10-26
                 },
-                "dow": [
-                    {"name": "Sunday", "msgs": 0, "y": 0.0},
-                    {"name": "Monday", "msgs": 0, "y": 0.0},
-                    {"name": "Tuesday", "msgs": 0, "y": 0.0},
-                    {"name": "Wednesday", "msgs": 0, "y": 0.0},
-                    {"name": "Thursday", "msgs": 0, "y": 0.0},
-                    {"name": "Friday", "msgs": 0, "y": 0.0},
-                    {"name": "Saturday", "msgs": 0, "y": 0.0},
-                ],
-                "hod": [[i, 0] for i in range(24)],
-                "histogram": [],
+                "dow": {
+                    "data": [
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                    ]
+                },
+                "hod": {"data": [[i, 0] for i in range(24)]},
                 "completion": {
                     "summary": [
                         {"name": "Active", "y": 0, "drilldown": None, "color": "#2387CA"},
@@ -3006,20 +2941,27 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.json(),
         )
 
+        # simulate having some very recent data
         flow1.metadata["waiting_exit_uuids"] = ["326354b3-1086-4add-8b0e-abf4a9a6aef3"]
         flow1.save(update_fields=("metadata",))
 
-        flow1.path_counts.create(
+        flow1.path_counts.create(  # 2024-11-24 09:00 (Sun)
+            from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
+            to_uuid="6174d6f6-5a78-425c-bde7-48625a2f992a",
+            period=datetime(2024, 11, 24, 9, 0, 0, tzinfo=tzone.utc),
+            count=3,
+        )
+        flow1.path_counts.create(  # 2024-11-25 12:00 (Mon)
             from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
             to_uuid="a7b1b3b3-1086-4add-8b0e-abf4a9a6aef3",
             period=datetime(2024, 11, 25, 12, 0, 0, tzinfo=tzone.utc),
             count=2,
         )
-        flow1.path_counts.create(
+        flow1.path_counts.create(  # 2024-11-26 09:00 (Tue)
             from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
             to_uuid="6174d6f6-5a78-425c-bde7-48625a2f992a",
-            period=datetime(2024, 11, 24, 9, 0, 0, tzinfo=tzone.utc),
-            count=3,
+            period=datetime(2024, 11, 26, 9, 0, 0, tzinfo=tzone.utc),
+            count=5,
         )
         flow1.status_counts.create(status=FlowRun.STATUS_WAITING, count=4)
         flow1.status_counts.create(status=FlowRun.STATUS_COMPLETED, count=3)
@@ -3029,47 +2971,49 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
         self.assertEqual(
             {
-                "min_date": 1723896000000,
-                "summary": {
-                    "responses": 5,
-                    "title": "5 Responses",
+                "timeline": {
+                    "data": [[1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
+                    "min": 1729900800000,  # 2024-10-26
                 },
-                "dow": [
-                    {"name": "Sunday", "msgs": 3, "y": 60.0},
-                    {"name": "Monday", "msgs": 2, "y": 40.0},
-                    {"name": "Tuesday", "msgs": 0, "y": 0.0},
-                    {"name": "Wednesday", "msgs": 0, "y": 0.0},
-                    {"name": "Thursday", "msgs": 0, "y": 0.0},
-                    {"name": "Friday", "msgs": 0, "y": 0.0},
-                    {"name": "Saturday", "msgs": 0, "y": 0.0},
-                ],
-                "hod": [
-                    [0, 0],
-                    [1, 0],
-                    [2, 0],
-                    [3, 0],
-                    [4, 0],
-                    [5, 0],
-                    [6, 0],
-                    [7, 0],
-                    [8, 0],
-                    [9, 3],
-                    [10, 0],
-                    [11, 0],
-                    [12, 2],
-                    [13, 0],
-                    [14, 0],
-                    [15, 0],
-                    [16, 0],
-                    [17, 0],
-                    [18, 0],
-                    [19, 0],
-                    [20, 0],
-                    [21, 0],
-                    [22, 0],
-                    [23, 0],
-                ],
-                "histogram": [[1732406400000, 3], [1732492800000, 2]],
+                "dow": {
+                    "data": [
+                        {"msgs": 3, "y": 30.0},
+                        {"msgs": 2, "y": 20.0},
+                        {"msgs": 5, "y": 50.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                    ]
+                },
+                "hod": {
+                    "data": [
+                        [0, 0],
+                        [1, 0],
+                        [2, 0],
+                        [3, 0],
+                        [4, 0],
+                        [5, 0],
+                        [6, 0],
+                        [7, 0],
+                        [8, 0],
+                        [9, 8],
+                        [10, 0],
+                        [11, 0],
+                        [12, 2],
+                        [13, 0],
+                        [14, 0],
+                        [15, 0],
+                        [16, 0],
+                        [17, 0],
+                        [18, 0],
+                        [19, 0],
+                        [20, 0],
+                        [21, 0],
+                        [22, 0],
+                        [23, 0],
+                    ]
+                },
                 "completion": {
                     "summary": [
                         {"name": "Active", "y": 4, "drilldown": None, "color": "#2387CA"},
@@ -3092,6 +3036,71 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             },
             response.json(),
         )
+
+        # simulate having some data from 6 months ago
+        flow1.path_counts.create(
+            from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
+            to_uuid="a7b1b3b3-1086-4add-8b0e-abf4a9a6aef3",
+            period=datetime(2024, 5, 1, 12, 0, 0, tzinfo=tzone.utc),
+            count=4,
+        )
+
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        resp_json = response.json()
+        self.assertEqual(1714521600000, resp_json["timeline"]["min"])  # 2024-05-01
+        self.assertEqual(
+            [[1714521600000, 4], [1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
+            resp_json["timeline"]["data"],
+        )
+
+        # simulate having some data from 18 months ago (should trigger bucketing by week)
+        flow1.path_counts.create(
+            from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
+            to_uuid="a7b1b3b3-1086-4add-8b0e-abf4a9a6aef3",
+            period=datetime(2023, 5, 1, 12, 0, 0, tzinfo=tzone.utc),
+            count=3,
+        )
+
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        resp_json = response.json()
+        self.assertEqual(1682899200000, resp_json["timeline"]["min"])  # 2023-05-01
+        self.assertEqual(
+            [
+                [1682899200000, 3],  # 2023-05-01 (Mon)
+                [1714348800000, 4],  # 2024-04-29 (Mon)
+                [1731888000000, 3],  # 2024-11-18 (Mon)
+                [1732492800000, 7],  # 2024-11-25 (Mon)
+            ],
+            resp_json["timeline"]["data"],
+        )
+
+        # simulate having some data from 4 years ago (should trigger bucketing by month)
+        flow1.path_counts.create(
+            from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3",
+            to_uuid="a7b1b3b3-1086-4add-8b0e-abf4a9a6aef3",
+            period=datetime(2020, 11, 25, 12, 0, 0, tzinfo=tzone.utc),
+            count=6,
+        )
+
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        resp_json = response.json()
+        self.assertEqual(1606262400000, resp_json["timeline"]["min"])  # 2020-11-25
+        self.assertEqual(
+            [
+                [1604188800000, 6],  # 2020-11-01
+                [1682899200000, 3],  # 2023-05-01
+                [1714521600000, 4],  # 2024-05-01
+                [1730419200000, 10],  # 2024-11-01
+            ],
+            resp_json["timeline"]["data"],
+        )
+
+        # check 404 for inactive flow
+        flow = self.create_flow("Deleted")
+        flow.release(self.admin)
+
+        response = self.requestView(reverse("flows.flow_activity_data", args=[flow.id]), self.admin)
+        self.assertEqual(404, response.status_code)
 
     def test_activity(self):
         flow = self.get_flow("favorites_v13")
