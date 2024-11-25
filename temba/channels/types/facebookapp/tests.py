@@ -340,6 +340,8 @@ class FacebookTypeTest(TembaTest):
                 params={"access_token": "09876543"},
             )
             mock_post.reset_mock()
+            trigger.refresh_from_db()
+            self.assertFalse(trigger.is_archived)
 
         with patch("requests.delete") as mock_post:
             mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
@@ -353,6 +355,8 @@ class FacebookTypeTest(TembaTest):
                 params={"access_token": "09876543"},
             )
             mock_post.reset_mock()
+            trigger.refresh_from_db()
+            self.assertTrue(trigger.is_archived)
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
@@ -366,6 +370,24 @@ class FacebookTypeTest(TembaTest):
                 params={"access_token": "09876543"},
             )
             mock_post.reset_mock()
+            trigger.refresh_from_db()
+            self.assertFalse(trigger.is_archived)
+
+        with patch("requests.delete") as mock_post:
+            mock_post.side_effect = [MockResponse(400, "Error found")]
+
+            with self.assertRaises(Exception):
+                trigger.archive(self.admin)
+
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v18.0/me/messenger_profile",
+                json={"fields": ["get_started"]},
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()
+            trigger.refresh_from_db()
+            self.assertTrue(trigger.is_archived)
 
     def test_get_error_ref_url(self):
         self.assertEqual(
