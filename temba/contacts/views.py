@@ -336,7 +336,7 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             if obj.status == Contact.STATUS_ACTIVE:
-                if self.has_org_perm("flows.flow_start"):
+                if not obj.current_flow and self.has_org_perm("flows.flow_start"):
                     menu.add_modax(
                         _("Start Flow"),
                         "start-flow",
@@ -348,8 +348,6 @@ class ContactCRUDL(SmartCRUDL):
                     menu.add_modax(
                         _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[obj.id])
                     )
-                if self.has_org_perm("contacts.contact_interrupt") and obj.current_flow:
-                    menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(obj.id,)))
 
     class Scheduled(BaseReadView):
         """
@@ -800,13 +798,15 @@ class ContactCRUDL(SmartCRUDL):
         def get_success_url(self):
             return f"{reverse('tickets.ticket_list')}all/open/{self.ticket.uuid}/"
 
-    class Interrupt(OrgObjPermsMixin, SmartUpdateView):
+    class Interrupt(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Interrupt this contact
         """
 
+        slug_url_kwarg = "uuid"
         fields = ()
-        success_url = "uuid@contacts.contact_read"
+        success_url = "hide"
+        submit_button_name = _("Interrupt")
 
         def save(self, obj):
             obj.interrupt(self.request.user)

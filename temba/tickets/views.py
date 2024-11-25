@@ -317,12 +317,7 @@ class TicketCRUDL(SmartCRUDL):
                         on_submit="handleNoteAdded()",
                     )
 
-                if ticket.contact.current_flow:
-                    if self.has_org_perm("contacts.contact_interrupt"):
-                        menu.add_url_post(
-                            _("Interrupt"), reverse("contacts.contact_interrupt", args=(ticket.contact.id,))
-                        )
-                else:
+                if not ticket.contact.current_flow:
                     if self.has_org_perm("flows.flow_start"):
                         menu.add_modax(
                             _("Start Flow"),

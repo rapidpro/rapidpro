@@ -3497,7 +3497,7 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
 
     A **GET** returns the users in your workspace, ordered by newest created first.
 
-     * **email** - the email address of the user (string).
+     * **email** - the email address of the user (string), filterable as `email`.
      * **first_name** - the first name of the user (string).
      * **last_name** - the last name of the user (string).
      * **role** - the role of the user (string), filterable as `role` which can be repeated.
@@ -3530,6 +3530,11 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
 
     def derive_queryset(self):
         org = self.request.org
+
+        # filter by email if specified
+        email = self.request.query_params.get("email")
+        if email:
+            return org.users.filter(email__iexact=email).prefetch_related("settings")
 
         # limit to roles if specified
         roles = self.request.query_params.getlist("role")

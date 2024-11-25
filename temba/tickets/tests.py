@@ -755,12 +755,12 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(("tickets", "mine", "open", str(ticket.uuid)), response.context["temba_referer"])
 
-        # contacts in a flow get interrupt menu option instead
+        # contacts in a flow don't get a start flow option
         flow = self.create_flow("Test")
         self.contact.current_flow = flow
         self.contact.save()
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Interrupt"])
+        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note"])
 
         # closed our tickets don't get extra menu options
         ticket.status = Ticket.STATUS_CLOSED
