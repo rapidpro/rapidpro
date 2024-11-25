@@ -1595,7 +1595,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             reverse("orgs.org_edit"),
             {"name": "New Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
         )
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         self.org.refresh_from_db()
         self.assertEqual("New Name", self.org.name)
@@ -1666,6 +1666,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             langs_url,
             self.admin,
             {"primary_lang": '{"name":"French", "value":"fra"}', "input_collation": "confusables"},
+            success_status=200,
         )
 
         self.org.refresh_from_db()
@@ -1686,6 +1687,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "other_langs": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
                 "input_collation": "confusables",
             },
+            success_status=200,
         )
 
         self.org.refresh_from_db()
@@ -1991,6 +1993,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "email": "admin@textit.com",
                 "current_password": "",
             },
+            success_status=200,
         )
 
         self.admin.refresh_from_db()
@@ -2032,6 +2035,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "email": "admin@trileet.com",
                 "current_password": "Qwerty123",
             },
+            success_status=200,
         )
 
         self.admin.refresh_from_db()
@@ -2090,6 +2094,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "new_password": "Sesame765",
                 "current_password": "Qwerty123",
             },
+            success_status=200,
         )
 
         # should have a password changed notification
@@ -2114,6 +2119,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                     "last_name": "Flows",
                     "email": "admin@trileet.com",
                 },
+                success_status=200,
             )
 
             self.admin.refresh_from_db()
