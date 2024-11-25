@@ -266,7 +266,7 @@ function fetchAjax(url, options, fullPage = false) {
 
   let container = options['container'] || null;
 
-  // we don't track history for pjax requests
+  // we don't track history for interior requests
   if (container != '.spa-content') {
     options['ignoreHistory'] = true;
   }
@@ -284,7 +284,6 @@ function fetchAjax(url, options, fullPage = false) {
       }
 
       if (!options.ignoreHistory) {
-        console.log('adding to history!', url);
         addToHistory(url);
       }
 
@@ -330,7 +329,6 @@ function fetchAjax(url, options, fullPage = false) {
         // if we got redirected when updating our container, make sure reflect it in the url
         if (response.redirected) {
           if (response.url) {
-            console.log('redirected to ' + response.url);
             window.history.replaceState(
               { url: response.url },
               '',
