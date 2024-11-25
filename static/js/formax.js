@@ -44,8 +44,7 @@ window.fetchData = function (section) {
 
   const headers = {
     'X-Formax': true,
-    'X-Formax-Action': section.dataset.action,
-    'X-Pjax': true
+    'X-Formax-Action': section.dataset.action
   };
 
   if (section.closest('.spa-container')) {
@@ -128,8 +127,7 @@ var _submitFormax = function (e) {
 
   const headers = {
     'X-Formax': true,
-    'X-Formax-Action': section.dataset.action,
-    'X-Pjax': true
+    'X-Formax-Action': section.dataset.action
   };
 
   if (section.closest('.spa-container')) {

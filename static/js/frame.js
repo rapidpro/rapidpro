@@ -262,14 +262,13 @@ function fetchAjax(url, options, fullPage = false) {
 
   if (!fullPage) {
     options['headers']['X-Temba-Spa'] = 1;
-    options['headers']['X-Pjax'] = 1;
   }
 
   let container = options['container'] || null;
 
-  // reroute any pjax requests made from spa pages and push the content there instead
-  if (container == '#pjax' && document.querySelector('.spa-content')) {
-    container = '.spa-content';
+  // we don't track history for pjax requests
+  if (container != '.spa-content') {
+    options['ignoreHistory'] = true;
   }
 
   var controller = new AbortController();
@@ -285,6 +284,7 @@ function fetchAjax(url, options, fullPage = false) {
       }
 
       if (!options.ignoreHistory) {
+        console.log('adding to history!', url);
         addToHistory(url);
       }
 
@@ -330,6 +330,7 @@ function fetchAjax(url, options, fullPage = false) {
         // if we got redirected when updating our container, make sure reflect it in the url
         if (response.redirected) {
           if (response.url) {
+            console.log('redirected to ' + response.url);
             window.history.replaceState(
               { url: response.url },
               '',
@@ -484,12 +485,6 @@ function handleWorkspaceChanged(orgId) {
 
 document.addEventListener('temba-redirected', function (event) {
   spaGet(event.detail.url, true);
-});
-
-document.addEventListener('temba-pjax-complete', function () {
-  refreshMenu();
-  hideLoading();
-  handleUpdateComplete();
 });
 
 function loadFromState(state) {

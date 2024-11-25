@@ -1,8 +1,8 @@
 {% load sms %}
 
-{% render as pjax %}
-  {% block pjax %}
-  {% endblock pjax %}
+{% render as content %}
+  {% block content %}
+  {% endblock content %}
 {% endrender %}
 {% render as scripts %}
   {% block extra-script %}
@@ -16,8 +16,8 @@
     {% block summary %}
     {% endblock summary %}
   </div>
-  <div class="formax-form {% if form.errors %}errors{% endif %}">{{ pjax }}</div>
+  <div class="formax-form {% if form.errors %}errors{% endif %}">{{ content }}</div>
 {% else %}
   {{ scripts }}
-  {{ pjax }}
+  {{ content }}
 {% endif %}

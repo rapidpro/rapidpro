@@ -39,7 +39,7 @@ from django.views.generic import View
 from temba.api.models import Resthook
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
-from temba.formax import FormaxMixin
+from temba.formax import FormaxMixin, FormaxSectionMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
 from temba.tickets.models import Team
@@ -108,7 +108,7 @@ def check_login(request):
         return HttpResponseRedirect(reverse("orgs.login"))
 
 
-class IntegrationFormaxView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
+class IntegrationFormaxView(FormaxSectionMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
     class Form(forms.Form):
         def __init__(self, request, integration_type, **kwargs):
             self.request = request
@@ -1505,7 +1505,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return non_single_buckets, singles
 
-    class FlowSmtp(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class FlowSmtp(FormaxSectionMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         form_class = SMTPForm
 
         def post(self, request, *args, **kwargs):
@@ -2023,7 +2023,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return super().pre_save(obj)
 
-    class Prometheus(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Prometheus(FormaxSectionMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             class Meta:
                 model = Org
@@ -2074,7 +2074,7 @@ class OrgCRUDL(SmartCRUDL):
                     if integration.is_available_to(self.request.user):
                         integration.management_ui(self.object, formax)
 
-    class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Edit(FormaxSectionMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("Name"), widget=InputWidget())
             timezone = TimeZoneFormField(label=_("Timezone"), widget=SelectWidget(attrs={"searchable": True}))
@@ -2089,7 +2089,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_exclude(self):
             return ["language"] if len(settings.LANGUAGES) == 1 else []
 
-    class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Country(FormaxSectionMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class CountryForm(forms.ModelForm):
             country = forms.ModelChoiceField(
                 Org.get_possible_countries(),
@@ -2105,7 +2105,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = CountryForm
 
-    class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Languages(FormaxSectionMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class LanguageForm(forms.ModelForm):
             primary_lang = ArbitraryJsonChoiceField(
                 required=True,
