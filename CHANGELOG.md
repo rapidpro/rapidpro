@@ -1,3 +1,7 @@
+v9.3.118 (2024-11-26)
+-------------------------
+ * Add URL param (new=1) to read engagement chart data from new count model
+
 v9.3.117 (2024-11-26)
 -------------------------
  * Update smartmin and start cleaning up old pjax/formax code
