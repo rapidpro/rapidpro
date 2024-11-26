@@ -2137,11 +2137,11 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual("Amazing Flow 2", flow.get_definition()["metadata"]["name"])
 
-    def test_fetch_revisions(self):
-        self.login(self.admin)
-
-        # we should have one revision for an imported flow
+    def test_revisions(self):
         flow = self.get_flow("color_v11")
+
+        revisions_url = reverse("flows.flow_revisions", args=[flow.uuid])
+
         original_def = self.load_json("test_flows/color_v11.json")["flows"][0]
 
         # rewind definition to legacy spec
@@ -2163,7 +2163,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, revisions[1].revision)
         self.assertEqual("11.12", revisions[1].spec_version)
 
-        response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
+        self.assertRequestDisallowed(revisions_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(revisions_url, [self.user, self.editor, self.admin])
         self.assertEqual(
             [
                 {
@@ -2184,49 +2185,28 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.json()["results"],
         )
 
-        # now make our legacy revision invalid
-        definition = original_def.copy()
-        del definition["base_language"]
-        revisions[1].definition = definition
-        revisions[1].save(update_fields=("definition",))
-
-        # should be back to one valid revision (the non-legacy one)
-        response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
-        self.assertEqual(1, len(response.json()["results"]))
-
-        # fetch that revision
-        revision_id = response.json()["results"][0]["id"]
-        response = self.client.get(f"{reverse('flows.flow_revisions', args=[flow.uuid])}{revision_id}/")
+        # fetch a specific revision
+        response = self.assertReadFetch(f"{revisions_url}{revisions[0].id}/", [self.user, self.editor, self.admin])
 
         # make sure we can read the definition
         definition = response.json()["definition"]
         self.assertEqual("und", definition["language"])
 
-        # really break the legacy revision
-        revisions[1].definition = {"foo": "bar"}
-        revisions[1].save(update_fields=("definition",))
-
-        # should still have only one valid revision
-        response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
-        self.assertEqual(1, len(response.json()["results"]))
-
-        # fix the legacy revision
-        revisions[1].definition = original_def.copy()
-        revisions[1].save(update_fields=("definition",))
-
-        # fetch that revision
-        response = self.client.get(f"{reverse('flows.flow_revisions', args=[flow.uuid])}{revisions[1].id}/")
+        # fetch the legacy revision
+        response = self.client.get(f"{revisions_url}{revisions[1].id}/")
 
         # should automatically migrate to latest spec
         self.assertEqual(Flow.CURRENT_SPEC_VERSION, response.json()["definition"]["spec_version"])
 
         # but we can also limit how far it is migrated
-        response = self.client.get(
-            f"{reverse('flows.flow_revisions', args=[flow.uuid])}{revisions[1].id}/?version=13.0.0"
-        )
+        response = self.client.get(f"{revisions_url}{revisions[1].id}/?version=13.0.0")
 
         # should only have been migrated to that version
         self.assertEqual("13.0.0", response.json()["definition"]["spec_version"])
+
+        # check 404 for invalid revision number
+        response = self.requestView(f"{revisions_url}12345678/", self.admin)
+        self.assertEqual(404, response.status_code)
 
     def test_save_revisions(self):
         flow = self.create_flow("Go Flow")

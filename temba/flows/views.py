@@ -3,7 +3,6 @@ from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
 import regex
-from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -21,6 +20,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Min, Sum
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
@@ -32,7 +32,7 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.channels.models import Channel
 from temba.contacts.models import URN
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
+from temba.flows.models import Flow, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
 from temba.orgs.models import IntegrationType, Org
@@ -289,7 +289,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
-                revision = FlowRevision.objects.get(flow=flow, id=revision_id)
+                revision = get_object_or_404(flow.revisions.filter(id=revision_id))
                 definition = revision.get_migrated_definition(to_version=requested_version)
 
                 # get our metadata
@@ -302,35 +302,10 @@ class FlowCRUDL(SmartCRUDL):
                     }
                 )
 
-            # build a list of valid revisions to display
-            revisions = []
-
-            for revision in flow.revisions.all().order_by("-revision")[:100]:
-                revision_version = Version(revision.spec_version)
-
-                # our goflow revisions are already validated
-                if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
-                    revisions.append(revision.as_json())
-                    continue
-
-                # legacy revisions should be validated first as a failsafe
-                try:
-                    legacy_flow_def = revision.get_migrated_definition(to_version=Flow.FINAL_LEGACY_VERSION)
-                    FlowRevision.validate_legacy_definition(legacy_flow_def)
-                    revisions.append(revision.as_json())
-
-                except ValueError:
-                    # "expected" error in the def, silently cull it
-                    pass
-
-                except Exception as e:
-                    # something else, we still cull, but report it to sentry
-                    logger.error(
-                        f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
-                    )
-                    pass
-
-            return JsonResponse({"results": revisions}, safe=False)
+            # orderwise return summaries of the latest 100
+            return JsonResponse(
+                {"results": [rev.as_json() for rev in flow.revisions.all().order_by("-revision")[:100]]}
+            )
 
         def post(self, request, *args, **kwargs):
             if not self.has_org_perm("flows.flow_update"):
