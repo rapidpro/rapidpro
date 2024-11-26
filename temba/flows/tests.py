@@ -2905,7 +2905,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 {
                     "timeline": {
                         "data": [],
-                        "min": 1729900800000,  # 2024-10-26
+                        "xmin": 1729900800000,  # 2024-10-26
+                        "xmax": 1732492800000,  # 2024-11-25
+                        "ymax": 0,
                     },
                     "dow": {
                         "data": [
@@ -2975,7 +2977,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 {
                     "timeline": {
                         "data": [[1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
-                        "min": 1729900800000,  # 2024-10-26
+                        "xmin": 1729900800000,  # 2024-10-26
+                        "xmax": 1732492800000,
+                        "ymax": 5,
                     },
                     "dow": {
                         "data": [
@@ -3050,7 +3054,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         for use_new in ("0", "1"):
             response = self.assertReadFetch(data_url + f"?new={use_new}", [self.user, self.editor, self.admin])
             resp_json = response.json()
-            self.assertEqual(1714521600000, resp_json["timeline"]["min"])  # 2024-05-01
+            self.assertEqual(1714521600000, resp_json["timeline"]["xmin"])  # 2024-05-01
             self.assertEqual(
                 [[1714521600000, 4], [1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
                 resp_json["timeline"]["data"],
@@ -3062,7 +3066,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         for use_new in ("0", "1"):
             response = self.assertReadFetch(data_url + f"?new={use_new}", [self.user, self.editor, self.admin])
             resp_json = response.json()
-            self.assertEqual(1682899200000, resp_json["timeline"]["min"])  # 2023-05-01
+            self.assertEqual(1682899200000, resp_json["timeline"]["xmin"])  # 2023-05-01
             self.assertEqual(
                 [
                     [1682899200000, 3],  # 2023-05-01 (Mon)
@@ -3079,7 +3083,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         for use_new in ("0", "1"):
             response = self.assertReadFetch(data_url + f"?new={use_new}", [self.user, self.editor, self.admin])
             resp_json = response.json()
-            self.assertEqual(1606262400000, resp_json["timeline"]["min"])  # 2020-11-25
+            self.assertEqual(1606262400000, resp_json["timeline"]["xmin"])  # 2020-11-25
             self.assertEqual(
                 [
                     [1604188800000, 6],  # 2020-11-01
