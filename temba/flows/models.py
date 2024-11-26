@@ -1385,7 +1385,7 @@ class FlowActivityCount(SquashableModel):
         def sum(self) -> int:
             return self.aggregate(count_sum=Sum("count"))["count_sum"] or 0
 
-        def scope_totals(self) -> dict:
+        def scope_totals(self) -> dict[str, int]:
             counts = self.values_list("scope").annotate(count_sum=Sum("count"))
             return {c[0]: c[1] for c in counts}
 
