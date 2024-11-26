@@ -1,7 +1,5 @@
-import functools
 import itertools
 import logging
-import operator
 import os
 from abc import ABCMeta
 from collections import defaultdict
@@ -27,7 +25,7 @@ from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import models, transaction
-from django.db.models import Count, Prefetch, Q, Sum
+from django.db.models import Count, Prefetch, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -44,6 +42,7 @@ from temba.utils.dates import datetime_to_str
 from temba.utils.email import EmailSender
 from temba.utils.fields import UploadToIdPathAndRename
 from temba.utils.models import JSONField, SquashableModel, TembaUUIDMixin, delete_in_batches
+from temba.utils.models.counts import ScopeCountQuerySet
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_secret, generate_token
 from temba.utils.timezones import timezone_to_country_code
@@ -1884,14 +1883,7 @@ class ItemCount(SquashableModel):
     scope = models.CharField(max_length=64)
     count = models.IntegerField(default=0)
 
-    class QuerySet(models.QuerySet):
-        def prefixes(self, prefixes: list):
-            return self.filter(functools.reduce(operator.or_, [Q(scope__startswith=p) for p in prefixes]))
-
-        def sum(self) -> int:
-            return self.aggregate(count_sum=Sum("count"))["count_sum"] or 0
-
-    objects = QuerySet.as_manager()
+    objects = ScopeCountQuerySet.as_manager()
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
