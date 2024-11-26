@@ -1739,6 +1739,7 @@ class UserReadSerializer(ReadSerializer):
 
     avatar = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
+    team = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=tzone.utc, source="date_joined")
 
     def get_avatar(self, obj):
@@ -1746,12 +1747,15 @@ class UserReadSerializer(ReadSerializer):
         return settings.avatar.url if settings and settings.avatar else None
 
     def get_role(self, obj):
-        role = self.context["user_roles"][obj]
-        return self.ROLES[role]
+        return self.ROLES[self.context["memberships"][obj].role]
+
+    def get_team(self, obj):
+        team = self.context["memberships"][obj].team
+        return {"uuid": str(team.uuid), "name": team.name} if team else None
 
     class Meta:
         model = User
-        fields = ("email", "first_name", "last_name", "role", "created_on", "avatar")
+        fields = ("email", "first_name", "last_name", "role", "team", "created_on", "avatar")
 
 
 class WorkspaceReadSerializer(ReadSerializer):

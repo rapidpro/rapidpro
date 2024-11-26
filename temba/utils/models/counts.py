@@ -1,8 +1,7 @@
-import functools
-import operator
-
 from django.db import models
 from django.db.models import Q, Sum
+
+from temba.utils.db.queries import or_list
 
 
 class ScopeCountQuerySet(models.QuerySet):
@@ -15,7 +14,7 @@ class ScopeCountQuerySet(models.QuerySet):
         Filters by the given scope prefix or list of prefixes.
         """
         if isinstance(match, list):
-            return self.filter(functools.reduce(operator.or_, [Q(scope__startswith=p) for p in match]))
+            return self.filter(or_list([Q(scope__startswith=p) for p in match]))
 
         return self.filter(scope__startswith=match)
 
