@@ -5257,36 +5257,40 @@ class EndpointsTest(APITest):
             [self.agent, self.user, self.editor, self.admin],
             results=[
                 {
-                    "avatar": None,
                     "email": "agent@textit.com",
                     "first_name": "Agnes",
                     "last_name": "",
                     "role": "agent",
+                    "team": {"uuid": str(self.org.default_ticket_team.uuid), "name": "All Topics"},
                     "created_on": format_datetime(self.agent.date_joined),
+                    "avatar": None,
                 },
                 {
-                    "avatar": None,
                     "email": "viewer@textit.com",
                     "first_name": "",
                     "last_name": "",
                     "role": "viewer",
+                    "team": None,
                     "created_on": format_datetime(self.user.date_joined),
+                    "avatar": None,
                 },
                 {
-                    "avatar": None,
                     "email": "editor@textit.com",
                     "first_name": "Ed",
                     "last_name": "McEdits",
                     "role": "editor",
+                    "team": None,
                     "created_on": format_datetime(self.editor.date_joined),
+                    "avatar": None,
                 },
                 {
-                    "avatar": None,
                     "email": "admin@textit.com",
                     "first_name": "Andy",
                     "last_name": "",
                     "role": "administrator",
+                    "team": None,
                     "created_on": format_datetime(self.admin.date_joined),
+                    "avatar": None,
                 },
             ],
             # one query per user for their settings
@@ -5295,20 +5299,10 @@ class EndpointsTest(APITest):
 
         # filter by email
         self.assertGet(
-            f"{endpoint_url}?email=agent@textit.com",
+            f"{endpoint_url}?email=agent@textit.com&email=EDITOR@textit.com",
             [self.agent],
-            results=[
-                {
-                    "avatar": None,
-                    "email": "agent@textit.com",
-                    "first_name": "Agnes",
-                    "last_name": "",
-                    "role": "agent",
-                    "created_on": format_datetime(self.agent.date_joined),
-                }
-            ],
-            # one query per user for their settings
-            num_queries=NUM_BASE_SESSION_QUERIES + 3,
+            results=[self.agent, self.editor],
+            num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
         # filter by roles

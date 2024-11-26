@@ -1,5 +1,15 @@
+import functools
+import operator
+
 from django.db import models
-from django.db.models import Subquery
+from django.db.models import Q, Subquery
+
+
+def or_list(qs: list[Q]) -> Q:
+    """
+    Convenience function to OR together a list of Q objects
+    """
+    return functools.reduce(operator.or_, qs)
 
 
 class SubqueryCount(Subquery):

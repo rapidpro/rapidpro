@@ -25,7 +25,7 @@ from temba.orgs.models import OrgMembership, User
 from temba.orgs.views.mixins import OrgPermsMixin
 from temba.tickets.models import Ticket, Topic
 from temba.utils import str_to_bool
-from temba.utils.db.queries import SubqueryCount
+from temba.utils.db.queries import SubqueryCount, or_list
 from temba.utils.uuid import is_uuid
 
 from ..models import APIPermission, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
@@ -3500,7 +3500,8 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
      * **email** - the email address of the user (string), filterable as `email`.
      * **first_name** - the first name of the user (string).
      * **last_name** - the last name of the user (string).
-     * **role** - the role of the user (string), filterable as `role` which can be repeated.
+     * **role** - the role of the user (string), filterable as `role`.
+     * **team** - team user belongs to (object).
      * **created_on** - when this user was created (datetime).
 
     Example:
@@ -3519,6 +3520,7 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
                 "first_name": "Bob",
                 "last_name": "McFlow",
                 "role": "agent",
+                "team": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "All Topics"},
                 "created_on": "2013-03-02T17:28:12.123456Z"
             },
             ...
@@ -3531,11 +3533,6 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
     def derive_queryset(self):
         org = self.request.org
 
-        # filter by email if specified
-        email = self.request.query_params.get("email")
-        if email:
-            return org.users.filter(email__iexact=email).prefetch_related("settings")
-
         # limit to roles if specified
         roles = self.request.query_params.getlist("role")
         if roles:
@@ -3546,15 +3543,23 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
 
         return org.get_users(roles=roles)
 
+    def filter_queryset(self, queryset):
+        # filter by email if specified
+        emails = self.request.query_params.getlist("email")
+        if emails:
+            queryset = queryset.filter(or_list([Q(email__iexact=e) for e in emails]))
+
+        return queryset
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
 
-        # build a map of users to roles
-        user_roles = {}
-        for m in OrgMembership.objects.filter(org=self.request.org).select_related("user"):
-            user_roles[m.user] = m.role
+        # build a map of users to memberships
+        memberships = {}
+        for m in OrgMembership.objects.filter(org=self.request.org).select_related("user", "team"):
+            memberships[m.user] = m
 
-        context["user_roles"] = user_roles
+        context["memberships"] = memberships
         return context
 
     @classmethod
@@ -3564,7 +3569,10 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
             "title": "List Users",
             "url": reverse("api.v2.users"),
             "slug": "user-list",
-            "params": [],
+            "params": [
+                {"name": "email", "required": False, "help": "Only return users with this email"},
+                {"name": "role", "required": False, "help": "Only return users with this role"},
+            ],
         }
 
 
