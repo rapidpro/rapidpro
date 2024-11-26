@@ -344,7 +344,7 @@
       runs.paused = tabs.index != 2;
 
       if (tabs.index == 0) {
-        fetchAjax('/flow/activity_chart/{{object.id}}/?new={{ use_new }}', {
+        fetchAjax('/flow/activity_chart/{{object.id}}/', {
           container: "#overview-charts"
         });
       }

@@ -22,7 +22,7 @@
     new function() {
       const store = document.querySelector('temba-store');
 
-      store.getUrl("{% url 'flows.flow_activity_data' flow.id %}?new={{ use_new }}", {
+      store.getUrl("{% url 'flows.flow_activity_data' flow.id %}", {
         force: true
       }).then(function(response) {
         const chartData = response.json;

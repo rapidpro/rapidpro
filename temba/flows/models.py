@@ -2,7 +2,7 @@ import itertools
 import logging
 from array import array
 from collections import defaultdict
-from datetime import datetime, timezone as tzone
+from datetime import date, datetime, timezone as tzone
 
 import iso8601
 from django_redis import get_redis_connection
@@ -881,6 +881,54 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         dependents["campaign_event"] = self.campaign_events.filter(is_active=True)
         dependents["trigger"] = self.triggers.filter(is_active=True)
         return dependents
+
+    def get_engagement_start(self) -> date:
+        """
+        Gets earliest date of recorded engagement (i.e. messages in) for this flow.
+        """
+        first = self.counts.prefix("msgsin:date:").order_by("scope").first()
+        return date.fromisoformat(first.scope[12:]) if first else None
+
+    def get_engagement_by_date(self, truncate: str) -> list[tuple]:
+        dates = (
+            self.counts.prefix("msgsin:date:")
+            .extra({"date": f"date_trunc('{truncate}', split_part(scope, ':', 3)::date)"})
+            .values("date")
+            .annotate(count=Sum("count"))
+            .order_by("date")
+        )
+        return [(d["date"], d["count"]) for d in dates]
+
+    def get_engagement_by_weekday(self) -> dict[int, int]:
+        """
+        Gets engagement counts (i.e. messages in) by day of the week.
+        """
+
+        def parse(scope: str) -> int:
+            """
+            e.g. "msgsin:dow:3" -> 3, "msgsin:dow:7" -> 0
+            """
+            iso_dow = int(scope[11:])  # 1-7 Mon-Sun
+            return 0 if iso_dow == 7 else iso_dow  # 0-6 Sun-Sat
+
+        counts = self.counts.prefix("msgsin:dow:").scope_totals()
+        return {parse(scope): count for scope, count in counts.items()}
+
+    def get_engagement_by_hour(self, tz) -> dict[int, int]:
+        """
+        Gets engagement counts (i.e. messages in) by hour of the day.
+        """
+
+        offset = tz.utcoffset(timezone.now()).total_seconds() // 3600  # hour counts are stored in UTC
+
+        def parse(scope: str) -> int:
+            """
+            e.g. "msgsin:hour:7" -> 7
+            """
+            return (int(scope[12:]) + offset) % 24
+
+        counts = self.counts.prefix("msgsin:hour:").scope_totals()
+        return {parse(scope): count for scope, count in counts.items()}
 
     def release(self, user, *, interrupt_sessions: bool = True):
         """
