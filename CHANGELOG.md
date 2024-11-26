@@ -1,3 +1,12 @@
+v9.3.119 (2024-11-26)
+-------------------------
+ * Fix selecting of menu when going to group page
+ * Fix some JS errors on flow result pages
+ * Add team field to uesrs API endpoint and allowing filtering by multiple emails
+ * Stop validating flow revisions when fetching revision list
+ * Tweak axis scaling of engagement timeline chart
+ * Read engagement counts from new count model
+
 v9.3.118 (2024-11-26)
 -------------------------
  * Add URL param (new=1) to read engagement chart data from new count model
