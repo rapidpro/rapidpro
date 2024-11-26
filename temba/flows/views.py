@@ -1269,7 +1269,9 @@ class FlowCRUDL(SmartCRUDL):
                 {
                     "timeline": {
                         "data": timeline_data,
-                        "min": timeline_min,
+                        "xmin": timeline_min,
+                        "xmax": today,
+                        "ymax": max([d[1] for d in timeline_data] or [0]),
                     },
                     "dow": {
                         "data": dow_data,

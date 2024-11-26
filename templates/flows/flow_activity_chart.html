@@ -230,7 +230,8 @@
             lineColor: '#2980b9',
             minorTickLength: 0,
             tickLength: 0,
-            min: chartData.timeline.min,
+            min: chartData.timeline.xmin,
+            max: chartData.timeline.xmax,
             type: 'datetime',
             dateTimeLabelFormats: {
               millisecond: '%H:%M:%S.%L',
@@ -254,6 +255,8 @@
             minorGridLineWidth: 0,
             lineColor: 'transparent',
             gridLineWidth: 0,
+            min: 0,
+            max: chartData.timeline.ymax,
           },
           legend: {
             enabled: false
