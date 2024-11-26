@@ -1151,7 +1151,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_day_of_week_counts(self, exit_uuids: list, use_new: bool) -> dict[int, int]:
             def parse(scope: str) -> int:
                 """
-                e.g. "msgs:dow:3" -> 3, "msgs:dow:7" -> 0
+                e.g. "msgsin:dow:3" -> 3, "msgsin:dow:7" -> 0
                 """
                 iso_dow = int(scope[11:])  # 1-7 Mon-Sun
                 return 0 if iso_dow == 7 else iso_dow  # 0-6 Sun-Sat
@@ -1175,7 +1175,7 @@ class FlowCRUDL(SmartCRUDL):
 
             def parse(scope: str) -> int:
                 """
-                e.g. "msgs:hour:7" -> 7
+                e.g. "msgsin:hour:7" -> 7
                 """
                 return (int(scope[12:]) + offset) % 24
 
@@ -1319,7 +1319,7 @@ class FlowCRUDL(SmartCRUDL):
     class ActivityChart(SpaMixin, BaseReadView):
         permission = "flows.flow_results"
 
-        def get_context_data(self, **kwargs):
+        def get_context_data(self, **kwargs):  # pragma: no cover
             context = super().get_context_data(**kwargs)
             context["use_new"] = self.request.GET.get("new", "0")  # TODO: remove once we're done testing new counts
             return context
