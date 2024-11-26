@@ -13,7 +13,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.db.models.functions import Upper
-from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -625,7 +626,10 @@ class ContactCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<group>[^/]+)/$" % (path, action)
+            return r"^%s/%s/(?P<uuid>[^/]+)/$" % (path, action)
+
+        def derive_menu_path(self):
+            return self.kwargs["uuid"]
 
         def get_object_org(self):
             return self.group.org
@@ -634,14 +638,13 @@ class ContactCRUDL(SmartCRUDL):
             return self.group.name
 
         def derive_group(self):
-            try:
-                return ContactGroup.objects.get(
-                    is_active=True,
+            return get_object_or_404(
+                ContactGroup.objects.filter(
+                    uuid=self.kwargs["uuid"],
                     group_type__in=(ContactGroup.TYPE_MANUAL, ContactGroup.TYPE_SMART),
-                    uuid=self.kwargs["group"],
+                    is_active=True,
                 )
-            except ContactGroup.DoesNotExist:
-                raise Http404("Group not found")
+            )
 
     class Create(NonAtomicMixin, ModalFormMixin, OrgPermsMixin, SmartCreateView):
         form_class = CreateContactForm
