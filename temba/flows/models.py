@@ -916,6 +916,8 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.topic_dependencies.clear()
         self.user_dependencies.clear()
 
+        self.counts.all().delete()
+
         # queue mailroom to interrupt sessions where contact is currently in this flow
         if interrupt_sessions:
             mailroom.queue_interrupt(self.org, flow=self)

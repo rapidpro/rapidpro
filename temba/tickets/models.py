@@ -95,9 +95,6 @@ class Topic(TembaModel, DependencyMixin):
 
         return org.topics.filter(is_active=True)
 
-    def get_count_prefixes(self) -> tuple[str]:
-        return f"tickets:{Ticket.STATUS_OPEN}:{self.id}:", f"tickets:{Ticket.STATUS_CLOSED}:{self.id}:"
-
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system topics"
         assert not self.tickets.exists(), "can't release topic with tickets"
@@ -108,8 +105,9 @@ class Topic(TembaModel, DependencyMixin):
             team.topics.remove(self)
 
         # delete ticket counts for this topic
-        for prefix in self.get_count_prefixes():
-            self.org.counts.filter(scope__startswith=prefix).delete()
+        self.org.counts.prefix(
+            [f"tickets:{Ticket.STATUS_OPEN}:{self.id}:", f"tickets:{Ticket.STATUS_CLOSED}:{self.id}:"]
+        ).delete()
 
         self.is_active = False
         self.name = self._deleted_name()
@@ -251,7 +249,7 @@ class Ticket(models.Model):
         """
         Gets the count across the given topics and status.
         """
-        return org.counts.prefixes([f"tickets:{status}:{t.id}:" for t in topics]).sum()
+        return org.counts.prefix([f"tickets:{status}:{t.id}:" for t in topics]).sum()
 
     @classmethod
     def get_topic_counts(cls, org, topics, status: str) -> dict[Topic, int]:
@@ -262,7 +260,7 @@ class Ticket(models.Model):
         # count scopes are stored as 'tickets:<status>:<topic-id>:<assignee-id>' so get all counts with the prefix
         # 'tickets:<status>:' and group by topic-id extracted as the 3rd split part.
         counts = (
-            org.counts.filter(scope__startswith=f"tickets:{status}:")
+            org.counts.prefix(f"tickets:{status}:")
             .annotate(topic_id=Cast(SplitPart(F("scope"), Value(":"), Value(3)), output_field=models.IntegerField()))
             .values_list("topic_id")
             .annotate(count_sum=Sum("count"))
