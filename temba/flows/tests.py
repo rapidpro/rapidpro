@@ -2899,64 +2899,60 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRequestDisallowed(data_url, [None, self.agent])
 
         # check with no data
-        for use_new in ("0", "1"):
-            response = self.assertReadFetch(data_url + f"?new={use_new}", [self.user, self.editor, self.admin])
-            self.assertEqual(
-                {
-                    "timeline": {
-                        "data": [],
-                        "xmin": 1729900800000,  # 2024-10-26
-                        "xmax": 1732492800000,  # 2024-11-25
-                        "ymax": 0,
-                    },
-                    "dow": {
-                        "data": [
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                        ]
-                    },
-                    "hod": {"data": [[i, 0] for i in range(24)]},
-                    "completion": {
-                        "summary": [
-                            {"name": "Active", "y": 0, "drilldown": None, "color": "#2387CA"},
-                            {"name": "Completed", "y": 0, "drilldown": None, "color": "#8FC93A"},
-                            {
-                                "name": "Interrupted, Expired and Failed",
-                                "y": 0,
-                                "drilldown": "incomplete",
-                                "color": "#CCC",
-                            },
-                        ],
-                        "drilldown": [
-                            {
-                                "name": "Interrupted, Expired and Failed",
-                                "id": "incomplete",
-                                "innerSize": "50%",
-                                "data": [
-                                    {"name": "Expired", "y": 0, "color": "#CCC"},
-                                    {"name": "Interrupted", "y": 0, "color": "#EEE"},
-                                    {"name": "Failed", "y": 0, "color": "#FEE"},
-                                ],
-                            }
-                        ],
-                    },
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        self.assertEqual(
+            {
+                "timeline": {
+                    "data": [],
+                    "xmin": 1729900800000,  # 2024-10-26
+                    "xmax": 1732492800000,  # 2024-11-25
+                    "ymax": 0,
                 },
-                response.json(),
-            )
+                "dow": {
+                    "data": [
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                    ]
+                },
+                "hod": {"data": [[i, 0] for i in range(24)]},
+                "completion": {
+                    "summary": [
+                        {"name": "Active", "y": 0, "drilldown": None, "color": "#2387CA"},
+                        {"name": "Completed", "y": 0, "drilldown": None, "color": "#8FC93A"},
+                        {
+                            "name": "Interrupted, Expired and Failed",
+                            "y": 0,
+                            "drilldown": "incomplete",
+                            "color": "#CCC",
+                        },
+                    ],
+                    "drilldown": [
+                        {
+                            "name": "Interrupted, Expired and Failed",
+                            "id": "incomplete",
+                            "innerSize": "50%",
+                            "data": [
+                                {"name": "Expired", "y": 0, "color": "#CCC"},
+                                {"name": "Interrupted", "y": 0, "color": "#EEE"},
+                                {"name": "Failed", "y": 0, "color": "#FEE"},
+                            ],
+                        }
+                    ],
+                },
+            },
+            response.json(),
+        )
 
         # simulate having some very recent data
         flow1.metadata["waiting_exit_uuids"] = ["326354b3-1086-4add-8b0e-abf4a9a6aef3"]
         flow1.save(update_fields=("metadata",))
 
         def engagement(flow, when, count):
-            flow.path_counts.create(
-                from_uuid="326354b3-1086-4add-8b0e-abf4a9a6aef3", to_uuid=uuid4(), period=when, count=count
-            )
             flow.counts.create(scope=f"msgsin:hour:{when.hour}", count=count)
             flow.counts.create(scope=f"msgsin:dow:{when.isoweekday()}", count=count)
             flow.counts.create(scope=f"msgsin:date:{when.date().isoformat()}", count=count)
@@ -2971,128 +2967,124 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow1.status_counts.create(status=FlowRun.STATUS_EXPIRED, count=2)
         flow1.status_counts.create(status=FlowRun.STATUS_INTERRUPTED, count=1)
 
-        for use_new in ("0", "1"):
-            response = self.assertReadFetch(data_url + f"?new={use_new}", [self.user, self.editor, self.admin])
-            self.assertEqual(
-                {
-                    "timeline": {
-                        "data": [[1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
-                        "xmin": 1729900800000,  # 2024-10-26
-                        "xmax": 1732492800000,
-                        "ymax": 5,
-                    },
-                    "dow": {
-                        "data": [
-                            {"msgs": 3, "y": 30.0},
-                            {"msgs": 2, "y": 20.0},
-                            {"msgs": 5, "y": 50.0},
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                            {"msgs": 0, "y": 0.0},
-                        ]
-                    },
-                    "hod": {
-                        "data": [
-                            [0, 0],
-                            [1, 1],  # 23:00 UTC is 01:00 in Kigali
-                            [2, 0],
-                            [3, 0],
-                            [4, 0],
-                            [5, 0],
-                            [6, 0],
-                            [7, 0],
-                            [8, 0],
-                            [9, 0],
-                            [10, 0],
-                            [11, 7],
-                            [12, 0],
-                            [13, 0],
-                            [14, 2],
-                            [15, 0],
-                            [16, 0],
-                            [17, 0],
-                            [18, 0],
-                            [19, 0],
-                            [20, 0],
-                            [21, 0],
-                            [22, 0],
-                            [23, 0],
-                        ]
-                    },
-                    "completion": {
-                        "summary": [
-                            {"name": "Active", "y": 4, "drilldown": None, "color": "#2387CA"},
-                            {"name": "Completed", "y": 3, "drilldown": None, "color": "#8FC93A"},
-                            {
-                                "name": "Interrupted, Expired and Failed",
-                                "y": 3,
-                                "drilldown": "incomplete",
-                                "color": "#CCC",
-                            },
-                        ],
-                        "drilldown": [
-                            {
-                                "name": "Interrupted, Expired and Failed",
-                                "id": "incomplete",
-                                "innerSize": "50%",
-                                "data": [
-                                    {"name": "Expired", "y": 2, "color": "#CCC"},
-                                    {"name": "Interrupted", "y": 1, "color": "#EEE"},
-                                    {"name": "Failed", "y": 0, "color": "#FEE"},
-                                ],
-                            }
-                        ],
-                    },
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        self.assertEqual(
+            {
+                "timeline": {
+                    "data": [[1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
+                    "xmin": 1729900800000,  # 2024-10-26
+                    "xmax": 1732492800000,
+                    "ymax": 5,
                 },
-                response.json(),
-            )
+                "dow": {
+                    "data": [
+                        {"msgs": 3, "y": 30.0},
+                        {"msgs": 2, "y": 20.0},
+                        {"msgs": 5, "y": 50.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                        {"msgs": 0, "y": 0.0},
+                    ]
+                },
+                "hod": {
+                    "data": [
+                        [0, 0],
+                        [1, 1],  # 23:00 UTC is 01:00 in Kigali
+                        [2, 0],
+                        [3, 0],
+                        [4, 0],
+                        [5, 0],
+                        [6, 0],
+                        [7, 0],
+                        [8, 0],
+                        [9, 0],
+                        [10, 0],
+                        [11, 7],
+                        [12, 0],
+                        [13, 0],
+                        [14, 2],
+                        [15, 0],
+                        [16, 0],
+                        [17, 0],
+                        [18, 0],
+                        [19, 0],
+                        [20, 0],
+                        [21, 0],
+                        [22, 0],
+                        [23, 0],
+                    ]
+                },
+                "completion": {
+                    "summary": [
+                        {"name": "Active", "y": 4, "drilldown": None, "color": "#2387CA"},
+                        {"name": "Completed", "y": 3, "drilldown": None, "color": "#8FC93A"},
+                        {
+                            "name": "Interrupted, Expired and Failed",
+                            "y": 3,
+                            "drilldown": "incomplete",
+                            "color": "#CCC",
+                        },
+                    ],
+                    "drilldown": [
+                        {
+                            "name": "Interrupted, Expired and Failed",
+                            "id": "incomplete",
+                            "innerSize": "50%",
+                            "data": [
+                                {"name": "Expired", "y": 2, "color": "#CCC"},
+                                {"name": "Interrupted", "y": 1, "color": "#EEE"},
+                                {"name": "Failed", "y": 0, "color": "#FEE"},
+                            ],
+                        }
+                    ],
+                },
+            },
+            response.json(),
+        )
 
         # simulate having some data from 6 months ago
         engagement(flow1, datetime(2024, 5, 1, 12, 0, 0, tzinfo=tzone.utc), 4)  # 2024-05-01 12:00 (Wed)
 
-        for use_new in ("0", "1"):
-            response = self.assertReadFetch(data_url + f"?new={use_new}", [self.user, self.editor, self.admin])
-            resp_json = response.json()
-            self.assertEqual(1714521600000, resp_json["timeline"]["xmin"])  # 2024-05-01
-            self.assertEqual(
-                [[1714521600000, 4], [1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
-                resp_json["timeline"]["data"],
-            )
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        resp_json = response.json()
+        self.assertEqual(1714521600000, resp_json["timeline"]["xmin"])  # 2024-05-01
+        self.assertEqual(
+            [[1714521600000, 4], [1732406400000, 3], [1732492800000, 2], [1732579200000, 5]],
+            resp_json["timeline"]["data"],
+        )
 
         # simulate having some data from 18 months ago (should trigger bucketing by week)
         engagement(flow1, datetime(2023, 5, 1, 12, 0, 0, tzinfo=tzone.utc), 3)  # 2023-05-01 12:00 (Mon)
 
-        for use_new in ("0", "1"):
-            response = self.assertReadFetch(data_url + f"?new={use_new}", [self.user, self.editor, self.admin])
-            resp_json = response.json()
-            self.assertEqual(1682899200000, resp_json["timeline"]["xmin"])  # 2023-05-01
-            self.assertEqual(
-                [
-                    [1682899200000, 3],  # 2023-05-01 (Mon)
-                    [1714348800000, 4],  # 2024-04-29 (Mon)
-                    [1731888000000, 3],  # 2024-11-18 (Mon)
-                    [1732492800000, 7],  # 2024-11-25 (Mon)
-                ],
-                resp_json["timeline"]["data"],
-            )
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        resp_json = response.json()
+        self.assertEqual(1682899200000, resp_json["timeline"]["xmin"])  # 2023-05-01
+        self.assertEqual(
+            [
+                [1682899200000, 3],  # 2023-05-01 (Mon)
+                [1714348800000, 4],  # 2024-04-29 (Mon)
+                [1731888000000, 3],  # 2024-11-18 (Mon)
+                [1732492800000, 7],  # 2024-11-25 (Mon)
+            ],
+            resp_json["timeline"]["data"],
+        )
 
         # simulate having some data from 4 years ago (should trigger bucketing by month)
         engagement(flow1, datetime(2020, 11, 25, 12, 0, 0, tzinfo=tzone.utc), 6)  # 2020-11-25 12:00 (Wed)
 
-        for use_new in ("0", "1"):
-            response = self.assertReadFetch(data_url + f"?new={use_new}", [self.user, self.editor, self.admin])
-            resp_json = response.json()
-            self.assertEqual(1606262400000, resp_json["timeline"]["xmin"])  # 2020-11-25
-            self.assertEqual(
-                [
-                    [1604188800000, 6],  # 2020-11-01
-                    [1682899200000, 3],  # 2023-05-01
-                    [1714521600000, 4],  # 2024-05-01
-                    [1730419200000, 10],  # 2024-11-01
-                ],
-                resp_json["timeline"]["data"],
-            )
+        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        resp_json = response.json()
+        self.assertEqual(1606262400000, resp_json["timeline"]["xmin"])  # 2020-11-25
+        self.assertEqual(
+            [
+                [1604188800000, 6],  # 2020-11-01
+                [1682899200000, 3],  # 2023-05-01
+                [1714521600000, 4],  # 2024-05-01
+                [1730419200000, 10],  # 2024-11-01
+            ],
+            resp_json["timeline"]["data"],
+        )
 
         # check 404 for inactive flow
         flow = self.create_flow("Deleted")
