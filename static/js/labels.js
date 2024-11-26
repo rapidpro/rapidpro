@@ -40,7 +40,7 @@ function runActionOnObjectRows(action, options = {}) {
   }
 
   if (!options.add) {
-    formData.append('add', "false")
+    formData.append('add', 'false');
   }
 
   for (var i = 0; i < objectIds.length; i++) {
@@ -48,9 +48,8 @@ function runActionOnObjectRows(action, options = {}) {
   }
 
   formData.append('action', action);
-  formData.append('pjax', 'true');
   return spaPost(document.location.href, {
-    postData: formData,
+    postData: formData
   });
 }
 

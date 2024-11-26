@@ -13,7 +13,7 @@ from temba.channels.types.android import AndroidType
 from temba.contacts.models import ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import Flow
-from temba.formax import FormaxMixin
+from temba.formax import FormaxMixin, FormaxSectionMixin
 from temba.orgs.views.base import BaseListView, BaseMenuView
 from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
@@ -274,7 +274,7 @@ class TriggerCRUDL(SmartCRUDL):
                 add_section("trigger-opt-in", "triggers.trigger_create_opt_in", "optin")
                 add_section("trigger-opt-out", "triggers.trigger_create_opt_out", "optout")
 
-    class BaseCreate(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
+    class BaseCreate(FormaxSectionMixin, OrgPermsMixin, ComponentFormMixin, SmartCreateView):
         trigger_type = None
         permission = "triggers.trigger_create"
         success_url = "@triggers.trigger_list"

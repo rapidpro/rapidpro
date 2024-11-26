@@ -44,8 +44,7 @@ window.fetchData = function (section) {
 
   const headers = {
     'X-Formax': true,
-    'X-Formax-Action': section.dataset.action,
-    'X-Pjax': true
+    'X-Formax-Action': section.dataset.action
   };
 
   if (section.closest('.spa-container')) {
@@ -128,8 +127,7 @@ var _submitFormax = function (e) {
 
   const headers = {
     'X-Formax': true,
-    'X-Formax-Action': section.dataset.action,
-    'X-Pjax': true
+    'X-Formax-Action': section.dataset.action
   };
 
   if (section.closest('.spa-container')) {
@@ -151,7 +149,7 @@ var _submitFormax = function (e) {
 
   fetchAjax(section.dataset.href, options)
     .then(function (resp) {
-      const redirect = resp.headers.get('REDIRECT');
+      const redirect = resp.headers.get('X-Formax-Redirect');
       if (redirect) {
         if (section.dataset.action === 'redirect') {
           return spaGet(redirect);
