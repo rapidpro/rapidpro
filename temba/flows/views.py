@@ -185,8 +185,7 @@ class FlowCRUDL(SmartCRUDL):
         "preview_start",
         "start",
         "activity",
-        "activity_chart",
-        "activity_data",
+        "engagement",
         "filter",
         "revisions",
         "recent_contacts",
@@ -1119,10 +1118,14 @@ class FlowCRUDL(SmartCRUDL):
                 extra_urns=form.cleaned_data.get("extra_urns", []),
             )
 
-    class ActivityData(BaseReadView):
+    class Engagement(BaseReadView):
         permission = "flows.flow_results"
 
         def render_to_response(self, context, **response_kwargs):
+            # if this isn't a request for the chart data, return the normal template view
+            if self.request.headers.get("Accept") != "application/json":
+                return super().render_to_response(context, **response_kwargs)
+
             today = timezone.now().date()
             hod_counts = self.object.get_engagement_by_hour(self.request.org.timezone)
             hod_data = []
@@ -1209,9 +1212,6 @@ class FlowCRUDL(SmartCRUDL):
                 encoder=json.EpochEncoder,
             )
 
-    class ActivityChart(SpaMixin, BaseReadView):
-        permission = "flows.flow_results"
-
     class CategoryCounts(BaseReadView):
         """
         Used by the editor for the counts on split exits
@@ -1229,6 +1229,9 @@ class FlowCRUDL(SmartCRUDL):
         def build_context_menu(self, menu):
             obj = self.get_object()
 
+            if self.has_org_perm("flows.flow_editor"):
+                menu.add_link(_("Editor"), reverse("flows.flow_editor", args=[obj.uuid]), as_button=True)
+
             if self.has_org_perm("flows.flow_results"):
                 menu.add_modax(
                     _("Export"),
@@ -1236,9 +1239,6 @@ class FlowCRUDL(SmartCRUDL):
                     f"{reverse('flows.flow_export_results')}?ids={obj.id}",
                     title=_("Export Results"),
                 )
-
-            if self.has_org_perm("flows.flow_editor"):
-                menu.add_link(_("Edit Flow"), reverse("flows.flow_editor", args=[obj.uuid]))
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
