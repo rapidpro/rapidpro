@@ -29,6 +29,7 @@ from temba.tickets.models import Topic
 from temba.utils import analytics, json, on_transaction_commit, s3
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
+from temba.utils.models.counts import ScopeCountQuerySet
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -1381,15 +1382,7 @@ class FlowActivityCount(SquashableModel):
     scope = models.CharField(max_length=128)
     count = models.IntegerField(default=0)
 
-    class QuerySet(models.QuerySet):
-        def sum(self) -> int:
-            return self.aggregate(count_sum=Sum("count"))["count_sum"] or 0
-
-        def scope_totals(self) -> dict[str, int]:
-            counts = self.values_list("scope").annotate(count_sum=Sum("count"))
-            return {c[0]: c[1] for c in counts}
-
-    objects = QuerySet.as_manager()
+    objects = ScopeCountQuerySet.as_manager()
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
