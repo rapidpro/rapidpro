@@ -1157,7 +1157,7 @@ class FlowCRUDL(SmartCRUDL):
                 return 0 if iso_dow == 7 else iso_dow  # 0-6 Sun-Sat
 
             if use_new:
-                counts = self.object.counts.filter(scope__startswith="msgsin:dow:").scope_totals()
+                counts = self.object.counts.prefix("msgsin:dow:").scope_totals()
                 return {parse(scope): count for scope, count in counts.items()}
 
             dow = (
@@ -1180,7 +1180,7 @@ class FlowCRUDL(SmartCRUDL):
                 return (int(scope[12:]) + offset) % 24
 
             if use_new:
-                counts = self.object.counts.filter(scope__startswith="msgsin:hour:").scope_totals()
+                counts = self.object.counts.prefix("msgsin:hour:").scope_totals()
                 return {parse(scope): count for scope, count in counts.items()}
 
             hod = (
@@ -1195,7 +1195,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_date_start(self, exit_uuids: list, use_new: bool) -> date:
             if use_new:
-                first = self.object.counts.filter(scope__startswith="msgsin:date:").order_by("scope").first()
+                first = self.object.counts.prefix("msgsin:date:").order_by("scope").first()
                 return date.fromisoformat(first.scope[12:]) if first else None
 
             period_min = (
@@ -1206,7 +1206,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_date_counts(self, exit_uuids: list, truncate: str, use_new: bool) -> list[tuple]:
             if use_new:
                 dates = (
-                    self.object.counts.filter(scope__startswith="msgsin:date:")
+                    self.object.counts.prefix("msgsin:date:")
                     .extra({"date": f"date_trunc('{truncate}', split_part(scope, ':', 3)::date)"})
                     .values("date")
                     .annotate(count=Sum("count"))

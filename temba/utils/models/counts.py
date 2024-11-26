@@ -7,14 +7,17 @@ from django.db.models import Q, Sum
 
 class ScopeCountQuerySet(models.QuerySet):
     """
-    Specialized queryset for scope + count models
+    Specialized queryset for scope + count models.
     """
 
-    def prefixes(self, prefixes: list):
+    def prefix(self, match: list | str):
         """
-        Filters by the given scope prefixes.
+        Filters by the given scope prefix or list of prefixes.
         """
-        return self.filter(functools.reduce(operator.or_, [Q(scope__startswith=p) for p in prefixes]))
+        if isinstance(match, list):
+            return self.filter(functools.reduce(operator.or_, [Q(scope__startswith=p) for p in match]))
+
+        return self.filter(scope__startswith=match)
 
     def sum(self) -> int:
         """
