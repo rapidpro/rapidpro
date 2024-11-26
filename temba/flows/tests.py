@@ -2868,18 +2868,20 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     @patch("django.utils.timezone.now")
-    def test_activity_data(self, mock_now):
+    def test_engagement(self, mock_now):
         # this test runs as if it's 2024-11-25 12:05:00
         mock_now.return_value = datetime(2024, 11, 25, 12, 5, 0, tzinfo=tzone.utc)
 
         flow1 = self.create_flow("Test 1")
 
-        data_url = reverse("flows.flow_activity_data", args=[flow1.id])
+        engagement_url = reverse("flows.flow_engagement", args=[flow1.id])
 
-        self.assertRequestDisallowed(data_url, [None, self.agent])
+        # check fetching as template
+        self.assertRequestDisallowed(engagement_url, [None, self.agent])
+        self.assertReadFetch(engagement_url, [self.user, self.editor, self.admin])
 
-        # check with no data
-        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        # check fetching as chart data (when there's no data)
+        response = self.requestView(engagement_url, self.admin, HTTP_ACCEPT="application/json")
         self.assertEqual(
             {
                 "timeline": {
@@ -2947,7 +2949,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow1.status_counts.create(status=FlowRun.STATUS_EXPIRED, count=2)
         flow1.status_counts.create(status=FlowRun.STATUS_INTERRUPTED, count=1)
 
-        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        response = self.requestView(engagement_url, self.admin, HTTP_ACCEPT="application/json")
         self.assertEqual(
             {
                 "timeline": {
@@ -3026,7 +3028,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # simulate having some data from 6 months ago
         engagement(flow1, datetime(2024, 5, 1, 12, 0, 0, tzinfo=tzone.utc), 4)  # 2024-05-01 12:00 (Wed)
 
-        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        response = self.requestView(engagement_url, self.admin, HTTP_ACCEPT="application/json")
         resp_json = response.json()
         self.assertEqual(1714521600000, resp_json["timeline"]["xmin"])  # 2024-05-01
         self.assertEqual(
@@ -3037,7 +3039,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # simulate having some data from 18 months ago (should trigger bucketing by week)
         engagement(flow1, datetime(2023, 5, 1, 12, 0, 0, tzinfo=tzone.utc), 3)  # 2023-05-01 12:00 (Mon)
 
-        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        response = self.requestView(engagement_url, self.admin, HTTP_ACCEPT="application/json")
         resp_json = response.json()
         self.assertEqual(1682899200000, resp_json["timeline"]["xmin"])  # 2023-05-01
         self.assertEqual(
@@ -3053,7 +3055,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # simulate having some data from 4 years ago (should trigger bucketing by month)
         engagement(flow1, datetime(2020, 11, 25, 12, 0, 0, tzinfo=tzone.utc), 6)  # 2020-11-25 12:00 (Wed)
 
-        response = self.assertReadFetch(data_url, [self.user, self.editor, self.admin])
+        response = self.requestView(engagement_url, self.admin, HTTP_ACCEPT="application/json")
         resp_json = response.json()
         self.assertEqual(1606262400000, resp_json["timeline"]["xmin"])  # 2020-11-25
         self.assertEqual(
@@ -3067,10 +3069,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # check 404 for inactive flow
-        flow = self.create_flow("Deleted")
-        flow.release(self.admin)
+        flow1.release(self.admin)
 
-        response = self.requestView(reverse("flows.flow_activity_data", args=[flow.id]), self.admin)
+        response = self.requestView(engagement_url, self.admin)
         self.assertEqual(404, response.status_code)
 
     def test_activity(self):

@@ -1,6 +1,6 @@
 {% load humanize i18n temba %}
 
-{% block extra-style %}
+{% block content %}
   <style type="text/css"></style>
   <div id="timeline_container">
     <h4>{% trans "Responses" %}</h4>
@@ -22,7 +22,10 @@
     new function() {
       const store = document.querySelector('temba-store');
 
-      store.getUrl("{% url 'flows.flow_activity_data' flow.id %}", {
+      store.getUrl("{% url 'flows.flow_engagement' flow.id %}", {
+        headers: {
+          "accept": "application/json"
+        },
         force: true
       }).then(function(response) {
         const chartData = response.json;
@@ -284,4 +287,4 @@
       });
     }();
   </script>
-{% endblock extra-style %}
+{% endblock content %}
