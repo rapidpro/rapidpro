@@ -441,24 +441,21 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         lock_key = FLOW_LOCK_KEY % (self.org_id, self.id)
         return r.lock(lock_key, FLOW_LOCK_TTL)
 
-    def get_node_counts(self):
-        """
-        Gets the number of contacts at each node in the flow
-        """
-        return FlowNodeCount.get_totals(self)
-
-    def get_segment_counts(self):
-        """
-        Gets the number of contacts to have taken each flow segment.
-        """
-        return FlowPathCount.get_totals(self)
-
-    def get_activity(self):
+    def get_activity(self, use_new: bool = False) -> tuple:
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
-        return self.get_node_counts(), self.get_segment_counts()
+
+        if use_new:
+            counts = self.counts.prefix("node:").scope_totals()
+            by_node = {scope[5:]: count for scope, count in counts.items() if count}
+        else:
+            by_node = FlowNodeCount.get_totals(self)
+
+        by_segment = FlowPathCount.get_totals(self)
+
+        return by_node, by_segment
 
     def get_active_start(self):
         """
@@ -592,20 +589,25 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         self.save_revision(user, definition)
 
-    def get_run_stats(self):
-        totals_by_status = FlowRunStatusCount.get_totals(self)
-        total_runs = sum(totals_by_status.values())
-        completed = totals_by_status.get(FlowRun.STATUS_COMPLETED, 0)
+    def get_run_stats(self, use_new: bool = False):
+        if use_new:
+            counts = self.counts.prefix("status:").scope_totals()
+            by_status = {scope[7:]: count for scope, count in counts.items()}
+        else:
+            by_status = FlowRunStatusCount.get_totals(self)
+
+        total_runs = sum(by_status.values())
+        completed = by_status.get(FlowRun.STATUS_COMPLETED, 0)
 
         return {
             "total": total_runs,
             "status": {
-                "active": totals_by_status.get(FlowRun.STATUS_ACTIVE, 0),
-                "waiting": totals_by_status.get(FlowRun.STATUS_WAITING, 0),
+                "active": by_status.get(FlowRun.STATUS_ACTIVE, 0),
+                "waiting": by_status.get(FlowRun.STATUS_WAITING, 0),
                 "completed": completed,
-                "expired": totals_by_status.get(FlowRun.STATUS_EXPIRED, 0),
-                "interrupted": totals_by_status.get(FlowRun.STATUS_INTERRUPTED, 0),
-                "failed": totals_by_status.get(FlowRun.STATUS_FAILED, 0),
+                "expired": by_status.get(FlowRun.STATUS_EXPIRED, 0),
+                "interrupted": by_status.get(FlowRun.STATUS_INTERRUPTED, 0),
+                "failed": by_status.get(FlowRun.STATUS_FAILED, 0),
             },
             "completion": int(completed * 100 // total_runs) if total_runs else 0,
         }
