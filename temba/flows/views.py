@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
 import regex
@@ -1148,7 +1148,18 @@ class FlowCRUDL(SmartCRUDL):
     class ActivityData(BaseReadView):
         permission = "flows.flow_results"
 
-        def get_day_of_week_counts(self, exit_uuids: list) -> dict[int, int]:
+        def get_day_of_week_counts(self, exit_uuids: list, use_new: bool) -> dict[int, int]:
+            def parse(scope: str) -> int:
+                """
+                e.g. "msgsin:dow:3" -> 3, "msgsin:dow:7" -> 0
+                """
+                iso_dow = int(scope[11:])  # 1-7 Mon-Sun
+                return 0 if iso_dow == 7 else iso_dow  # 0-6 Sun-Sat
+
+            if use_new:
+                counts = self.object.counts.filter(scope__startswith="msgsin:dow:").scope_totals()
+                return {parse(scope): count for scope, count in counts.items()}
+
             dow = (
                 self.object.path_counts.filter(from_uuid__in=exit_uuids)
                 .extra({"day": "extract(dow from period::timestamp)"})
@@ -1158,7 +1169,20 @@ class FlowCRUDL(SmartCRUDL):
 
             return {int(d.get("day")): d.get("count") for d in dow}
 
-        def get_hour_of_day_counts(self, exit_uuids: list) -> dict[int, int]:
+        def get_hour_of_day_counts(self, exit_uuids: list, use_new: bool) -> dict[int, int]:
+            # hour counts are stored in UTC and need to be adjusted to the org's timezone
+            offset = self.object.org.timezone.utcoffset(timezone.now()).total_seconds() // 3600
+
+            def parse(scope: str) -> int:
+                """
+                e.g. "msgsin:hour:7" -> 7
+                """
+                return (int(scope[12:]) + offset) % 24
+
+            if use_new:
+                counts = self.object.counts.filter(scope__startswith="msgsin:hour:").scope_totals()
+                return {parse(scope): count for scope, count in counts.items()}
+
             hod = (
                 self.object.path_counts.filter(from_uuid__in=exit_uuids)
                 .extra({"hour": "extract(hour from period::timestamp)"})
@@ -1167,12 +1191,29 @@ class FlowCRUDL(SmartCRUDL):
                 .order_by("hour")
             )
 
-            # hour counts are stored in UTC and need to be adjusted to the org's timezone
-            offset = self.object.org.timezone.utcoffset(timezone.now()).total_seconds() // 3600
-
             return {(int(h["hour"]) + offset) % 24: h["count"] for h in hod}
 
-        def get_date_counts(self, exit_uuids: list, truncate: str) -> list[tuple]:
+        def get_date_start(self, exit_uuids: list, use_new: bool) -> date:
+            if use_new:
+                first = self.object.counts.filter(scope__startswith="msgsin:date:").order_by("scope").first()
+                return date.fromisoformat(first.scope[12:]) if first else None
+
+            period_min = (
+                self.object.path_counts.filter(from_uuid__in=exit_uuids).aggregate(Min("period")).get("period__min")
+            )
+            return period_min.date() if period_min else None
+
+        def get_date_counts(self, exit_uuids: list, truncate: str, use_new: bool) -> list[tuple]:
+            if use_new:
+                dates = (
+                    self.object.counts.filter(scope__startswith="msgsin:date:")
+                    .extra({"date": f"date_trunc('{truncate}', split_part(scope, ':', 3)::date)"})
+                    .values("date")
+                    .annotate(count=Sum("count"))
+                    .order_by("date")
+                )
+                return [(d["date"], d["count"]) for d in dates]
+
             dates = (
                 self.object.path_counts.filter(from_uuid__in=exit_uuids)
                 .extra({"date": f"date_trunc('{truncate}', period::date)"})
@@ -1184,15 +1225,18 @@ class FlowCRUDL(SmartCRUDL):
             return [(d.get("date"), d.get("count")) for d in dates]
 
         def render_to_response(self, context, **response_kwargs):
+            # TODO: remove once we're done testing new count model
+            use_new = self.request.GET.get("new") == "1"
+
             today = timezone.now().date()
             exit_uuids = self.object.metadata["waiting_exit_uuids"]
 
-            hod_counts = self.get_hour_of_day_counts(exit_uuids)
+            hod_counts = self.get_hour_of_day_counts(exit_uuids, use_new)
             hod_data = []
             for x in range(0, 24):
                 hod_data.append([x, hod_counts.get(x, 0)])
 
-            dow_counts = self.get_day_of_week_counts(exit_uuids)
+            dow_counts = self.get_day_of_week_counts(exit_uuids, use_new)
             msgsin_total = sum(dow_counts.values())
 
             dow_data = []
@@ -1203,10 +1247,7 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
             # figure out the earliest date we have data for
-            timeline_min = (
-                self.object.path_counts.filter(from_uuid__in=exit_uuids).aggregate(Min("period")).get("period__min")
-            )
-            timeline_min = timeline_min.date() if timeline_min else None
+            timeline_min = self.get_date_start(exit_uuids, use_new)
 
             # if we have no data or it's all from the last 30 days, use that as the min date
             if not timeline_min or timeline_min > today - timedelta(days=30):
@@ -1220,7 +1261,7 @@ class FlowCRUDL(SmartCRUDL):
             else:
                 truncate = "day"
 
-            timeline_data = self.get_date_counts(exit_uuids, truncate)
+            timeline_data = self.get_date_counts(exit_uuids, truncate, use_new)
 
             run_status = self.object.get_run_stats()["status"]
 
@@ -1278,6 +1319,11 @@ class FlowCRUDL(SmartCRUDL):
     class ActivityChart(SpaMixin, BaseReadView):
         permission = "flows.flow_results"
 
+        def get_context_data(self, **kwargs):  # pragma: no cover
+            context = super().get_context_data(**kwargs)
+            context["use_new"] = self.request.GET.get("new", "0")  # TODO: remove once we're done testing new counts
+            return context
+
     class CategoryCounts(BaseReadView):
         """
         Used by the editor for the counts on split exits
@@ -1320,6 +1366,7 @@ class FlowCRUDL(SmartCRUDL):
 
             context["categories"] = flow.get_category_counts()
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
+            context["use_new"] = self.request.GET.get("new", "0")  # TODO: remove once we're done testing new counts
             return context
 
     class Activity(BaseReadView):
