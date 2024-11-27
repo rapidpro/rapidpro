@@ -53,7 +53,7 @@ def backfill_for_flow(apps, flow) -> int:  # pragma: no cover
         for count in by_date:
             add_count(f"msgsin:date:{count['date'].isoformat()}", count["total"])
 
-        flow.counts.all().delete()
+        flow.counts.filter(scope__startswith="msgsin:").delete()
         FlowActivityCount.objects.bulk_create(to_create)
         return len(to_create)
 
