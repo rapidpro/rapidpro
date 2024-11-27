@@ -1,3 +1,7 @@
+v9.3.122 (2024-11-27)
+-------------------------
+ * Stop reading node and status counts from old models
+
 v9.3.121 (2024-11-27)
 -------------------------
  * Data migration to backfill node and status counts into new model
