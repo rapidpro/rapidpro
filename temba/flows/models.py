@@ -1569,32 +1569,12 @@ class FlowPathCount(SquashableModel):
 
 class FlowNodeCount(SquashableModel):
     """
-    Maintains counts of unique contacts at each flow node.
+    TODO drop
     """
 
-    squash_over = ("node_uuid",)
-
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="node_counts")
-
-    # the UUID of the node
     node_uuid = models.UUIDField(db_index=True)
-
-    # the number of contacts/runs currently at that node
     count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-        WITH removed as (
-            DELETE FROM %(table)s WHERE "node_uuid" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("flow_id", "node_uuid", "count", "is_squashed")
-        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.node_uuid, distinct_set.flow_id, distinct_set.node_uuid)
 
     class Meta:
         indexes = [
@@ -1606,31 +1586,16 @@ class FlowNodeCount(SquashableModel):
 
 class FlowRunStatusCount(SquashableModel):
     """
-    Maintains counts of different statuses of flow runs for all flows. These are inserted via triggers on the database.
+    TODO drop
     """
-
-    squash_over = ("flow_id", "status")
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="status_counts")
     status = models.CharField(max_length=1, choices=FlowRun.STATUS_CHOICES)
     count = models.IntegerField(default=0)
 
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = r"""
-        WITH removed as (
-            DELETE FROM flows_flowrunstatuscount WHERE "flow_id" = %s AND "status" = %s RETURNING "count"
-        )
-        INSERT INTO flows_flowrunstatuscount("flow_id", "status", "count", "is_squashed")
-        VALUES (%s, %s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-        """
-
-        return sql, (distinct_set.flow_id, distinct_set.status) * 2
-
     class Meta:
         indexes = [
             models.Index(fields=("flow", "status")),
-            # for squashing task
             models.Index(name="flowrun_count_unsquashed", fields=("flow", "status"), condition=Q(is_squashed=False)),
         ]
 
