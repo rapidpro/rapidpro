@@ -1596,11 +1596,6 @@ class FlowNodeCount(SquashableModel):
 
         return sql, (distinct_set.node_uuid, distinct_set.flow_id, distinct_set.node_uuid)
 
-    @classmethod
-    def get_totals(cls, flow):
-        totals = list(cls.objects.filter(flow=flow).values_list("node_uuid").annotate(replies=Sum("count")))
-        return {str(t[0]): t[1] for t in totals if t[1]}
-
     class Meta:
         indexes = [
             models.Index(
@@ -1631,11 +1626,6 @@ class FlowRunStatusCount(SquashableModel):
         """
 
         return sql, (distinct_set.flow_id, distinct_set.status) * 2
-
-    @classmethod
-    def get_totals(cls, flow):
-        totals = list(cls.objects.filter(flow=flow).values_list("status").annotate(total=Sum("count")))
-        return {t[0]: t[1] for t in totals}
 
     class Meta:
         indexes = [
