@@ -5635,21 +5635,45 @@ class FlowActivityCountTest(TembaTest):
         self.assertEqual(3, flow2.counts.count())
 
     def test_squashing(self):
-        flow = self.create_flow("Test")
-        flow.counts.create(scope="foo:1", count=1)
-        flow.counts.create(scope="foo:1", count=2)
-        flow.counts.create(scope="foo:2", count=4)
+        flow1 = self.create_flow("Test 1")
+        flow1.counts.create(scope="foo:1", count=1)
+        flow1.counts.create(scope="foo:1", count=2)
+        flow1.counts.create(scope="foo:2", count=4)
 
-        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
-        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
-        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
+        flow2 = self.create_flow("Test 2")
+        flow2.counts.create(scope="foo:1", count=7)
+        flow2.counts.create(scope="foo:1", count=3)
+        flow2.counts.create(scope="foo:2", count=8)  # unsquashed that sum to zero
+        flow2.counts.create(scope="foo:2", count=-8)
+        flow2.counts.create(scope="foo:3", count=5)
+
+        self.assertEqual(3, flow1.counts.filter(scope="foo:1").sum())
+        self.assertEqual(4, flow1.counts.filter(scope="foo:2").sum())
+        self.assertEqual(0, flow1.counts.filter(scope="foo:3").sum())  # zero if no such scope exists
+        self.assertEqual(10, flow2.counts.filter(scope="foo:1").sum())
+        self.assertEqual(0, flow2.counts.filter(scope="foo:2").sum())
+        self.assertEqual(5, flow2.counts.filter(scope="foo:3").sum())
 
         squash_activity_counts()
 
-        self.assertEqual(2, flow.counts.count())
-        self.assertEqual(3, flow.counts.filter(scope="foo:1").sum())
-        self.assertEqual(4, flow.counts.filter(scope="foo:2").sum())
-        self.assertEqual(0, flow.counts.filter(scope="foo:3").sum())
+        self.assertEqual({"foo:1", "foo:2"}, set(flow1.counts.values_list("scope", flat=True)))
+
+        # flow2/foo:2 should be gone because it squashed to zero
+        self.assertEqual({"foo:1", "foo:3"}, set(flow2.counts.values_list("scope", flat=True)))
+
+        self.assertEqual(3, flow1.counts.filter(scope="foo:1").sum())
+        self.assertEqual(4, flow1.counts.filter(scope="foo:2").sum())
+        self.assertEqual(0, flow1.counts.filter(scope="foo:3").sum())
+        self.assertEqual(10, flow2.counts.filter(scope="foo:1").sum())
+        self.assertEqual(0, flow2.counts.filter(scope="foo:2").sum())
+        self.assertEqual(5, flow2.counts.filter(scope="foo:3").sum())
+
+        flow2.counts.create(scope="foo:3", count=-5)  # unsquashed zero + squashed zero
+
+        squash_activity_counts()
+
+        # flow2/foo:3 should be gone because it squashed to zero
+        self.assertEqual({"foo:1"}, set(flow2.counts.values_list("scope", flat=True)))
 
 
 class BackfillEngagementCountsTest(MigrationTest):
