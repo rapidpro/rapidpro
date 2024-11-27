@@ -449,7 +449,9 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         counts = self.counts.prefix("node:").scope_totals()
         by_node = {scope[5:]: count for scope, count in counts.items() if count}
-        by_segment = FlowPathCount.get_totals(self)
+
+        counts = self.counts.prefix("segment:").scope_totals()
+        by_segment = {scope[8:]: count for scope, count in counts.items() if count}
 
         return by_node, by_segment
 

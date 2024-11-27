@@ -39,7 +39,6 @@ from .models import (
     FlowCategoryCount,
     FlowLabel,
     FlowNodeCount,
-    FlowPathCount,
     FlowRevision,
     FlowRun,
     FlowRunStatusCount,
@@ -53,7 +52,6 @@ from .models import (
 from .tasks import (
     interrupt_flow_sessions,
     squash_activity_counts,
-    squash_flow_counts,
     trim_flow_revisions,
     trim_flow_sessions,
     update_session_wait_expires,
@@ -356,500 +354,42 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             copy_def["nodes"][0]["router"]["cases"][0]["arguments"],
         )
 
-    @mock_mailroom
-    def test_activity(self, mr_mocks):
-        flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.get_definition()["nodes"]
-        color_prompt = flow_nodes[0]
-        color_other = flow_nodes[1]
-        color_split = flow_nodes[2]
-        beer_prompt = flow_nodes[3]
-        beer_split = flow_nodes[5]
-        name_prompt = flow_nodes[6]
-        name_split = flow_nodes[7]
-        end_prompt = flow_nodes[8]
+    def test_get_activity(self):
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
 
-        # we don't know this shade of green, it should route us to the beginning again
-        session1 = (
-            MockSessionWriter(self.contact, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(self.contact, "chartreuse"))
-            .set_result("color", "chartreuse", category="Other", input="chartreuse")
-            .visit(color_other)
-            .send_msg("I don't know that color. Try again.")
-            .visit(color_split)
-            .wait()
-            .save()
+        flow1.counts.create(scope="node:01c175da-d23d-40a4-a845-c4a9bb4b481a", count=3)
+        flow1.counts.create(scope="node:01c175da-d23d-40a4-a845-c4a9bb4b481a", count=1)
+        flow1.counts.create(scope="node:400d6b5e-c963-42a1-a06c-50bb9b1e38b1", count=5)
+
+        flow1.counts.create(
+            scope="segment:1fff74f4-c81f-4f4c-a03d-58d113c17da1:01c175da-d23d-40a4-a845-c4a9bb4b481a", count=3
+        )
+        flow1.counts.create(
+            scope="segment:1fff74f4-c81f-4f4c-a03d-58d113c17da1:01c175da-d23d-40a4-a845-c4a9bb4b481a", count=4
+        )
+        flow1.counts.create(
+            scope="segment:6f607948-f3f0-4a6a-94b8-7fdd877895ca:400d6b5e-c963-42a1-a06c-50bb9b1e38b1", count=5
+        )
+        flow2.counts.create(
+            scope="segment:a4fe3ada-b062-47e4-be58-bcbe1bca31b4:74a53ff4-fe63-4d89-875e-cae3caca177c", count=6
         )
 
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({color_split["uuid"]: 1}, active)
         self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-            },
-            visited,
-        )
-        self.assertEqual(
-            {
-                "total": 1,
-                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-
-        # another unknown color, that'll route us right back again
-        # the active stats will look the same, but there should be one more journey on the path
-        (
-            session1.resume(msg=self.create_incoming_msg(self.contact, "mauve"))
-            .set_result("color", "mauve", category="Other", input="mauve")
-            .visit(color_other)
-            .send_msg("I don't know that color. Try again.")
-            .visit(color_split)
-            .wait()
-            .save()
-        )
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({color_split["uuid"]: 1}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 2,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
-            },
-            visited,
-        )
-
-        # this time a color we know takes us elsewhere, activity will move
-        # to another node, but still just one entry
-        (
-            session1.resume(msg=self.create_incoming_msg(self.contact, "blue"))
-            .set_result("color", "blue", category="Blue", input="blue")
-            .visit(beer_prompt, exit_index=2)
-            .send_msg("Good choice, I like Blue too! What is your favorite beer?")
-            .visit(beer_split)
-            .wait()
-            .save()
-        )
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({beer_split["uuid"]: 1}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 2,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 1,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 1,
-            },
-            visited,
-        )
-
-        # a new participant, showing distinct active counts and incremented path
-        ryan = self.create_contact("Ryan Lewis", phone="+12065550725")
-        session2 = (
-            MockSessionWriter(ryan, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(ryan, "burnt sienna"))
-            .set_result("color", "burnt sienna", category="Other", input="burnt sienna")
-            .visit(color_other)
-            .send_msg("I don't know that color. Try again.")
-            .visit(color_split)
-            .wait()
-            .save()
-        )
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({color_split["uuid"]: 1, beer_split["uuid"]: 1}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 1,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 1,
-            },
-            visited,
-        )
-        self.assertEqual(
-            {
-                "total": 2,
-                "status": {"active": 0, "waiting": 2, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-
-        # now let's have them land in the same place
-        (
-            session2.resume(msg=self.create_incoming_msg(ryan, "blue"))
-            .set_result("color", "blue", category="Blue", input="blue")
-            .visit(beer_prompt, exit_index=2)
-            .send_msg("Good choice, I like Blue too! What is your favorite beer?")
-            .visit(beer_split)
-            .wait()
-            .save()
-        )
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({beer_split["uuid"]: 2}, active)
-
-        # now move our first contact forward to the end
-        (
-            session1.resume(msg=self.create_incoming_msg(self.contact, "Turbo King"))
-            .visit(name_prompt, exit_index=2)
-            .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
-            .visit(name_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(self.contact, "Ben Haggerty"))
-            .visit(end_prompt)
-            .complete()
-            .save()
-        )
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({beer_split["uuid"]: 1}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 1,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 1,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 1,
-            },
-            visited,
-        )
-
-        # half of our flows are now complete
-        self.assertEqual(
-            {
-                "total": 2,
-                "status": {"active": 0, "waiting": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0},
-                "completion": 50,
-            },
-            flow.get_run_stats(),
-        )
-
-        # check squashing doesn't change anything
-        squash_flow_counts()
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({beer_split["uuid"]: 1}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 1,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 1,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 1,
-            },
-            visited,
-        )
-        self.assertEqual(
-            {
-                "total": 2,
-                "status": {"active": 0, "waiting": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0},
-                "completion": 50,
-            },
-            flow.get_run_stats(),
-        )
-        self.assertEqual(
-            [
+            (
+                {"01c175da-d23d-40a4-a845-c4a9bb4b481a": 4, "400d6b5e-c963-42a1-a06c-50bb9b1e38b1": 5},
                 {
-                    "categories": [
-                        {"count": 2, "name": "Blue", "pct": 1.0},
-                        {"count": 0, "name": "Other", "pct": 0.0},
-                    ],
-                    "key": "color",
-                    "name": "color",
-                    "total": 2,
-                }
-            ],
-            flow.get_category_counts(),
-        )
-
-        # now let's delete our contact, we'll still have one active node, and path counts will be unchanged
-        self.contact.release(self.user)
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({beer_split["uuid"]: 1}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 1,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 1,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 1,
-            },
-            visited,
+                    "1fff74f4-c81f-4f4c-a03d-58d113c17da1:01c175da-d23d-40a4-a845-c4a9bb4b481a": 7,
+                    "6f607948-f3f0-4a6a-94b8-7fdd877895ca:400d6b5e-c963-42a1-a06c-50bb9b1e38b1": 5,
+                },
+            ),
+            flow1.get_activity(),
         )
         self.assertEqual(
-            {
-                "total": 1,
-                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-        self.assertEqual(
-            [
-                {
-                    "categories": [
-                        {"count": 1, "name": "Blue", "pct": 1.0},
-                        {"count": 0, "name": "Other", "pct": 0.0},
-                    ],
-                    "key": "color",
-                    "name": "color",
-                    "total": 1,
-                }
-            ],
-            flow.get_category_counts(),
+            ({}, {"a4fe3ada-b062-47e4-be58-bcbe1bca31b4:74a53ff4-fe63-4d89-875e-cae3caca177c": 6}), flow2.get_activity()
         )
 
-        # advance ryan to the end to make sure our percentage accounts for one less contact
-        (
-            session2.resume(msg=self.create_incoming_msg(ryan, "Turbo King"))
-            .visit(name_prompt, exit_index=2)
-            .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
-            .visit(name_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(ryan, "Ryan Lewis"))
-            .visit(end_prompt)
-            .complete()
-            .save()
-        )
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
-            },
-            visited,
-        )
-        self.assertEqual(
-            {
-                "total": 1,
-                "status": {"active": 0, "waiting": 0, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0},
-                "completion": 100,
-            },
-            flow.get_run_stats(),
-        )
-
-        # delete our last contact.. path counts should be unchanged
-        ryan.release(self.admin)
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
-            },
-            visited,
-        )
-        self.assertEqual(
-            {
-                "total": 0,
-                "status": {"active": 0, "waiting": 0, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-        self.assertEqual(
-            [
-                {
-                    "categories": [
-                        {"count": 0, "name": "Blue", "pct": 0.0},
-                        {"count": 0, "name": "Other", "pct": 0.0},
-                    ],
-                    "key": "color",
-                    "name": "color",
-                    "total": 0,
-                }
-            ],
-            flow.get_category_counts(),
-        )
-
-        # runs all gone too
-        self.assertEqual(0, FlowRun.objects.filter(flow=flow).count())
-
-        # test that expirations don't change activity... start another contact in the flow
-        tupac = self.create_contact("Tupac Shakur", phone="+12065550725")
-        (
-            MockSessionWriter(tupac, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(tupac, "azul"))
-            .visit(color_other)
-            .send_msg("I don't know that color. Try again.")
-            .visit(color_split)
-            .wait()
-            .save()
-        )
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({color_split["uuid"]: 1}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 4,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 4,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
-            },
-            visited,
-        )
-        self.assertEqual(
-            {
-                "total": 1,
-                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-
-        # now mark run has expired and make sure exit type counts updated
-        run = tupac.runs.get()
-        run.status = FlowRun.STATUS_EXPIRED
-        run.exited_on = timezone.now()
-        run.save(update_fields=("status", "exited_on"))
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({}, active)
-        self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 4,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 4,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
-            },
-            visited,
-        )
-        self.assertEqual(
-            {
-                "total": 1,
-                "status": {"active": 0, "waiting": 0, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-
-        # check that flow interruption counts properly
-        jimmy = self.create_contact("Jimmy Graham", phone="+12065558888")
-        (
-            MockSessionWriter(jimmy, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(jimmy, "cyan"))
-            .visit(color_other)
-            .send_msg("I don't know that color. Try again.")
-            .visit(color_split)
-            .wait()
-            .save()
-        )
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({color_split["uuid"]: 1}, active)
-        self.assertEqual(
-            {
-                "total": 2,
-                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-        self.assertEqual(
-            {
-                "total": 2,
-                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-
-        run = jimmy.runs.get()
-        run.status = FlowRun.STATUS_INTERRUPTED
-        run.exited_on = timezone.now()
-        run.save(update_fields=("status", "exited_on"))
-
-        (active, visited) = flow.get_activity()
-
-        self.assertEqual({}, active)
-        self.assertEqual(
-            {
-                "total": 2,
-                "status": {"active": 0, "waiting": 0, "completed": 0, "expired": 1, "interrupted": 1, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-        self.assertEqual(
-            {
-                "total": 2,
-                "status": {"active": 0, "waiting": 0, "completed": 0, "expired": 1, "interrupted": 1, "failed": 0},
-                "completion": 0,
-            },
-            flow.get_run_stats(),
-        )
-
-    def test_category_counts(self):
+    def test_get_category_counts(self):
         def assertCount(counts, result_key, category_name, truth):
             found = False
             for count in counts:
@@ -3091,40 +2631,36 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(404, response.status_code)
 
     def test_activity(self):
-        flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.get_definition()["nodes"]
-        color_prompt = flow_nodes[0]
-        color_split = flow_nodes[2]
-        beer_prompt = flow_nodes[3]
-        beer_split = flow_nodes[5]
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
 
-        pete = self.create_contact("Pete", phone="+12065553027")
-        (
-            MockSessionWriter(pete, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(pete, "blue"))
-            .set_result("Color", "blue", "Blue", "blue")
-            .visit(beer_prompt, exit_index=2)
-            .send_msg("Good choice, I like Blue too! What is your favorite beer?")
-            .visit(beer_split)
-            .wait()
-            .save()
+        flow1.counts.create(scope="node:01c175da-d23d-40a4-a845-c4a9bb4b481a", count=4)
+        flow1.counts.create(scope="node:400d6b5e-c963-42a1-a06c-50bb9b1e38b1", count=5)
+
+        flow1.counts.create(
+            scope="segment:1fff74f4-c81f-4f4c-a03d-58d113c17da1:01c175da-d23d-40a4-a845-c4a9bb4b481a", count=3
+        )
+        flow1.counts.create(
+            scope="segment:1fff74f4-c81f-4f4c-a03d-58d113c17da1:01c175da-d23d-40a4-a845-c4a9bb4b481a", count=4
+        )
+        flow1.counts.create(
+            scope="segment:6f607948-f3f0-4a6a-94b8-7fdd877895ca:400d6b5e-c963-42a1-a06c-50bb9b1e38b1", count=5
+        )
+        flow2.counts.create(
+            scope="segment:a4fe3ada-b062-47e4-be58-bcbe1bca31b4:74a53ff4-fe63-4d89-875e-cae3caca177c", count=6
         )
 
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_activity", args=[flow.uuid]))
+        activity_url = reverse("flows.flow_activity", args=[flow1.uuid])
 
-        self.assertEqual(200, response.status_code)
+        self.assertRequestDisallowed(activity_url, [None, self.agent])
+
+        response = self.assertReadFetch(activity_url, [self.user, self.editor, self.admin])
         self.assertEqual(
             {
-                "nodes": {beer_split["uuid"]: 1},
+                "nodes": {"01c175da-d23d-40a4-a845-c4a9bb4b481a": 4, "400d6b5e-c963-42a1-a06c-50bb9b1e38b1": 5},
                 "segments": {
-                    f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                    f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 1,
-                    f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 1,
+                    "1fff74f4-c81f-4f4c-a03d-58d113c17da1:01c175da-d23d-40a4-a845-c4a9bb4b481a": 7,
+                    "6f607948-f3f0-4a6a-94b8-7fdd877895ca:400d6b5e-c963-42a1-a06c-50bb9b1e38b1": 5,
                 },
             },
             response.json(),
@@ -3723,14 +3259,6 @@ class FlowRunTest(TembaTest):
                 },
             ],
             current_node_uuid="59d992c6-c491-473d-a7e9-4f431d705c01",
-        )
-        self.assertEqual(
-            {"6fc14d2c-3b4d-49c7-b342-4b2b2ebf7678:59d992c6-c491-473d-a7e9-4f431d705c01": 1},
-            {f"{c.from_uuid}:{c.to_uuid}": c.count for c in FlowPathCount.objects.all()},
-        )
-        self.assertEqual(
-            {"59d992c6-c491-473d-a7e9-4f431d705c01": 1},
-            {str(c.node_uuid): c.count for c in FlowNodeCount.objects.all()},
         )
 
 
@@ -5507,6 +5035,72 @@ class FlowRevisionTest(TembaTest):
 
 
 class FlowActivityCountTest(TembaTest):
+    def test_node_counts(self):
+        flow = self.create_flow("Test 1")
+        contact = self.create_contact("Bob", phone="+1234567890")
+        session = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
+            created_on=timezone.now(),
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
+            wait_resume_on_expire=False,
+        )
+
+        def create_run(status, node_uuid):
+            return FlowRun.objects.create(
+                uuid=uuid4(),
+                org=self.org,
+                session=session,
+                flow=flow,
+                contact=contact,
+                status=status,
+                created_on=timezone.now(),
+                modified_on=timezone.now(),
+                exited_on=timezone.now() if status not in ("A", "W") else None,
+                current_node_uuid=node_uuid,
+            )
+
+        run1 = create_run(FlowRun.STATUS_ACTIVE, "ebb534e1-e2e0-40e9-8652-d195e87d832b")
+        run2 = create_run(FlowRun.STATUS_WAITING, "ebb534e1-e2e0-40e9-8652-d195e87d832b")
+        run3 = create_run(FlowRun.STATUS_WAITING, "bbb71aab-e026-442e-9971-6bc4f48941fb")
+        create_run(FlowRun.STATUS_INTERRUPTED, "bbb71aab-e026-442e-9971-6bc4f48941fb")
+
+        self.assertEqual(
+            {"node:ebb534e1-e2e0-40e9-8652-d195e87d832b": 2, "node:bbb71aab-e026-442e-9971-6bc4f48941fb": 1},
+            flow.counts.prefix("node:").scope_totals(),
+        )
+
+        run1.status = FlowRun.STATUS_EXPIRED
+        run1.exited_on = timezone.now()
+        run1.save(update_fields=("status", "exited_on"))
+
+        run3.current_node_uuid = "85b0c928-4bd9-4a2e-84b2-164802c32486"
+        run3.save(update_fields=("current_node_uuid",))
+
+        self.assertEqual(
+            {
+                "node:ebb534e1-e2e0-40e9-8652-d195e87d832b": 1,
+                "node:bbb71aab-e026-442e-9971-6bc4f48941fb": 0,
+                "node:85b0c928-4bd9-4a2e-84b2-164802c32486": 1,
+            },
+            flow.counts.prefix("node:").scope_totals(),
+        )
+
+        run2.delete()
+
+        self.assertEqual(
+            {
+                "node:ebb534e1-e2e0-40e9-8652-d195e87d832b": 0,
+                "node:bbb71aab-e026-442e-9971-6bc4f48941fb": 0,
+                "node:85b0c928-4bd9-4a2e-84b2-164802c32486": 1,
+            },
+            flow.counts.prefix("node:").scope_totals(),
+        )
+
     def test_status_counts(self):
         contact = self.create_contact("Bob", phone="+1234567890")
         session = FlowSession.objects.create(
