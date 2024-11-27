@@ -441,18 +441,14 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         lock_key = FLOW_LOCK_KEY % (self.org_id, self.id)
         return r.lock(lock_key, FLOW_LOCK_TTL)
 
-    def get_activity(self, use_new: bool = False) -> tuple:
+    def get_activity(self) -> tuple:
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
 
-        if use_new:
-            counts = self.counts.prefix("node:").scope_totals()
-            by_node = {scope[5:]: count for scope, count in counts.items() if count}
-        else:
-            by_node = FlowNodeCount.get_totals(self)
-
+        counts = self.counts.prefix("node:").scope_totals()
+        by_node = {scope[5:]: count for scope, count in counts.items() if count}
         by_segment = FlowPathCount.get_totals(self)
 
         return by_node, by_segment
@@ -589,12 +585,9 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         self.save_revision(user, definition)
 
-    def get_run_stats(self, use_new: bool = False):
-        if use_new:
-            counts = self.counts.prefix("status:").scope_totals()
-            by_status = {scope[7:]: count for scope, count in counts.items()}
-        else:
-            by_status = FlowRunStatusCount.get_totals(self)
+    def get_run_stats(self):
+        counts = self.counts.prefix("status:").scope_totals()
+        by_status = {scope[7:]: count for scope, count in counts.items()}
 
         total_runs = sum(by_status.values())
         completed = by_status.get(FlowRun.STATUS_COMPLETED, 0)
