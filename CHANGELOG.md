@@ -1,3 +1,8 @@
+v9.3.120 (2024-11-27)
+-------------------------
+ * Change new count model squashing to not insert zero sums
+ * Start writing run status/node counts to new count model
+
 v9.3.119 (2024-11-26)
 -------------------------
  * Fix selecting of menu when going to group page
