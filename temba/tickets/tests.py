@@ -246,16 +246,10 @@ class TicketTest(TembaTest):
 
         squash_item_counts()
 
-        # check new count model raw values are consistent
+        # check count model raw values are consistent
         self.assertEqual(
             {
-                f"tickets:C:{general.id}:{self.admin.id}": 0,
-                f"tickets:C:{general.id}:{self.agent.id}": 0,
-                f"tickets:C:{cats.id}:0": 0,
-                f"tickets:C:{cats.id}:{self.admin.id}": 0,
-                f"tickets:O:{general.id}:0": 0,
                 f"tickets:O:{general.id}:{self.editor.id}": 1,
-                f"tickets:O:{general.id}:{self.agent.id}": 0,
                 f"tickets:O:{cats.id}:0": 1,
                 f"tickets:O:{cats.id}:{self.admin.id}": 1,
             },
