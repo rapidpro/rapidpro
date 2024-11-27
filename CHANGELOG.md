@@ -1,3 +1,7 @@
+v9.3.121 (2024-11-27)
+-------------------------
+ * Data migration to backfill node and status counts into new model
+
 v9.3.120 (2024-11-27)
 -------------------------
  * Change new count model squashing to not insert zero sums
