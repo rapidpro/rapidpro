@@ -1892,7 +1892,9 @@ class ItemCount(SquashableModel):
             DELETE FROM %(table)s WHERE "org_id" = %%s AND "scope" = %%s RETURNING "count"
         )
         INSERT INTO %(table)s("org_id", "scope", "count", "is_squashed")
-        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        SELECT * FROM (
+            SELECT %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)) AS "count", TRUE
+        ) s WHERE s."count" != 0;
         """ % {
             "table": cls._meta.db_table
         }
