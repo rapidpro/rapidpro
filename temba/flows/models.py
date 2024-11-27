@@ -1441,9 +1441,9 @@ class FlowActivityCount(SquashableModel):
             DELETE FROM %(table)s WHERE "flow_id" = %%s AND "scope" = %%s RETURNING "count"
         )
         INSERT INTO %(table)s("flow_id", "scope", "count", "is_squashed")
-        SELECT * FROM (
-            SELECT %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)) AS "count", TRUE
-        ) s WHERE s."count" != 0;
+        SELECT %%s, %%s, s.total, TRUE FROM (
+            SELECT COALESCE(SUM("count"), 0) AS "total" FROM removed
+        ) s WHERE s.total != 0;
         """ % {
             "table": cls._meta.db_table
         }
