@@ -24,7 +24,7 @@ from temba.msgs.models import SystemLabel, SystemLabelCount
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, MigrationTest, MockJsonResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
@@ -38,11 +38,9 @@ from .models import (
     FlowActivityCount,
     FlowCategoryCount,
     FlowLabel,
-    FlowNodeCount,
     FlowPathCount,
     FlowRevision,
     FlowRun,
-    FlowRunStatusCount,
     FlowSession,
     FlowStart,
     FlowStartCount,
@@ -3728,10 +3726,6 @@ class FlowRunTest(TembaTest):
             {"6fc14d2c-3b4d-49c7-b342-4b2b2ebf7678:59d992c6-c491-473d-a7e9-4f431d705c01": 1},
             {f"{c.from_uuid}:{c.to_uuid}": c.count for c in FlowPathCount.objects.all()},
         )
-        self.assertEqual(
-            {"59d992c6-c491-473d-a7e9-4f431d705c01": 1},
-            {str(c.node_uuid): c.count for c in FlowNodeCount.objects.all()},
-        )
 
 
 class FlowRunCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -5700,43 +5694,3 @@ class FlowActivityCountTest(TembaTest):
             cursor.execute(sql, params)
 
         self.assertEqual({"foo:1", "foo:2", "foo:3"}, set(flow1.counts.values_list("scope", flat=True)))
-
-
-class BackfillNewCountsTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0342_update_triggers"
-    migrate_to = "0343_backfill_new_counts"
-
-    def setUpBeforeMigration(self, apps):
-        self.flow1 = self.create_flow("Flow 1")
-        self.flow2 = self.create_flow("Flow 2")
-        self.flow3 = self.create_flow("Flow 3")
-
-        FlowNodeCount.objects.create(flow=self.flow1, node_uuid="cf65941c-39cd-4e01-ae05-f7c1efb54975", count=3)
-        FlowNodeCount.objects.create(flow=self.flow1, node_uuid="cf65941c-39cd-4e01-ae05-f7c1efb54975", count=4)
-        FlowNodeCount.objects.create(flow=self.flow1, node_uuid="f85b47d3-fb1c-4985-97b6-8ec71bcd4d84", count=5)
-        FlowNodeCount.objects.create(flow=self.flow1, node_uuid="9ea62a25-7ed0-4e4c-ae73-32c5d8736e23", count=6)
-        FlowNodeCount.objects.create(flow=self.flow1, node_uuid="9ea62a25-7ed0-4e4c-ae73-32c5d8736e23", count=-6)
-        FlowNodeCount.objects.create(flow=self.flow2, node_uuid="db1e6542-7f15-4df9-bc84-159486e5c352", count=7)
-
-        FlowRunStatusCount.objects.create(flow=self.flow1, status="A", count=3)
-        FlowRunStatusCount.objects.create(flow=self.flow1, status="A", count=4)
-        FlowRunStatusCount.objects.create(flow=self.flow1, status="W", count=5)
-        FlowRunStatusCount.objects.create(flow=self.flow1, status="C", count=6)
-        FlowRunStatusCount.objects.create(flow=self.flow2, status="A", count=3)
-
-    def test_migration(self):
-        self.assertEqual(
-            {
-                "node:cf65941c-39cd-4e01-ae05-f7c1efb54975": 7,
-                "node:f85b47d3-fb1c-4985-97b6-8ec71bcd4d84": 5,
-                "status:A": 7,
-                "status:W": 5,
-                "status:C": 6,
-            },
-            self.flow1.counts.scope_totals(),
-        )
-        self.assertEqual(
-            {"node:db1e6542-7f15-4df9-bc84-159486e5c352": 7, "status:A": 3}, self.flow2.counts.scope_totals()
-        )
-        self.assertEqual({}, self.flow3.counts.scope_totals())
