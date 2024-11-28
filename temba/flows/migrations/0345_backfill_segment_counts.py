@@ -27,13 +27,6 @@ def backfill_segment_counts(apps, schema_editor):  # pragma: no cover
 def backfill_for_flow(apps, flow) -> int:  # pragma: no cover
     FlowActivityCount = apps.get_model("flows", "FlowActivityCount")
 
-    # no waits then no engagement counts
-    exit_uuids = flow.metadata.get("waiting_exit_uuids", [])
-    if not exit_uuids:
-        return
-
-    exit_counts = flow.path_counts.filter(from_uuid__in=exit_uuids)
-
     with transaction.atomic():
         to_create = []
 
@@ -41,7 +34,7 @@ def backfill_for_flow(apps, flow) -> int:  # pragma: no cover
             if count > 0:
                 to_create.append(FlowActivityCount(flow=flow, scope=scope, count=count, is_squashed=True))
 
-        by_segment = exit_counts.values("from_uuid", "to_uuid").annotate(total=Sum("count"))
+        by_segment = flow.path_counts.values("from_uuid", "to_uuid").annotate(total=Sum("count"))
         for count in by_segment:
             add_count(f"segment:{count['from_uuid']}:{count['to_uuid']}", count["total"])
 
