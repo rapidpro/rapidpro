@@ -1121,6 +1121,10 @@ class FlowCRUDL(SmartCRUDL):
             )
 
     class Engagement(BaseReadView):
+        """
+        Data for charts on engagement tab of results page.
+        """
+
         permission = "flows.flow_results"
 
         def render_to_response(self, context, **response_kwargs):
@@ -1216,10 +1220,10 @@ class FlowCRUDL(SmartCRUDL):
 
     class CategoryCounts(BaseReadView):
         """
-        Used by the editor for the counts on split exits
+        Data for charts on analytics tab of results page.
         """
 
-        permission = "flows.flow_editor"
+        permission = "flows.flow_results"
         slug_url_kwarg = "uuid"
 
         def render_to_response(self, context, **response_kwargs):
@@ -1244,18 +1248,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            flow = self.object
-
-            result_fields = []
-            for result_field in flow.metadata[Flow.METADATA_RESULTS]:
-                if not result_field["name"].startswith("_"):
-                    result_field = result_field.copy()
-                    result_field["has_categories"] = "true" if len(result_field["categories"]) > 1 else "false"
-                    result_fields.append(result_field)
-            context["result_fields"] = result_fields
-
-            context["categories"] = flow.get_category_counts()
-            context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
+            context["utcoffset"] = int(datetime.now(self.request.org.timezone).utcoffset().total_seconds() // 60)
             return context
 
     class Activity(BaseReadView):
