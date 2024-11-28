@@ -3187,7 +3187,7 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(survey.modified_on),
                 },
             ],
-            num_queries=NUM_BASE_SESSION_QUERIES + 5,
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
         )
 
         self.assertGet(endpoint_url, [self.admin2], results=[other_org])

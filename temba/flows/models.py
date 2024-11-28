@@ -587,8 +587,16 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         self.save_revision(user, definition)
 
+    @classmethod
+    def prefetch_run_stats(cls, flows, *, using="default"):
+        FlowActivityCount.prefetch_by_scope(flows, prefix="status:", to_attr="_status_counts", using=using)
+
     def get_run_stats(self):
-        counts = self.counts.prefix("status:").scope_totals()
+        if hasattr(self, "_status_counts"):
+            counts = self._status_counts
+        else:
+            counts = self.counts.prefix("status:").scope_totals()
+
         by_status = {scope[7:]: count for scope, count in counts.items()}
 
         total_runs = sum(by_status.values())
@@ -1448,6 +1456,22 @@ class FlowActivityCount(SquashableModel):
         params = (distinct_set.flow_id, distinct_set.scope) * 2
 
         return sql, params
+
+    @classmethod
+    def prefetch_by_scope(cls, flows, *, prefix: str, to_attr: str, using: str):
+        counts = (
+            FlowActivityCount.objects.using(using)
+            .filter(flow__in=flows)
+            .prefix(prefix)
+            .values_list("flow_id", "scope")
+            .annotate(total=Sum("count"))
+        )
+        by_flow = defaultdict(dict)
+        for count in counts:
+            by_flow[count[0]][count[1]] = count[2]
+
+        for flow in flows:
+            setattr(flow, to_attr, by_flow[flow.id])
 
     class Meta:
         indexes = [
