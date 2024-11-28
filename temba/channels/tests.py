@@ -52,7 +52,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.tel_channel = self.create_channel(
             "A", "Test Channel", "+250785551212", country="RW", secret="12345", config={"FCM_ID": "123"}
         )
-        self.twitter_channel = self.create_channel("TWT", "Twitter Channel", "billy_bob")
+        self.facebook_channel = self.create_channel(
+            "FBA", "Facebook Channel", "12345", config={Channel.CONFIG_PAGE_NAME: "Test page"}
+        )
 
         self.unclaimed_channel = self.create_channel("NX", "Unclaimed Channel", "", config={"FCM_ID": "000"})
         self.unclaimed_channel.org = None
@@ -98,7 +100,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("+250 785 551 212", self.tel_channel.get_address_display())
         self.assertEqual("+250785551212", self.tel_channel.get_address_display(e164=True))
 
-        self.assertEqual("@billy_bob", self.twitter_channel.get_address_display())
+        self.assertEqual("Test page (12345)", self.facebook_channel.get_address_display())
 
         # make sure it works with alphanumeric numbers
         self.tel_channel.address = "EATRIGHT"
@@ -1895,72 +1897,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("3527065", "api.telegram.org", "/65474/sendMessage"))
-
-    def test_redaction_for_twitter(self):
-        urn = "twitterid:767659860"
-        contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
-        log = self.create_channel_log(
-            ChannelLog.LOG_TYPE_MSG_SEND,
-            http_logs=[
-                {
-                    "url": "https://textit.in/c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive",
-                    "status_code": 200,
-                    "request": 'POST /c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 1596\r\nContent-Type: application/json\r\nFinagle-Ctx-Com.twitter.finagle.deadline: 1560853608671000000 1560853611615000000\r\nFinagle-Ctx-Com.twitter.finagle.retries: 0\r\nFinagle-Http-Retryable-Request: \r\nX-Amzn-Trace-Id: Root=1-5d08bc68-de52174e83904d614a32a5c6\r\nX-B3-Flags: 2\r\nX-B3-Parentspanid: fe22fff79af84311\r\nX-B3-Sampled: false\r\nX-B3-Spanid: 86f3c3871ae31c2d\r\nX-B3-Traceid: fe22fff79af84311\r\nX-Forwarded-For: 199.16.157.173\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twitter-Webhooks-Signature: sha256=CYVI5q7e7bzKufCD3GnZoJheSmjVRmNQo9uzO/gi4tA=\r\n\r\n{"for_user_id":"3753944237","direct_message_events":[{"type":"message_create","id":"1140928844112814089","created_timestamp":"1560853608526","message_create":{"target":{"recipient_id":"3753944237"},"sender_id":"767659860","message_data":{"text":"Briefly what will you be talking about and do you have any feature stories","entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[]}}}}],"users":{"767659860":{"id":"767659860","created_timestamp":"1345386861000","name":"Aaron Tumukunde","screen_name":"tumaaron","description":"Mathematics \u25a1 Media \u25a1 Real Estate \u25a1 And Jesus above all.","protected":false,"verified":false,"followers_count":167,"friends_count":485,"statuses_count":237,"profile_image_url":"http://pbs.twimg.com/profile_images/860380640029573120/HKuXgxR__normal.jpg","profile_image_url_https":"https://pbs.twimg.com/profile_images/860380640029573120/HKuXgxR__normal.jpg"},"3753944237":{"id":"3753944237","created_timestamp":"1443048916258","name":"Teheca","screen_name":"tehecaug","location":"Uganda","description":"We connect new mothers & parents to nurses for postnatal care. #Google LaunchPad Africa 2018, #UNFPA UpAccelerate 2017 #MasterCard Innovation exp 2017 #YCSUS18","url":"https://t.co/i0hcLRwEj7","protected":false,"verified":false,"followers_count":3369,"friends_count":4872,"statuses_count":1128,"profile_image_url":"http://pbs.twimg.com/profile_images/694638274204143616/Q4Mbg1tO_normal.png","profile_image_url_https":"https://pbs.twimg.com/profile_images/694638274204143616/Q4Mbg1tO_normal.png"}}}',
-                    "response": 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\n{"message":"Message Accepted","data":[{"type":"msg","channel_uuid":"5c70a767-f3dc-4a99-9323-4774f6432af5","msg_uuid":"6c26277d-7002-4489-9b7f-998d4be5d0db","text":"Briefly what will you be talking about and do you have any feature stories","urn":"twitterid:767659860#tumaaron","external_id":"1140928844112814089","received_on":"2019-06-18T10:26:48.526Z"}]}',
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
-
-        self.login(self.admin)
-
-        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-
-        # check read page shows un-redacted content for a regular org
-        response = self.client.get(read_url)
-        self.assertNotRedacted(response, ("767659860", "Aaron Tumukunde", "tumaaron"))
-
-        # but for anon org we see redaction...
-        with self.anonymous(self.org):
-            response = self.client.get(read_url)
-            self.assertRedacted(response, ("767659860", "Aaron Tumukunde", "tumaaron"))
-
-    def test_redaction_for_twitter_when_no_match(self):
-        urn = "twitterid:767659860"
-        contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
-        log = self.create_channel_log(
-            ChannelLog.LOG_TYPE_MSG_SEND,
-            http_logs=[
-                {
-                    "url": "https://twitter.com/There is no contact identifying information",
-                    "status_code": 200,
-                    "request": 'POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\n{"json": "There is no contact identifying information"}',
-                    "response": 'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nContent-Type: application/json\r\n\r\n{"json": "There is no contact identifying information"}',
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
-
-        self.login(self.admin)
-
-        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-
-        # check read page shows un-redacted content for a regular org
-        response = self.client.get(read_url)
-        self.assertNotRedacted(response, ("767659860",))
-
-        # but for anon org we see complete redaction...
-        with self.anonymous(self.org):
-            response = self.client.get(read_url)
-            self.assertRedacted(response, ("767659860", "twitter.com", "/65474/sendMessage"))
 
     def test_redaction_for_facebook(self):
         urn = "facebook:2150393045080607"

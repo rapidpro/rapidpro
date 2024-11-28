@@ -203,9 +203,16 @@ class TriggerTest(TembaTest):
         self.org.import_app(export_def, self.admin)
         self.assertEqual(1, Trigger.objects.count())
 
-    def test_export_import(self):
-        # tweak our current channel to be twitter so we can create a channel-based trigger
-        Channel.objects.filter(id=self.channel.id).update(channel_type="TWT")
+    @patch("temba.channels.types.facebookapp.type.FacebookAppType.deactivate_trigger")
+    @patch("temba.channels.types.facebookapp.type.FacebookAppType.activate_trigger")
+    def test_export_import(self, mock_activate_trigger, mock_deactivate_trigger):
+        mock_activate_trigger.return_value = None
+        mock_deactivate_trigger.return_value = None
+
+        # tweak our current channel to be facebook so we can create a channel-based trigger
+        Channel.objects.filter(id=self.channel.id).update(
+            channel_type="FBA", config={Channel.CONFIG_AUTH_TOKEN: "1234"}
+        )
         flow = self.create_flow("Test")
 
         doctors = self.create_group("Doctors", contacts=[])

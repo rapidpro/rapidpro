@@ -395,9 +395,9 @@ class EndpointsTest(APITest):
         super().setUp()
 
         self.joe = self.create_contact("Joe Blow", phone="+250788123123")
-        self.frank = self.create_contact("Frank", urns=["twitter:franky"])
+        self.frank = self.create_contact("Frank", urns=["facebook:123456"])
 
-        self.twitter = self.create_channel("TWT", "Twitter Channel", "billy_bob")
+        self.facebook_channel = self.create_channel("FBA", "Facebook Channel", "billy_bob")
 
         self.hans = self.create_contact("Hans Gruber", phone="+4921551511", org=self.org2)
 
@@ -985,7 +985,7 @@ class EndpointsTest(APITest):
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
         bcast1 = self.create_broadcast(
-            self.admin, {"eng": {"text": "Hello 1"}}, urns=["twitter:franky"], status=Broadcast.STATUS_PENDING
+            self.admin, {"eng": {"text": "Hello 1"}}, urns=["facebook:12345"], status=Broadcast.STATUS_PENDING
         )
         bcast2 = self.create_broadcast(
             self.admin, {"eng": {"text": "Hello 2"}}, contacts=[self.joe], status=Broadcast.STATUS_PENDING
@@ -996,7 +996,7 @@ class EndpointsTest(APITest):
         bcast4 = self.create_broadcast(
             self.admin,
             {"eng": {"text": "Hello 4"}},
-            urns=["twitter:franky"],
+            urns=["facebook:12345"],
             contacts=[self.joe],
             groups=[reporters],
             status=Broadcast.STATUS_FAILED,
@@ -1038,7 +1038,7 @@ class EndpointsTest(APITest):
                 "id": bcast4.id,
                 "status": "failed",
                 "progress": {"total": 2, "started": 2},
-                "urns": ["twitter:franky"],
+                "urns": ["facebook:12345"],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [{"uuid": reporters.uuid, "name": reporters.name}],
                 "text": {"eng": "Hello 4"},
@@ -1122,7 +1122,7 @@ class EndpointsTest(APITest):
                     "kin": [str(media2.uuid)],
                 },
                 "base_language": "eng",
-                "urns": ["twitter:franky"],
+                "urns": ["facebook:12345"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
             },
@@ -1142,7 +1142,7 @@ class EndpointsTest(APITest):
             broadcast.translations,
         )
         self.assertEqual("eng", broadcast.base_language)
-        self.assertEqual(["twitter:franky"], broadcast.urns)
+        self.assertEqual(["facebook:12345"], broadcast.urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
 
@@ -1686,7 +1686,7 @@ class EndpointsTest(APITest):
         deleted.release(self.admin)
 
         # create channel for other org
-        self.create_channel("TWT", "Twitter Channel", "nyaruka", org=self.org2)
+        self.create_channel("FBA", "Facebook Channel", "nyaruka", org=self.org2)
 
         # no filtering
         self.assertGet(
@@ -1694,13 +1694,13 @@ class EndpointsTest(APITest):
             [self.user, self.editor, self.admin],
             results=[
                 {
-                    "uuid": self.twitter.uuid,
-                    "name": "Twitter Channel",
+                    "uuid": self.facebook_channel.uuid,
+                    "name": "Facebook Channel",
                     "address": "billy_bob",
                     "country": None,
                     "device": None,
                     "last_seen": None,
-                    "created_on": format_datetime(self.twitter.created_on),
+                    "created_on": format_datetime(self.facebook_channel.created_on),
                 },
                 {
                     "uuid": self.channel.uuid,
@@ -1722,10 +1722,12 @@ class EndpointsTest(APITest):
         )
 
         # filter by UUID
-        self.assertGet(endpoint_url + f"?uuid={self.twitter.uuid}", [self.admin], results=[self.twitter])
+        self.assertGet(
+            endpoint_url + f"?uuid={self.facebook_channel.uuid}", [self.admin], results=[self.facebook_channel]
+        )
 
         # filter by address
-        self.assertGet(endpoint_url + "?address=billy_bob", [self.admin], results=[self.twitter])
+        self.assertGet(endpoint_url + "?address=billy_bob", [self.admin], results=[self.facebook_channel])
 
     def test_channel_events(self):
         endpoint_url = reverse("api.v2.channel_events") + ".json"
@@ -3983,13 +3985,13 @@ class EndpointsTest(APITest):
         # create some messages
         flow = self.create_flow("Test")
         joe_msg1 = self.create_incoming_msg(self.joe, "Howdy", flow=flow)
-        frank_msg1 = self.create_incoming_msg(self.frank, "Bonjour", channel=self.twitter)
+        frank_msg1 = self.create_incoming_msg(self.frank, "Bonjour", channel=self.facebook_channel)
         joe_msg2 = self.create_outgoing_msg(self.joe, "How are you?", status="Q")
         frank_msg2 = self.create_outgoing_msg(self.frank, "Ça va?", status="D")
         joe_msg3 = self.create_incoming_msg(
             self.joe, "Good", flow=flow, attachments=["image/jpeg:https://example.com/test.jpg"]
         )
-        frank_msg3 = self.create_incoming_msg(self.frank, "Bien", channel=self.twitter, visibility="A")
+        frank_msg3 = self.create_incoming_msg(self.frank, "Bien", channel=self.facebook_channel, visibility="A")
         frank_msg4 = self.create_outgoing_msg(self.frank, "Ça va?", status="F")
 
         # add a failed message with no URN or channel
@@ -4035,9 +4037,9 @@ class EndpointsTest(APITest):
                 {
                     "id": frank_msg1.id,
                     "type": "text",
-                    "channel": {"uuid": str(self.twitter.uuid), "name": "Twitter Channel"},
+                    "channel": {"uuid": str(self.facebook_channel.uuid), "name": "Facebook Channel"},
                     "contact": {"uuid": str(self.frank.uuid), "name": "Frank"},
-                    "urn": "twitter:franky",
+                    "urn": "facebook:123456",
                     "text": "Bonjour",
                     "attachments": [],
                     "archived": False,
@@ -4493,8 +4495,8 @@ class EndpointsTest(APITest):
                 "contact": {
                     "uuid": str(self.frank.uuid),
                     "name": self.frank.name,
-                    "urn": "twitter:franky",
-                    "urn_display": "franky",
+                    "urn": "facebook:123456",
+                    "urn_display": "123456",
                 },
                 "start": None,
                 "responded": False,
@@ -4574,8 +4576,8 @@ class EndpointsTest(APITest):
                 "contact": {
                     "uuid": str(self.frank.uuid),
                     "name": self.frank.name,
-                    "urn": "twitter:franky",
-                    "urn_display": "franky",
+                    "urn": "facebook:123456",
+                    "urn_display": "123456",
                 },
                 "start": None,
                 "responded": False,
@@ -4610,7 +4612,7 @@ class EndpointsTest(APITest):
                     "contact": {
                         "uuid": self.frank.uuid,
                         "name": self.frank.name,
-                        "urn": "twitter:********",
+                        "urn": "facebook:********",
                         "urn_display": None,
                         "anon_display": f"{self.frank.id:010}",
                     },
