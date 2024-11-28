@@ -29,7 +29,7 @@ from temba.tickets.models import Topic
 from temba.utils import analytics, json, on_transaction_commit, s3
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
-from temba.utils.models.counts import ScopeCountQuerySet
+from temba.utils.models.counts import BaseScopedCount
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -1426,7 +1426,7 @@ class FlowRevision(models.Model):
         self.delete()
 
 
-class FlowActivityCount(SquashableModel):
+class FlowActivityCount(BaseScopedCount):
     """
     Flow-level counts of activity.
     """
@@ -1434,10 +1434,6 @@ class FlowActivityCount(SquashableModel):
     squash_over = ("flow_id", "scope")
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
-    scope = models.CharField(max_length=128)
-    count = models.IntegerField(default=0)
-
-    objects = ScopeCountQuerySet.as_manager()
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
@@ -1460,7 +1456,7 @@ class FlowActivityCount(SquashableModel):
     @classmethod
     def prefetch_by_scope(cls, flows, *, prefix: str, to_attr: str, using: str):
         counts = (
-            FlowActivityCount.objects.using(using)
+            cls.objects.using(using)
             .filter(flow__in=flows)
             .prefix(prefix)
             .values_list("flow_id", "scope")
