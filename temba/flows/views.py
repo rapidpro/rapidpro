@@ -826,7 +826,7 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("flows.flow_results"):
-                menu.add_link(_("Results"), reverse("flows.flow_results", args=[obj.uuid]))
+                menu.add_link(_("Results"), reverse("flows.flow_results", args=[obj.id]))
 
             menu.new_group()
 
@@ -1224,27 +1224,23 @@ class FlowCRUDL(SmartCRUDL):
         """
 
         permission = "flows.flow_results"
-        slug_url_kwarg = "uuid"
 
         def render_to_response(self, context, **response_kwargs):
             return JsonResponse({"counts": self.object.get_category_counts()})
 
     class Results(SpaMixin, ContextMenuMixin, BaseReadView):
-        slug_url_kwarg = "uuid"
-
         def build_context_menu(self, menu):
             obj = self.get_object()
 
             if self.has_org_perm("flows.flow_editor"):
                 menu.add_link(_("Editor"), reverse("flows.flow_editor", args=[obj.uuid]), as_button=True)
 
-            if self.has_org_perm("flows.flow_results"):
-                menu.add_modax(
-                    _("Export"),
-                    "export-results",
-                    f"{reverse('flows.flow_export_results')}?ids={obj.id}",
-                    title=_("Export Results"),
-                )
+            menu.add_modax(
+                _("Export"),
+                "export-results",
+                f"{reverse('flows.flow_export_results')}?ids={obj.id}",
+                title=_("Export Results"),
+            )
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)

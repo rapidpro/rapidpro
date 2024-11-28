@@ -1257,7 +1257,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("flows.flow_editor", args=[flow3.uuid]))
 
         # can see results for a flow
-        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_results", args=[flow.id]))
         self.assertEqual(200, response.status_code)
 
         # check flow listing
@@ -2313,7 +2313,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_category_counts(self):
         flow1 = self.create_flow("Test 1")
 
-        counts_url = reverse("flows.flow_category_counts", args=[flow1.uuid])
+        counts_url = reverse("flows.flow_category_counts", args=[flow1.id])
 
         self.assertRequestDisallowed(counts_url, [None, self.agent])
 
@@ -2384,7 +2384,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_results(self):
         flow = self.create_flow("Test 1")
 
-        results_url = reverse("flows.flow_results", args=[flow.uuid])
+        results_url = reverse("flows.flow_results", args=[flow.id])
 
         self.assertRequestDisallowed(results_url, [None, self.agent])
         self.assertReadFetch(results_url, [self.user, self.editor, self.admin])
