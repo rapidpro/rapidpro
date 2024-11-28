@@ -642,6 +642,8 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
+            Flow.prefetch_run_stats(context["object_list"])
+
             # decorate flow objects with their run activity stats
             for flow in context["object_list"]:
                 flow.run_stats = flow.get_run_stats()
