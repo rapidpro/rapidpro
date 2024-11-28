@@ -449,7 +449,9 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         counts = self.counts.prefix("node:").scope_totals()
         by_node = {scope[5:]: count for scope, count in counts.items() if count}
-        by_segment = FlowPathCount.get_totals(self)
+
+        counts = self.counts.prefix("segment:").scope_totals()
+        by_segment = {scope[8:]: count for scope, count in counts.items() if count}
 
         return by_node, by_segment
 
@@ -1561,7 +1563,7 @@ class FlowPathCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set):  # pragma: no cover
         sql = """
         WITH removed as (
             DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
@@ -1574,12 +1576,6 @@ class FlowPathCount(SquashableModel):
 
         params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
         return sql, params
-
-    @classmethod
-    def get_totals(cls, flow):
-        counts = cls.objects.filter(flow=flow)
-        totals = list(counts.values_list("from_uuid", "to_uuid").annotate(replies=Sum("count")))
-        return {"%s:%s" % (t[0], t[1]): t[2] for t in totals}
 
     class Meta:
         indexes = [
