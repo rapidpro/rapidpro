@@ -50,6 +50,7 @@ from .models import (
 from .tasks import (
     interrupt_flow_sessions,
     squash_activity_counts,
+    squash_flow_counts,
     trim_flow_revisions,
     trim_flow_sessions,
     update_session_wait_expires,
@@ -562,7 +563,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
 
         # make sure it still works after ze squashings
         self.assertEqual(76, FlowCategoryCount.objects.all().count())
-        FlowCategoryCount.squash()
+        squash_flow_counts()
         self.assertEqual(9, FlowCategoryCount.objects.all().count())
         counts = favorites.get_category_counts()
         assertCount(counts, "beer", "Turbo King", 3)
