@@ -308,7 +308,7 @@ class ClientTest(TembaTest):
 
         self.assertTrue(self.client.check_credentials())
 
-    @patch("vonage.numbers.Numbers.get_account_numbers")
+    @patch("vonage.number_management.Numbers.get_account_numbers")
     def test_get_numbers(self, mock_get_account_numbers):
         mock_get_account_numbers.return_value = {"count": 2, "numbers": ["23463", "568658"]}
 
@@ -316,7 +316,7 @@ class ClientTest(TembaTest):
 
         mock_get_account_numbers.assert_called_once_with(params={"size": 10, "pattern": "593"})
 
-    @patch("vonage.numbers.Numbers.get_available_numbers")
+    @patch("vonage.number_management.Numbers.get_available_numbers")
     def test_search_numbers(self, mock_get_available_numbers):
         mock_get_available_numbers.side_effect = [
             {"count": 2, "numbers": ["23463", "568658"]},
@@ -332,13 +332,13 @@ class ClientTest(TembaTest):
             ]
         )
 
-    @patch("vonage.numbers.Numbers.buy_number")
+    @patch("vonage.number_management.Numbers.buy_number")
     def test_buy_number(self, mock_buy_number):
         self.client.buy_number(country="US", number="+12345")
 
         mock_buy_number.assert_called_once_with(params={"msisdn": "12345", "country": "US"})
 
-    @patch("vonage.numbers.Numbers.update_number")
+    @patch("vonage.number_management.Numbers.update_number")
     def test_update_number(self, mock_update_number):
         self.client.update_number(country="US", number="+12345", mo_url="http://test", app_id="ID123")
 
