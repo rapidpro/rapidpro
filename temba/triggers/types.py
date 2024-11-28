@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactURN
-from temba.contacts.omnibox import omnibox_deserialize
+from temba.contacts.views.omnibox import omnibox_deserialize
 from temba.flows.models import Flow
 from temba.schedules.views import ScheduleFormMixin
 from temba.utils.fields import JSONField, OmniboxChoice, SelectWidget, TembaChoiceField
