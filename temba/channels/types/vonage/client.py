@@ -17,7 +17,7 @@ class VonageClient:
 
     def check_credentials(self) -> bool:
         try:
-            self.base.get_balance()
+            self.base.account.get_balance()
             return True
         except vonage.AuthenticationError:
             return False
@@ -27,13 +27,13 @@ class VonageClient:
         if pattern:
             params["pattern"] = str(pattern).strip("+")
 
-        response = self._with_retry(self.base.get_account_numbers, params=params)
+        response = self._with_retry(self.base.numbers.get_account_numbers, params=params)
 
         return response["numbers"] if int(response.get("count", 0)) else []
 
     def search_numbers(self, country, pattern):
         response = self._with_retry(
-            self.base.get_available_numbers,
+            self.base.numbers.get_available_numbers,
             country_code=country,
             pattern=pattern,
             search_pattern=1,
@@ -46,7 +46,7 @@ class VonageClient:
             numbers += response["numbers"]
 
         response = self._with_retry(
-            self.base.get_available_numbers,
+            self.base.numbers.get_available_numbers,
             country_code=country,
             pattern=pattern,
             search_pattern=1,
@@ -62,7 +62,7 @@ class VonageClient:
     def buy_number(self, country, number):
         params = dict(msisdn=number.lstrip("+"), country=country)
 
-        self._with_retry(self.base.buy_number, params=params)
+        self._with_retry(self.base.numbers.buy_number, params=params)
 
     def update_number(self, country, number, mo_url, app_id):
         number = number.lstrip("+")
@@ -71,7 +71,7 @@ class VonageClient:
         if app_id:
             params["app_id"] = app_id
 
-        self._with_retry(self.base.update_number, params=params)
+        self._with_retry(self.base.numbers.update_number, params=params)
 
     def create_application(self, domain, channel_uuid):
         name = "%s/%s" % (domain, channel_uuid)
@@ -90,7 +90,7 @@ class VonageClient:
             },
         }
 
-        response = self._with_retry(self.base.application_v2.create_application, application_data=app_data)
+        response = self._with_retry(self.base.application.create_application, application_data=app_data)
 
         app_id = response.get("id")
         app_private_key = response.get("keys", {}).get("private_key")
@@ -98,7 +98,7 @@ class VonageClient:
 
     def delete_application(self, app_id):
         try:
-            self._with_retry(self.base.application_v2.delete_application, application_id=app_id)
+            self._with_retry(self.base.application.delete_application, application_id=app_id)
         except vonage.ClientError:
             # possible application no longer exists
             pass

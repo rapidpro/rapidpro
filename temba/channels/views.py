@@ -3,10 +3,10 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import Any
 
-import nexmo
 import phonenumbers
 import requests
 import twilio.base.exceptions
+import vonage
 from smartmin.views import (
     SmartCRUDL,
     SmartFormView,
@@ -375,8 +375,8 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             return HttpResponseRedirect("%s?success" % reverse("public.public_welcome"))
 
         except (
-            nexmo.AuthenticationError,
-            nexmo.ClientError,
+            vonage.AuthenticationError,
+            vonage.ClientError,
             twilio.base.exceptions.TwilioRestException,
         ) as e:  # pragma: no cover
             logger.warning(f"Unable to claim a number: {str(e)}", exc_info=True)

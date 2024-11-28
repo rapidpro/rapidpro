@@ -34,7 +34,7 @@ class VonageType(ChannelType):
     """
     A Vonage (formerly Nexmo) channel
 
-    Callback status information (https://developer.nexmo.com/api/voice#status-values):
+    Callback status information (https://developer.vonage.com/en/api/voice#status-values):
 
         started: Platform has started the call.
         ringing: The user's handset is ringing.

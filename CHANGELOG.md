@@ -1,3 +1,9 @@
+v9.3.124 (2024-11-28)
+-------------------------
+ * Data migration to backfill new segment counts
+ * Update vonage python client
+ * Stop writing and squashing old node and status counts
+
 v9.3.123 (2024-11-28)
 -------------------------
  * Only load flow results once per page load
