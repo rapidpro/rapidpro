@@ -24,7 +24,7 @@ from temba.msgs.models import SystemLabel, SystemLabelCount
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, MockJsonResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
@@ -5760,3 +5760,90 @@ class FlowActivityCountTest(TembaTest):
             cursor.execute(sql, params)
 
         self.assertEqual({"foo:1", "foo:2", "foo:3"}, set(flow1.counts.values_list("scope", flat=True)))
+
+
+class BackfillSegmentCountsTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0344_update_triggers"
+    migrate_to = "0345_backfill_segment_counts"
+
+    def setUpBeforeMigration(self, apps):
+        def create_flow(name, waiting_exit_uuids):
+            flow = self.create_flow(name)
+            flow.metadata["waiting_exit_uuids"] = waiting_exit_uuids
+            flow.save(update_fields=("metadata",))
+            return flow
+
+        def path_count(flow, from_uuid, to_uuid, period, count):
+            FlowPathCount.objects.create(flow=flow, from_uuid=from_uuid, to_uuid=to_uuid, period=period, count=count)
+
+        self.flow1 = create_flow(
+            "Flow 1", ["cf65941c-39cd-4e01-ae05-f7c1efb54975", "78238e17-e79e-449a-8f35-82c088ea2987"]
+        )
+        self.flow2 = create_flow("Flow 2", ["ae72b4c7-d3bb-4675-b5d4-b2b3205e940d"])
+        self.flow3 = create_flow("Flow 3", [])
+
+        path_count(
+            self.flow1,
+            "cf65941c-39cd-4e01-ae05-f7c1efb54975",
+            "f1934f22-d177-485d-b39a-72269ffbf05d",
+            datetime(2024, 11, 22, 11, 0, tzinfo=tzone.utc),
+            3,
+        )
+        path_count(
+            self.flow1,
+            "cf65941c-39cd-4e01-ae05-f7c1efb54975",
+            "f1934f22-d177-485d-b39a-72269ffbf05d",
+            datetime(2024, 11, 22, 11, 0, tzinfo=tzone.utc),
+            2,
+        )
+        path_count(
+            self.flow1,
+            "78238e17-e79e-449a-8f35-82c088ea2987",
+            "f1934f22-d177-485d-b39a-72269ffbf05d",
+            datetime(2024, 11, 22, 10, 0, tzinfo=tzone.utc),
+            4,
+        )
+        path_count(
+            self.flow1,
+            "78238e17-e79e-449a-8f35-82c088ea2987",
+            "25add485-bff4-4724-82d4-750d4058b46d",
+            datetime(2024, 11, 20, 8, 0, tzinfo=tzone.utc),
+            1,
+        )
+        path_count(
+            self.flow1,
+            "78238e17-e79e-449a-8f35-82c088ea2987",
+            "f1934f22-d177-485d-b39a-72269ffbf05d",
+            datetime(2024, 11, 14, 7, 0, tzinfo=tzone.utc),
+            0,  # zero counts should be ignored
+        )
+        path_count(
+            self.flow1,
+            "ccc610b9-5745-48ec-9305-57112501841a",  # not a waiting exit
+            "f1934f22-d177-485d-b39a-72269ffbf05d",
+            datetime(2024, 11, 22, 10, 0, tzinfo=tzone.utc),
+            4,
+        )
+        path_count(
+            self.flow2,
+            "ae72b4c7-d3bb-4675-b5d4-b2b3205e940d",
+            "704c0cbf-1219-476c-9116-09b2ee82c579",
+            datetime(2024, 11, 22, 11, 0, tzinfo=tzone.utc),
+            7,
+        )
+
+    def test_migration(self):
+        self.assertEqual(
+            {
+                "segment:cf65941c-39cd-4e01-ae05-f7c1efb54975:f1934f22-d177-485d-b39a-72269ffbf05d": 5,
+                "segment:78238e17-e79e-449a-8f35-82c088ea2987:f1934f22-d177-485d-b39a-72269ffbf05d": 4,
+                "segment:78238e17-e79e-449a-8f35-82c088ea2987:25add485-bff4-4724-82d4-750d4058b46d": 1,
+            },
+            self.flow1.counts.scope_totals(),
+        )
+        self.assertEqual(
+            {"segment:ae72b4c7-d3bb-4675-b5d4-b2b3205e940d:704c0cbf-1219-476c-9116-09b2ee82c579": 7},
+            self.flow2.counts.scope_totals(),
+        )
+        self.assertEqual({}, self.flow3.counts.scope_totals())
