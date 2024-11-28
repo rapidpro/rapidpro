@@ -41,8 +41,8 @@ from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import EmailSender
 from temba.utils.fields import UploadToIdPathAndRename
-from temba.utils.models import JSONField, SquashableModel, TembaUUIDMixin, delete_in_batches
-from temba.utils.models.counts import ScopeCountQuerySet
+from temba.utils.models import JSONField, TembaUUIDMixin, delete_in_batches
+from temba.utils.models.counts import BaseScopedCount
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_secret, generate_token
 from temba.utils.timezones import timezone_to_country_code
@@ -1872,7 +1872,7 @@ class Export(TembaUUIDMixin, models.Model):
         return f'<Export: id={self.id} type="{self.export_type}">'
 
 
-class ItemCount(SquashableModel):
+class ItemCount(BaseScopedCount):
     """
     Org-level counts of things.
     """
@@ -1880,10 +1880,6 @@ class ItemCount(SquashableModel):
     squash_over = ("org_id", "scope")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
-    scope = models.CharField(max_length=64)
-    count = models.IntegerField(default=0)
-
-    objects = ScopeCountQuerySet.as_manager()
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
