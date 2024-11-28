@@ -289,6 +289,12 @@
       }
     }
 
+    function updateEngagement() {
+      fetchAjax("{% url 'flows.flow_engagement' object.id %}", {
+        container: "#engagement-charts"
+      });
+    }
+
     function updateCharts() {
 
       var store = document.querySelector("temba-store");
@@ -328,10 +334,6 @@
           }
         }
       });
-
-      window.setTimeout(function() {
-        updateCharts();
-      }, 5000);
     }
 
     function handleTabChanged() {
@@ -346,16 +348,14 @@
         runs.paused = tabs.index != 2;
       }
 
-      if (tabs.index == 0) {
-        fetchAjax("{% url 'flows.flow_engagement' object.id %}", {
-          container: "#engagement-charts"
-        });
-      }
-
       if (tabs.index == 1) {
         updateCharts();
       }
     }
+
+    onSpload(function() {
+      updateEngagement();
+    });
   </script>
 {% endblock extra-script %}
 {% block content %}
