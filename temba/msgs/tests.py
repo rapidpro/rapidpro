@@ -1743,10 +1743,10 @@ class BroadcastTest(TembaTest):
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
         self.kevin = self.create_contact(name="Kevin Durant", phone="987")
-        self.lucy = self.create_contact(name="Lucy M", urns=["twitter:lucy"])
+        self.lucy = self.create_contact(name="Lucy M", urns=["facebook:123456"])
 
-        # a Twitter channel
-        self.twitter = self.create_channel("TWT", "Twitter", "nyaruka")
+        # a Facebook channel
+        self.facebook_channel = self.create_channel("FBA", "Facebook", "12345")
 
     def test_delete(self):
         flow = self.create_flow("Test")
@@ -1788,8 +1788,8 @@ class BroadcastTest(TembaTest):
         today = timezone.now().date()
         self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), 3)
         self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 6)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
+        self.assertEqual(ChannelCount.get_day_count(self.facebook_channel, ChannelCount.INCOMING_MSG_TYPE, today), 0)
+        self.assertEqual(ChannelCount.get_day_count(self.facebook_channel, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
 
         # delete all our messages save for our flow incoming message
         for m in Msg.objects.exclude(id=msg_in3.id):
@@ -1810,8 +1810,8 @@ class BroadcastTest(TembaTest):
         # but daily channel counts should be unchanged
         self.assertEqual(3, ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today))
         self.assertEqual(6, ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today))
-        self.assertEqual(0, ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today))
-        self.assertEqual(1, ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today))
+        self.assertEqual(0, ChannelCount.get_day_count(self.facebook_channel, ChannelCount.INCOMING_MSG_TYPE, today))
+        self.assertEqual(1, ChannelCount.get_day_count(self.facebook_channel, ChannelCount.OUTGOING_MSG_TYPE, today))
 
     @mock_mailroom
     def test_model(self, mr_mocks):
