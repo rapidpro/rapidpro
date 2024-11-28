@@ -5501,6 +5501,72 @@ class FlowRevisionTest(TembaTest):
 
 
 class FlowActivityCountTest(TembaTest):
+    def test_node_counts(self):
+        flow = self.create_flow("Test 1")
+        contact = self.create_contact("Bob", phone="+1234567890")
+        session = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
+            created_on=timezone.now(),
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
+            wait_resume_on_expire=False,
+        )
+
+        def create_run(status, node_uuid):
+            return FlowRun.objects.create(
+                uuid=uuid4(),
+                org=self.org,
+                session=session,
+                flow=flow,
+                contact=contact,
+                status=status,
+                created_on=timezone.now(),
+                modified_on=timezone.now(),
+                exited_on=timezone.now() if status not in ("A", "W") else None,
+                current_node_uuid=node_uuid,
+            )
+
+        run1 = create_run(FlowRun.STATUS_ACTIVE, "ebb534e1-e2e0-40e9-8652-d195e87d832b")
+        run2 = create_run(FlowRun.STATUS_WAITING, "ebb534e1-e2e0-40e9-8652-d195e87d832b")
+        run3 = create_run(FlowRun.STATUS_WAITING, "bbb71aab-e026-442e-9971-6bc4f48941fb")
+        create_run(FlowRun.STATUS_INTERRUPTED, "bbb71aab-e026-442e-9971-6bc4f48941fb")
+
+        self.assertEqual(
+            {"node:ebb534e1-e2e0-40e9-8652-d195e87d832b": 2, "node:bbb71aab-e026-442e-9971-6bc4f48941fb": 1},
+            flow.counts.prefix("node:").scope_totals(),
+        )
+
+        run1.status = FlowRun.STATUS_EXPIRED
+        run1.exited_on = timezone.now()
+        run1.save(update_fields=("status", "exited_on"))
+
+        run3.current_node_uuid = "85b0c928-4bd9-4a2e-84b2-164802c32486"
+        run3.save(update_fields=("current_node_uuid",))
+
+        self.assertEqual(
+            {
+                "node:ebb534e1-e2e0-40e9-8652-d195e87d832b": 1,
+                "node:bbb71aab-e026-442e-9971-6bc4f48941fb": 0,
+                "node:85b0c928-4bd9-4a2e-84b2-164802c32486": 1,
+            },
+            flow.counts.prefix("node:").scope_totals(),
+        )
+
+        run2.delete()
+
+        self.assertEqual(
+            {
+                "node:ebb534e1-e2e0-40e9-8652-d195e87d832b": 0,
+                "node:bbb71aab-e026-442e-9971-6bc4f48941fb": 0,
+                "node:85b0c928-4bd9-4a2e-84b2-164802c32486": 1,
+            },
+            flow.counts.prefix("node:").scope_totals(),
+        )
+
     def test_status_counts(self):
         contact = self.create_contact("Bob", phone="+1234567890")
         session = FlowSession.objects.create(
