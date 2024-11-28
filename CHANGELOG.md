@@ -1,3 +1,7 @@
+v9.3.123 (2024-11-28)
+-------------------------
+ * Only load flow results once per page load
+
 v9.3.122 (2024-11-27)
 -------------------------
  * Stop reading node and status counts from old models
