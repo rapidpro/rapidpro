@@ -884,7 +884,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio.TwilioType",
-    "temba.channels.types.twitter.TwitterType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
     "temba.channels.types.vk.VKType",
@@ -947,9 +946,6 @@ RETENTION_PERIODS = {
 # -----------------------------------------------------------------------------------
 # 3rd Party Integrations
 # -----------------------------------------------------------------------------------
-
-TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
-TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
 
 MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 
