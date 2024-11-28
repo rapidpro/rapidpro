@@ -1160,7 +1160,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 broadcast.contacts.remove(self)
 
     @classmethod
-    def bulk_urn_cache_initialize(cls, contacts, *, using="default"):
+    def bulk_urn_cache_initialize(cls, contacts, *, using: str = "default"):
         """
         Initializes the URN caches on the given contacts.
         """
