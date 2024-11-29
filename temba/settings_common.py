@@ -27,9 +27,6 @@ if TESTING:
     PASSWORD_HASHERS = ("django.contrib.auth.hashers.MD5PasswordHasher",)
     DEBUG = False
 
-TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
-TEST_EXCLUDE = ("smartmin",)
-
 if os.getenv("REMOTE_CONTAINERS") == "true":
     _db_host = "postgres"
     _redis_host = "redis"
