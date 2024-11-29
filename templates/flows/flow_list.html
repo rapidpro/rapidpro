@@ -78,11 +78,11 @@
                 {% endif %}
                 {% if object.run_stats.total %}
                   <div onclick="goto(event)"
-                       href="{% url "flows.flow_results" object.uuid %}"
+                       href="{% url "flows.flow_results" object.id %}"
                        class="linked mr-2 whitespace-nowrap">{{ object.run_stats.total|intcomma }}</div>
                   /
                   <div onclick="goto(event)"
-                       href="{% url "flows.flow_results" object.uuid %}"
+                       href="{% url "flows.flow_results" object.id %}"
                        class="text-center linked mx-2 whitespace-nowrap">{{ object.run_stats.completion }}%</div>
                 {% endif %}
               </div>

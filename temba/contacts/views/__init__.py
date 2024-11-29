@@ -1,1 +1,1 @@
-from .views import *  # noqa
+from .views import ContactCRUDL, ContactFieldCRUDL, ContactGroupCRUDL, ContactImportCRUDL  # noqa
