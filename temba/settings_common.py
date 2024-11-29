@@ -195,9 +195,6 @@ TEMPLATES = [
     }
 ]
 
-if TESTING:
-    TEMPLATES[0]["OPTIONS"]["context_processors"] += ("temba.tests.add_testing_flag_to_context",)
-
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 # -----------------------------------------------------------------------------------
