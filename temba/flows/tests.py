@@ -671,47 +671,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         # can't delete already released flow
         self.assertEqual(response.status_code, 404)
 
-    def test_flow_results_of_inactive_flow(self):
-        flow = self.get_flow("favorites")
-        flow.release(self.admin)
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
-
-        self.assertEqual(response.status_code, 404)
-
-    def test_flow_results_with_hidden_results(self):
-        flow = self.get_flow("color_v13")
-        flow_nodes = flow.get_definition()["nodes"]
-        color_split = flow_nodes[4]
-
-        # add a spec for a hidden result to this flow.. which should not be included below
-        flow.metadata[Flow.METADATA_RESULTS].append(
-            {
-                "key": "_color_classification",
-                "name": "_Color Classification",
-                "categories": ["Success", "Skipped", "Failure"],
-                "node_uuids": [color_split["uuid"]],
-            }
-        )
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.context["result_fields"],
-            [
-                {
-                    "key": "color",
-                    "name": "Color",
-                    "categories": ["Orange", "Blue", "Other", "Nothing"],
-                    "node_uuids": [color_split["uuid"]],
-                    "has_categories": "true",
-                }
-            ],
-        )
-
     def test_importing_dependencies(self):
         # create channel to be matched by name
         channel = self.create_channel("TG", "RapidPro Test", "12345324635")
@@ -1298,7 +1257,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("flows.flow_editor", args=[flow3.uuid]))
 
         # can see results for a flow
-        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_results", args=[flow.id]))
         self.assertEqual(200, response.status_code)
 
         # check flow listing
@@ -2354,7 +2313,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_category_counts(self):
         flow1 = self.create_flow("Test 1")
 
-        counts_url = reverse("flows.flow_category_counts", args=[flow1.uuid])
+        counts_url = reverse("flows.flow_category_counts", args=[flow1.id])
 
         self.assertRequestDisallowed(counts_url, [None, self.agent])
 
@@ -2421,6 +2380,19 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             },
             response.json(),
         )
+
+    def test_results(self):
+        flow = self.create_flow("Test 1")
+
+        results_url = reverse("flows.flow_results", args=[flow.id])
+
+        self.assertRequestDisallowed(results_url, [None, self.agent])
+        self.assertReadFetch(results_url, [self.user, self.editor, self.admin])
+
+        flow.release(self.admin)
+
+        response = self.requestView(results_url, self.admin)
+        self.assertEqual(404, response.status_code)
 
     @patch("django.utils.timezone.now")
     def test_engagement(self, mock_now):
