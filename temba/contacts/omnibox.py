@@ -5,7 +5,7 @@ from django.db.models.functions import Lower
 from temba import mailroom
 from temba.utils.models.es import IDSliceQuerySet
 
-from ..models import Contact, ContactGroup, ContactGroupCount
+from .models import Contact, ContactGroup, ContactGroupCount
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"

@@ -8,7 +8,7 @@ from temba import mailroom
 from temba.utils import languages
 from temba.utils.fields import InputWidget, SelectMultipleWidget, SelectWidget, TembaMultipleChoiceField
 
-from ..models import URN, Contact, ContactGroup, ContactURN
+from .models import URN, Contact, ContactGroup, ContactURN
 
 
 class CreateContactForm(forms.ModelForm):

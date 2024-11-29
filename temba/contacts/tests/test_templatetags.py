@@ -1,7 +1,6 @@
 from temba.contacts.models import ContactField
+from temba.contacts.templatetags import contacts as tags
 from temba.tests import TembaTest
-
-from . import contacts as tags
 
 
 class ContactsTest(TembaTest):
