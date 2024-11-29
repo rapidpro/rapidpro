@@ -45,8 +45,8 @@ from temba.utils.models import patch_queryset_count
 from temba.utils.models.es import IDSliceQuerySet
 from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, NonAtomicMixin, SpaMixin
 
-from ..models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
 from .forms import ContactGroupForm, CreateContactForm, UpdateContactForm
+from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
 from .omnibox import omnibox_query, omnibox_serialize
 
 logger = logging.getLogger(__name__)

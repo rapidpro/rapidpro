@@ -1,7 +1,7 @@
 from temba.contacts.models import ContactField
+from temba.contacts.templatetags import contacts as tags
+from temba.msgs.models import Msg
 from temba.tests import TembaTest
-
-from . import contacts as tags
 
 
 class ContactsTest(TembaTest):
@@ -63,3 +63,25 @@ class ContactsTest(TembaTest):
 
         with self.anonymous(self.org):
             self.assertEqual("••••••••", tags.format_urn(contact.get_urn(), self.org))
+
+    def test_msg_status_badge(self):
+        contact = self.create_contact("Uri", urns=["tel:+12024561414"])
+        msg = self.create_outgoing_msg(contact, "This is an outgoing message")
+
+        # wired has a primary color check
+        msg.status = Msg.STATUS_WIRED
+        self.assertIn('"check"', tags.msg_status_badge(msg))
+        self.assertIn("--color-primary-dark", tags.msg_status_badge(msg))
+
+        # delivered has a success check
+        msg.status = Msg.STATUS_DELIVERED
+        self.assertIn('"check"', tags.msg_status_badge(msg))
+        self.assertIn("--success-rgb", tags.msg_status_badge(msg))
+
+        # errored show retrying icon
+        msg.status = Msg.STATUS_ERRORED
+        self.assertIn('"retry"', tags.msg_status_badge(msg))
+
+        # failed messages show an x
+        msg.status = Msg.STATUS_FAILED
+        self.assertIn('"x"', tags.msg_status_badge(msg))
