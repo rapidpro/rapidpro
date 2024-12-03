@@ -1541,39 +1541,14 @@ class FlowCategoryCount(SquashableModel):
 
 class FlowPathCount(SquashableModel):
     """
-    Maintains hourly counts of flow paths
+    TODO drop
     """
 
-    squash_over = ("flow_id", "from_uuid", "to_uuid", "period")
-
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="path_counts")
-
-    # the exit UUID of the node this path segment starts with
     from_uuid = models.UUIDField()
-
-    # the UUID of the node this path segment ends with
     to_uuid = models.UUIDField()
-
-    # the hour in which this activity occurred
     period = models.DateTimeField()
-
-    # the number of runs that tooks this path segment in that period
     count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):  # pragma: no cover
-        sql = """
-        WITH removed as (
-            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
-        )
-        INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
-        VALUES (%%s, %%s, %%s, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
-        return sql, params
 
     class Meta:
         indexes = [
