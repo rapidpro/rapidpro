@@ -1,3 +1,8 @@
+v9.3.127 (2024-12-03)
+-------------------------
+ * Add new fields to flow runs to store path data in more condensed format
+ * Remove input/text columns from results exports
+
 v9.3.126 (2024-12-03)
 -------------------------
  * Update to latest editor
