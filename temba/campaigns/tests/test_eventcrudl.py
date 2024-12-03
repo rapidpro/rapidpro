@@ -213,7 +213,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "uuid": str(event.flow.uuid),
                 "name": f"Single Message ({event.id})",
-                "spec_version": "13.5.0",
+                "spec_version": Flow.CURRENT_SPEC_VERSION,
                 "revision": 1,
                 "expire_after_minutes": 0,
                 "language": "eng",

@@ -201,7 +201,7 @@ class CampaignTest(TembaTest):
             {
                 "uuid": str(event.flow.uuid),
                 "name": event.flow.name,
-                "spec_version": "13.5.0",
+                "spec_version": Flow.CURRENT_SPEC_VERSION,
                 "revision": 1,
                 "language": "eng",
                 "type": "messaging_background",
@@ -809,7 +809,7 @@ class CampaignTest(TembaTest):
         # message flow should be migrated to latest engine spec
         self.assertEqual({"und": "This is a second campaign message"}, events[5].message)
         self.assertEqual("und", events[5].flow.base_language)
-        self.assertEqual("13.5.0", events[5].flow.version_number)
+        self.assertEqual(Flow.CURRENT_SPEC_VERSION, events[5].flow.version_number)
 
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
