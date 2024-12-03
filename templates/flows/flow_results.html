@@ -304,7 +304,7 @@
         return;
       }
 
-      store.getUrl("/flow/category_counts/{{object.uuid}}/", {
+      store.getUrl("/flow/category_counts/{{object.id}}/", {
         force: true
       }).then(function(response) {
         var data = response.json;

@@ -550,9 +550,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        elif URN.TWITTER_SCHEME in self.schemes:
-            return "@%s" % self.address
-
         elif URN.FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 

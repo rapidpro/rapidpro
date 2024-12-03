@@ -16,6 +16,10 @@ class SquashableModel(models.Model):
     is_squashed = models.BooleanField(default=False)
 
     @classmethod
+    def get_squash_over(cls) -> tuple:
+        return cls.squash_over
+
+    @classmethod
     def get_unsquashed(cls):
         return cls.objects.filter(is_squashed=False)
 
@@ -27,9 +31,8 @@ class SquashableModel(models.Model):
         """
 
         num_sets = 0
-        distinct_sets = (
-            cls.get_unsquashed().order_by(*cls.squash_over).distinct(*cls.squash_over)[: cls.squash_max_distinct]
-        )
+        squash_over = cls.get_squash_over()
+        distinct_sets = cls.get_unsquashed().order_by(*squash_over).distinct(*squash_over)[: cls.squash_max_distinct]
 
         for distinct_set in distinct_sets:
             with connection.cursor() as cursor:

@@ -43,10 +43,6 @@ from .mailroom import (
 )
 
 
-def add_testing_flag_to_context(*args):
-    return dict(testing=settings.TESTING)
-
-
 class TembaTest(SmartminTest):
     """
     Base class for our unit tests

@@ -3,8 +3,10 @@ from django.db.models import Q, Sum
 
 from temba.utils.db.queries import or_list
 
+from .squashable import SquashableModel
 
-class ScopeCountQuerySet(models.QuerySet):
+
+class ScopedCountQuerySet(models.QuerySet):
     """
     Specialized queryset for scope + count models.
     """
@@ -30,3 +32,13 @@ class ScopeCountQuerySet(models.QuerySet):
         """
         counts = self.values_list("scope").annotate(count_sum=Sum("count"))
         return {c[0]: c[1] for c in counts}
+
+
+class BaseScopedCount(SquashableModel):
+    scope = models.CharField(max_length=128)
+    count = models.IntegerField(default=0)
+
+    objects = ScopedCountQuerySet.as_manager()
+
+    class Meta:
+        abstract = True

@@ -29,7 +29,7 @@ from temba.tickets.models import Topic
 from temba.utils import analytics, json, on_transaction_commit, s3
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
-from temba.utils.models.counts import ScopeCountQuerySet
+from temba.utils.models.counts import BaseScopedCount
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -391,47 +391,49 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         return {"icon": self.TYPE_ICONS.get(self.flow_type, "flow"), "type": self.flow_type, "uuid": self.uuid}
 
     def get_category_counts(self):
-        keys = [r["key"] for r in self.metadata["results"]]
+        # get the possible results from the flow metadata
+        results_by_key = {r["key"]: r for r in self.metadata["results"]}
+
         counts = (
-            FlowCategoryCount.objects.filter(flow_id=self.id)
-            .filter(result_key__in=keys)
+            self.category_counts.filter(result_key__in=results_by_key)
             .values("result_key", "category_name")
-            .annotate(count=Sum("count"), result_name=Max("result_name"))
+            .annotate(total=Sum("count"))
         )
 
-        results = {}
+        # organize into dict of results keys to dicts of category names to counts
+        counts_by_key = defaultdict(dict)
         for count in counts:
-            key = count["result_key"]
-            result = results.get(key, {})
-            if "name" not in result:
-                if count["category_name"] == "All Responses":
-                    continue
-                result["key"] = key
-                result["name"] = count["result_name"]
-                result["categories"] = [dict(name=count["category_name"], count=count["count"])]
-                result["total"] = count["count"]
-            else:
-                result["categories"].append(dict(name=count["category_name"], count=count["count"]))
-                result["total"] += count["count"]
-            results[count["result_key"]] = result
+            counts_by_key[count["result_key"]][count["category_name"]] = count["total"]
 
-        for result_key, result_dict in results.items():
-            for cat in result_dict["categories"]:
-                if result_dict["total"]:
-                    cat["pct"] = float(cat["count"]) / float(result_dict["total"])
-                else:
-                    cat["pct"] = 0
+        results = []
+        for result_key, result in results_by_key.items():
+            category_counts = counts_by_key.get(result_key, {})
 
-            result_dict["categories"] = sorted(result_dict["categories"], key=lambda d: d["name"])
+            # TODO maybe we shouldn't store All Responses in the first place
+            if not category_counts or (len(category_counts) == 1 and "All Responses" in category_counts):
+                continue
 
-        # order counts by their place on the flow
-        result_list = []
-        for key in keys:
-            result = results.get(key)
-            if result:
-                result_list.append(result)
+            result_total = sum(category_counts.values())
+            result_categories = []
+            for cat_name, cat_count in category_counts.items():
+                result_categories.append(
+                    {
+                        "name": cat_name,
+                        "count": cat_count,
+                        "pct": (float(cat_count) / float(result_total)) if result_total else 0,
+                    }
+                )
 
-        return result_list
+            result_summary = {
+                "key": result_key,
+                "name": result["name"],
+                "categories": sorted(result_categories, key=lambda c: c["name"]),
+                "total": result_total,
+            }
+
+            results.append(result_summary)
+
+        return results
 
     def lock(self):
         """
@@ -1426,7 +1428,7 @@ class FlowRevision(models.Model):
         self.delete()
 
 
-class FlowActivityCount(SquashableModel):
+class FlowActivityCount(BaseScopedCount):
     """
     Flow-level counts of activity.
     """
@@ -1434,10 +1436,6 @@ class FlowActivityCount(SquashableModel):
     squash_over = ("flow_id", "scope")
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
-    scope = models.CharField(max_length=128)
-    count = models.IntegerField(default=0)
-
-    objects = ScopeCountQuerySet.as_manager()
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
@@ -1460,7 +1458,7 @@ class FlowActivityCount(SquashableModel):
     @classmethod
     def prefetch_by_scope(cls, flows, *, prefix: str, to_attr: str, using: str):
         counts = (
-            FlowActivityCount.objects.using(using)
+            cls.objects.using(using)
             .filter(flow__in=flows)
             .prefix(prefix)
             .values_list("flow_id", "scope")

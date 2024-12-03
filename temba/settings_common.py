@@ -27,9 +27,6 @@ if TESTING:
     PASSWORD_HASHERS = ("django.contrib.auth.hashers.MD5PasswordHasher",)
     DEBUG = False
 
-TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
-TEST_EXCLUDE = ("smartmin",)
-
 if os.getenv("REMOTE_CONTAINERS") == "true":
     _db_host = "postgres"
     _redis_host = "redis"
@@ -197,9 +194,6 @@ TEMPLATES = [
         },
     }
 ]
-
-if TESTING:
-    TEMPLATES[0]["OPTIONS"]["context_processors"] += ("temba.tests.add_testing_flag_to_context",)
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
@@ -884,7 +878,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio.TwilioType",
-    "temba.channels.types.twitter.TwitterType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
     "temba.channels.types.vk.VKType",
@@ -947,9 +940,6 @@ RETENTION_PERIODS = {
 # -----------------------------------------------------------------------------------
 # 3rd Party Integrations
 # -----------------------------------------------------------------------------------
-
-TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
-TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
 
 MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 

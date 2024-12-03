@@ -1,3 +1,10 @@
+v9.3.125 (2024-11-28)
+-------------------------
+ * Remove TWT channel type
+ * Prefetch run status counts used by flows list view and flows API endpoint
+ * Update twilio python client library
+ * Read segment counts from new flow activity count model
+
 v9.3.124 (2024-11-28)
 -------------------------
  * Data migration to backfill new segment counts
