@@ -2,7 +2,9 @@ import itertools
 import logging
 from array import array
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date, datetime, timezone as tzone
+from uuid import UUID
 
 import iso8601
 from django_redis import get_redis_connection
@@ -1185,7 +1187,9 @@ class FlowRun(models.Model):
     results = JSONAsTextField(null=True, default=dict)
 
     # path taken by this run through the flow
-    path = JSONAsTextField(null=True, default=list)
+    path = JSONAsTextField(null=True, default=list)  # to be replaced by path_nodes and path_times
+    path_nodes = ArrayField(models.UUIDField(), null=True)
+    path_times = ArrayField(models.DateTimeField(), null=True)
 
     # current node location of this run in the flow
     current_node_uuid = models.UUIDField(null=True)
@@ -1193,11 +1197,19 @@ class FlowRun(models.Model):
     # set when deleting to signal to db triggers that result category counts should be decremented
     delete_from_results = models.BooleanField(null=True)
 
+    @dataclass
+    class Step:
+        node: UUID
+        time: datetime
+
+    def get_path(self):
+        if self.path_nodes is not None and self.path_times is not None:
+            return [self.Step(node=n, time=t) for n, t in zip(self.path_nodes, self.path_times)]
+        else:
+            return [self.Step(node=UUID(s["node_uuid"]), time=iso8601.parse_date(s["arrived_on"])) for s in self.path]
+
     def as_archive_json(self):
         from temba.api.v2.views import FlowRunReadSerializer
-
-        def convert_step(step):
-            return {"node": step["node_uuid"], "time": step["arrived_on"]}
 
         def convert_result(result):
             return {
@@ -1215,7 +1227,7 @@ class FlowRun(models.Model):
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
-            "path": [convert_step(s) for s in self.path],
+            "path": [{"node": str(s.node), "time": s.time.isoformat()} for s in self.get_path()],
             "values": {k: convert_result(r) for k, r in self.results.items()} if self.results else {},
             "created_on": self.created_on.isoformat(),
             "modified_on": self.modified_on.isoformat(),
