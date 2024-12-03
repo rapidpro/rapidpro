@@ -1059,12 +1059,12 @@ class FlowRunReadSerializer(ReadSerializer):
     def get_values(self, obj):
         def convert_result(result):
             return {
+                "name": result.get("name"),
                 "value": result["value"],
                 "category": result.get("category"),
                 "node": result["node_uuid"],
                 "time": format_datetime(iso8601.parse_date(result["created_on"])),
-                "input": result.get("input"),
-                "name": result.get("name"),
+                "input": result.get("input"),  # deprecated
             }
 
         return {k: convert_result(r) for k, r in obj.results.items()}
