@@ -1,3 +1,7 @@
+v9.3.128 (2024-12-03)
+-------------------------
+ * Bump to flow spec version 13.6
+
 v9.3.127 (2024-12-03)
 -------------------------
  * Add new fields to flow runs to store path data in more condensed format
