@@ -1,3 +1,11 @@
+v9.3.126 (2024-12-03)
+-------------------------
+ * Update to latest editor
+ * Remove antialiasing from general fonts
+ * Cleanup fetching of category counts for results page analytics tab
+ * Fix segment count backfill migration to include non-waits
+ * Stop writing and squashing old path counts
+
 v9.3.125 (2024-11-28)
 -------------------------
  * Remove TWT channel type
