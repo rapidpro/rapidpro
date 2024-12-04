@@ -3106,7 +3106,6 @@ class FlowRunTest(TembaTest):
             {
                 "color": {
                     "category": "Other",
-                    "input": "green",
                     "name": "Color",
                     "node": matchers.UUID4String(),
                     "time": matchers.ISODate(),
