@@ -26,14 +26,8 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, dynamo, get_anonymous_user, on_transaction_commit, redact
-from temba.utils.models import (
-    JSONAsTextField,
-    LegacyUUIDMixin,
-    SquashableModel,
-    TembaModel,
-    delete_in_batches,
-    generate_uuid,
-)
+from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, TembaModel, delete_in_batches, generate_uuid
+from temba.utils.models.counts import BaseSquashableCount
 from temba.utils.text import generate_secret
 
 logger = logging.getLogger(__name__)
@@ -707,7 +701,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         ]
 
 
-class ChannelCount(SquashableModel):
+class ChannelCount(BaseSquashableCount):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
@@ -737,7 +731,6 @@ class ChannelCount(SquashableModel):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="counts")
     count_type = models.CharField(choices=COUNT_TYPE_CHOICES, max_length=2)
     day = models.DateField(null=True)
-    count = models.IntegerField(default=0)
 
     @classmethod
     def get_day_count(cls, channel, count_type, day):

@@ -18,7 +18,8 @@ from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgMembe
 from temba.utils.dates import date_range
 from temba.utils.db.functions import SplitPart
 from temba.utils.export import MultiSheetExporter
-from temba.utils.models import DailyCountModel, DailyTimingModel, TembaModel
+from temba.utils.models import TembaModel
+from temba.utils.models.counts import DailyCountModel, DailyTimingModel
 from temba.utils.uuid import is_uuid, uuid4
 
 logger = logging.getLogger(__name__)

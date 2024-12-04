@@ -30,8 +30,8 @@ from temba.templates.models import Template
 from temba.tickets.models import Topic
 from temba.utils import analytics, json, on_transaction_commit, s3
 from temba.utils.export.models import MultiSheetExporter
-from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
-from temba.utils.models.counts import BaseScopedCount
+from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, TembaModel, delete_in_batches
+from temba.utils.models.counts import BaseScopedCount, BaseSquashableCount
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -1450,24 +1450,6 @@ class FlowActivityCount(BaseScopedCount):
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
 
     @classmethod
-    def get_squash_query(cls, distinct_set: dict) -> tuple:
-        sql = """
-        WITH removed as (
-            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "scope" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("flow_id", "scope", "count", "is_squashed")
-        SELECT %%s, %%s, s.total, TRUE FROM (
-            SELECT COALESCE(SUM("count"), 0) AS "total" FROM removed
-        ) s WHERE s.total != 0;
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        params = (distinct_set["flow_id"], distinct_set["scope"]) * 2
-
-        return sql, params
-
-    @classmethod
     def prefetch_by_scope(cls, flows, *, prefix: str, to_attr: str, using: str):
         counts = (
             cls.objects.using(using)
@@ -1491,7 +1473,7 @@ class FlowActivityCount(BaseScopedCount):
         ]
 
 
-class FlowCategoryCount(SquashableModel):
+class FlowCategoryCount(BaseSquashableCount):
     """
     Maintains counts for categories across all possible results in a flow
     """
@@ -1509,9 +1491,6 @@ class FlowCategoryCount(SquashableModel):
 
     # the name of the category
     category_name = models.CharField(max_length=128)
-
-    # the number of results with this category
-    count = models.IntegerField(default=0)
 
     @classmethod
     def get_squash_query(cls, distinct_set: dict) -> tuple:
@@ -1551,7 +1530,7 @@ class FlowCategoryCount(SquashableModel):
         ]
 
 
-class FlowPathCount(SquashableModel):
+class FlowPathCount(BaseSquashableCount):
     """
     TODO drop
     """
@@ -1560,7 +1539,6 @@ class FlowPathCount(SquashableModel):
     from_uuid = models.UUIDField()
     to_uuid = models.UUIDField()
     period = models.DateTimeField()
-    count = models.IntegerField(default=0)
 
     class Meta:
         indexes = [
@@ -1572,14 +1550,13 @@ class FlowPathCount(SquashableModel):
         ]
 
 
-class FlowNodeCount(SquashableModel):
+class FlowNodeCount(BaseSquashableCount):
     """
     TODO drop
     """
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="node_counts")
     node_uuid = models.UUIDField(db_index=True)
-    count = models.IntegerField(default=0)
 
     class Meta:
         indexes = [
@@ -1589,14 +1566,13 @@ class FlowNodeCount(SquashableModel):
         ]
 
 
-class FlowRunStatusCount(SquashableModel):
+class FlowRunStatusCount(BaseSquashableCount):
     """
     TODO drop
     """
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="status_counts")
     status = models.CharField(max_length=1, choices=FlowRun.STATUS_CHOICES)
-    count = models.IntegerField(default=0)
 
     class Meta:
         indexes = [
@@ -1993,7 +1969,7 @@ class FlowStart(models.Model):
         ]
 
 
-class FlowStartCount(SquashableModel):
+class FlowStartCount(BaseSquashableCount):
     """
     Maintains count of how many runs a FlowStart has created.
     """
@@ -2001,21 +1977,6 @@ class FlowStartCount(SquashableModel):
     squash_over = ("start_id",)
 
     start = models.ForeignKey(FlowStart, on_delete=models.PROTECT, related_name="counts", db_index=True)
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set: dict) -> tuple:
-        sql = """
-        WITH deleted as (
-            DELETE FROM %(table)s WHERE "start_id" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("start_id", "count", "is_squashed")
-        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set["start_id"],) * 2
 
     @classmethod
     def get_count(cls, start):
