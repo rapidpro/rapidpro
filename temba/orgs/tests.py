@@ -41,7 +41,6 @@ from .models import (
     DefinitionExport,
     Export,
     Invitation,
-    ItemCount,
     Org,
     OrgImport,
     OrgMembership,
@@ -1887,14 +1886,14 @@ class ItemCountTest(TembaTest):
         self.org2.counts.create(scope="foo:4", count=1)
         self.org2.counts.create(scope="foo:4", count=1)
 
-        self.assertEqual(9, ItemCount.sum(self.org.counts.filter(scope__in=("foo:1", "foo:3"))))
-        self.assertEqual(10, ItemCount.sum(self.org.counts.filter(scope__startswith="foo:")))
+        self.assertEqual(9, self.org.counts.filter(scope__in=("foo:1", "foo:3")).sum())
+        self.assertEqual(10, self.org.counts.prefix("foo:").sum())
         self.assertEqual(4, self.org.counts.count())
 
         squash_item_counts()
 
-        self.assertEqual(9, ItemCount.sum(self.org.counts.filter(scope__in=("foo:1", "foo:3"))))
-        self.assertEqual(10, ItemCount.sum(self.org.counts.filter(scope__startswith="foo:")))
+        self.assertEqual(9, self.org.counts.filter(scope__in=("foo:1", "foo:3")).sum())
+        self.assertEqual(10, self.org.counts.prefix("foo:").sum())
         self.assertEqual(3, self.org.counts.count())
 
         self.org.counts.all().delete()
