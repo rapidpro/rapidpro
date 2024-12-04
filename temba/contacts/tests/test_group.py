@@ -213,6 +213,10 @@ class ContactGroupTest(TembaTest):
             },
         )
 
+        # squash all our counts, this shouldn't affect our overall counts, but we should now only have 3
+        squash_group_counts()
+        self.assertEqual(ContactGroupCount.objects.all().count(), 3)
+
         murdock.release(self.user)
         murdock.release(self.user)
         face.restore(self.user)
@@ -220,9 +224,9 @@ class ContactGroupTest(TembaTest):
         ba.restore(self.user)
         ba.restore(self.user)
 
-        # squash all our counts, this shouldn't affect our overall counts, but we should now only have 3
+        # squash again, this time we discard zero counts
         squash_group_counts()
-        self.assertEqual(ContactGroupCount.objects.all().count(), 3)
+        self.assertEqual(ContactGroupCount.objects.all().count(), 1)
 
         counts = Contact.get_status_counts(self.org)
         self.assertEqual(

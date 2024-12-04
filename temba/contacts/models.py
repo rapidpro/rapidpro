@@ -29,7 +29,8 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole, User
 from temba.utils import format_number, on_transaction_commit
 from temba.utils.export import MultiSheetExporter
-from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
+from temba.utils.models import JSONField, LegacyUUIDMixin, TembaModel, delete_in_batches
+from temba.utils.models.counts import BaseSquashableCount
 from temba.utils.text import unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
@@ -1708,7 +1709,7 @@ class ContactNote(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="contact_notes")
 
 
-class ContactGroupCount(SquashableModel):
+class ContactGroupCount(BaseSquashableCount):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
     by a recurring task.
@@ -1717,21 +1718,6 @@ class ContactGroupCount(SquashableModel):
     squash_over = ("group_id",)
 
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-        WITH deleted as (
-            DELETE FROM %(table)s WHERE "group_id" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("group_id", "count", "is_squashed")
-        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.group_id,) * 2
 
     @classmethod
     def get_totals(cls, groups) -> dict:

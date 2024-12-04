@@ -26,14 +26,8 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, dynamo, get_anonymous_user, on_transaction_commit, redact
-from temba.utils.models import (
-    JSONAsTextField,
-    LegacyUUIDMixin,
-    SquashableModel,
-    TembaModel,
-    delete_in_batches,
-    generate_uuid,
-)
+from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, TembaModel, delete_in_batches, generate_uuid
+from temba.utils.models.counts import BaseSquashableCount
 from temba.utils.text import generate_secret
 
 logger = logging.getLogger(__name__)
@@ -707,7 +701,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         ]
 
 
-class ChannelCount(SquashableModel):
+class ChannelCount(BaseSquashableCount):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
@@ -737,16 +731,14 @@ class ChannelCount(SquashableModel):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="counts")
     count_type = models.CharField(choices=COUNT_TYPE_CHOICES, max_length=2)
     day = models.DateField(null=True)
-    count = models.IntegerField(default=0)
 
     @classmethod
     def get_day_count(cls, channel, count_type, day):
-        counts = cls.objects.filter(channel=channel, count_type=count_type, day=day).order_by("day", "count_type")
-        return cls.sum(counts)
+        return cls.objects.filter(channel=channel, count_type=count_type, day=day).order_by("day", "count_type").sum()
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
-        if distinct_set.day:
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
+        if distinct_set["day"]:
             sql = """
             WITH removed as (
                 DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" = %%s RETURNING "count"
@@ -757,7 +749,7 @@ class ChannelCount(SquashableModel):
                 "table": cls._meta.db_table
             }
 
-            params = (distinct_set.channel_id, distinct_set.count_type, distinct_set.day) * 2
+            params = (distinct_set["channel_id"], distinct_set["count_type"], distinct_set["day"]) * 2
         else:
             sql = """
             WITH removed as (
@@ -769,7 +761,7 @@ class ChannelCount(SquashableModel):
                 "table": cls._meta.db_table
             }
 
-            params = (distinct_set.channel_id, distinct_set.count_type) * 2
+            params = (distinct_set["channel_id"], distinct_set["count_type"]) * 2
 
         return sql, params
 

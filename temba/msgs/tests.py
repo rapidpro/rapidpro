@@ -2996,8 +2996,8 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        # we should only have one system label per type
-        self.assertEqual(SystemLabelCount.objects.all().count(), 7)
+        # we should only have one system label per type with no-zero count
+        self.assertEqual(SystemLabelCount.objects.all().count(), 5)
 
 
 class TagsTest(TembaTest):

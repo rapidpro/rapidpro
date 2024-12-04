@@ -26,7 +26,8 @@ from temba.orgs.models import DependencyMixin, Export, ExportType, Org, User
 from temba.schedules.models import Schedule
 from temba.utils import languages, on_transaction_commit
 from temba.utils.export.models import MultiSheetExporter
-from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
+from temba.utils.models import JSONAsTextField, TembaModel
+from temba.utils.models.counts import BaseSquashableCount
 from temba.utils.s3 import public_file_storage
 from temba.utils.uuid import uuid4
 
@@ -765,7 +766,7 @@ class Msg(models.Model):
         ]
 
 
-class BroadcastMsgCount(SquashableModel):
+class BroadcastMsgCount(BaseSquashableCount):
     """
     Maintains count of how many msgs are tied to a broadcast
     """
@@ -773,25 +774,10 @@ class BroadcastMsgCount(SquashableModel):
     squash_over = ("broadcast_id",)
 
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, related_name="counts", db_index=True)
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-        WITH deleted as (
-            DELETE FROM %(table)s WHERE "broadcast_id" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("broadcast_id", "count", "is_squashed")
-        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.broadcast_id,) * 2
 
     @classmethod
     def get_count(cls, broadcast):
-        return cls.sum(broadcast.counts.all())
+        return broadcast.counts.all().sum()
 
     @classmethod
     def bulk_annotate(cls, broadcasts):
@@ -905,7 +891,7 @@ class SystemLabel:
             return dict(direction="out", visibility="visible", status="failed")
 
 
-class SystemLabelCount(SquashableModel):
+class SystemLabelCount(BaseSquashableCount):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
@@ -914,21 +900,6 @@ class SystemLabelCount(SquashableModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="system_labels")
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-        WITH deleted as (
-            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
-        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
     def get_totals(cls, org):
@@ -1025,7 +996,7 @@ class Label(TembaModel, DependencyMixin):
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_label_names")]
 
 
-class LabelCount(SquashableModel):
+class LabelCount(BaseSquashableCount):
     """
     Counts of user labels maintained by database level triggers
     """
@@ -1034,21 +1005,6 @@ class LabelCount(SquashableModel):
 
     label = models.ForeignKey(Label, on_delete=models.PROTECT, related_name="counts")
     is_archived = models.BooleanField(default=False)
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-            WITH deleted as (
-                DELETE FROM %(table)s WHERE "label_id" = %%s AND "is_archived" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("label_id", "is_archived", "count", "is_squashed")
-            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-            """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.label_id, distinct_set.is_archived) * 2
 
     @classmethod
     def get_totals(cls, labels):

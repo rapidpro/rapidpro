@@ -5307,7 +5307,7 @@ class FlowActivityCountTest(TembaTest):
 
         # test that model being asked to squash a set that matches no rows doesn't insert anytihng
         with connection.cursor() as cursor:
-            sql, params = FlowActivityCount.get_squash_query(FlowActivityCount(flow_id=flow1.id, scope="foo:9"))
+            sql, params = FlowActivityCount.get_squash_query({"flow_id": flow1.id, "scope": "foo:9"})
             cursor.execute(sql, params)
 
         self.assertEqual({"foo:1", "foo:2", "foo:3"}, set(flow1.counts.values_list("scope", flat=True)))
