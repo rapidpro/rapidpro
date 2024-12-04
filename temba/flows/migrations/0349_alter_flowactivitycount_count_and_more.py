@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("flows", "0347_flowrun_path_nodes_flowrun_path_times"),
+        ("flows", "0348_update_triggers"),
     ]
 
     operations = [
