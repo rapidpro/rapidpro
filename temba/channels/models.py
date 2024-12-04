@@ -734,8 +734,7 @@ class ChannelCount(BaseSquashableCount):
 
     @classmethod
     def get_day_count(cls, channel, count_type, day):
-        counts = cls.objects.filter(channel=channel, count_type=count_type, day=day).order_by("day", "count_type")
-        return cls.sum(counts)
+        return cls.objects.filter(channel=channel, count_type=count_type, day=day).order_by("day", "count_type").sum()
 
     @classmethod
     def get_squash_query(cls, distinct_set: dict) -> tuple:

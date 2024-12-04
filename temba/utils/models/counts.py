@@ -4,6 +4,18 @@ from django.db.models import Q, Sum
 from temba.utils.db.queries import or_list
 
 
+class CountQuerySet(models.QuerySet):
+    """
+    Custom queryset for count models.
+    """
+
+    def sum(self) -> int:
+        """
+        Sums counts over the matching rows.
+        """
+        return self.aggregate(count_sum=Sum("count"))["count_sum"] or 0
+
+
 class BaseSquashableCount(models.Model):
     """
     Base class for models which track counts by delta insertions which are then periodically squashed.
@@ -15,6 +27,8 @@ class BaseSquashableCount(models.Model):
     id = models.BigAutoField(auto_created=True, primary_key=True)
     count = models.IntegerField()
     is_squashed = models.BooleanField(default=False)
+
+    objects = CountQuerySet.as_manager()
 
     @classmethod
     def get_squash_over(cls) -> tuple:
@@ -69,16 +83,11 @@ class BaseSquashableCount(models.Model):
 
         return sql, tuple(distinct_set[col] for col in squash_over) * 2
 
-    @classmethod
-    def sum(cls, instances) -> int:
-        count_sum = instances.aggregate(count_sum=Sum("count"))["count_sum"]
-        return count_sum if count_sum else 0
-
     class Meta:
         abstract = True
 
 
-class ScopedCountQuerySet(models.QuerySet):
+class ScopedCountQuerySet(CountQuerySet):
     """
     Specialized queryset for scope + count models.
     """
@@ -91,12 +100,6 @@ class ScopedCountQuerySet(models.QuerySet):
             return self.filter(or_list([Q(scope__startswith=p) for p in match]))
 
         return self.filter(scope__startswith=match)
-
-    def sum(self) -> int:
-        """
-        Sums counts over the matching rows.
-        """
-        return self.aggregate(count_sum=Sum("count"))["count_sum"] or 0
 
     def scope_totals(self) -> dict[str, int]:
         """

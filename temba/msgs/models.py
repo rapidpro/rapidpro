@@ -777,7 +777,7 @@ class BroadcastMsgCount(BaseSquashableCount):
 
     @classmethod
     def get_count(cls, broadcast):
-        return cls.sum(broadcast.counts.all())
+        return broadcast.counts.all().sum()
 
     @classmethod
     def bulk_annotate(cls, broadcasts):

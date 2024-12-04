@@ -1980,7 +1980,7 @@ class FlowStartCount(BaseSquashableCount):
 
     @classmethod
     def get_count(cls, start):
-        return cls.sum(start.counts.all())
+        return start.counts.all().sum()
 
     @classmethod
     def bulk_annotate(cls, starts):
