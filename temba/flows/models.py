@@ -1450,7 +1450,7 @@ class FlowActivityCount(BaseScopedCount):
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
 
     @classmethod
-    def get_squash_query(cls, distinct_set) -> tuple:
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = """
         WITH removed as (
             DELETE FROM %(table)s WHERE "flow_id" = %%s AND "scope" = %%s RETURNING "count"
@@ -1463,7 +1463,7 @@ class FlowActivityCount(BaseScopedCount):
             "table": cls._meta.db_table
         }
 
-        params = (distinct_set.flow_id, distinct_set.scope) * 2
+        params = (distinct_set["flow_id"], distinct_set["scope"]) * 2
 
         return sql, params
 
@@ -1514,7 +1514,7 @@ class FlowCategoryCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = """
         WITH removed as (
           DELETE FROM %(table)s WHERE "id" IN (
@@ -1530,11 +1530,11 @@ class FlowCategoryCount(SquashableModel):
         }
 
         params = (
-            distinct_set.flow_id,
-            distinct_set.node_uuid,
-            distinct_set.result_key,
-            distinct_set.result_name,
-            distinct_set.category_name,
+            distinct_set["flow_id"],
+            distinct_set["node_uuid"],
+            distinct_set["result_key"],
+            distinct_set["result_name"],
+            distinct_set["category_name"],
         ) * 2
         return sql, params
 
@@ -2004,7 +2004,7 @@ class FlowStartCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = """
         WITH deleted as (
             DELETE FROM %(table)s WHERE "start_id" = %%s RETURNING "count"
@@ -2015,7 +2015,7 @@ class FlowStartCount(SquashableModel):
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.start_id,) * 2
+        return sql, (distinct_set["start_id"],) * 2
 
     @classmethod
     def get_count(cls, start):

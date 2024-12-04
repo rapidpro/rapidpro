@@ -745,8 +745,8 @@ class ChannelCount(SquashableModel):
         return cls.sum(counts)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
-        if distinct_set.day:
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
+        if distinct_set["day"]:
             sql = """
             WITH removed as (
                 DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" = %%s RETURNING "count"
@@ -757,7 +757,7 @@ class ChannelCount(SquashableModel):
                 "table": cls._meta.db_table
             }
 
-            params = (distinct_set.channel_id, distinct_set.count_type, distinct_set.day) * 2
+            params = (distinct_set["channel_id"], distinct_set["count_type"], distinct_set["day"]) * 2
         else:
             sql = """
             WITH removed as (
@@ -769,7 +769,7 @@ class ChannelCount(SquashableModel):
                 "table": cls._meta.db_table
             }
 
-            params = (distinct_set.channel_id, distinct_set.count_type) * 2
+            params = (distinct_set["channel_id"], distinct_set["count_type"]) * 2
 
         return sql, params
 

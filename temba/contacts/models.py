@@ -1720,7 +1720,7 @@ class ContactGroupCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = """
         WITH deleted as (
             DELETE FROM %(table)s WHERE "group_id" = %%s RETURNING "count"
@@ -1731,7 +1731,7 @@ class ContactGroupCount(SquashableModel):
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.group_id,) * 2
+        return sql, (distinct_set["group_id"],) * 2
 
     @classmethod
     def get_totals(cls, groups) -> dict:

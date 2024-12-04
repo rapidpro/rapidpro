@@ -776,7 +776,7 @@ class BroadcastMsgCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = """
         WITH deleted as (
             DELETE FROM %(table)s WHERE "broadcast_id" = %%s RETURNING "count"
@@ -787,7 +787,7 @@ class BroadcastMsgCount(SquashableModel):
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.broadcast_id,) * 2
+        return sql, (distinct_set["broadcast_id"],) * 2
 
     @classmethod
     def get_count(cls, broadcast):
@@ -917,7 +917,7 @@ class SystemLabelCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = """
         WITH deleted as (
             DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
@@ -928,7 +928,7 @@ class SystemLabelCount(SquashableModel):
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
+        return sql, (distinct_set["org_id"], distinct_set["label_type"]) * 2
 
     @classmethod
     def get_totals(cls, org):
@@ -1037,7 +1037,7 @@ class LabelCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = """
             WITH deleted as (
                 DELETE FROM %(table)s WHERE "label_id" = %%s AND "is_archived" = %%s RETURNING "count"
@@ -1048,7 +1048,7 @@ class LabelCount(SquashableModel):
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.label_id, distinct_set.is_archived) * 2
+        return sql, (distinct_set["label_id"], distinct_set["is_archived"]) * 2
 
     @classmethod
     def get_totals(cls, labels):

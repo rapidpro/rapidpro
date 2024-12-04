@@ -32,7 +32,12 @@ class SquashableModel(models.Model):
 
         num_sets = 0
         squash_over = cls.get_squash_over()
-        distinct_sets = cls.get_unsquashed().order_by(*squash_over).distinct(*squash_over)[: cls.squash_max_distinct]
+        distinct_sets = (
+            cls.get_unsquashed()
+            .values(*squash_over)
+            .order_by(*squash_over)
+            .distinct(*squash_over)[: cls.squash_max_distinct]
+        )
 
         for distinct_set in distinct_sets:
             with connection.cursor() as cursor:
@@ -46,7 +51,7 @@ class SquashableModel(models.Model):
 
     @classmethod
     @abstractmethod
-    def get_squash_query(cls, distinct_set) -> tuple:  # pragma: no cover
+    def get_squash_query(cls, distinct_set: dict) -> tuple:  # pragma: no cover
         pass
 
     @classmethod
@@ -71,7 +76,7 @@ class DailyCountModel(SquashableModel):
     count = models.IntegerField()
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = f"""
         WITH removed as (
             DELETE FROM {cls._meta.db_table} WHERE count_type = %s AND scope = %s AND day = %s RETURNING count
@@ -80,7 +85,7 @@ class DailyCountModel(SquashableModel):
         VALUES (%s, %s, %s, GREATEST(0, (SELECT SUM(count) FROM removed)), TRUE);
         """
 
-        return sql, (distinct_set.count_type, distinct_set.scope, distinct_set.day) * 2
+        return sql, (distinct_set["count_type"], distinct_set["scope"], distinct_set["day"]) * 2
 
     @classmethod
     def _get_counts(cls, count_type: str, scopes: dict, since, until):
@@ -149,7 +154,7 @@ class DailyTimingModel(DailyCountModel):
     seconds = models.BigIntegerField()
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = f"""
         WITH removed as (
             DELETE FROM {cls._meta.db_table} WHERE count_type = %s AND scope = %s AND day = %s RETURNING count, seconds
@@ -158,7 +163,7 @@ class DailyTimingModel(DailyCountModel):
         VALUES (%s, %s, %s, GREATEST(0, (SELECT SUM(count) FROM removed)), GREATEST(0, (SELECT SUM(seconds) FROM removed)), TRUE);
         """
 
-        return sql, (distinct_set.count_type, distinct_set.scope, distinct_set.day) * 2
+        return sql, (distinct_set["count_type"], distinct_set["scope"], distinct_set["day"]) * 2
 
     @classmethod
     def _get_count_set(cls, count_type: str, scopes: dict, since, until):

@@ -1882,7 +1882,7 @@ class ItemCount(BaseScopedCount):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
 
     @classmethod
-    def get_squash_query(cls, distinct_set) -> tuple:
+    def get_squash_query(cls, distinct_set: dict) -> tuple:
         sql = """
         WITH removed as (
             DELETE FROM %(table)s WHERE "org_id" = %%s AND "scope" = %%s RETURNING "count"
@@ -1895,7 +1895,7 @@ class ItemCount(BaseScopedCount):
             "table": cls._meta.db_table
         }
 
-        params = (distinct_set.org_id, distinct_set.scope) * 2
+        params = (distinct_set["org_id"], distinct_set["scope"]) * 2
 
         return sql, params
 
