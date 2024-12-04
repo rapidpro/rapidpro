@@ -1060,7 +1060,6 @@ class FlowRunReadSerializer(ReadSerializer):
                 "category": result.get("category"),
                 "node": result["node_uuid"],
                 "time": format_datetime(iso8601.parse_date(result["created_on"])),
-                "input": result.get("input"),  # deprecated
             }
 
         return {k: convert_result(r) for k, r in obj.results.items()}

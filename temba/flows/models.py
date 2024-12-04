@@ -1216,7 +1216,6 @@ class FlowRun(models.Model):
                 "name": result.get("name"),
                 "node": result.get("node_uuid"),
                 "time": result["created_on"],
-                "input": result.get("input"),
                 "value": result["value"],
                 "category": result.get("category"),
             }

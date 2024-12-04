@@ -147,7 +147,6 @@ class RunsEndpointTest(APITest):
                         "node": color_split["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.results["color"]["created_on"])),
                         "name": "Color",
-                        "input": "it is blue",
                     }
                 },
                 "created_on": format_datetime(joe_run1.created_on),
