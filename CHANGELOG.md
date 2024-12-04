@@ -1,3 +1,9 @@
+v9.3.129 (2024-12-04)
+-------------------------
+ * Remove input field on results returned from runs endpoint
+ * Use generic squash query for possible for squashable counts
+ * Update db triggers to look at run.path_nodes instead of run.path
+
 v9.3.128 (2024-12-03)
 -------------------------
  * Bump to flow spec version 13.6
