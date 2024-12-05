@@ -4834,7 +4834,7 @@ class FlowSessionCRUDLTest(TembaTest):
             Bucket="test-sessions", Key="c/session.json", Body=io.BytesIO(json.dumps(session.output).encode())
         )
         FlowSession.objects.filter(id=session.id).update(
-            output_url="http://minio:9500/test-sessions/c/session.json", output=None
+            output_url="http://minio:9000/test-sessions/c/session.json", output=None
         )
 
         # fetch our contact history
