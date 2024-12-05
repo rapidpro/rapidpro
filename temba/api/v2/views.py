@@ -16,7 +16,7 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactNote, ContactURN
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactNote, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowStart, FlowStartCount
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -2055,7 +2055,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
         return queryset.filter(is_active=True).exclude(status=ContactGroup.STATUS_INITIALIZING)
 
     def prepare_for_serialization(self, object_list, using: str):
-        group_counts = ContactGroupCount.get_totals(object_list)
+        group_counts = ContactGroup.get_member_counts(object_list)
         for group in object_list:
             group.count = group_counts[group]
 

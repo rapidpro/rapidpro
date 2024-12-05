@@ -5,7 +5,7 @@ from django.db.models import F, Value
 from django.db.models.functions import Concat
 
 
-def fix_status_group_names(apps, schema_editor):
+def fix_status_group_names(apps, schema_editor):  # pragma: no cover
     ContactGroup = apps.get_model("contacts", "ContactGroup")
     num_updated = 0
 

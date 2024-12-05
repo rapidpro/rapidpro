@@ -239,14 +239,6 @@ class ContactGroupTest(TembaTest):
             },
         )
 
-        # rebuild just our system contact group
-        all_contacts = self.org.active_contacts_group
-        ContactGroupCount.populate_for_group(all_contacts)
-
-        # assert our count is correct
-        self.assertEqual(all_contacts.get_member_count(), 3)
-        self.assertEqual(ContactGroupCount.objects.filter(group=all_contacts).count(), 1)
-
     @mock_mailroom
     def test_release(self, mr_mocks):
         contact1 = self.create_contact("Bob", phone="+1234567111")

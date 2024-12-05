@@ -46,7 +46,7 @@ from temba.utils.models.es import IDSliceQuerySet
 from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, NonAtomicMixin, SpaMixin
 
 from .forms import ContactGroupForm, CreateContactForm, UpdateContactForm
-from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
+from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactImport
 from .omnibox import omnibox_query, omnibox_serialize
 
 logger = logging.getLogger(__name__)
@@ -250,7 +250,7 @@ class ContactCRUDL(SmartCRUDL):
                 .select_related("org")
                 .order_by("-group_type", Upper("name"))
             )
-            group_counts = ContactGroupCount.get_totals(groups)
+            group_counts = ContactGroup.get_member_counts(groups)
             group_items = []
 
             for g in groups:
