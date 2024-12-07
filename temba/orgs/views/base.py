@@ -287,6 +287,7 @@ class BaseExportModal(ModalFormMixin, OrgPermsMixin, SmartFormView):
     submit_button_name = _("Export")
     success_message = _("We are preparing your export and you will get a notification when it is complete.")
     export_type = None
+    readonly_servicing = False
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()

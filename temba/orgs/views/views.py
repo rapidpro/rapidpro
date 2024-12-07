@@ -1415,6 +1415,7 @@ class OrgCRUDL(SmartCRUDL):
         menu_path = "/settings/export"
         submit_button_name = _("Export")
         success_message = _("We are preparing your export and you will get a notification when it is complete.")
+        readonly_servicing = False
 
         def post(self, request, *args, **kwargs):
             org = self.get_object()

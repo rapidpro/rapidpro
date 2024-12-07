@@ -50,6 +50,9 @@ class OrgPermsMixin:
 
         return self.has_org_perm(self.permission)
 
+    def derive_readonly_servicing(self):
+        return self.readonly_servicing
+
     def dispatch(self, request, *args, **kwargs):
         org = self.derive_org()
         user = self.request.user
@@ -57,7 +60,12 @@ class OrgPermsMixin:
         if org:
             # when servicing, non-superuser staff can only GET
             is_servicing = request.user.is_staff and not org.users.filter(id=request.user.id).exists()
-            if is_servicing and self.readonly_servicing and not request.user.is_superuser and request.method != "GET":
+            if (
+                is_servicing
+                and self.derive_readonly_servicing()
+                and not request.user.is_superuser
+                and request.method != "GET"
+            ):
                 return HttpResponseForbidden()
         else:
             if user.is_authenticated and not user.is_staff:

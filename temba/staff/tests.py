@@ -193,6 +193,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(403, response.status_code)
 
+        # but should be able to export
+        response = self.client.post(reverse("contacts.contact_export"))
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.post(reverse("tickets.ticket_export"))
+        self.assertEqual(200, response.status_code)
+
         # become super user
         self.customer_support.is_superuser = True
         self.customer_support.save(update_fields=("is_superuser",))
