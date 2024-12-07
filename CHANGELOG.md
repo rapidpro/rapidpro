@@ -1,3 +1,7 @@
+v9.3.130 (2024-12-07)
+-------------------------
+ * Allow service exports and inspection of broadcasts
+
 v9.3.129 (2024-12-04)
 -------------------------
  * Remove input field on results returned from runs endpoint
