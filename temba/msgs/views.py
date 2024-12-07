@@ -215,6 +215,9 @@ class BroadcastCRUDL(SmartCRUDL):
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create")
 
+        def derive_readonly_servicing(self):
+            return self.request.POST.get("create-current_step") == "schedule"
+
         def get_form_kwargs(self, step):
             return {"org": self.request.org}
 
@@ -302,6 +305,9 @@ class BroadcastCRUDL(SmartCRUDL):
         form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Save")
+
+        def derive_readonly_servicing(self):
+            return self.request.POST.get("update-current_step") == "schedule"
 
         def get_form_kwargs(self, step):
             return {"org": self.request.org}
@@ -417,6 +423,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
     class Preview(OrgPermsMixin, SmartCreateView):
         permission = "msgs.broadcast_create"
+        readonly_servicing = False
 
         blockers = {
             "no_send_channel": _(
