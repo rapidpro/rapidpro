@@ -2167,6 +2167,23 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # we should have a sent broadcast, so no schedule attached
         self.assertEqual(1, Broadcast.objects.filter(schedule=None).count())
 
+        # servicers should be able to use wizard up to the last step
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.process_wizard(
+            "create",
+            create_url,
+            self._form_data(contacts=[self.joe], translations=None),
+        )
+        self.assertEqual(200, response.status_code)
+
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.process_wizard(
+            "create",
+            create_url,
+            self._form_data(contacts=[self.joe], translations={"eng": {"text": "test"}}),
+        )
+        self.assertEqual(403, response.status_code)
+
     def test_update(self):
         optin = self.create_optin("Daily Polls")
         language = self.org.flow_languages[0]
@@ -2298,6 +2315,28 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # Update broadcast should not have the option to send now
         self.assertNotContains(response, "Send Now")
+
+        # servicers should be able to use wizard up to the last step
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.process_wizard(
+            "update",
+            update_url,
+            self._form_data(
+                translations=None,
+                contacts=[self.joe],
+            ),
+        )
+        self.assertEqual(200, response.status_code)
+
+        response = self.process_wizard(
+            "update",
+            update_url,
+            self._form_data(
+                translations=updated_text,
+                contacts=[self.joe],
+            ),
+        )
+        self.assertEqual(403, response.status_code)
 
     def test_localization(self):
         # create a broadcast without a language
