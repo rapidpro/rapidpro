@@ -644,7 +644,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         Returns the counts for each contact status for the given org
         """
         groups = org.groups.filter(group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
-        return {g.group_type: count for g, count in ContactGroupCount.get_totals(groups).items()}
+        return {g.group_type: count for g, count in ContactGroup.get_member_counts(groups).items()}
 
     def get_scheduled_broadcasts(self):
         from temba.msgs.models import SystemLabel
@@ -1596,11 +1596,20 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         if reevaluate:
             on_transaction_commit(lambda: queue_populate_dynamic_group(self))
 
+    @classmethod
+    def get_member_counts(cls, groups) -> dict:
+        """
+        Gets contact counts for the given groups
+        """
+        counts = ContactGroupCount.objects.filter(group__in=groups).values("group_id").annotate(count_sum=Sum("count"))
+        by_group_id = {c["group_id"]: c["count_sum"] for c in counts}
+        return {g: by_group_id.get(g.id, 0) for g in groups}
+
     def get_member_count(self):
         """
         Returns the number of contacts in the group
         """
-        return ContactGroupCount.get_totals([self])[self]
+        return ContactGroup.get_member_counts([self])[self]
 
     def get_dependents(self):
         dependents = super().get_dependents()
@@ -1718,27 +1727,6 @@ class ContactGroupCount(BaseSquashableCount):
     squash_over = ("group_id",)
 
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
-
-    @classmethod
-    def get_totals(cls, groups) -> dict:
-        """
-        Gets total counts for all the given groups
-        """
-        counts = cls.objects.filter(group__in=groups)
-        counts = counts.values("group").order_by("group").annotate(count_sum=Sum("count"))
-        counts_by_group_id = {c["group"]: c["count_sum"] for c in counts}
-        return {g: counts_by_group_id.get(g.id, 0) for g in groups}
-
-    @classmethod
-    def populate_for_group(cls, group):
-        # remove old ones
-        ContactGroupCount.objects.filter(group=group).delete()
-
-        # calculate our count for the group
-        count = group.contacts.all().count()
-
-        # insert updated count, returning it
-        return ContactGroupCount.objects.create(group=group, count=count)
 
     class Meta:
         indexes = [
