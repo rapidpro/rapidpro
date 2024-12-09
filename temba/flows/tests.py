@@ -1802,6 +1802,28 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.json(),
         )
 
+        mr_mocks.flow_start_preview(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
+        self.login(self.customer_support, choose_org=self.org)
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            {
+                "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
+                "total": 100,
+                "send_time": 10.0,
+                "warnings": [],
+                "blockers": [],
+            },
+            response.json(),
+        )
+
         mr_mocks.flow_start_preview(
             query='age > 30 AND status = "active" AND history != "Test Flow" AND flow = ""', total=100
         )

@@ -1341,6 +1341,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class PreviewStart(BaseReadView):
         permission = "flows.flow_start"
+        readonly_servicing = False
 
         blockers = {
             "no_send_channel": _(
