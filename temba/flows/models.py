@@ -1639,6 +1639,7 @@ class ResultsExport(ExportType):
             field_name, flow_name = result_field["name"], result_field["flow_name"]
             columns.append(f"{field_name} (Category) - {flow_name}")
             columns.append(f"{field_name} (Value) - {flow_name}")
+            columns.append(f"{field_name} (Text) - {flow_name}")
 
         return columns
 
@@ -1779,7 +1780,8 @@ class ResultsExport(ExportType):
                     node_result = results_by_key.get(result_field["key"], {})
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
-                result_values += [node_category, node_value]
+                node_input = node_result.get("input", "")
+                result_values += [node_category, node_value, node_input]
 
             # build the whole row
             runs_sheet_row = contact_values

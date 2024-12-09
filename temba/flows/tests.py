@@ -3676,7 +3676,7 @@ class ResultsExportTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(11, len(list(sheet_runs.columns)))
+        self.assertEqual(12, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -3693,6 +3693,7 @@ class ResultsExportTest(TembaTest):
                 "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
+                "Color (Text) - Colors",
             ],
         )
 
@@ -3709,6 +3710,7 @@ class ResultsExportTest(TembaTest):
                 contact3_run1.modified_on,
                 "",
                 contact3_run1.uuid,
+                "",
                 "",
                 "",
             ],
@@ -3730,6 +3732,7 @@ class ResultsExportTest(TembaTest):
                 contact1_run1.uuid,
                 "Orange",
                 "orange",
+                "orange",
             ],
             tz,
         )
@@ -3749,6 +3752,7 @@ class ResultsExportTest(TembaTest):
                 contact2_run1.uuid,
                 "Other",
                 "green",
+                "green",
             ],
             tz,
         )
@@ -3766,6 +3770,7 @@ class ResultsExportTest(TembaTest):
                 contact2_run2.modified_on,
                 "",
                 contact2_run2.uuid,
+                "",
                 "",
                 "",
             ],
@@ -3787,6 +3792,7 @@ class ResultsExportTest(TembaTest):
                 contact1_run2.uuid,
                 "Blue",
                 "blue",
+                " blue ",
             ],
             tz,
         )
@@ -3805,7 +3811,7 @@ class ResultsExportTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
-        self.assertEqual(11, len(list(sheet_runs.columns)))
+        self.assertEqual(12, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -3822,6 +3828,7 @@ class ResultsExportTest(TembaTest):
                 "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
+                "Color (Text) - Colors",
             ],
         )
 
@@ -3839,6 +3846,7 @@ class ResultsExportTest(TembaTest):
                 contact1_run1.exited_on,
                 contact1_run1.uuid,
                 "Orange",
+                "orange",
                 "orange",
             ],
             tz,
@@ -3858,6 +3866,7 @@ class ResultsExportTest(TembaTest):
                 contact2_run1.exited_on,
                 contact2_run1.uuid,
                 "Other",
+                "green",
                 "green",
             ],
             tz,
@@ -3880,7 +3889,7 @@ class ResultsExportTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
-        self.assertEqual(14, len(list(sheet_runs.columns)))
+        self.assertEqual(15, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -3900,6 +3909,7 @@ class ResultsExportTest(TembaTest):
                 "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
+                "Color (Text) - Colors",
             ],
         )
 
@@ -3920,6 +3930,7 @@ class ResultsExportTest(TembaTest):
                 contact1_run1.exited_on,
                 contact1_run1.uuid,
                 "Orange",
+                "orange",
                 "orange",
             ],
             tz,
@@ -3943,7 +3954,7 @@ class ResultsExportTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(10, len(list(sheet_runs.columns)))
+        self.assertEqual(11, len(list(sheet_runs.columns)))
 
     def test_anon_org(self):
         today = timezone.now().astimezone(self.org.timezone).date()
@@ -3986,6 +3997,7 @@ class ResultsExportTest(TembaTest):
                     "Run UUID",
                     "Color (Category) - Colors",
                     "Color (Value) - Colors",
+                    "Color (Text) - Colors",
                 ],
             )
 
@@ -4002,6 +4014,7 @@ class ResultsExportTest(TembaTest):
                     run1.exited_on,
                     run1.uuid,
                     "Orange",
+                    "orange",
                     "orange",
                 ],
                 self.org.timezone,
@@ -4255,7 +4268,7 @@ class ResultsExportTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(15, len(list(sheet_runs.columns)))
+        self.assertEqual(18, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -4272,10 +4285,13 @@ class ResultsExportTest(TembaTest):
                 "Run UUID",
                 "Color (Category) - Favorites",
                 "Color (Value) - Favorites",
+                "Color (Text) - Favorites",
                 "Beer (Category) - Favorites",
                 "Beer (Value) - Favorites",
+                "Beer (Text) - Favorites",
                 "Name (Category) - Favorites",
                 "Name (Value) - Favorites",
+                "Name (Text) - Favorites",
             ],
         )
 
@@ -4292,6 +4308,9 @@ class ResultsExportTest(TembaTest):
                 contact3_run1.modified_on,
                 "",
                 contact3_run1.uuid,
+                "",
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -4317,6 +4336,9 @@ class ResultsExportTest(TembaTest):
                 contact1_run1.uuid,
                 "Red",
                 "red",
+                "red",
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -4340,6 +4362,9 @@ class ResultsExportTest(TembaTest):
                 contact2_run1.uuid,
                 "Green",
                 "green",
+                "green",
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -4367,6 +4392,9 @@ class ResultsExportTest(TembaTest):
                 "",
                 "",
                 "",
+                "",
+                "",
+                "",
             ],
             tz,
         )
@@ -4386,6 +4414,9 @@ class ResultsExportTest(TembaTest):
                 contact1_run2.uuid,
                 "Blue",
                 "blue",
+                " blue ",
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -4437,6 +4468,7 @@ class ResultsExportTest(TembaTest):
                 "",
                 run1.uuid,
                 "Other",
+                "ngertin.",
                 "ngertin.",
             ],
             tz,
@@ -4555,6 +4587,7 @@ class ResultsExportTest(TembaTest):
                 contact1_run.uuid,
                 "Other",
                 "green",
+                "green",
             ],
             tz,
         )
@@ -4572,6 +4605,7 @@ class ResultsExportTest(TembaTest):
                 contact2_run.uuid,
                 "Blue",
                 "blue",
+                "blue",
             ],
             tz,
         )
@@ -4587,6 +4621,7 @@ class ResultsExportTest(TembaTest):
                 contact3_run.modified_on,
                 "",
                 contact3_run.uuid,
+                "",
                 "",
                 "",
             ],
