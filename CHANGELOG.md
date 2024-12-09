@@ -1,3 +1,8 @@
+v9.3.131 (2024-12-09)
+-------------------------
+ * Allow servicing users to claim channels
+ * Use statement level db triggers to maintain group counts
+
 v9.3.130 (2024-12-07)
 -------------------------
  * Allow service exports and inspection of broadcasts
