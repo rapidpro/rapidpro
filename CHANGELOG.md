@@ -1,3 +1,8 @@
+v9.3.132 (2024-12-09)
+-------------------------
+ * Update to latest Django 5.1
+ * Allow servicing users to preview starts
+
 v9.3.131 (2024-12-09)
 -------------------------
  * Allow servicing users to claim channels
