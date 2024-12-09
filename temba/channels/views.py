@@ -70,6 +70,7 @@ class ChannelTypeMixin(SpaMixin):
 class ClaimViewMixin(ChannelTypeMixin, OrgPermsMixin, ComponentFormMixin):
     permission = "channels.channel_claim"
     menu_path = "/settings/channels/new-channel"
+    readonly_servicing = False
 
     class Form(forms.Form):
         def __init__(self, **kwargs):
