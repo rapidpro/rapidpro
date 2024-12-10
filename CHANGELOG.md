@@ -1,3 +1,8 @@
+v9.3.133 (2024-12-10)
+-------------------------
+ * Bump to flow spec 13.6.1
+ * Revert removal of input/text columns from results exports
+
 v9.3.132 (2024-12-09)
 -------------------------
  * Update to latest Django 5.1
