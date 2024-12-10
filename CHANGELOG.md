@@ -1,3 +1,7 @@
+v9.3.134 (2024-12-10)
+-------------------------
+ * Start writing new message folder counts
+
 v9.3.133 (2024-12-10)
 -------------------------
  * Bump to flow spec 13.6.1
