@@ -2897,8 +2897,12 @@ class SystemLabelTest(TembaTest):
             self.assertEqual(expected_select, select, f"select s3 mismatch for label {label_type}")
 
     def test_get_counts(self):
-        self.assertEqual(
-            SystemLabel.get_counts(self.org),
+        def assert_counts(org, expected: dict):
+            self.assertEqual(SystemLabel.get_counts(org, use_new=False), expected)
+            self.assertEqual(SystemLabel.get_counts(org, use_new=True), expected)
+
+        assert_counts(
+            self.org,
             {
                 SystemLabel.TYPE_INBOX: 0,
                 SystemLabel.TYPE_FLOWS: 0,
@@ -2928,8 +2932,8 @@ class SystemLabelTest(TembaTest):
         call1 = self.create_incoming_call(ivr_flow, contact1)
         self.create_incoming_call(ivr_flow, contact2)
 
-        self.assertEqual(
-            SystemLabel.get_counts(self.org),
+        assert_counts(
+            self.org,
             {
                 SystemLabel.TYPE_INBOX: 4,
                 SystemLabel.TYPE_FLOWS: 0,
@@ -2959,8 +2963,8 @@ class SystemLabelTest(TembaTest):
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
-        self.assertEqual(
-            SystemLabel.get_counts(self.org),
+        assert_counts(
+            self.org,
             {
                 SystemLabel.TYPE_INBOX: 3,
                 SystemLabel.TYPE_FLOWS: 0,
@@ -2982,8 +2986,8 @@ class SystemLabelTest(TembaTest):
         msg6.save(update_fields=("status",))
         call1.release()
 
-        self.assertEqual(
-            SystemLabel.get_counts(self.org),
+        assert_counts(
+            self.org,
             {
                 SystemLabel.TYPE_INBOX: 1,
                 SystemLabel.TYPE_FLOWS: 0,
@@ -3002,8 +3006,8 @@ class SystemLabelTest(TembaTest):
         msg6.status = "D"
         msg6.save(update_fields=("status",))
 
-        self.assertEqual(
-            SystemLabel.get_counts(self.org),
+        assert_counts(
+            self.org,
             {
                 SystemLabel.TYPE_INBOX: 2,
                 SystemLabel.TYPE_FLOWS: 0,
@@ -3021,8 +3025,8 @@ class SystemLabelTest(TembaTest):
         # squash our counts
         squash_msg_counts()
 
-        self.assertEqual(
-            SystemLabel.get_counts(self.org),
+        assert_counts(
+            self.org,
             {
                 SystemLabel.TYPE_INBOX: 2,
                 SystemLabel.TYPE_FLOWS: 0,
