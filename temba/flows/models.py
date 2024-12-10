@@ -1218,6 +1218,7 @@ class FlowRun(models.Model):
                 "time": result["created_on"],
                 "value": result["value"],
                 "category": result.get("category"),
+                "input": result.get("input"),
             }
 
         return {

@@ -3132,6 +3132,7 @@ class FlowRunTest(TembaTest):
                     "node": matchers.UUID4String(),
                     "time": matchers.ISODate(),
                     "value": "green",
+                    "input": "green",
                 }
             },
             run_json["values"],
