@@ -1,3 +1,10 @@
+v9.3.136 (2024-12-11)
+-------------------------
+ * Remove gauges from analytics abstraction
+ * Move cron utils to their own package
+ * Stop writing and squashing old message counts
+ * Read from new message counts
+
 v9.3.135 (2024-12-11)
 -------------------------
  * Data migration to backfill new message folder counts
