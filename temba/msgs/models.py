@@ -815,12 +815,9 @@ class SystemLabel:
     )
 
     @classmethod
-    def get_counts(cls, org, use_new=False):
-        if use_new:
-            counts = org.counts.prefix("msgs:folder:").scope_totals()
-            return {lb: counts.get(f"msgs:folder:{lb}", 0) for lb, n in cls.TYPE_CHOICES}
-
-        return SystemLabelCount.get_totals(org)
+    def get_counts(cls, org):
+        counts = org.counts.prefix("msgs:folder:").scope_totals()
+        return {lb: counts.get(f"msgs:folder:{lb}", 0) for lb, n in cls.TYPE_CHOICES}
 
     @classmethod
     def get_queryset(cls, org, label_type):
@@ -897,24 +894,13 @@ class SystemLabel:
 
 class SystemLabelCount(BaseSquashableCount):
     """
-    Counts of messages/broadcasts/calls maintained by database level triggers
+    TODO drop
     """
 
     squash_over = ("org_id", "label_type")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="system_labels")
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
-
-    @classmethod
-    def get_totals(cls, org):
-        """
-        Gets all system label counts by type for the given org
-        """
-        counts = cls.objects.filter(org=org).values_list("label_type").annotate(count_sum=Sum("count"))
-        counts_by_type = {c[0]: c[1] for c in counts}
-
-        # for convenience, include all label types
-        return {lb: counts_by_type.get(lb, 0) for lb, n in SystemLabel.TYPE_CHOICES}
 
     class Meta:
         indexes = [models.Index(fields=("org", "label_type", "is_squashed"))]

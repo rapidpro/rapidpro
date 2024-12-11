@@ -14,20 +14,10 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelLog
 from temba.flows.models import Flow
-from temba.msgs.models import (
-    Attachment,
-    Broadcast,
-    Label,
-    LabelCount,
-    Media,
-    MessageExport,
-    Msg,
-    OptIn,
-    SystemLabel,
-    SystemLabelCount,
-)
+from temba.msgs.models import Attachment, Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
 from temba.msgs.views import ScheduleForm
 from temba.orgs.models import Export
+from temba.orgs.tasks import squash_item_counts
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
@@ -2466,7 +2456,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # if we have too many messages in our outbox we should block
         mr_mocks.msg_broadcast_preview(query="age > 30", total=2)
-        SystemLabelCount.objects.create(org=self.org, label_type=SystemLabel.TYPE_OUTBOX, count=1_000_001)
+        self.org.counts.create(scope=f"msgs:folder:{SystemLabel.TYPE_OUTBOX}", count=1_000_001)
         response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
         self.assertEqual(
             [
@@ -2474,7 +2464,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             ],
             response.json()["blockers"],
         )
-        self.org.system_labels.all().delete()
+        self.org.counts.prefix("msgs:folder:").delete()
 
         # if we release our send channel we can't send a broadcast
         self.channel.release(self.admin)
@@ -2899,8 +2889,7 @@ class SystemLabelTest(TembaTest):
 
     def test_get_counts(self):
         def assert_counts(org, expected: dict):
-            self.assertEqual(SystemLabel.get_counts(org, use_new=False), expected)
-            self.assertEqual(SystemLabel.get_counts(org, use_new=True), expected)
+            self.assertEqual(SystemLabel.get_counts(org), expected)
 
         assert_counts(
             self.org,
@@ -3021,10 +3010,10 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 25)
+        self.assertEqual(self.org.counts.count(), 25)
 
         # squash our counts
-        squash_msg_counts()
+        squash_item_counts()
 
         assert_counts(
             self.org,
@@ -3040,8 +3029,8 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        # we should only have one system label per type with no-zero count
-        self.assertEqual(SystemLabelCount.objects.all().count(), 5)
+        # we should only have one count per folder with non-zero count
+        self.assertEqual(self.org.counts.count(), 5)
 
 
 class TagsTest(TembaTest):
@@ -3188,7 +3177,7 @@ class BackfillNewCountsTest(MigrationTest):
 
     def test_migration(self):
         def assert_counts(org, expected: dict):
-            self.assertEqual(SystemLabel.get_counts(org, use_new=True), expected)
+            self.assertEqual(SystemLabel.get_counts(org), expected)
 
         assert_counts(
             self.org,
