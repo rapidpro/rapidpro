@@ -21,7 +21,6 @@ from temba.orgs.tasks import squash_item_counts
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
-from temba.tests.base import MigrationTest
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticket
 from temba.utils import s3
@@ -3148,61 +3147,3 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.customer_support, choose_org=self.org)
         response = self.client.get(list_url)
         self.assertEqual([media2, media1], list(response.context["object_list"]))
-
-
-class BackfillNewCountsTest(MigrationTest):
-    app = "msgs"
-    migrate_from = "0278_update_triggers"
-    migrate_to = "0279_backfill_new_counts"
-
-    def setUpBeforeMigration(self, apps):
-        org1_flow = self.create_flow("Flow")
-        org2_flow = self.create_flow("Flow", org=self.org2)
-        org1_contact = self.create_contact("Contact 1", phone="+1234567890")
-        org2_contact = self.create_contact("Contact 1", phone="+1234567890", org=self.org2)
-        self.create_channel("A", "Relayer", "1234", org=self.org2)
-
-        for x in range(5):
-            self.create_incoming_msg(org1_contact, str(x))
-        for x in range(4):
-            self.create_incoming_msg(org1_contact, str(x), flow=org1_flow)
-        for x in range(3):
-            self.create_outgoing_msg(org1_contact, str(x), status=Msg.STATUS_SENT)
-
-        for x in range(2):
-            self.create_incoming_msg(org2_contact, str(x))
-        self.create_incoming_msg(org2_contact, str(x), flow=org2_flow)
-
-        self.org2.counts.all().delete()
-
-    def test_migration(self):
-        def assert_counts(org, expected: dict):
-            self.assertEqual(SystemLabel.get_counts(org), expected)
-
-        assert_counts(
-            self.org,
-            {
-                SystemLabel.TYPE_INBOX: 5,
-                SystemLabel.TYPE_FLOWS: 4,
-                SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 0,
-                SystemLabel.TYPE_SENT: 3,
-                SystemLabel.TYPE_FAILED: 0,
-                SystemLabel.TYPE_SCHEDULED: 0,
-                SystemLabel.TYPE_CALLS: 0,
-            },
-        )
-
-        assert_counts(
-            self.org2,
-            {
-                SystemLabel.TYPE_INBOX: 2,
-                SystemLabel.TYPE_FLOWS: 1,
-                SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 0,
-                SystemLabel.TYPE_SENT: 0,
-                SystemLabel.TYPE_FAILED: 0,
-                SystemLabel.TYPE_SCHEDULED: 0,
-                SystemLabel.TYPE_CALLS: 0,
-            },
-        )

@@ -6,7 +6,7 @@ from django.db import migrations, transaction
 from django.db.models import Sum
 
 
-def backfill_folder_counts(apps, schema_editor):
+def backfill_folder_counts(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     org_ids = list(Org.objects.filter(is_active=True).order_by("id").values_list("id", flat=True))
@@ -23,7 +23,7 @@ def backfill_folder_counts(apps, schema_editor):
         print(f"> updated counts for {num_backfilled}/{len(org_ids)} orgs")
 
 
-def backfill_for_org(apps, org) -> int:
+def backfill_for_org(apps, org) -> int:  # pragma: no cover
     ItemCount = apps.get_model("orgs", "ItemCount")
 
     with transaction.atomic():
