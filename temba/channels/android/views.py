@@ -50,8 +50,6 @@ def register(request):
 @csrf_exempt
 @transaction.non_atomic_requests
 def sync(request, channel_id):
-    start = time.time()
-
     if request.method != "POST":
         return HttpResponse(status=500, content="POST Required")
 
