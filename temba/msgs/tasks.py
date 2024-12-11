@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from temba.utils.crons import cron_task
 
-from .models import BroadcastMsgCount, LabelCount, Media, Msg, SystemLabelCount
+from .models import BroadcastMsgCount, LabelCount, Media, Msg
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,6 @@ def fail_old_android_messages():
 
 @cron_task(lock_timeout=7200)
 def squash_msg_counts():
-    SystemLabelCount.squash()
     LabelCount.squash()
     BroadcastMsgCount.squash()
 
