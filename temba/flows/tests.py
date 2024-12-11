@@ -21,7 +21,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.globals.models import Global
-from temba.msgs.models import SystemLabel, SystemLabelCount
+from temba.msgs.models import SystemLabel
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
 from temba.templates.models import TemplateTranslation
@@ -1933,7 +1933,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # if we have too many messages in our outbox we should block
-        SystemLabelCount.objects.create(org=self.org, label_type=SystemLabel.TYPE_OUTBOX, count=1_000_001)
+        self.org.counts.create(scope=f"msgs:folder:{SystemLabel.TYPE_OUTBOX}", count=1_000_001)
         preview_url = reverse("flows.flow_preview_start", args=[flow.id])
         mr_mocks.flow_start_preview(query="age > 30", total=1000)
 
@@ -1950,7 +1950,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             ],
             response.json()["blockers"],
         )
-        self.org.system_labels.all().delete()
+        self.org.counts.prefix("msgs:folder:").delete()
 
         # check warning for lots of contacts
         preview_url = reverse("flows.flow_preview_start", args=[flow.id])
