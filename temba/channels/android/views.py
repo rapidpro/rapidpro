@@ -17,7 +17,7 @@ from temba.channels.models import ChannelEvent
 from temba.msgs.models import Msg
 from temba.notifications.incidents.builtin import ChannelOutdatedAppIncidentType
 from temba.notifications.models import Incident
-from temba.utils import analytics, json
+from temba.utils import json
 
 from ..models import Channel, SyncEvent
 from .claim import UnsupportedAndroidChannelError, get_or_create_channel
@@ -235,8 +235,5 @@ def sync(request, channel_id):
     if sync_event:
         sync_event.outgoing_command_count = len([_ for _ in outgoing_cmds if _["cmd"] != "ack"])
         sync_event.save()
-
-    # keep track of how long a sync takes
-    analytics.gauges({"temba.relayer_sync": time.time() - start})
 
     return JsonResponse(result)
