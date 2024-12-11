@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SQL = """
 ----------------------------------------------------------------------
 -- Handles INSERT statements on msg table

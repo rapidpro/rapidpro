@@ -1,3 +1,7 @@
+v9.3.135 (2024-12-11)
+-------------------------
+ * Data migration to backfill new message folder counts
+
 v9.3.134 (2024-12-10)
 -------------------------
  * Start writing new message folder counts
