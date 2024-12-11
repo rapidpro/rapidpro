@@ -15,15 +15,6 @@ class AnalyticsTest(TembaTest):
         super().setUp()
 
     @patch("temba.utils.analytics.base.get_backends")
-    def test_gauges(self, mock_get_backends):
-        good = MagicMock()
-        mock_get_backends.return_value = [BadBackend(), good]
-
-        analytics.gauges({"foo_level": 123})
-
-        good.gauges.assert_called_once_with({"foo_level": 123})
-
-    @patch("temba.utils.analytics.base.get_backends")
     def test_track(self, mock_get_backends):
         good = MagicMock()
         mock_get_backends.return_value = [BadBackend(), good]
@@ -91,9 +82,6 @@ class AnalyticsTest(TembaTest):
 class BadBackend(AnalyticsBackend):
     slug = "bad"
     hook_templates = {"frame-top": "bad/frame_top.html"}
-
-    def gauges(self, values: dict):
-        raise ValueError("boom")
 
     def track(self, user, event: str, properties: dict):
         raise ValueError("boom")
