@@ -22,7 +22,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, ContactGroup, ContactURN
-from temba.orgs.models import DependencyMixin, Export, ExportType, ItemCount, Org, User
+from temba.orgs.models import DependencyMixin, Export, ExportType, Org, User
 from temba.schedules.models import Schedule
 from temba.utils import languages, on_transaction_commit
 from temba.utils.export.models import MultiSheetExporter
@@ -817,7 +817,7 @@ class SystemLabel:
     @classmethod
     def get_counts(cls, org, use_new=False):
         if use_new:
-            counts = ItemCount.objects.prefix("msgs:folder:").scope_totals()
+            counts = org.counts.prefix("msgs:folder:").scope_totals()
             return {lb: counts.get(f"msgs:folder:{lb}", 0) for lb, n in cls.TYPE_CHOICES}
 
         return SystemLabelCount.get_totals(org)
