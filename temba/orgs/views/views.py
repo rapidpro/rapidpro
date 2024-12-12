@@ -2340,6 +2340,11 @@ class OrgImportCRUDL(SmartCRUDL):
                 if Version(str(json_data.get("version", 0))) < Version(Org.EARLIEST_IMPORT_VERSION):
                     raise ValidationError(_("This file is no longer valid. Please export a new version and try again."))
 
+                for flow in json_data.get("flows", []):
+                    spec = flow.get("spec_version")
+                    if spec and Version(spec) > Version(Flow.CURRENT_SPEC_VERSION):
+                        raise ValidationError(_("This file contains flows with a version that is too new."))
+
                 return self.cleaned_data["file"]
 
             class Meta:
