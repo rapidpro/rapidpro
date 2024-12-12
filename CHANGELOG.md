@@ -1,3 +1,7 @@
+v9.3.137 (2024-12-12)
+-------------------------
+ * Prevent importing of flows with a spec version that is ahead of the engine
+
 v9.3.136 (2024-12-11)
 -------------------------
  * Remove gauges from analytics abstraction
