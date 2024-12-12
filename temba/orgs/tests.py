@@ -1227,19 +1227,27 @@ class BulkExportTest(TembaTest):
         self.assertEqual(voice_flow.expires_after_minutes, 5)
 
     def test_import(self):
+        create_url = reverse("orgs.orgimport_create")
+
         self.login(self.admin)
 
-        OrgImport.objects.all().delete()
-
-        post_data = dict(file=open("%s/test_flows/too_old.json" % settings.MEDIA_ROOT, "rb"))
-        response = self.client.post(reverse("orgs.orgimport_create"), post_data)
+        # try to import a file with a version that's too old
+        response = self.client.post(create_url, {"file": io.BytesIO(b'{"version":"2","flows":[]}')})
         self.assertFormError(
             response.context["form"], "file", "This file is no longer valid. Please export a new version and try again."
         )
 
+        # try to import a file with a flow with a version that's too new
+        response = self.client.post(
+            create_url, {"file": io.BytesIO(b'{"version":"13","flows":[{"spec_version": "1324.3.0"}]}')}
+        )
+        self.assertFormError(
+            response.context["form"], "file", "This file contains flows with a version that is too new."
+        )
+
         # try a file which can be migrated forwards
         response = self.client.post(
-            reverse("orgs.orgimport_create"),
+            create_url,
             {"file": open("%s/test_flows/favorites_v4.json" % settings.MEDIA_ROOT, "rb")},
         )
         self.assertEqual(302, response.status_code)
@@ -1260,12 +1268,12 @@ class BulkExportTest(TembaTest):
         # test import using data that is not parsable
         junk_binary_data = io.BytesIO(b"\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(")
         post_data = dict(file=junk_binary_data)
-        response = self.client.post(reverse("orgs.orgimport_create"), post_data)
+        response = self.client.post(create_url, post_data)
         self.assertFormError(response.context["form"], "file", "This file is not a valid flow definition file.")
 
         junk_json_data = io.BytesIO(b'{"key": "data')
         post_data = dict(file=junk_json_data)
-        response = self.client.post(reverse("orgs.orgimport_create"), post_data)
+        response = self.client.post(create_url, post_data)
         self.assertFormError(response.context["form"], "file", "This file is not a valid flow definition file.")
 
     def test_import_errors(self):
