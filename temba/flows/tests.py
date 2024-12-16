@@ -728,7 +728,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
                     },
                 ],
             )
-            self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
             self.assertEqual(len(flow.metadata["parent_refs"]), 0)
 
     def test_group_send(self):
@@ -2479,10 +2478,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             },
             response.json(),
         )
-
-        # simulate having some very recent data
-        flow1.metadata["waiting_exit_uuids"] = ["326354b3-1086-4add-8b0e-abf4a9a6aef3"]
-        flow1.save(update_fields=("metadata",))
 
         def engagement(flow, when, count):
             flow.counts.create(scope=f"msgsin:hour:{when.hour}", count=count)

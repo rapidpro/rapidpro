@@ -95,13 +95,12 @@ class Mocks:
     def contact_urns(self, urns: dict):
         self._contact_urns.append(urns)
 
-    def flow_inspect(self, *, dependencies=(), issues=(), results=(), waiting_exits=(), parent_refs=()):
+    def flow_inspect(self, *, dependencies=(), issues=(), results=(), parent_refs=()):
         self._flow_inspect.append(
             {
                 "dependencies": dependencies,
                 "issues": issues,
                 "results": results,
-                "waiting_exits": waiting_exits,
                 "parent_refs": parent_refs,
             }
         )
