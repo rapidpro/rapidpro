@@ -13,6 +13,7 @@ RapidPro is a cloud based SaaS developed by [TextIt](https://textit.com) for vis
  * [Elasticsearch](https://www.elastic.co/elasticsearch)
  * [S3](https://aws.amazon.com/s3/)
  * [DynamoDB](https://aws.amazon.com/dynamodb/)
+ * [Cloudwatch](https://aws.amazon.com/cloudwatch/)
 
 ## Versioning
 
