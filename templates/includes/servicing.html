@@ -18,10 +18,10 @@
         {% endblock servicing-orginfo %}
       </div>
     </div>
-    <div>
+    <div class="flex">
       {% block servicing-menu %}
         <a href="{% url 'staff.org_service' %}"
-           class="flex justify-end"
+           class="inline-flex"
            onclick="handlePosterizeClick(event)"
            style="color: inherit">
           <temba-icon class="mr-1" name="logout">
