@@ -1,18 +1,34 @@
+{% load i18n %}
+
 {% if request.user.is_staff and request.session.servicing %}
-  <div class="servicing shadow-xl py-2" style="background:#222">
-    <a href="{% url 'staff.org_service' %}"
-       style="text-decoration:none;
-              color:rgba(255,255,255,.8);
-              font-weight:bold;
-              justify-content:center;
-              font-size:1.1em;
-              align-items:center;
-              display:flex"
-       class="flex"
-       onclick="handlePosterizeClick(event)">
-      <temba-icon class="mr-2 -mt-1" name="service" size="1.2">
-      </temba-icon>
-      <div>{{ user_org.name }}</div>
-    </a>
+  <div class="servicing flex p-2"
+       style="color: rgba(255,255,255,.8);
+              background: #{% if request.user.is_superuser %}ec0202{% else %}222{% endif %}">
+    <div>
+      <div class="flex">
+        <temba-icon class="mr-1 -mt-1" name="service">
+        </temba-icon>
+        <div>{% trans "Servicing" %}</div>
+      </div>
+    </div>
+    <div class="flex-1">
+      <div class="flex justify-center">
+        {% block servicing-orginfo %}
+          <div class="font-bold">{{ user_org.name }}</div>
+        {% endblock servicing-orginfo %}
+      </div>
+    </div>
+    <div>
+      {% block servicing-menu %}
+        <a href="{% url 'staff.org_service' %}"
+           class="flex justify-end"
+           onclick="handlePosterizeClick(event)"
+           style="color: inherit">
+          <temba-icon class="mr-1" name="logout">
+          </temba-icon>
+          <div>{% trans "End" %}</div>
+        </a>
+      {% endblock servicing-menu %}
+    </div>
   </div>
 {% endif %}
