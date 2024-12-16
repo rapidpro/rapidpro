@@ -1,3 +1,8 @@
+v9.3.138 (2024-12-16)
+-------------------------
+ * Read only servicing for channels claim
+ * Improve servicing banner
+
 v9.3.137 (2024-12-12)
 -------------------------
  * Prevent importing of flows with a spec version that is ahead of the engine
