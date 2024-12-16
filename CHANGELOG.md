@@ -1,3 +1,7 @@
+v9.3.139 (2024-12-16)
+-------------------------
+ * Remove no longer used waiting_exits from flow inspection
+
 v9.3.138 (2024-12-16)
 -------------------------
  * Read only servicing for channels claim
