@@ -1,7 +1,7 @@
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.api.tests import APITestMixin
+from temba.api.tests.mixins import APITestMixin
 from temba.contacts.models import ContactExport
 from temba.notifications.types import ExportFinishedNotificationType
 from temba.templates.models import TemplateTranslation
