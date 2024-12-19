@@ -5,7 +5,7 @@ from django.db import migrations
 from temba.utils.uuid import uuid4
 
 
-def populate_uuid(apps, schema_editor):
+def populate_uuid(apps, schema_editor):  # pragma: no cover
     AirtimeTransfer = apps.get_model("airtime", "AirtimeTransfer")
 
     tranfers = AirtimeTransfer.objects.filter(uuid=None)

@@ -1,6 +1,6 @@
 from django.urls import reverse
 
-from temba.api.tests import APITestMixin
+from temba.api.tests.mixins import APITestMixin
 from temba.msgs.models import Media
 from temba.tests import TembaTest
 

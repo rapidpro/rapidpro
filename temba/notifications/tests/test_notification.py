@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone as tzone
+from datetime import date, datetime, timedelta
 
 from django.core import mail
 from django.urls import reverse
@@ -7,127 +7,18 @@ from django.utils import timezone
 from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ResultsExport
 from temba.msgs.models import MessageExport
-from temba.orgs.models import Invitation, ItemCount, OrgRole
-from temba.tests import CRUDLTestMixin, TembaTest, matchers
-from temba.tickets.models import TicketExport
-
-from .incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
-from .models import Incident, Notification
-from .tasks import send_notification_emails, trim_notifications
-from .types.builtin import (
+from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
+from temba.notifications.models import Notification
+from temba.notifications.tasks import send_notification_emails, trim_notifications
+from temba.notifications.types.builtin import (
     ExportFinishedNotificationType,
     InvitationAcceptedNotificationType,
     UserEmailNotificationType,
     UserPasswordNotificationType,
 )
-
-
-class IncidentTest(TembaTest):
-    def test_create(self):
-        # we use a unique constraint to enforce uniqueness on org+type+scope for ongoing incidents which allows use of
-        # INSERT .. ON CONFLICT DO NOTHING
-        incident1 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
-
-        # try to create another for the same scope
-        incident2 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
-
-        # different scope
-        incident3 = Incident.get_or_create(self.org, "org:flagged", scope="scope2")
-
-        self.assertEqual(incident1, incident2)
-        self.assertNotEqual(incident1, incident3)
-
-        # each created incident creates a notification for the workspace admin
-        self.assertEqual(2, Notification.objects.count())
-        self.assertEqual(1, incident1.notifications.count())
-        self.assertEqual(1, incident2.notifications.count())
-
-        # check that once incident 1 ends, new incidents can be created for same scope
-        incident1.end()
-
-        incident4 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
-
-        self.assertNotEqual(incident1, incident4)
-        self.assertEqual(3, Notification.objects.count())
-        self.assertEqual(1, incident4.notifications.count())
-
-    def test_org_flagged(self):
-        self.org.flag()
-
-        incident = Incident.objects.get()
-        self.assertEqual("org:flagged", incident.incident_type)
-        self.assertEqual({self.admin}, set(n.user for n in incident.notifications.all()))
-
-        self.assertEqual(
-            {"type": "org:flagged", "started_on": matchers.ISODate(), "ended_on": None}, incident.as_json()
-        )
-
-        self.org.unflag()
-
-        incident = Incident.objects.get()  # still only have 1 incident, but now it has ended
-        self.assertEqual("org:flagged", incident.incident_type)
-        self.assertIsNotNone(incident.ended_on)
-
-    def test_org_suspended(self):
-        self.org.suspend()
-
-        incident = Incident.objects.get()
-        self.assertEqual("org:suspended", incident.incident_type)
-        self.assertEqual({self.admin}, set(n.user for n in incident.notifications.all()))
-
-        self.assertEqual(
-            {"type": "org:suspended", "started_on": matchers.ISODate(), "ended_on": None}, incident.as_json()
-        )
-
-        self.org.unsuspend()
-
-        incident = Incident.objects.get()  # still only have 1 incident, but now it has ended
-        self.assertEqual("org:suspended", incident.incident_type)
-        self.assertIsNotNone(incident.ended_on)
-
-    def test_webhooks_unhealthy(self):
-        incident = Incident.objects.create(  # mailroom will create these
-            org=self.org,
-            incident_type="webhooks:unhealthy",
-            scope="",
-            started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=tzone.utc),
-        )
-
-        self.assertEqual(
-            {
-                "type": "webhooks:unhealthy",
-                "started_on": "2021-11-12T14:23:30.123456+00:00",
-                "ended_on": None,
-            },
-            incident.as_json(),
-        )
-
-
-class IncidentCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_list(self):
-        list_url = reverse("notifications.incident_list")
-
-        # create 2 org flagged incidents (1 ended, 1 ongoing)
-        incident1 = OrgFlaggedIncidentType.get_or_create(self.org)
-        OrgFlaggedIncidentType.get_or_create(self.org).end()
-        incident2 = OrgFlaggedIncidentType.get_or_create(self.org)
-
-        # create 2 flow webhook incidents (1 ended, 1 ongoing)
-        incident3 = Incident.objects.create(
-            org=self.org,
-            incident_type="webhooks:unhealthy",
-            scope="",
-            started_on=timezone.now(),
-            ended_on=timezone.now(),
-        )
-        incident4 = Incident.objects.create(org=self.org, incident_type="webhooks:unhealthy", scope="")
-
-        # main list items are the ended incidents
-        self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent])
-        response = self.assertListFetch(list_url, [self.admin], context_objects=[incident3, incident1])
-
-        # with ongoing ones in separate list
-        self.assertEqual({incident4, incident2}, set(response.context["ongoing"]))
+from temba.orgs.models import Invitation, ItemCount, OrgRole
+from temba.tests import TembaTest, matchers
+from temba.tickets.models import TicketExport
 
 
 class NotificationTest(TembaTest):
