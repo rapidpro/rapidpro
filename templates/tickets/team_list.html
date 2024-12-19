@@ -1,0 +1,44 @@
+{% extends "orgs/base/list.html" %}
+{% load smartmin temba i18n %}
+
+{% block pre-table %}
+  <div class="mb-4">
+    {% blocktrans trimmed %}
+      Agent users can be organized into teams to restrict which ticket topics they can access.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled selectable">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Users" %}</th>
+        <th>{% trans "Topics" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr onclick="goto(event, this)" href="{% url 'orgs.user_team' obj.id %}">
+          <td>{{ obj.name }}</td>
+          <td>{{ obj.user_count }}</td>
+          <td>
+            {% if obj.all_topics %}
+              {% trans "All" %}
+            {% else %}
+              {% for topic in obj.topics.all %}
+                <temba-label icon="topic" class="mx-1 my-1">
+                  {{ topic.name }}
+                </temba-label>
+              {% endfor %}
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No teams" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}

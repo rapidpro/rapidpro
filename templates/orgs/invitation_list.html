@@ -1,0 +1,59 @@
+{% extends "orgs/base/list.html" %}
+{% load smartmin temba i18n %}
+
+{% block modaxes %}
+  <temba-modax header="{{ _("Cancel Invitation") |escapejs }}" id="delete-invitation">
+  </temba-modax>
+{% endblock modaxes %}
+{% block pre-table %}
+  <div class="mb-4">
+    {% blocktrans trimmed with days=validity_days %}
+      These are pending invitations to join your workspace. Invitations expire after {{ days }} days.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled">
+    <thead>
+      <tr>
+        <th>{% trans "Email" %}</th>
+        <th>{% trans "Role" %}</th>
+        <th>{% trans "Sent On" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr>
+          <td>{{ obj.email }}</td>
+          <td>
+            {{ obj.role.display }}
+            {% if obj.team and has_teams %}({{ obj.team.name }}){% endif %}
+          </td>
+          <td>{{ obj.created_on|day }}</td>
+          <td class="w-10">
+            <temba-icon name="delete"
+                        clickable="true"
+                        style="--icon-color:#bbb"
+                        onclick="event.stopPropagation(); showDeleteInvitationModal({{ obj.id }});">
+            </temba-icon>
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No invitations" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showDeleteInvitationModal(id) {
+      var modax = document.querySelector('#delete-invitation');
+      modax.endpoint = `/invitation/delete/${id}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}

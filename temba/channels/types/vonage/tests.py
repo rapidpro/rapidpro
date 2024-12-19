@@ -261,7 +261,7 @@ class VonageTypeTest(TembaTest):
         channel.save(update_fields=("channel_type", "config"))
 
         # mock a 404 response from Vonage during deactivation
-        with patch("vonage.ApplicationV2.delete_application") as mock_delete_application:
+        with patch("vonage.application.Application.delete_application") as mock_delete_application:
             mock_delete_application.side_effect = vonage.ClientError("404 response")
 
             # releasing shouldn't blow up on auth failures
@@ -297,7 +297,7 @@ class ClientTest(TembaTest):
 
         self.client = VonageClient("abc123", "asecret")
 
-    @patch("vonage.Client.get_balance")
+    @patch("vonage.account.Account.get_balance")
     def test_check_credentials(self, mock_get_balance):
         mock_get_balance.side_effect = vonage.AuthenticationError("401 not allowed")
 
@@ -308,7 +308,7 @@ class ClientTest(TembaTest):
 
         self.assertTrue(self.client.check_credentials())
 
-    @patch("vonage.Client.get_account_numbers")
+    @patch("vonage.number_management.Numbers.get_account_numbers")
     def test_get_numbers(self, mock_get_account_numbers):
         mock_get_account_numbers.return_value = {"count": 2, "numbers": ["23463", "568658"]}
 
@@ -316,7 +316,7 @@ class ClientTest(TembaTest):
 
         mock_get_account_numbers.assert_called_once_with(params={"size": 10, "pattern": "593"})
 
-    @patch("vonage.Client.get_available_numbers")
+    @patch("vonage.number_management.Numbers.get_available_numbers")
     def test_search_numbers(self, mock_get_available_numbers):
         mock_get_available_numbers.side_effect = [
             {"count": 2, "numbers": ["23463", "568658"]},
@@ -332,13 +332,13 @@ class ClientTest(TembaTest):
             ]
         )
 
-    @patch("vonage.Client.buy_number")
+    @patch("vonage.number_management.Numbers.buy_number")
     def test_buy_number(self, mock_buy_number):
         self.client.buy_number(country="US", number="+12345")
 
         mock_buy_number.assert_called_once_with(params={"msisdn": "12345", "country": "US"})
 
-    @patch("vonage.Client.update_number")
+    @patch("vonage.number_management.Numbers.update_number")
     def test_update_number(self, mock_update_number):
         self.client.update_number(country="US", number="+12345", mo_url="http://test", app_id="ID123")
 
@@ -346,7 +346,7 @@ class ClientTest(TembaTest):
             params={"moHttpUrl": "http://test", "msisdn": "12345", "country": "US", "app_id": "ID123"}
         )
 
-    @patch("vonage.ApplicationV2.create_application")
+    @patch("vonage.application.Application.create_application")
     def test_create_application(self, mock_create_application):
         mock_create_application.return_value = {"id": "myappid", "keys": {"private_key": "tejh42gf3"}}
 
@@ -374,7 +374,7 @@ class ClientTest(TembaTest):
 
         mock_create_application.assert_called_once_with(application_data=app_data)
 
-    @patch("vonage.ApplicationV2.delete_application")
+    @patch("vonage.application.Application.delete_application")
     def test_delete_application(self, mock_delete_application):
         self.client.delete_application("myappid")
 

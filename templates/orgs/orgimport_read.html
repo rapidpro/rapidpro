@@ -26,31 +26,29 @@
   {% endif %}
 {% endblock extra-script %}
 {% block content %}
-  {% block pjax %}
-    <div id="pjax">
-      <div class="card">
-        <div class="import-result text-lg mt-2">
-          {% if object.status == "C" %}
-            <temba-icon name="check" class="text-success mr-2">
-            </temba-icon>
-          {% else %}
-            <temba-icon name="progress_spinner" class="spin mr-2">
-            </temba-icon>
-          {% endif %}
-          {% if object.status == "P" %}
-            {% trans "About to start..." %}
-          {% elif object.status == "O" %}
-            {% trans "In progress..." %}
-          {% elif object.status == "F" %}
-            {% trans "An error happened, please try again." %}
-          {% elif object.status == "C" %}
-            {% trans "Finished successfully" %}
-            <div class="import-result text-lg mt-2">
-              <a href="{% url 'flows.flow_list' %}">{% trans "View flows" %}</a>
-            </div>
-          {% endif %}
-        </div>
+  <div>
+    <div class="card">
+      <div class="import-result text-lg mt-2">
+        {% if object.status == "C" %}
+          <temba-icon name="check" class="text-success mr-2">
+          </temba-icon>
+        {% else %}
+          <temba-icon name="progress_spinner" class="spin mr-2">
+          </temba-icon>
+        {% endif %}
+        {% if object.status == "P" %}
+          {% trans "About to start..." %}
+        {% elif object.status == "O" %}
+          {% trans "In progress..." %}
+        {% elif object.status == "F" %}
+          {% trans "An error happened, please try again." %}
+        {% elif object.status == "C" %}
+          {% trans "Finished successfully" %}
+          <div class="import-result text-lg mt-2">
+            <a href="{% url 'flows.flow_list' %}">{% trans "View flows" %}</a>
+          </div>
+        {% endif %}
       </div>
     </div>
-  {% endblock pjax %}
+  </div>
 {% endblock content %}

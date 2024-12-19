@@ -5,7 +5,7 @@ from django.db.models.functions import Lower
 from temba import mailroom
 from temba.utils.models.es import IDSliceQuerySet
 
-from .models import Contact, ContactGroup, ContactGroupCount
+from .models import Contact, ContactGroup
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
@@ -90,7 +90,7 @@ def omnibox_serialize(org, groups, contacts, *, encode=False):
     Serializes lists of groups and contacts into the combined list format expected by the omnibox.
     """
 
-    group_counts = ContactGroupCount.get_totals(groups) if groups else {}
+    group_counts = ContactGroup.get_member_counts(groups) if groups else {}
     results = []
 
     for group in groups:

@@ -1,0 +1,25 @@
+{% extends "smartmin/base.html" %}
+{% load smartmin i18n %}
+
+{% block page-top %}
+{% endblock page-top %}
+{% block modal-extra-style %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{{ STATIC_URL }}css/tailwind.css" type="text/css">
+{% endblock modal-extra-style %}
+{% block modal %}
+  {% block delete-message %}
+    {% blocktrans trimmed with name=object.flow.name %}
+      Are you sure you want to interrupt starting <b>{{ name }}</b>?
+      Contacts who have already been started will continue in the flow.
+    {% endblocktrans %}
+  {% endblock delete-message %}
+  {% block delete-form %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="hidden">
+        <input type="submit" value="{{ submit_button_name|escapejs }}">
+      </div>
+    </form>
+  {% endblock delete-form %}
+{% endblock modal %}

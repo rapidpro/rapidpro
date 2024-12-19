@@ -28,12 +28,12 @@
       justify-content: center;
     }
 
-    #overview-charts {
+    #engagement-charts {
       justify-content: center;
       padding-top: 2em;
     }
 
-    #overview-charts>div {
+    #engagement-charts>div {
       margin-bottom: 6em;
       align-self: flex-start;
       flex-basis: 400px;
@@ -76,11 +76,13 @@
 
         var tabs = document.querySelector("temba-tabs");
         var runsTab = tabs.getTab(2);
-        runsTab.count = runCount;
-        tabs.requestUpdate();
+        if (runsTab) {
+          runsTab.count = runCount;
+          tabs.requestUpdate();
 
-        var runList = document.querySelector("temba-run-list");
-        runList.results = flow.results;
+          var runList = document.querySelector("temba-run-list");
+          runList.results = flow.results;
+        }
       }
     }
 
@@ -287,6 +289,12 @@
       }
     }
 
+    function updateEngagement() {
+      fetchAjax("{% url 'flows.flow_engagement' object.id %}", {
+        container: "#engagement-charts"
+      });
+    }
+
     function updateCharts() {
 
       var store = document.querySelector("temba-store");
@@ -296,7 +304,7 @@
         return;
       }
 
-      store.getUrl("/flow/category_counts/{{object.uuid}}/", {
+      store.getUrl("/flow/category_counts/{{object.id}}/", {
         force: true
       }).then(function(response) {
         var data = response.json;
@@ -326,33 +334,28 @@
           }
         }
       });
-
-      window.setTimeout(function() {
-        updateCharts();
-      }, 5000);
     }
 
     function handleTabChanged() {
       var tabs = document.querySelector("temba-tabs");
-
       if (!tabs) {
         return;
       }
 
       // runs are paused unless our tab is active
       var runs = document.querySelector("temba-run-list");
-      runs.paused = tabs.index != 2;
-
-      if (tabs.index == 0) {
-        fetchAjax('/flow/activity_chart/{{object.id}}/', {
-          container: "#overview-charts"
-        });
+      if (runs) {
+        runs.paused = tabs.index != 2;
       }
 
       if (tabs.index == 1) {
         updateCharts();
       }
     }
+
+    onSpload(function() {
+      updateEngagement();
+    });
   </script>
 {% endblock extra-script %}
 {% block content %}
@@ -366,14 +369,15 @@
               collapses="true"
               class="flex-grow"
               index="{{ request.GET.tab }}">
-    <temba-tab name="{{ _("Overview") |escapejs }}" icon="overview">
-      <div class="flex flex-wrap overflow-y-scroll overflow-x-hidden" id="overview-charts"></div>
+    <temba-tab name="{{ _("Engagement") |escapejs }}" icon="overview">
+      <div class="flex flex-wrap overflow-y-scroll overflow-x-hidden" id="engagement-charts"></div>
     </temba-tab>
     <temba-tab name="{{ _("Analytics") |escapejs }}" icon="analytics">
       <div class="flex flex-wrap overflow-y-scroll overflow-x-hidden" id="category-charts"></div>
     </temba-tab>
     <temba-tab name="{{ _("Runs") |escapejs }}" icon="runs">
       <temba-run-list flow="{{ object.uuid }}"
+                      {% if org_perms.flows.flowrun_delete %}allowDelete{% endif %}
                       -temba-refreshed="handleRunsRefreshed"
                       class="p-4 flex flex-col flex-grow overflow-hidden">
       </temba-run-list>

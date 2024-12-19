@@ -11,30 +11,33 @@
     Each message sent to the channel will have a URN in the format {{ format }} where the channel UUID is the FreshChat channel's UUID.
   {% endblocktrans %}
 </div>
-<ol class="steps card">
-  <li>
-    {% blocktrans trimmed %}
-      In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below.
-    {% endblocktrans %}
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Under Settings again, select Webhooks and copy the Public Key and paste it below. This assures all webhook request from FreshChat will be authenticated.
-    {% endblocktrans %}
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Lastly, you'll need the UUID of the Agent that {{ name }} will use when it sends FreshChat message. This is available via
-      the <a href="https://developers.freshchat.com/api/#agent">FreshChat API</a>.
-    {% endblocktrans %}
-  </li>
-  <li>
-    {% blocktrans trimmed %}
-      Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks.
-      Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before.
-    {% endblocktrans %}
-  </li>
-</ol>
+<div class="card">
+  <ol class="steps">
+    <li>
+      {% blocktrans trimmed %}
+        In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below.
+      {% endblocktrans %}
+    </li>
+    <li>
+      {% blocktrans trimmed %}
+        Under Settings again, select Webhooks or Conversation Webhooks (if you do not see the options, search for that and make sure the feature is enabled)
+        and then use the Copy button to copy the Public Key (usually RSA Public Key) and paste it below. This assures all webhook request from FreshChat will be authenticated.
+      {% endblocktrans %}
+    </li>
+    <li>
+      {% blocktrans trimmed %}
+        Lastly, you'll need the UUID of the Agent that {{ name }} will use when it sends FreshChat message.
+        This is available via the <a href="https://developers.freshchat.com/api/#agent">FreshChat API</a>.
+      {% endblocktrans %}
+    </li>
+    <li>
+      {% blocktrans trimmed %}
+        Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks.
+        Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before.
+      {% endblocktrans %}
+    </li>
+  </ol>
+</div>
 {% endblock pre-form %}
 {% block extra-style %}
   {{ block.super }}

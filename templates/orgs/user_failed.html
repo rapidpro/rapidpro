@@ -1,0 +1,25 @@
+{% extends "orgs/login/login_base.html" %}
+{% load smartmin i18n %}
+
+{% block login-title %}
+  {% trans "Login Failure" %}
+{% endblock login-title %}
+{% block login-content %}
+  <div class="mb-4">
+    {% blocktrans trimmed %}
+      You cannot log in at this time because we received too many incorrect login attempts.
+      Please wait {{ lockout_timeout }} minutes before trying again.
+    {% endblocktrans %}
+  </div>
+  <div class="mb-8">
+    {% blocktrans trimmed %}
+      Alternatively, you can fill out the form below to have your password reset via e-mail.
+    {% endblocktrans %}
+  </div>
+  <form method="post" action="{% url 'orgs.user_forget' %}">
+    {% csrf_token %}
+    <temba-textinput name="email" placeholder="{{ _("Email Address") }}">
+    </temba-textinput>
+    <input type="submit" value="{{ _("Reset") }}" class="mt-4 button-primary">
+  </form>
+{% endblock login-content %}

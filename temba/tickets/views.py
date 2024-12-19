@@ -1,17 +1,11 @@
 from datetime import timedelta
 
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartListView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.db.models.functions import Lower
+from django.http import Http404, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -19,18 +13,29 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import BaseExportView, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.models import Org
+from temba.orgs.views.base import (
+    BaseCreateModal,
+    BaseDeleteModal,
+    BaseExportModal,
+    BaseListView,
+    BaseMenuView,
+    BaseUpdateModal,
+)
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin, RequireFeatureMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
-from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
+from .forms import ShortcutForm, TeamForm, TopicForm
 from .models import (
     AllFolder,
     MineFolder,
+    Shortcut,
+    Team,
     Ticket,
-    TicketCount,
     TicketExport,
     TicketFolder,
     Topic,
@@ -40,97 +45,183 @@ from .models import (
 )
 
 
+class ShortcutCRUDL(SmartCRUDL):
+    model = Shortcut
+    actions = ("create", "update", "delete", "list")
+
+    class Create(BaseCreateModal):
+        form_class = ShortcutForm
+        success_url = "@tickets.shortcut_list"
+
+        def save(self, obj):
+            return Shortcut.create(self.request.org, self.request.user, obj.name, obj.text)
+
+    class Update(BaseUpdateModal):
+        form_class = ShortcutForm
+        success_url = "@tickets.shortcut_list"
+
+    class Delete(BaseDeleteModal):
+        cancel_url = "@tickets.shortcut_list"
+        redirect_url = "@tickets.shortcut_list"
+
+    class List(SpaMixin, ContextMenuMixin, BaseListView):
+        menu_path = "/ticket/shortcuts"
+
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).order_by(Lower("name"))
+
+        def build_context_menu(self, menu):
+            if self.has_org_perm("tickets.shortcut_create"):
+                menu.add_modax(
+                    _("New"),
+                    "new-shortcut",
+                    reverse("tickets.shortcut_create"),
+                    title=_("New Shortcut"),
+                    as_button=True,
+                )
+
+
 class TopicCRUDL(SmartCRUDL):
     model = Topic
     actions = ("create", "update", "delete")
-    slug_field = "uuid"
 
-    class Create(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartCreateView):
-        class TopicForm(forms.ModelForm):
-            class Meta:
-                model = Topic
-                fields = ("name",)
-
+    class Create(BaseCreateModal):
         form_class = TopicForm
         success_url = "hide"
 
-        def pre_save(self, obj):
-            obj = super().pre_save(obj)
-            obj.org = self.request.org
-            return obj
+        def save(self, obj):
+            return Topic.create(self.request.org, self.request.user, obj.name)
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            def clean_name(self):
-                name = self.cleaned_data["name"]
-
-                if self.instance.is_system:
-                    raise forms.ValidationError(_("Cannot edit system topic"))
-
-                # make sure the name isn't already taken
-                existing = self.instance.org.topics.filter(is_active=True, name__iexact=name).first()
-                if existing and self.instance != existing:
-                    raise forms.ValidationError(_("Topic already exists, please try another name"))
-
-                return name
-
-            class Meta:
-                fields = ("name",)
-                model = Topic
-
+    class Update(BaseUpdateModal):
+        form_class = TopicForm
         success_url = "hide"
-        slug_url_kwarg = "uuid"
-        fields = ("name",)
-        form_class = Form
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        default_template = "smartmin/delete_confirm.html"
-        submit_button_name = _("Delete")
-        slug_url_kwarg = "uuid"
-        fields = ("uuid",)
+    class Delete(BaseDeleteModal):
         cancel_url = "@tickets.ticket_list"
-        redirect_url = "@tickets.ticket_list"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["has_tickets"] = self.object.tickets.exists()
             return context
 
-        def post(self, request, *args, **kwargs):
-            self.get_object().release(self.request.user)
-            redirect_url = self.get_redirect_url()
-            return HttpResponseRedirect(redirect_url)
-
         def get_redirect_url(self, **kwargs):
-            default_topic = self.get_object().org.topics.filter(is_default=True).first()
-            return f"/ticket/{str(default_topic.uuid)}/open/"
+            return f"/ticket/{self.request.org.default_ticket_topic.uuid}/open/"
+
+
+class TeamCRUDL(SmartCRUDL):
+    model = Team
+    actions = ("create", "update", "delete", "list")
+
+    class Create(RequireFeatureMixin, BaseCreateModal):
+        require_feature = Org.FEATURE_TEAMS
+        form_class = TeamForm
+        success_url = "@tickets.team_list"
+
+        def save(self, obj):
+            return Team.create(self.request.org, self.request.user, obj.name, topics=self.form.cleaned_data["topics"])
+
+    class Update(BaseUpdateModal):
+        form_class = TeamForm
+        success_url = "id@orgs.user_team"
+
+    class Delete(BaseDeleteModal):
+        cancel_url = "id@orgs.user_team"
+        redirect_url = "@tickets.team_list"
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["has_agents"] = self.object.get_users().exists()
+            context["has_invitations"] = self.object.invitations.filter(is_active=True).exists()
+            return context
+
+    class List(RequireFeatureMixin, SpaMixin, ContextMenuMixin, BaseListView):
+        require_feature = Org.FEATURE_TEAMS
+        menu_path = "/settings/teams"
+
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True).order_by(Lower("name"))
+
+        def build_context_menu(self, menu):
+            if self.has_org_perm("tickets.team_create"):
+                menu.add_modax(
+                    _("New"),
+                    "new-team",
+                    reverse("tickets.team_create"),
+                    title=_("New Team"),
+                    as_button=True,
+                )
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            # annotate each team with its user count
+            for team in context["object_list"]:
+                team.user_count = team.get_users().count()
+
+            return context
 
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "update", "folder", "note", "menu", "export_stats", "export")
+    actions = ("menu", "list", "folder", "update", "note", "export_stats", "export")
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            def __init__(self, **kwargs):
-                super().__init__(**kwargs)
+    class Menu(BaseMenuView):
+        def derive_menu(self):
+            org = self.request.org
+            user = self.request.user
+            topics = Topic.get_accessible(org, user).order_by("-is_system", "name")
+            counts = {
+                MineFolder.slug: Ticket.get_assignee_count(org, user, topics, Ticket.STATUS_OPEN),
+                UnassignedFolder.slug: Ticket.get_assignee_count(org, None, topics, Ticket.STATUS_OPEN),
+                AllFolder.slug: Ticket.get_status_count(org, topics, Ticket.STATUS_OPEN),
+            }
 
-                self.fields["topic"].queryset = self.instance.org.topics.filter(is_active=True).order_by(
-                    "-is_system", "name"
+            menu = []
+            for folder in TicketFolder.all().values():
+                menu.append(
+                    {
+                        "id": folder.slug,
+                        "name": folder.name,
+                        "icon": folder.get_icon(counts[folder.slug]),
+                        "count": counts[folder.slug],
+                        "href": f"/ticket/{folder.slug}/open/",
+                    }
                 )
 
-            class Meta:
-                fields = ("topic",)
-                model = Ticket
+            menu.append(self.create_divider())
+            menu.append(
+                self.create_menu_item(
+                    menu_id="shortcuts",
+                    name=_("Shortcuts"),
+                    icon="shortcut",
+                    count=org.shortcuts.filter(is_active=True).count(),
+                    href="tickets.shortcut_list",
+                )
+            )
+            menu.append(self.create_modax_button(_("Export"), "tickets.ticket_export", icon="export"))
+            menu.append(
+                self.create_modax_button(_("New Topic"), "tickets.topic_create", icon="add", on_submit="refreshMenu()")
+            )
 
-        form_class = Form
-        fields = ("topic",)
-        slug_url_kwarg = "uuid"
-        success_url = "hide"
+            menu.append(self.create_divider())
 
-    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
+            counts = Ticket.get_topic_counts(org, topics, Ticket.STATUS_OPEN)
+            for topic in topics:
+                menu.append(
+                    {
+                        "id": topic.uuid,
+                        "name": topic.name,
+                        "icon": "topic",
+                        "count": counts[topic],
+                        "href": f"/ticket/{topic.uuid}/open/",
+                    }
+                )
+
+            return menu
+
+    class List(SpaMixin, ContextMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
-        A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
+        Placeholder view for the ticketing frontend components which fetch tickets from the folders view below.
         """
 
         @classmethod
@@ -139,158 +230,107 @@ class TicketCRUDL(SmartCRUDL):
             return rf"^ticket/((?P<folder>{folders}|{UUID_REGEX.pattern})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
 
         def get_notification_scope(self) -> tuple:
-            folder, status, _, _ = self.tickets_path
-            if folder == UnassignedFolder.id and status == "open":
+            folder, status, ticket, in_page = self.tickets_path
+
+            if folder.slug == UnassignedFolder.slug and status == Ticket.STATUS_OPEN:
                 return "tickets:opened", ""
-            elif folder == MineFolder.id and status == "open":
+            elif folder.slug == MineFolder.slug and status == Ticket.STATUS_OPEN:
                 return "tickets:activity", ""
             return "", ""
 
         def derive_menu_path(self):
-            return f"/ticket/{self.kwargs.get('folder', 'mine')}/"
+            folder, status, ticket, in_page = self.tickets_path
+
+            return f"/ticket/{folder.slug}/"
 
         @cached_property
-        def tickets_path(self) -> tuple:
+        def tickets_path(self) -> tuple[TicketFolder, str, Ticket, bool]:
             """
-            Returns tuple of folder, status, ticket uuid, and whether that ticket exists in first page of tickets
+            Returns tuple of folder, status, ticket, and whether that ticket exists in first page of tickets
             """
-            folder = self.kwargs.get("folder")
-            status = self.kwargs.get("status")
-            uuid = self.kwargs.get("uuid")
+
+            org = self.request.org
+            user = self.request.user
+
+            # get requested folder, defaulting to Mine
+            folder = TicketFolder.from_slug(org, user, self.kwargs.get("folder", MineFolder.slug))
+            if not folder:
+                raise Http404()
+
+            status = Ticket.STATUS_OPEN if self.kwargs.get("status", "open") == "open" else Ticket.STATUS_CLOSED
+            ticket = None
             in_page = False
 
-            # if we have a uuid make sure it is in our first page of tickets
-            if uuid:
-                status_code = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED
-                org = self.request.org
-                user = self.request.user
-                ticket_folder = TicketFolder.from_id(org, folder)
+            # is the request for a specific ticket?
+            if uuid := self.kwargs.get("uuid"):
+                # is the ticket in the first page from of current folder?
+                for t in list(folder.get_queryset(org, user, ordered=True).filter(status=status)[:25]):
+                    if str(t.uuid) == uuid:
+                        ticket = t
+                        in_page = True
+                        break
 
-                if not ticket_folder:
-                    raise Http404()
+                # if not, see if we can access it in the All tickets folder and if so switch to that
+                if not in_page:
+                    all_folder = TicketFolder.from_slug(org, user, AllFolder.slug)
+                    ticket = all_folder.get_queryset(org, user, ordered=False).filter(uuid=uuid).first()
 
-                tickets = list(ticket_folder.get_queryset(org, user, True).filter(status=status_code)[:25])
-
-                found = list(filter(lambda t: str(t.uuid) == uuid, tickets))
-                if found:
-                    in_page = True
-                else:
-                    # if it's not, switch our folder to everything with that ticket's state
-                    ticket = org.tickets.filter(uuid=uuid).first()
                     if ticket:
-                        folder = AllFolder.id
-                        status = "open" if ticket.status == Ticket.STATUS_OPEN else "closed"
+                        folder = all_folder
+                        status = ticket.status
 
-            return folder or MineFolder.id, status or "open", uuid, in_page
+            return folder, status, ticket, in_page
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            folder, status, uuid, in_page = self.tickets_path
-            context["folder"] = folder
-            context["status"] = status
+            folder, status, ticket, in_page = self.tickets_path
+
+            context["title"] = folder.name
+            context["folder"] = str(folder.slug)
+            context["status"] = "open" if status == Ticket.STATUS_OPEN else "closed"
             context["has_tickets"] = self.request.org.tickets.exists()
 
-            folder = TicketFolder.from_id(self.request.org, folder)
-            context["title"] = folder.name
-
-            if uuid:
-                context["nextUUID" if in_page else "uuid"] = uuid
+            if ticket:
+                context["nextUUID" if in_page else "uuid"] = str(ticket.uuid)
 
             return context
 
-        def build_content_menu(self, menu):
-            # we only support dynamic content menus
-            if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
-                return
+        def build_context_menu(self, menu):
+            folder, status, ticket, in_page = self.tickets_path
 
-            uuid = self.kwargs.get("uuid")
-            if uuid:
-                ticket = self.request.org.tickets.filter(uuid=uuid).first()
-                if ticket:
-                    if ticket.status == Ticket.STATUS_OPEN:
-                        if self.has_org_perm("tickets.ticket_update"):
-                            menu.add_modax(
-                                _("Edit"),
-                                "edit-ticket",
-                                f"{reverse('tickets.ticket_update', args=[ticket.uuid])}",
-                                title=_("Edit Ticket"),
-                                on_submit="handleTicketEditComplete()",
-                            )
+            if ticket and ticket.status == Ticket.STATUS_OPEN:
+                if self.has_org_perm("tickets.ticket_update"):
+                    menu.add_modax(
+                        _("Edit"),
+                        "edit-ticket",
+                        f"{reverse('tickets.ticket_update', args=[ticket.uuid])}",
+                        title=_("Edit Ticket"),
+                        on_submit="handleTicketEditComplete()",
+                    )
 
-                        if self.has_org_perm("tickets.ticket_note"):
-                            menu.add_modax(
-                                _("Add Note"),
-                                "add-note",
-                                f"{reverse('tickets.ticket_note', args=[ticket.uuid])}",
-                                on_submit="handleNoteAdded()",
-                            )
+                if self.has_org_perm("tickets.ticket_note"):
+                    menu.add_modax(
+                        _("Add Note"),
+                        "add-note",
+                        f"{reverse('tickets.ticket_note', args=[ticket.uuid])}",
+                        on_submit="handleNoteAdded()",
+                    )
 
-                        # we don't want to show start flow if interrupt was given as an option
-                        interrupt_added = False
-                        if self.has_org_perm("contacts.contact_interrupt") and ticket.contact.current_flow:
-                            menu.add_url_post(
-                                _("Interrupt"), reverse("contacts.contact_interrupt", args=(ticket.contact.id,))
-                            )
-                            interrupt_added = True
-
-                        if not interrupt_added and self.has_org_perm("flows.flow_start"):
-                            menu.add_modax(
-                                _("Start Flow"),
-                                "start-flow",
-                                f"{reverse('flows.flow_start')}?c={ticket.contact.uuid}",
-                                disabled=True,
-                                on_submit="handleFlowStarted()",
-                            )
+                if not ticket.contact.current_flow:
+                    if self.has_org_perm("flows.flow_start"):
+                        menu.add_modax(
+                            _("Start Flow"),
+                            "start-flow",
+                            f"{reverse('flows.flow_start')}?c={ticket.contact.uuid}",
+                            disabled=True,
+                            on_submit="handleFlowStarted()",
+                        )
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
 
-    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
-        def derive_menu(self):
-            org = self.request.org
-            user = self.request.user
-            count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
-            counts = {
-                MineFolder.id: count_by_assignee[user],
-                UnassignedFolder.id: count_by_assignee[None],
-                AllFolder.id: TicketCount.get_all(org, Ticket.STATUS_OPEN),
-            }
-
-            menu = []
-            for folder in TicketFolder.all().values():
-                menu.append(
-                    {
-                        "id": folder.id,
-                        "name": folder.name,
-                        "icon": folder.icon,
-                        "count": counts[folder.id],
-                    }
-                )
-
-            menu.append(self.create_divider())
-            menu.append(self.create_modax_button(_("Export"), "tickets.ticket_export", icon="export"))
-            menu.append(
-                self.create_modax_button(_("New Topic"), "tickets.topic_create", icon="add", on_submit="refreshMenu()")
-            )
-
-            menu.append(self.create_divider())
-
-            topics = list(org.topics.filter(is_active=True).order_by("-is_system", "name"))
-            counts = TicketCount.get_by_topics(org, topics, Ticket.STATUS_OPEN)
-            for topic in topics:
-                menu.append(
-                    {
-                        "id": topic.uuid,
-                        "name": topic.name,
-                        "icon": "topic",
-                        "count": counts[topic],
-                    }
-                )
-
-            return menu
-
-    class Folder(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
+    class Folder(ContextMenuMixin, OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"
         paginate_by = 25
 
@@ -300,37 +340,30 @@ class TicketCRUDL(SmartCRUDL):
             return rf"^{path}/{action}/(?P<folder>{folders}|{UUID_REGEX.pattern})/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
 
         @cached_property
-        def folder(self):
-            folder = TicketFolder.from_id(self.request.org, self.kwargs["folder"])
+        def folder(self) -> TicketFolder:
+            folder = TicketFolder.from_slug(self.request.org, self.request.user, self.kwargs["folder"])
             if not folder:
                 raise Http404()
+
             return folder
 
-        def build_content_menu(self, menu):
-            # we only support dynamic content menus
-            if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
-                return
-
-            if (
-                self.has_org_perm("tickets.topic_update")
-                and isinstance(self.folder, TopicFolder)
-                and not self.folder.is_system
-            ):
-
-                menu.add_modax(
-                    _("Edit"),
-                    "edit-topic",
-                    f"{reverse('tickets.topic_update', args=[self.folder.id])}",
-                    title=_("Edit Topic"),
-                    on_submit="handleTopicUpdated()",
-                )
-
-                menu.add_modax(
-                    _("Delete"),
-                    "delete-topic",
-                    f"{reverse('tickets.topic_delete', args=[self.folder.id])}",
-                    title=_("Delete"),
-                )
+        def build_context_menu(self, menu):
+            if isinstance(self.folder, TopicFolder) and not self.folder.topic.is_system:
+                if self.has_org_perm("tickets.topic_update"):
+                    menu.add_modax(
+                        _("Edit"),
+                        "edit-topic",
+                        f"{reverse('tickets.topic_update', args=[self.folder.topic.id])}",
+                        title=_("Edit Topic"),
+                        on_submit="handleTopicUpdated()",
+                    )
+                if self.has_org_perm("tickets.topic_delete"):
+                    menu.add_modax(
+                        _("Delete"),
+                        "delete-topic",
+                        f"{reverse('tickets.topic_delete', args=[self.folder.topic.id])}",
+                        title=_("Delete Topic"),
+                    )
 
         def get_queryset(self, **kwargs):
             org = self.request.org
@@ -342,7 +375,7 @@ class TicketCRUDL(SmartCRUDL):
 
             # fetching new activity gets a different order later
             ordered = False if after else True
-            qs = self.folder.get_queryset(org, user, ordered).filter(status=status)
+            qs = self.folder.get_queryset(org, user, ordered=ordered).filter(status=status)
 
             # all new activity
             after = int(self.request.GET.get("after", 0))
@@ -363,7 +396,7 @@ class TicketCRUDL(SmartCRUDL):
 
                 if count == self.paginate_by:
                     last_ticket = qs[len(qs) - 1]
-                    qs = self.folder.get_queryset(org, user, ordered).filter(
+                    qs = self.folder.get_queryset(org, user, ordered=ordered).filter(
                         status=status, last_activity_on__gte=last_ticket.last_activity_on
                     )
 
@@ -388,7 +421,7 @@ class TicketCRUDL(SmartCRUDL):
             last_msg_ids = Msg.objects.filter(contact_id__in=contact_ids).values("contact").annotate(last_msg=Max("id"))
             last_msgs = Msg.objects.filter(id__in=[m["last_msg"] for m in last_msg_ids]).select_related("created_by")
 
-            context["last_msgs"] = {m.contact: m for m in last_msgs}
+            context["last_msgs"] = {m.contact_id: m for m in last_msgs}
             return context
 
         def render_to_response(self, context, **response_kwargs):
@@ -412,10 +445,10 @@ class TicketCRUDL(SmartCRUDL):
                 """
                 Converts a ticket to the contact-centric format expected by our frontend components
                 """
-                last_msg = context["last_msgs"].get(t.contact)
+                last_msg = context["last_msgs"].get(t.contact_id)
                 return {
                     "uuid": str(t.contact.uuid),
-                    "name": t.contact.get_display(),
+                    "name": t.contact.get_display(org=self.request.org),
                     "last_seen_on": t.contact.last_seen_on,
                     "last_msg": msg_as_json(last_msg) if last_msg else None,
                     "ticket": {
@@ -432,14 +465,32 @@ class TicketCRUDL(SmartCRUDL):
             # build up our next link if we have more
             if len(context["tickets"]) >= self.paginate_by:
                 folder_url = reverse(
-                    "tickets.ticket_folder", kwargs={"folder": self.folder.id, "status": self.kwargs["status"]}
+                    "tickets.ticket_folder", kwargs={"folder": self.folder.slug, "status": self.kwargs["status"]}
                 )
                 last_time = results["results"][-1]["ticket"]["last_activity_on"]
                 results["next"] = f"{folder_url}?before={datetime_to_timestamp(last_time)}"
 
             return JsonResponse(results)
 
-    class Note(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                self.fields["topic"].queryset = self.instance.org.topics.filter(is_active=True).order_by(
+                    "-is_system", "name"
+                )
+
+            class Meta:
+                fields = ("topic",)
+                model = Ticket
+
+        form_class = Form
+        fields = ("topic",)
+        slug_url_kwarg = "uuid"
+        success_url = "hide"
+
+    class Note(ModalFormMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Creates a note for this contact
         """
@@ -475,7 +526,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
-    class Export(BaseExportView):
+    class Export(BaseExportModal):
         export_type = TicketExport
         success_url = "@tickets.ticket_list"
 

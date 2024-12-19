@@ -46,7 +46,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
-        post_data["base_url"] = "https://nyaruka.com/whatsapp"
+        post_data["base_url"] = "https://textit.com/whatsapp"
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
@@ -102,7 +102,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("temba", channel.config[Channel.CONFIG_USERNAME])
         self.assertEqual("tembapasswd", channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual("abc123", channel.config[Channel.CONFIG_AUTH_TOKEN])
-        self.assertEqual("https://nyaruka.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertEqual("https://textit.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
         self.assertNotIn(CONFIG_FB_TEMPLATE_API_VERSION, channel.config)
 
         self.assertEqual("+250788123123", channel.address)
@@ -198,7 +198,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
-        post_data["base_url"] = "https://nyaruka.com/whatsapp"
+        post_data["base_url"] = "https://textit.com/whatsapp"
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
@@ -258,7 +258,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             "WhatsApp: 1234",
             "1234",
             config={
-                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://textit.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
                 Channel.CONFIG_PASSWORD: "tembapasswd",
                 Channel.CONFIG_AUTH_TOKEN: "authtoken123",
@@ -274,7 +274,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             "WhatsApp: 1235",
             "1235",
             config={
-                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://textit.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
                 Channel.CONFIG_PASSWORD: "tembapasswd",
                 Channel.CONFIG_AUTH_TOKEN: "authtoken123",
@@ -387,7 +387,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
-        post_data["base_url"] = "https://nyaruka.com/whatsapp"
+        post_data["base_url"] = "https://textit.com/whatsapp"
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
@@ -427,7 +427,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("temba", channel.config[Channel.CONFIG_USERNAME])
         self.assertEqual("tembapasswd", channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual("abc123", channel.config[Channel.CONFIG_AUTH_TOKEN])
-        self.assertEqual("https://nyaruka.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertEqual("https://textit.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
         self.assertEqual("v3.3", channel.config[CONFIG_FB_TEMPLATE_API_VERSION])
 
         self.assertEqual("+250788123123", channel.address)
@@ -442,7 +442,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             "WhatsApp: 1234",
             "1234",
             config={
-                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://textit.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
                 Channel.CONFIG_PASSWORD: "tembapasswd",
                 Channel.CONFIG_AUTH_TOKEN: "authtoken123",
@@ -513,7 +513,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             "WhatsApp: 1234",
             "1234",
             config={
-                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://textit.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
                 Channel.CONFIG_PASSWORD: "tembapasswd",
                 Channel.CONFIG_AUTH_TOKEN: "authtoken123",
@@ -531,12 +531,23 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
                 MockResponse(401, ""),
             ]
 
-            with self.assertRaises(Exception):
+            with patch("logging.Logger.debug") as mock_log_debug:
                 channel.type.check_health(channel)
+                self.assertEqual(1, mock_log_debug.call_count)
+                self.assertEqual(
+                    "Could not establish a connection with the WhatsApp server: Network is unreachable",
+                    mock_log_debug.call_args[0][0],
+                )
 
             channel.type.check_health(channel)
             mock_get.assert_called_with(
-                "https://nyaruka.com/whatsapp/v1/health", headers={"Authorization": "Bearer authtoken123"}
+                "https://textit.com/whatsapp/v1/health", headers={"Authorization": "Bearer authtoken123"}
             )
-            with self.assertRaises(Exception):
+
+            with patch("logging.Logger.debug") as mock_log_debug:
                 channel.type.check_health(channel)
+                self.assertEqual(1, mock_log_debug.call_count)
+                self.assertEqual(
+                    "Error checking API health: b''",
+                    mock_log_debug.call_args[0][0],
+                )

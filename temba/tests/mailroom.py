@@ -95,13 +95,12 @@ class Mocks:
     def contact_urns(self, urns: dict):
         self._contact_urns.append(urns)
 
-    def flow_inspect(self, *, dependencies=(), issues=(), results=(), waiting_exits=(), parent_refs=()):
+    def flow_inspect(self, *, dependencies=(), issues=(), results=(), parent_refs=()):
         self._flow_inspect.append(
             {
                 "dependencies": dependencies,
                 "issues": issues,
                 "results": results,
-                "waiting_exits": waiting_exits,
                 "parent_refs": parent_refs,
             }
         )
@@ -187,6 +186,9 @@ class TestClient(MailroomClient):
         )
         return {"id": msg.id, "duplicate": False}
 
+    def android_sync(self, channel):
+        return {"id": channel.id}
+
     @_client_method
     def contact_create(self, org, user, contact: mailroom.ContactSpec):
         status = {v: k for k, v in Contact.ENGINE_STATUSES.items()}[contact.status]
@@ -200,6 +202,10 @@ class TestClient(MailroomClient):
             fields=contact.fields,
             group_uuids=contact.groups,
         )
+
+    @_client_method
+    def contact_deindex(self, org, contacts):
+        return {"deindexed": len(contacts)}
 
     @_client_method
     def contact_export(self, org, group, query: str) -> list[int]:
@@ -368,6 +374,10 @@ class TestClient(MailroomClient):
             "created_on": msg.created_on.isoformat(),
             "modified_on": msg.modified_on.isoformat(),
         }
+
+    @_client_method
+    def org_deindex(self, org):
+        return {}
 
     @_client_method
     def ticket_assign(self, org, user, tickets, assignee):

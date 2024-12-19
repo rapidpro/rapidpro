@@ -7,7 +7,7 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.views.mixins import OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.models import generate_uuid

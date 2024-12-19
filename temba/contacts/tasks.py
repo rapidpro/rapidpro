@@ -1,10 +1,9 @@
+import itertools
 import logging
 
 from celery import shared_task
 
-from django.contrib.auth.models import User
-
-from temba.utils import chunk_list
+from temba.orgs.models import User
 from temba.utils.crons import cron_task
 
 from .models import Contact, ContactGroup, ContactGroupCount, ContactImport
@@ -19,7 +18,7 @@ def release_contacts(user_id, contact_ids):
     """
     user = User.objects.get(pk=user_id)
 
-    for id_batch in chunk_list(contact_ids, 100):
+    for id_batch in itertools.batched(contact_ids, 100):
         batch = Contact.objects.filter(id__in=id_batch, is_active=True).prefetch_related("urns")
         for contact in batch:
             contact.release(user)

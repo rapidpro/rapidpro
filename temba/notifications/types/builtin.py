@@ -176,3 +176,36 @@ class UserPasswordNotificationType(NotificationType):
 
     def get_email_template(self, notification) -> str:
         return "notifications/email/user_password"
+
+
+class InvitationAcceptedNotificationType(NotificationType):
+    """
+    Notification that a user accepted an invitation to join the workspace.
+    """
+
+    slug = "invitation:accepted"
+
+    @classmethod
+    def create(cls, invitation, new_user):
+        """
+        Creates a user joined notification for all admins in the workspace.
+        """
+
+        Notification.create_all(
+            invitation.org,
+            cls.slug,
+            scope=str(invitation.id),
+            users=invitation.org.get_admins().exclude(id=new_user.id),
+            medium=Notification.MEDIUM_EMAIL,
+            email_status=Notification.EMAIL_STATUS_PENDING,
+            data={"email": invitation.email},
+        )
+
+    def get_target_url(self, notification) -> str:
+        pass
+
+    def get_email_subject(self, notification) -> str:
+        return _("New user joined your workspace")
+
+    def get_email_template(self, notification) -> str:
+        return "notifications/email/invitation_accepted"

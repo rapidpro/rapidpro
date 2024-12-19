@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import requests
-
 from temba.channels.models import Channel
 from temba.channels.types.whatsapp_legacy.type import (
     CONFIG_FB_ACCESS_TOKEN,
@@ -27,7 +25,7 @@ class WhatsAppUtilsTest(TembaTest):
             "WhatsApp: 1234",
             "1234",
             config={
-                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://textit.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
                 Channel.CONFIG_PASSWORD: "tembapasswd",
                 Channel.CONFIG_AUTH_TOKEN: "authtoken123",
@@ -45,9 +43,15 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("v2.35.2", channel.config.get("version"))
 
         self.assertEqual(0, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_CHECK_HEALTH).count())
-        mock_health.side_effect = [requests.RequestException(response=MockResponse(401, "{}"))]
-        update_api_version(channel)
-        self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_CHECK_HEALTH).count())
+        mock_health.return_value = None
+
+        with patch("logging.Logger.debug") as mock_log_debug:
+            update_api_version(channel)
+            self.assertEqual(1, mock_log_debug.call_count)
+            self.assertEqual(
+                "Error retrieving WhatsApp API version: Failed to check health",
+                mock_log_debug.call_args[0][0],
+            )
 
     @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.check_health")
     def test_update_api_version_dialog360(self, mock_health):
@@ -72,6 +76,12 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("v2.35.4", channel.config.get("version"))
 
         self.assertEqual(0, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_CHECK_HEALTH).count())
-        mock_health.side_effect = [requests.RequestException(response=MockResponse(401, "{}"))]
-        update_api_version(channel)
-        self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_CHECK_HEALTH).count())
+        mock_health.return_value = None
+
+        with patch("logging.Logger.debug") as mock_log_debug:
+            update_api_version(channel)
+            self.assertEqual(1, mock_log_debug.call_count)
+            self.assertEqual(
+                "Error retrieving WhatsApp API version: Failed to check health",
+                mock_log_debug.call_args[0][0],
+            )

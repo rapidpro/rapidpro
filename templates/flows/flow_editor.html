@@ -181,9 +181,9 @@
       brand: '{{branding.name|escapejs}}',
 
       help: {
-        legacy_extra: 'https://help.nyaruka.com/',
-        missing_dependency: 'https://help.nyaruka.com/en/article/fixing-missing-dependencies-1toe127/',
-        invalid_regex: 'https://help.nyaruka.com/en/article/invalid-regular-expressions-814k8d/'
+        legacy_extra: 'https://help.textit.com/',
+        missing_dependency: 'https://help.textit.com/en/article/fixing-missing-dependencies-1toe127/',
+        invalid_regex: 'https://help.textit.com/en/article/invalid-regular-expressions-814k8d/'
       },
 
       endpoints: {
@@ -235,19 +235,18 @@
   </script>
 {% endblock extra-script %}
 {% block alert-messages %}
-  {% if is_starting or messages or user_org.is_suspended %}
-    <div class="pt-5 pr-5 pl-5">
-      {{ block.super }}
-      {% if is_starting %}
-        <temba-alert class="mb-3">
-          {% blocktrans trimmed %}
-            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
-          {% endblocktrans %}
-        </temba-alert>
-      {% endif %}
-    </div>
-  {% endif %}
 {% endblock alert-messages %}
+{% block page-header %}
+  {% if active_start %}
+    <temba-start-progress class="mb-4 -mt-2 -mx-2"
+                          id="{{ active_start.id }}"
+                          interrupttitle="Interrupt Flow"
+                          interruptendpoint="{% url 'flows.flowstart_interrupt' active_start.id %}"
+                          statusendpoint="{% url 'flows.flowstart_status' %}?id={{ active_start.id }}">
+    </temba-start-progress>
+  {% endif %}
+  {{ block.super }}
+{% endblock page-header %}
 {% block content %}
   <temba-modax header="Send Message" id="send-message-modal">
   </temba-modax>

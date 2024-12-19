@@ -3,10 +3,10 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import Any
 
-import nexmo
 import phonenumbers
 import requests
 import twilio.base.exceptions
+import vonage
 from smartmin.views import (
     SmartCRUDL,
     SmartFormView,
@@ -35,12 +35,13 @@ from temba.contacts.models import URN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.base import BaseDependencyDeleteModal, BaseReadView
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Channel, ChannelCount, ChannelLog
 
@@ -374,8 +375,8 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             return HttpResponseRedirect("%s?success" % reverse("public.public_welcome"))
 
         except (
-            nexmo.AuthenticationError,
-            nexmo.ClientError,
+            vonage.AuthenticationError,
+            vonage.ClientError,
             twilio.base.exceptions.TwilioRestException,
         ) as e:  # pragma: no cover
             logger.warning(f"Unable to claim a number: {str(e)}", exc_info=True)
@@ -472,20 +473,17 @@ class ChannelCRUDL(SmartCRUDL):
         "facebook_whitelist",
     )
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, NotificationTargetMixin, SmartReadView):
+    class Read(SpaMixin, ContextMenuMixin, NotificationTargetMixin, BaseReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def derive_menu_path(self):
-            return f"/settings/channels/{self.get_object().uuid}"
-
-        def get_queryset(self):
-            return Channel.objects.filter(is_active=True)
+            return f"/settings/channels/{self.object.uuid}"
 
         def get_notification_scope(self) -> tuple:
             return "incident:started", str(self.object.id)
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             obj = self.get_object()
 
             for item in obj.type.menu_items:
@@ -596,12 +594,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             return context
 
-    class Chart(OrgObjPermsMixin, SmartReadView):
+    class Chart(BaseReadView):
         permission = "channels.channel_read"
         slug_url_kwarg = "uuid"
-
-        def get_queryset(self):
-            return Channel.objects.filter(is_active=True)
 
         def render_to_response(self, context, **response_kwargs):
             channel = self.object
@@ -662,7 +657,7 @@ class ChannelCRUDL(SmartCRUDL):
                 encoder=EpochEncoder,
             )
 
-    class FacebookWhitelist(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+    class FacebookWhitelist(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartModelActionView):
         class DomainForm(forms.Form):
             whitelisted_domain = forms.URLField(
                 required=True,
@@ -698,7 +693,7 @@ class ChannelCRUDL(SmartCRUDL):
                 default_error = dict(message=_("An error occured contacting the Facebook API"))
                 raise ValidationError(response_json.get("error", default_error)["message"])
 
-    class Delete(DependencyDeleteModal, SpaMixin):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "uuid@channels.channel_read"
         success_url = "@orgs.org_workspace"
         success_message = _("Your channel has been removed.")
@@ -719,7 +714,7 @@ class ChannelCRUDL(SmartCRUDL):
                 )
 
                 response = HttpResponse()
-                response["Temba-Success"] = self.cancel_url
+                response["X-Temba-Success"] = self.cancel_url
                 return response
 
             # override success message for Twilio channels
@@ -729,10 +724,10 @@ class ChannelCRUDL(SmartCRUDL):
                 messages.info(request, self.success_message)
 
             response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
+            response["X-Temba-Success"] = self.get_success_url()
             return response
 
-    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         def derive_title(self):
             return _("%s Channel") % self.object.type.name
 
@@ -812,7 +807,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return recommended_channels, types_by_category, False
 
-    class Configuration(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Configuration(SpaMixin, BaseReadView):
         slug_url_kwarg = "uuid"
 
         def pre_process(self, *args, **kwargs):
@@ -932,9 +927,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
             logs = []
             for log in self.owner.get_logs():
-                logs.append(
-                    ChannelLog.display(log, anonymize=anonymize, channel=self.owner.channel, urn=self.owner.contact_urn)
-                )
+                logs.append(log.get_display(anonymize=anonymize, urn=self.owner.contact_urn))
 
             context["logs"] = logs
             return context

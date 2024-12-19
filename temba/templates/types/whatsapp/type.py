@@ -55,8 +55,17 @@ class WhatsAppType(TemplateType):
                 map[name] = len(variables) - 1
             return map
 
+        raw_dict = dict()
         for component in raw:
-            comp_type = component["type"].upper()
+            if component["type"].upper() not in ["HEADER", "BODY", "FOOTER", "BUTTONS"]:
+                supported = False
+            raw_dict[component["type"].upper()] = component
+
+        for comp_type in ["HEADER", "BODY", "FOOTER", "BUTTONS"]:
+            component = raw_dict.get(comp_type)
+            if component is None:
+                continue
+
             comp_text = component.get("text", "")
 
             if comp_type == "HEADER":
@@ -127,7 +136,5 @@ class WhatsAppType(TemplateType):
 
                     else:
                         supported = False
-            else:
-                supported = False
 
         return components, variables, supported

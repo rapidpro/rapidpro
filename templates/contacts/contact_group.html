@@ -1,0 +1,15 @@
+{% extends "contacts/contact_list.html" %}
+{% load smartmin i18n %}
+
+{% block pre-table %}
+  {% if current_group.is_smart %}
+    {% if current_group.status != 'R' %}
+      <temba-alert level="info" class="mb-4">
+        {% blocktrans trimmed %}
+          This group is in the process of being populated.
+        {% endblocktrans %}
+      </temba-alert>
+    {% endif %}
+    <div class="mb-4 font-mono text-sm bg-gray-200 text-gray-700 p-3 rounded-lg">{{ current_group.query }}</div>
+  {% endif %}
+{% endblock pre-table %}

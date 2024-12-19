@@ -1,5 +1,3 @@
-from itertools import islice
-
 from django.conf import settings
 from django.db import transaction
 
@@ -42,26 +40,6 @@ def format_number(val):
         val = val.rstrip("0").rstrip(".")  # e.g. 12.3000 -> 12.3
 
     return val
-
-
-def sizeof_fmt(num, suffix="b"):
-    for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
-        if abs(num) < 1024.0:
-            return "%3.1f %s%s" % (num, unit, suffix)
-        num /= 1024.0
-    return "%.1f %s%s" % (num, "Y", suffix)
-
-
-def chunk_list(iterable, size):
-    """
-    Splits a very large list into evenly sized chunks.
-    Returns an iterator of lists that are no more than the size passed in.
-    """
-    it = iter(iterable)
-    item = list(islice(it, size))
-    while item:
-        yield item
-        item = list(islice(it, size))
 
 
 def on_transaction_commit(func):

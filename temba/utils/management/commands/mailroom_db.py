@@ -89,7 +89,7 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + "\n")
 
         self._log("Creating superuser... ")
-        superuser = User.objects.create_superuser("root", "root@nyaruka.com", USER_PASSWORD)
+        superuser = User.objects.create_superuser("root", "root@textit.com", USER_PASSWORD)
         self._log(self.style.SUCCESS("OK") + "\n")
 
         mr_cmd = f'mailroom --port={mr_port} -db="postgres://{db_user}:temba@localhost/{db_name}?sslmode=disable" -uuid-seed=123'
@@ -272,9 +272,8 @@ class Command(BaseCommand):
             user = User.objects.create_user(
                 u["email"], u["email"], USER_PASSWORD, first_name=u["first_name"], last_name=u["last_name"]
             )
-            org.add_user(user, OrgRole.from_code(u["role"]))
-            if u.get("team"):
-                user.set_team(Team.objects.get(name=u["team"]))
+            team = org.teams.get(name=u["team"]) if u.get("team") else None
+            org.add_user(user, OrgRole.from_code(u["role"]), team=team)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

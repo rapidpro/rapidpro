@@ -1,17 +1,80 @@
-{% extends "smartmin/list.html" %}
-{% load i18n %}
+{% extends "orgs/base/list.html" %}
+{% load smartmin temba i18n %}
 
-{% block page-header %}
-  <div class="hidden" id="title-text">{{ title }}</div>
-{% endblock page-header %}
+{% block modaxes %}
+  <temba-modax header="{{ _("Update User") |escapejs }}" -temba-redirected="refreshUsers" id="update-user">
+  </temba-modax>
+  <temba-modax header="{{ _("Remove User") |escapejs }}" -temba-redirected="refreshUsers" id="delete-user">
+  </temba-modax>
+{% endblock modaxes %}
 {% block pre-table %}
-  <form method="get" id="search-form">
-    <div class="flex mb-4 items-center">
-      <div class="search-box flex-grow">
-        <temba-textinput name="search" value="{{ search }}" placeholder="Search Users">
-        </temba-textinput>
-        <input type="submit" value="Submit" class="hidden">
-      </div>
-    </div>
-  </form>
+  {% if has_viewers %}
+    <temba-alert level="warning" class="mb-4">
+      {% blocktrans trimmed with cutoff="2024-12-31"|day %}
+        The <i>Viewer</i> role for users is being removed. Please update any users with that role or remove from your
+        workspace. After <b>{{ cutoff }}</b> these users will no longer be able to access the workspace.
+      {% endblocktrans %}
+    </temba-alert>
+  {% endif %}
 {% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled">
+    <thead>
+      <tr>
+        <th>{% trans "Email" %}</th>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Role" %}</th>
+        <th>{% trans "2FA" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr onclick="showUpdateUserModal({{ obj.id }})" class="hover-linked update">
+          <td>{{ obj.email }}</td>
+          <td>{{ obj.name }}</td>
+          <td>
+            {{ obj.role.display }}
+            {% if obj.team and has_teams %}({{ obj.team.name }}){% endif %}
+          </td>
+          <td>
+            {% if obj.settings.two_factor_enabled %}
+              {% trans "Yes" %}
+            {% else %}
+              {% trans "No" %}
+            {% endif %}
+          </td>
+          <td class="w-10">
+            {% if obj.role.code != "A" or admin_count > 1 %}
+              <temba-icon name="delete"
+                          clickable="true"
+                          style="--icon-color:#bbb"
+                          onclick="event.stopPropagation(); showDeleteUserModal({{ obj.id }});">
+              </temba-icon>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No users" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showUpdateUserModal(id) {
+      var modax = document.querySelector('#update-user');
+      modax.endpoint = `/user/update/${id}/`;
+      modax.open = true;
+    }
+
+    function showDeleteUserModal(id) {
+      var modax = document.querySelector('#delete-user');
+      modax.endpoint = `/user/delete/${id}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}

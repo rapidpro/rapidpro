@@ -563,11 +563,11 @@ video {
 }
 
 .trans-border {
-  box-shadow: 0 0px 0px 4px rgba(0, 0, 0, .1);
+  box-shadow: 0 0px 0px 4px rgba(0, 0, 0, 0.1);
 }
 
 .bg-dark-alpha {
-  background: rgba(0, 0, 0, .2);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .text-tertiary {
@@ -579,7 +579,7 @@ video {
 }
 
 .trans-lined-box {
-  box-shadow: 0 0px 0px 4px rgba(0, 0, 0, .1);
+  box-shadow: 0 0px 0px 4px rgba(0, 0, 0, 0.1);
   max-height: 0;
   --tw-bg-opacity: 1;
   background-color: rgba(255, 255, 255, var(--tw-bg-opacity));
@@ -592,7 +592,7 @@ video {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms
+  transition-duration: 200ms;
 }
 
 .font-primary {
@@ -697,17 +697,13 @@ a:hover {
 }
 
 .button:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-light {
@@ -735,17 +731,13 @@ a:hover {
 }
 
 .button-light:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-light:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-light {
@@ -757,9 +749,7 @@ a:hover {
 
 .button-light:hover {
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-action {
@@ -787,17 +777,13 @@ a:hover {
 }
 
 .button-action:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-action:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-action {
@@ -809,9 +795,7 @@ a:hover {
 
 .button-action:hover {
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-action {
@@ -851,17 +835,13 @@ a:hover {
 }
 
 .button-tertiary:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-tertiary:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-tertiary {
@@ -895,17 +875,13 @@ a:hover {
 }
 
 .button-secondary:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-secondary:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-secondary {
@@ -939,17 +915,13 @@ a:hover {
 }
 
 .button-primary:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-primary:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-primary {
@@ -983,17 +955,13 @@ a:hover {
 }
 
 .button-white:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-white:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-white {
@@ -1027,17 +995,13 @@ a:hover {
 }
 
 .button-danger:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-danger:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-danger {
@@ -1071,17 +1035,13 @@ a:hover {
 }
 
 .button-dark-alpha:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-dark-alpha:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-dark-alpha {
@@ -1115,17 +1075,13 @@ a:hover {
 }
 
 .button-sm:active {
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-sm:hover {
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-      0 1px 3px 0 rgba(0, 0, 0, 0.1),
-      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
 .button-sm {
@@ -1148,7 +1104,7 @@ a:hover {
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
     transform: none;
     cursor: pointer;
-    box-shadow: inset 0 0 20px 10px rgba(255, 255, 255, .2);
+    box-shadow: inset 0 0 20px 10px rgba(255, 255, 255, 0.2);
   }
 
 .lift {
@@ -1186,7 +1142,8 @@ a:hover {
     cursor: pointer;
     color: rgba(0, 0, 0, .5);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, 0.3);
   }
 
 .lbl.linked:active {
@@ -1219,7 +1176,8 @@ a:hover {
     cursor: pointer;
     color: rgba(0, 0, 0, .5);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, 0.3);
   }
 
 .lbl-primary.linked:active {
@@ -1235,7 +1193,8 @@ a:hover {
     cursor: pointer;
     color: rgba(255, 255, 255, .9);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, 0.05);
   }
 
 .lbl-primary {
@@ -1247,7 +1206,8 @@ a:hover {
     --tw-text-opacity: 1;
     color: rgba(255, 255, 255, var(--tw-text-opacity));
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .1);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, 0.1);
   }
 
 .lbl-primary.linked:active {
@@ -1294,7 +1254,8 @@ a:hover {
     cursor: pointer;
     color: rgba(0, 0, 0, .5);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, 0.3);
   }
 
 .lbl-group.linked:active {
@@ -1310,7 +1271,8 @@ a:hover {
     cursor: pointer;
     color: rgba(255, 255, 255, .9);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, 0.05);
   }
 
 .lbl-group {
@@ -1319,7 +1281,7 @@ a:hover {
 }
 
 .lbl-group temba-icon {
-    --icon-color: rgba(0,0,0,.5);
+    --icon-color: rgba(0, 0, 0, 0.5);
     margin-right: 3px;
   }
 
@@ -1331,7 +1293,8 @@ a:hover {
     cursor: pointer;
     color: rgba(255, 255, 255, .9);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, 0.05);
   }
 
 .lbl-group.inverted {
@@ -1342,11 +1305,12 @@ a:hover {
     cursor: pointer;
     color: rgba(255, 255, 255, .9);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, 0.05);
   }
 
 .lbl-group.inverted temba-icon {
-    --icon-color: rgba(255, 255, 255, .9);
+    --icon-color: rgba(255, 255, 255, 0.9);
   }
 
 .lbl-secondary {
@@ -1374,7 +1338,8 @@ a:hover {
     cursor: pointer;
     color: rgba(0, 0, 0, .5);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, 0.3);
   }
 
 .lbl-secondary.linked:active {
@@ -1390,7 +1355,8 @@ a:hover {
     cursor: pointer;
     color: rgba(255, 255, 255, .9);
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, 0.05);
   }
 
 .lbl-secondary {
@@ -1407,7 +1373,8 @@ a:hover {
     --tw-text-opacity: 1;
     color: rgba(255, 255, 255, var(--tw-text-opacity));
     text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .1);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, 0.1);
   }
 
 .alert {
@@ -1451,7 +1418,7 @@ a:hover {
 
 .alert-danger,
 .alert-error {
-  background: rgba(255, 181, 181, .17);
+  background: rgba(255, 181, 181, 0.17);
 }
 
 .max-h-128 {
@@ -1470,11 +1437,11 @@ a:hover {
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
   color: rgba(255, 255, 255, .9);
   color: rgba(var(--error-rgb, 1));
-  background: rgba(255, 181, 181, .17);
+  background: rgba(255, 181, 181, 0.17);
 }
 
 .alert-text .title {
-    font-weight: 400
+    font-weight: 400;
   }
 
 .cap-label {
@@ -1505,41 +1472,41 @@ a:hover {
   font-size: 0.75rem;
   text-align: left;
   text-transform: uppercase;
-  letter-spacing: 0.05em
+  letter-spacing: 0.05em;
 }
 
 .page-title {
   font-size: 1.875rem;
   --tw-text-opacity: 1;
   color: rgba(74, 74, 74, var(--tw-text-opacity));
-  --icon-color: rgb(77,77,77);
+  --icon-color: rgb(77, 77, 77);
 }
 
 .page-subtitle {
   font-size: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgba(113, 113, 113, var(--tw-text-opacity))
+  color: rgba(113, 113, 113, var(--tw-text-opacity));
 }
 
 .title {
   font-size: 1.5rem;
   margin-bottom: 0.25rem;
   --tw-text-opacity: 1;
-  color: rgba(74, 74, 74, var(--tw-text-opacity))
+  color: rgba(74, 74, 74, var(--tw-text-opacity));
 }
 
 .subtitle {
   font-size: 1.25rem;
   margin-bottom: 0.25rem;
   --tw-text-opacity: 1;
-  color: rgba(74, 74, 74, var(--tw-text-opacity))
+  color: rgba(74, 74, 74, var(--tw-text-opacity));
 }
 
 table.padded td {
-    padding: 0.75rem
+    padding: 0.75rem;
   }
 
-table.list{
+table.list {
   --tw-bg-opacity: 1;
   background-color: rgba(255, 255, 255, var(--tw-bg-opacity));
   border-radius: 0.5rem;
@@ -1562,7 +1529,7 @@ table.list.scrolled {
   }
 
 table.list tr:first-child td {
-      border-top:none;
+      border-top: none;
     }
 
 table.list tr.checked td temba-checkbox, table.list tr.checked td:hover temba-checkbox {
@@ -1598,8 +1565,8 @@ table.list.toggle thead tr:hover th {
 
 table.list.toggle thead tr th:last-child::after {
               transition: all 200ms ease-in-out;
-              content: "\e05c";
-              color: rgba(0, 0, 0, .3);
+              content: '\e05c';
+              color: rgba(0, 0, 0, 0.3);
               font-size: 12px;
               float: right;
               margin: -3px 0px;
@@ -1614,7 +1581,7 @@ table.list.toggle tbody tr td {
       border: 0px;
     }
 
-table.list.toggle tbody tr td>* {
+table.list.toggle tbody tr td > * {
       max-height: 0px;
     }
 
@@ -1634,7 +1601,7 @@ table.list.expanded tbody tr td {
       padding: 14px;
     }
 
-table.list.expanded tbody tr td>* {
+table.list.expanded tbody tr td > * {
       max-height: 500px;
     }
 
@@ -1662,11 +1629,13 @@ table.list.lined td {
     }
 
 table.list tbody tr.warning {
-    background: repeating-linear-gradient(-55deg,
-        rgba(207, 127, 127, 0.06),
-        rgba(207, 127, 127, 0.06) 5px,
-        rgba(207, 127, 127, 0.08) 5px,
-        rgba(207, 127, 127, 0.08) 10px);
+    background: repeating-linear-gradient(
+      -55deg,
+      rgba(207, 127, 127, 0.06),
+      rgba(207, 127, 127, 0.06) 5px,
+      rgba(207, 127, 127, 0.08) 5px,
+      rgba(207, 127, 127, 0.08) 10px
+    );
     border-color: rgba(207, 127, 127, 0.35);
   }
 
@@ -1715,7 +1684,7 @@ table.list.selectable tbody tr td {
         }
 
 table.list.selectable tbody tr.hovered td {
-          background: rgba(var(--selection-light-rgb), .4);
+          background: rgba(var(--selection-light-rgb), 0.4);
           cursor: pointer;
         }
 
@@ -1724,7 +1693,7 @@ table.list.selectable tbody td:hover temba-checkbox {
         }
 
 table.list.selectable tbody tr.checked td {
-          background: rgba(var(--selection-light-rgb), .4);
+          background: rgba(var(--selection-light-rgb), 0.4);
           border-color: rgba(var(--selection-light-rgb), 1);
         }
 
@@ -1832,7 +1801,7 @@ table.header {
         }
 
 .lp-frame .right {
-    flex-grow: 1
+    flex-grow: 1;
   }
 
 .action-buttons .linked, .gear-menu .linked {
@@ -1877,6 +1846,17 @@ code {
   padding-right: 0.25rem;
   white-space: nowrap;
   color: #2980b9;
+}
+
+ol.steps, ul.steps {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+ol.steps,
+ul.steps {
+  line-height: 2;
+  list-style-type: decimal;
 }
 
 .card {
@@ -1983,7 +1963,11 @@ code {
       border-width: 1px;
       --tw-shadow: 0 0 #0000;
       box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-      background-color: rgba(0,0,0,.015);
+    }
+
+.formax .formax-section.action-summary,
+    .formax .formax-section.action-link {
+      background-color: rgba(0, 0, 0, 0.015);
     }
 
 .formax .formax-section.action-summary .formax-summary, .formax .formax-section.action-link .formax-summary {
@@ -2035,7 +2019,7 @@ code {
 .formax .formax-section .formax-container {
       display: grid;
       grid-template-rows: min-content 0fr;
-      transition: grid-template-rows .5s;
+      transition: grid-template-rows 0.5s;
       transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
@@ -2075,7 +2059,7 @@ code {
 .formax .formax-section.wide.open .formax-icon .i-container {
           width: 0px;
           margin-top: 20px;
-          margin-left:-25px;
+          margin-left: -25px;
         }
 
 .formax .formax-section.open {
@@ -2092,8 +2076,8 @@ code {
       }
 
 .formax .formax-section.open .formax-icon {
-        padding:.5em 1em !important;
-        flex-basis:0 !important;
+        padding: 0.5em 1em !important;
+        flex-basis: 0 !important;
       }
 
 .formax .formax-section.open .formax-icon .margin-wrapper {
@@ -2116,7 +2100,7 @@ code {
 
 .formax .formax-section.open .formax-summary {
         height: 0px;
-        padding:0px;
+        padding: 0px;
       }
 
 .control-group {
@@ -2124,7 +2108,7 @@ code {
 }
 
 .text-shadow {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.10);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .text-shadow-md {
@@ -15743,7 +15727,7 @@ code {
   }
 
   .md\:text-shadow {
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.10);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   .md\:text-shadow-md {

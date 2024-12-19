@@ -4,7 +4,7 @@ from django.db import migrations
 from django.utils import timezone
 
 
-def archive_campaigns_with_deleted_groups(apps, schema_editor):
+def archive_campaigns_with_deleted_groups(apps, schema_editor):  # pragma: no cover
     Campaign = apps.get_model("campaigns", "Campaign")
 
     num_archived = 0
@@ -19,7 +19,7 @@ def archive_campaigns_with_deleted_groups(apps, schema_editor):
         print(f"Archived {num_archived} campaigns with deleted groups.")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

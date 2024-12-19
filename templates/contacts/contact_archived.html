@@ -1,6 +1,6 @@
 {% extends "contacts/contact_list.html" %}
 {% load i18n %}
 
-{% block subtitle %}
-  {% trans "These contacts have been removed from all groups and can be deleted permanently." %}
-{% endblock subtitle %}
+{% block pre-table %}
+  <div class="mb-4">{% trans "These contacts have been removed from all groups and can be deleted permanently." %}</div>
+{% endblock pre-table %}

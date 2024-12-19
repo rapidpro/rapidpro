@@ -75,10 +75,10 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@nyaruka/flow-editor@1.35.1":
-  version "1.35.1"
-  resolved "https://registry.yarnpkg.com/@nyaruka/flow-editor/-/flow-editor-1.35.1.tgz#1a443252a2c974e2afe231f626cd998c4d558114"
-  integrity sha512-0DIgyiTt30wqfCPrZB9v5mIki+uhfCe9prL0hfhXaX1nUclUqQ+9Xl4PMTnQJTMnv+jLFGNir9t3k5EC63PyHQ==
+"@nyaruka/flow-editor@1.37.1":
+  version "1.37.1"
+  resolved "https://registry.yarnpkg.com/@nyaruka/flow-editor/-/flow-editor-1.37.1.tgz#cea0d853c5a83540254a694329cf896445ddbbb7"
+  integrity sha512-aaxish/VL+sGv5XMU8kHAxgccVPUCrgNqaDBMmmvVsSH9RdDjUFar0ZuOfLkNma30JvdcB8KkH8VSx1GXeFm4g==
   dependencies:
     "@nyaruka/temba-components" "0.101.0"
     react "^16.8.6"
@@ -103,10 +103,10 @@
     serialize-javascript "^6.0.2"
     tiny-lru "^11.2.5"
 
-"@nyaruka/temba-components@0.104.1":
-  version "0.104.1"
-  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.104.1.tgz#0c1e3c271f647db4cab61f199299e33abc2a5067"
-  integrity sha512-6ZfegDR80nQ70CZHJ+r9QRgqPFRn8JQQHfkWymmvguBOTI9WUxtd7qtFQHY1PBI7EnDckAD/4/LsUeuN17zxfg==
+"@nyaruka/temba-components@0.113.0":
+  version "0.113.0"
+  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.113.0.tgz#e37db43737d39b5b72745f75cca8c2caad6dcc57"
+  integrity sha512-nCMMuMuaDM6w/H2EvezYVdMFEOMye6Iujd+1Yt5oVQO3BMdkA1w1xqwdduGYRyA8xRG1TgdLomRxbhcKFuAuew==
   dependencies:
     "@lit/localize" "^0.12.1"
     color-hash "^2.0.2"
@@ -117,7 +117,7 @@
     lit "3.1.2"
     lit-element "^4.0.4"
     lit-html "^3.1.2"
-    luxon "^2.4.0"
+    luxon "3.5"
     remarkable "^2.0.1"
     serialize-javascript "^6.0.2"
     tiny-lru "^11.2.5"
@@ -832,6 +832,11 @@ lru-cache@^6.0.0:
   integrity sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==
   dependencies:
     yallist "^4.0.0"
+
+luxon@3.5:
+  version "3.5.0"
+  resolved "https://registry.yarnpkg.com/luxon/-/luxon-3.5.0.tgz#6b6f65c5cd1d61d1fd19dbf07ee87a50bf4b8e20"
+  integrity sha512-rh+Zjr6DNfUYR3bPwJEnuwDdqMbxZW7LOQfUN4B54+Cl+0o5zaU9RJ6bcidfDtC1cWCZXQ+nvX8bf6bAji37QQ==
 
 luxon@^2.4.0:
   version "2.5.2"

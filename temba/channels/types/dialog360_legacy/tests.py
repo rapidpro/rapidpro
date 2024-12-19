@@ -142,12 +142,18 @@ class Dialog360LegacyTypeTest(CRUDLTestMixin, TembaTest):
         with patch("requests.get") as mock_get:
             mock_get.side_effect = [
                 MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}'),
-                MockResponse(401, '{"meta": {"api_status": "stable", "version": "2.35.4"}}'),
+                MockResponse(401, ""),
             ]
             channel.type.check_health(channel)
             mock_get.assert_called_with(
                 "https://example.com/whatsapp/v1/health",
                 headers={"D360-API-KEY": "123456789", "Content-Type": "application/json"},
             )
-            with self.assertRaises(Exception):
+
+            with patch("logging.Logger.debug") as mock_log_debug:
                 channel.type.check_health(channel)
+                self.assertEqual(1, mock_log_debug.call_count)
+                self.assertEqual(
+                    "Error checking API health: b''",
+                    mock_log_debug.call_args[0][0],
+                )

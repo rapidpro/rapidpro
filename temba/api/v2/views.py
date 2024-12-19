@@ -9,22 +9,23 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView
 
-from django.db.models import Count, Prefetch, Q
+from django.db.models import OuterRef, Prefetch, Q
 from django.utils.translation import gettext_lazy as _
 
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactNote, ContactURN
-from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactNote, ContactURN
+from temba.flows.models import Flow, FlowRun, FlowStart, FlowStartCount
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
+from temba.msgs.models import Broadcast, BroadcastMsgCount, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from temba.orgs.models import OrgMembership, User
-from temba.orgs.views import OrgPermsMixin
-from temba.tickets.models import Ticket, TicketCount, Topic
+from temba.orgs.views.mixins import OrgPermsMixin
+from temba.tickets.models import Ticket, Topic
 from temba.utils import str_to_bool
+from temba.utils.db.queries import SubqueryCount, or_list
 from temba.utils.uuid import is_uuid
 
 from ..models import APIPermission, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
@@ -100,10 +101,6 @@ class ExplorerView(OrgPermsMixin, SmartTemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        org = self.request.org
-        user = self.request.user
-
-        context["api_token"] = user.get_api_tokens(org).order_by("created").last()
         context["endpoints"] = [
             ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),
@@ -325,12 +322,12 @@ class ArchivesEndpoint(ListAPIMixin, BaseEndpoint):
 
     A `GET` returns the archives for your organization with the following fields.
 
-      * **archive_type** - the type of the archive, one of `message`or `run` (filterable as `archive_type`).
+      * **archive_type** - the type of the archive, one of `message` or `run` (filterable as `archive_type`).
       * **start_date** - the UTC date of the archive (string) (filterable as `before` and `after`).
       * **period** - `daily` for daily archives, `monthly` for monthly archives (filterable as `period`).
       * **record_count** - number of records in the archive (int).
-      * **size** - size of the gziped archive content (int).
-      * **hash** - MD5 hash of the gziped archive (string).
+      * **size** - size of the gzipped archive content (int).
+      * **hash** - MD5 hash of the gzipped archive (string).
       * **download_url** - temporary download URL of the archive (string).
 
     Example:
@@ -345,13 +342,13 @@ class ArchivesEndpoint(ListAPIMixin, BaseEndpoint):
             "count": 248,
             "results": [
             {
-                "archive_type":"message",
-                "start_date":"2017-02-20",
-                "period":"daily",
-                "record_count":1432,
-                "size":2304,
-                "hash":"feca9988b7772c003204a28bd741d0d0",
-                "download_url":"<redacted>"
+                "archive_type": "message",
+                "start_date": "2017-02-20",
+                "period": "daily",
+                "record_count": 1432,
+                "size": 2304,
+                "hash": "feca9988b7772c003204a28bd741d0d0",
+                "download_url": "https://..."
             },
             ...
         }
@@ -504,7 +501,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
      * **text** - the message text translations (dict of strings).
      * **attachments** - the attachment translations (dict of lists of strings).
      * **base_language** - the default translation language (string).
-     * **status** - the status of the message, one of `queued`, `sent`, `failed`.
+     * **status** - the status, one of `pending`, `queued`, `started`, `completed`, `failed`, `interrupted`.
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
     Example:
@@ -585,6 +582,9 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         )
 
         return self.filter_before_after(queryset, "created_on")
+
+    def prepare_for_serialization(self, object_list, using: str):
+        BroadcastMsgCount.bulk_annotate(object_list)
 
     @classmethod
     def get_read_explorer(cls):
@@ -1172,8 +1172,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
 
     ## Listing Contacts
 
-    A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
-    only deleted contacts by passing the `deleted=true` parameter to your call.
+    A **GET** returns the list of contacts for your organization, in the order of last modified.
 
      * **uuid** - the UUID of the contact (string), filterable as `uuid`.
      * **name** - the name of the contact (string).
@@ -1503,6 +1502,9 @@ class DefinitionsEndpoint(BaseEndpoint):
         all = 2
 
     def get(self, request, *args, **kwargs):
+        if self.is_docs():
+            return Response({})
+
         org = request.org
         params = request.query_params
         flow_uuids = params.getlist("flow")
@@ -1631,9 +1633,17 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         org = self.request.org
         return (
             self.model.objects.filter(org=org, is_active=True, is_proxy=False)
-            .annotate(flow_count=Count("dependent_flows", filter=Q(dependent_flows__is_active=True)))
-            .annotate(group_count=Count("dependent_groups", filter=Q(dependent_groups__is_active=True)))
-            .annotate(campaignevent_count=Count("campaign_events", filter=Q(campaign_events__is_active=True)))
+            .annotate(
+                flow_count=SubqueryCount(Flow.objects.filter(field_dependencies__id=OuterRef("id"), is_active=True))
+            )
+            .annotate(
+                group_count=SubqueryCount(ContactGroup.objects.filter(query_fields__id=OuterRef("id"), is_active=True))
+            )
+            .annotate(
+                campaignevent_count=SubqueryCount(
+                    CampaignEvent.objects.filter(relative_to__id=OuterRef("id"), is_active=True)
+                )
+            )
         )
 
     def filter_queryset(self, queryset):
@@ -1762,6 +1772,9 @@ class FlowsEndpoint(ListAPIMixin, BaseEndpoint):
         queryset = queryset.prefetch_related("labels")
 
         return self.filter_before_after(queryset, "modified_on")
+
+    def prepare_for_serialization(self, object_list, using: str):
+        Flow.prefetch_run_stats(object_list, using=using)
 
     @classmethod
     def get_read_explorer(cls):
@@ -2042,7 +2055,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
         return queryset.filter(is_active=True).exclude(status=ContactGroup.STATUS_INITIALIZING)
 
     def prepare_for_serialization(self, object_list, using: str):
-        group_counts = ContactGroupCount.get_totals(object_list)
+        group_counts = ContactGroup.get_member_counts(object_list)
         for group in object_list:
             group.count = group_counts[group]
 
@@ -2965,20 +2978,18 @@ class RunsEndpoint(ListAPIMixin, BaseEndpoint):
                 "responded": true,
                 "values": {
                     "color": {
+                        "name": "Color",
                         "value": "blue",
                         "category": "Blue",
                         "node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1",
-                        "time": "2015-11-11T13:03:51.635662Z",
-                        "name": "color",
-                        "input": "it is blue",
+                        "time": "2015-11-11T13:03:51.635662Z"
                     },
                     "reason": {
+                        "name": "Reason",
                         "value": "Because it's the color of sky",
                         "category": "All Responses",
                         "node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466",
-                        "time": "2015-11-11T13:05:57.576056Z",
-                        "name": "reason",
-                        "input" "Because it's the color of sky",
+                        "time": "2015-11-11T13:05:57.576056Z"
                     }
                 },
                 "created_on": "2015-11-11T13:05:57.457742Z",
@@ -3094,13 +3105,11 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     By making a `GET` request you can list all the manual flow starts on your organization, in the order of last
     modified. Each flow start has the following attributes:
 
-     * **uuid** - the UUID of this flow start (string).
+     * **uuid** - the UUID of this flow start (string), filterable as `uuid`.
      * **flow** - the flow which was started (object).
      * **contacts** - the list of contacts that were started in the flow (objects).
      * **groups** - the list of groups that were started in the flow (objects).
-     * **restart_participants** - whether the contacts were restarted in this flow (boolean).
-     * **exclude_active** - whether the active contacts in other flows were excluded in this flow start (boolean).
-     * **status** - the status of this flow start.
+     * **status** - the status, one of `pending`, `queued`, `started`, `completed`, `failed`, `interrupted`.
      * **params** - the dictionary of extra parameters passed to the flow start (object).
      * **created_on** - the datetime when this flow start was created (datetime).
      * **modified_on** - the datetime when this flow start was modified (datetime).
@@ -3172,7 +3181,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             "contacts": [
                  {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Wanz"}
             ],
-            "status": "complete",
+            "status": "pending",
             "params": {
                 "first_name": "Ryan",
                 "last_name": "Lewis"
@@ -3189,13 +3198,8 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     pagination_class = ModifiedOnCursorPagination
 
     def filter_queryset(self, queryset):
-        # ignore flow starts created by mailroom
+        # ignore flow starts created by flows or triggers
         queryset = queryset.exclude(created_by=None)
-
-        # filter by id (optional and deprecated)
-        start_id = self.get_int_param("id")
-        if start_id:
-            queryset = queryset.filter(id=start_id)
 
         # filter by UUID (optional)
         uuid = self.get_uuid_param("uuid")
@@ -3219,6 +3223,9 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     def post_save(self, instance):
         # actually start our flow
         instance.async_start()
+
+    def prepare_for_serialization(self, object_list, using: str):
+        FlowStartCount.bulk_annotate(object_list)
 
     @classmethod
     def get_read_explorer(cls):
@@ -3379,7 +3386,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
         {
             "tickets": ["55b6606d-9e89-45d1-a3e2-dc11f19f78df", "bef96b71-865d-480a-a660-33db466a210a"],
             "action": "assign",
-            "assignee": "jim@nyaruka.com"
+            "assignee": "jim@textit.com"
         }
 
     You will receive an empty response with status code 204 if successful.
@@ -3461,8 +3468,8 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         return super().get_queryset().filter(is_active=True)
 
     def prepare_for_serialization(self, object_list, using: str):
-        open_counts = TicketCount.get_by_topics(self.request.org, object_list, Ticket.STATUS_OPEN)
-        closed_counts = TicketCount.get_by_topics(self.request.org, object_list, Ticket.STATUS_CLOSED)
+        open_counts = Ticket.get_topic_counts(self.request.org, object_list, Ticket.STATUS_OPEN)
+        closed_counts = Ticket.get_topic_counts(self.request.org, object_list, Ticket.STATUS_CLOSED)
         for topic in object_list:
             topic.open_count = open_counts[topic]
             topic.closed_count = closed_counts[topic]
@@ -3491,10 +3498,11 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
 
     A **GET** returns the users in your workspace, ordered by newest created first.
 
-     * **email** - the email address of the user (string).
+     * **email** - the email address of the user (string), filterable as `email`.
      * **first_name** - the first name of the user (string).
      * **last_name** - the last name of the user (string).
-     * **role** - the role of the user (string), filterable as `role` which can be repeated.
+     * **role** - the role of the user (string), filterable as `role`.
+     * **team** - team user belongs to (object).
      * **created_on** - when this user was created (datetime).
 
     Example:
@@ -3513,6 +3521,7 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
                 "first_name": "Bob",
                 "last_name": "McFlow",
                 "role": "agent",
+                "team": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "All Topics"},
                 "created_on": "2013-03-02T17:28:12.123456Z"
             },
             ...
@@ -3533,17 +3542,25 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
         else:
             roles = None
 
-        return org.get_users(roles=roles).prefetch_related("settings")
+        return org.get_users(roles=roles)
+
+    def filter_queryset(self, queryset):
+        # filter by email if specified
+        emails = self.request.query_params.getlist("email")
+        if emails:
+            queryset = queryset.filter(or_list([Q(email__iexact=e) for e in emails]))
+
+        return queryset
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
 
-        # build a map of users to roles
-        user_roles = {}
-        for m in OrgMembership.objects.filter(org=self.request.org).select_related("user"):
-            user_roles[m.user] = m.role
+        # build a map of users to memberships
+        memberships = {}
+        for m in OrgMembership.objects.filter(org=self.request.org).select_related("user", "team"):
+            memberships[m.user] = m
 
-        context["user_roles"] = user_roles
+        context["memberships"] = memberships
         return context
 
     @classmethod
@@ -3553,7 +3570,10 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
             "title": "List Users",
             "url": reverse("api.v2.users"),
             "slug": "user-list",
-            "params": [],
+            "params": [
+                {"name": "email", "required": False, "help": "Only return users with this email"},
+                {"name": "role", "required": False, "help": "Only return users with this role"},
+            ],
         }
 
 
@@ -3573,7 +3593,7 @@ class WorkspaceEndpoint(BaseEndpoint):
 
         {
             "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
-            "name": "Nyaruka",
+            "name": "TextIt",
             "country": "RW",
             "languages": ["eng", "fra"],
             "timezone": "Africa/Kigali",

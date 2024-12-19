@@ -24,6 +24,7 @@ class BandwidthType(ChannelType):
 
     courier_url = r"^bw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
+    async_activation = False
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {

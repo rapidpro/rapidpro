@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import hmac
-import io
 import time
 from datetime import date, datetime, timedelta, timezone as tzone
 from unittest.mock import patch
@@ -12,7 +11,6 @@ from smartmin.tests import SmartminTest
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
-from django.core.files.storage import storages
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -32,7 +30,7 @@ from temba.tests.crudl import StaffRedirect
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.models import generate_uuid
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .models import Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (
@@ -54,7 +52,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.tel_channel = self.create_channel(
             "A", "Test Channel", "+250785551212", country="RW", secret="12345", config={"FCM_ID": "123"}
         )
-        self.twitter_channel = self.create_channel("TWT", "Twitter Channel", "billy_bob")
+        self.facebook_channel = self.create_channel(
+            "FBA", "Facebook Channel", "12345", config={Channel.CONFIG_PAGE_NAME: "Test page"}
+        )
 
         self.unclaimed_channel = self.create_channel("NX", "Unclaimed Channel", "", config={"FCM_ID": "000"})
         self.unclaimed_channel.org = None
@@ -100,7 +100,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("+250 785 551 212", self.tel_channel.get_address_display())
         self.assertEqual("+250785551212", self.tel_channel.get_address_display(e164=True))
 
-        self.assertEqual("@billy_bob", self.twitter_channel.get_address_display())
+        self.assertEqual("Test page (12345)", self.facebook_channel.get_address_display())
 
         # make sure it works with alphanumeric numbers
         self.tel_channel.address = "EATRIGHT"
@@ -178,7 +178,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         channel2 = Channel.create(self.org, self.user, "", "T", "Test Channel", "0785553333")
 
         # add channel trigger
-        flow = self.get_flow("color")
+        flow = self.create_flow("Test")
         Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=channel1)
 
         # create some activity on this channel
@@ -268,6 +268,34 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(Channel.objects.filter(id=channel1.id).exists())
 
     @mock_mailroom
+    def test_release_facebook(self, mr_mocks):
+        channel = Channel.create(
+            self.org,
+            self.admin,
+            None,
+            "FBA",
+            name="Facebook",
+            address="12345",
+            role="SR",
+            schemes=["facebook"],
+            config={"auth_token": "09876543"},
+        )
+
+        flow = self.create_flow("Test")
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
+            Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, channel=channel)
+            self.assertEqual(1, channel.triggers.filter(is_active=True).count())
+
+        with patch("requests.delete") as mock_delete:
+            mock_delete.return_value = MockResponse(400, "error")
+
+            channel.release(self.admin)
+            self.assertEqual(0, channel.triggers.filter(is_active=True).count())
+            self.assertEqual(1, channel.triggers.filter(is_active=False).count())
+            self.assertFalse(channel.is_active)
+
+    @mock_mailroom
     def test_release_android(self, mr_mocks):
         android = self.claim_new_android()
         self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
@@ -325,7 +353,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.create_incoming_msg(joe, "This incoming message will be counted", channel=self.tel_channel)
             self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
 
-            response = self.fetch_protected(chart_url, self.admin)
+            response = self.requestView(chart_url, self.admin)
             chart = response.json()
 
             # an entry for each incoming and outgoing
@@ -370,11 +398,11 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(f"/settings/channels/{self.tel_channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
         # org users can
-        response = self.fetch_protected(tel_channel_read_url, self.user)
+        response = self.requestView(tel_channel_read_url, self.user)
 
         self.assertTrue(len(response.context["latest_sync_events"]) <= 5)
 
-        response = self.fetch_protected(tel_channel_read_url, self.admin)
+        response = self.requestView(tel_channel_read_url, self.admin)
         self.assertContains(response, self.tel_channel.name)
 
         test_date = datetime(2020, 1, 20, 0, 0, 0, 0, tzone.utc)
@@ -395,7 +423,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.create_outgoing_msg(bob, "delayed message", status=Msg.STATUS_QUEUED, channel=self.tel_channel)
 
         with patch("django.utils.timezone.now", return_value=test_date):
-            response = self.fetch_protected(tel_channel_read_url, self.admin)
+            response = self.requestView(tel_channel_read_url, self.admin)
             self.assertIn("delayed_sync_event", response.context_data.keys())
             self.assertIn("unsent_msgs_count", response.context_data.keys())
 
@@ -415,7 +443,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
 
             # now we have an inbound message and two outbounds
-            response = self.fetch_protected(tel_channel_read_url, self.admin)
+            response = self.requestView(tel_channel_read_url, self.admin)
             self.assertEqual(200, response.status_code)
 
             # message stats table have an inbound and two outbounds in the last month
@@ -432,7 +460,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             # now let's create an ivr interaction
             self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, voice=True)
             self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, voice=True)
-            response = self.fetch_protected(tel_channel_read_url, self.admin)
+            response = self.requestView(tel_channel_read_url, self.admin)
 
             self.assertEqual(1, len(response.context["message_stats_table"]))
             self.assertEqual(1, response.context["message_stats_table"][0]["incoming_messages_count"])
@@ -442,7 +470,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
             # look at the chart for our messages
             chart_url = reverse("channels.channel_chart", args=[self.tel_channel.uuid])
-            response = self.fetch_protected(chart_url, self.admin)
+            response = self.requestView(chart_url, self.admin)
 
             # incoming, outgoing for both text and our ivr messages
             self.assertEqual(4, len(response.json()["series"]))
@@ -974,8 +1002,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])
 
         # can't view configuration if not logged in
-        response = self.client.get(config_url)
-        self.assertLoginRedirect(response)
+        self.assertRequestDisallowed(config_url, [None, self.agent])
 
         self.login(self.admin)
 
@@ -989,7 +1016,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can't view configuration of channel in other org
         response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
-        self.assertLoginRedirect(response)
+        self.assertEqual(response.status_code, 404)
 
     def test_update(self):
         android_channel = self.create_channel(
@@ -1063,7 +1090,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteSubmit(
             delete_url, self.admin, object_deactivated=self.ex_channel, success_status=200
         )
-        self.assertEqual("/org/workspace/", response["Temba-Success"])
+        self.assertEqual("/org/workspace/", response["X-Temba-Success"])
 
         # reactivate
         self.ex_channel.is_active = True
@@ -1340,6 +1367,29 @@ class ChannelEventTest(TembaTest):
 
 
 class ChannelLogTest(TembaTest):
+    def test_get_by_uuid(self):
+        log1 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
+            http_logs=[{"url": "https://foo.bar/send1"}],
+            errors=[{"code": "bad_response", "message": "response not right"}],
+        )
+        log2 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_STATUS,
+            http_logs=[{"url": "https://foo.bar/send2"}],
+            errors=[],
+        )
+
+        self.assertEqual([], ChannelLog.get_by_uuid(self.channel, []))
+
+        logs = ChannelLog.get_by_uuid(self.channel, [log1.uuid, log2.uuid])
+        self.assertEqual(2, len(logs))
+        self.assertEqual(log1.uuid, logs[0].uuid)
+        self.assertEqual(self.channel, logs[0].channel)
+        self.assertEqual(ChannelLog.LOG_TYPE_MSG_SEND, logs[0].log_type)
+        self.assertEqual(log2.uuid, logs[1].uuid)
+        self.assertEqual(self.channel, logs[1].channel)
+        self.assertEqual(ChannelLog.LOG_TYPE_MSG_STATUS, logs[1].log_type)
+
     def test_get_display(self):
         channel = self.create_channel("TG", "Telegram", "mybot")
         contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
@@ -1430,16 +1480,25 @@ class ChannelLogTest(TembaTest):
         )
 
     def test_get_display_timed_out(self):
-        channel = self.create_channel("TG", "Telegram", "mybot")
-        contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
+        channel = self.create_channel(
+            "D3C",
+            "360Dialog channel",
+            address="1234",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://waba-v2.360dialog.io",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+        )
+        contact = self.create_contact("Bob", urns=["whatsapp:75757575"])
         log = ChannelLog.objects.create(
             channel=channel,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=True,
             http_logs=[
                 {
-                    "url": "https://telegram.com/send?to=74747474",
-                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "url": "https://waba-v2.360dialog.io/send?to=75757575",
+                    "request": 'POST https://waba-v2.360dialog.io/send?to=75757575 HTTP/1.1\r\n\r\n{"to":"75757575"}',
                     "elapsed_ms": 30001,
                     "retries": 0,
                     "created_on": "2022-08-17T14:07:30Z",
@@ -1455,8 +1514,8 @@ class ChannelLogTest(TembaTest):
                 "type": "msg_send",
                 "http_logs": [
                     {
-                        "url": "https://telegram.com/send?to=74747474",
-                        "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                        "url": "https://waba-v2.360dialog.io/send?to=75757575",
+                        "request": 'POST https://waba-v2.360dialog.io/send?to=75757575 HTTP/1.1\r\n\r\n{"to":"75757575"}',
                         "elapsed_ms": 30001,
                         "retries": 0,
                         "created_on": "2022-08-17T14:07:30Z",
@@ -1468,14 +1527,15 @@ class ChannelLogTest(TembaTest):
             },
             log.get_display(anonymize=False, urn=msg_out.contact_urn),
         )
+
         self.assertEqual(
             {
                 "uuid": str(log.uuid),
                 "type": "msg_send",
                 "http_logs": [
                     {
-                        "url": "https://telegram.com/send?to=********",
-                        "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                        "url": "https://waba-v2.360dialog.io/send?to=********",
+                        "request": 'POST https://waba-v2.360dialog.io/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
                         "response": "",
                         "elapsed_ms": 30001,
                         "retries": 0,
@@ -1519,10 +1579,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_msg(self):
         contact = self.create_contact("Fred", phone="+12067799191")
 
-        log1 = ChannelLog.objects.create(
-            channel=self.channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
+        log1 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://foo.bar/send1",
@@ -1531,15 +1589,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                     "response": "HTTP/1.0 200 OK\r\r\r\n",
                     "elapsed_ms": 12,
                     "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
+                    "created_on": "2024-09-16T00:00:00Z",
                 }
             ],
-            errors=[],
         )
-        log2 = ChannelLog.objects.create(
-            channel=self.channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
+        log2 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://foo.bar/send2",
@@ -1548,29 +1603,26 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                     "response": "HTTP/1.0 200 OK\r\r\r\n",
                     "elapsed_ms": 12,
                     "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
+                    "created_on": "2024-09-16T00:00:00Z",
                 }
             ],
-            errors=[],
         )
         msg1 = self.create_outgoing_msg(contact, "success message", status="D", logs=[log1, log2])
 
         # create another msg and log that shouldn't be included
-        log3 = ChannelLog.objects.create(
-            channel=self.channel,
-            is_error=False,
+        log3 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://foo.bar/send3",
                     "status_code": 200,
-                    "request": "POST https://foo.bar/send2\r\n\r\n{}",
+                    "request": "POST https://foo.bar/send3\r\n\r\n{}",
                     "response": "HTTP/1.0 200 OK\r\r\r\n",
                     "elapsed_ms": 12,
                     "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
+                    "created_on": "2024-09-16T00:00:00Z",
                 }
             ],
-            errors=[],
         )
         self.create_outgoing_msg(contact, "success message", status="D", logs=[log3])
 
@@ -1585,39 +1637,26 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(msg1_url)
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
-        # try when log objects are in storage rather than the database
-        ChannelLog.objects.all().delete()
-
-        storages["logs"].save(
-            f"channels/{self.channel.uuid}/{str(log1.uuid)[:4]}/{log1.uuid}.json",
-            io.StringIO(json.dumps(log1._get_json())),
-        )
-        storages["logs"].save(
-            f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json",
-            io.StringIO(json.dumps(log2._get_json())),
-        )
-
-        response = self.assertListFetch(msg1_url, [self.admin], context_objects=[])
-        self.assertEqual(2, len(response.context["logs"]))
-        self.assertEqual("https://foo.bar/send1", response.context["logs"][0]["http_logs"][0]["url"])
-        self.assertEqual("https://foo.bar/send2", response.context["logs"][1]["http_logs"][0]["url"])
-
-        # missing logs are logged as errors and ignored
-        storages["logs"].delete(f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")
-
-        response = self.assertListFetch(msg1_url, [self.admin], context_objects=[])
-        self.assertEqual(1, len(response.context["logs"]))
-
     def test_call(self):
         contact = self.create_contact("Fred", phone="+12067799191")
         flow = self.create_flow("IVR")
 
-        call1 = self.create_incoming_call(flow, contact)
-        log1 = ChannelLog.objects.get()
-        log2 = ChannelLog.objects.create(
-            channel=self.channel,
-            log_type=ChannelLog.LOG_TYPE_IVR_START,
-            is_error=False,
+        log1 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/call1",
+                    "status_code": 200,
+                    "request": "POST https://foo.bar/send1\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2024-09-16T00:00:00Z",
+                }
+            ],
+        )
+        log2 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_IVR_START,
             http_logs=[
                 {
                     "url": "https://foo.bar/call2",
@@ -1629,20 +1668,32 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                     "created_on": "2022-01-01T00:00:00Z",
                 }
             ],
-            errors=[],
         )
-        call1.log_uuids = [log1.uuid, log2.uuid]
-        call1.save(update_fields=("log_uuids",))
+        call1 = self.create_incoming_call(flow, contact, logs=[log1, log2])
 
         # create another call and log that shouldn't be included
-        self.create_incoming_call(flow, contact)
+        log3 = self.create_channel_log(
+            ChannelLog.LOG_TYPE_IVR_START,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/call2",
+                    "status_code": 200,
+                    "request": "POST /send2\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+        )
+        self.create_incoming_call(flow, contact, logs=[log3])
 
         call1_url = reverse("channels.channellog_call", args=[self.channel.uuid, call1.id])
 
         self.assertRequestDisallowed(call1_url, [None, self.user, self.editor, self.agent, self.admin2])
         response = self.assertListFetch(call1_url, [self.admin], context_objects=[])
         self.assertEqual(2, len(response.context["logs"]))
-        self.assertEqual("https://acme-calls.com/reply", response.context["logs"][0]["http_logs"][0]["url"])
+        self.assertEqual("https://foo.bar/call1", response.context["logs"][0]["http_logs"][0]["url"])
         self.assertEqual("https://foo.bar/call2", response.context["logs"][1]["http_logs"][0]["url"])
 
     def test_read_and_list(self):
@@ -1741,10 +1792,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("TG", "Test TG Channel", "234567")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
+        log = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://api.telegram.org/65474/sendMessage",
@@ -1787,10 +1836,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("TG", "Test TG Channel", "234567")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
+        log = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://api.telegram.org/65474/sendMessage",
@@ -1822,10 +1869,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("TG", "Test TG Channel", "234567")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
+        log = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://api.telegram.org/There is no contact identifying information",
@@ -1853,84 +1898,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("3527065", "api.telegram.org", "/65474/sendMessage"))
 
-    def test_redaction_for_twitter(self):
-        urn = "twitterid:767659860"
-        contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE,
-            is_error=False,
-            http_logs=[
-                {
-                    "url": "https://textit.in/c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive",
-                    "status_code": 200,
-                    "request": 'POST /c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 1596\r\nContent-Type: application/json\r\nFinagle-Ctx-Com.twitter.finagle.deadline: 1560853608671000000 1560853611615000000\r\nFinagle-Ctx-Com.twitter.finagle.retries: 0\r\nFinagle-Http-Retryable-Request: \r\nX-Amzn-Trace-Id: Root=1-5d08bc68-de52174e83904d614a32a5c6\r\nX-B3-Flags: 2\r\nX-B3-Parentspanid: fe22fff79af84311\r\nX-B3-Sampled: false\r\nX-B3-Spanid: 86f3c3871ae31c2d\r\nX-B3-Traceid: fe22fff79af84311\r\nX-Forwarded-For: 199.16.157.173\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twitter-Webhooks-Signature: sha256=CYVI5q7e7bzKufCD3GnZoJheSmjVRmNQo9uzO/gi4tA=\r\n\r\n{"for_user_id":"3753944237","direct_message_events":[{"type":"message_create","id":"1140928844112814089","created_timestamp":"1560853608526","message_create":{"target":{"recipient_id":"3753944237"},"sender_id":"767659860","message_data":{"text":"Briefly what will you be talking about and do you have any feature stories","entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[]}}}}],"users":{"767659860":{"id":"767659860","created_timestamp":"1345386861000","name":"Aaron Tumukunde","screen_name":"tumaaron","description":"Mathematics \u25a1 Media \u25a1 Real Estate \u25a1 And Jesus above all.","protected":false,"verified":false,"followers_count":167,"friends_count":485,"statuses_count":237,"profile_image_url":"http://pbs.twimg.com/profile_images/860380640029573120/HKuXgxR__normal.jpg","profile_image_url_https":"https://pbs.twimg.com/profile_images/860380640029573120/HKuXgxR__normal.jpg"},"3753944237":{"id":"3753944237","created_timestamp":"1443048916258","name":"Teheca","screen_name":"tehecaug","location":"Uganda","description":"We connect new mothers & parents to nurses for postnatal care. #Google LaunchPad Africa 2018, #UNFPA UpAccelerate 2017 #MasterCard Innovation exp 2017 #YCSUS18","url":"https://t.co/i0hcLRwEj7","protected":false,"verified":false,"followers_count":3369,"friends_count":4872,"statuses_count":1128,"profile_image_url":"http://pbs.twimg.com/profile_images/694638274204143616/Q4Mbg1tO_normal.png","profile_image_url_https":"https://pbs.twimg.com/profile_images/694638274204143616/Q4Mbg1tO_normal.png"}}}',
-                    "response": 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\n{"message":"Message Accepted","data":[{"type":"msg","channel_uuid":"5c70a767-f3dc-4a99-9323-4774f6432af5","msg_uuid":"6c26277d-7002-4489-9b7f-998d4be5d0db","text":"Briefly what will you be talking about and do you have any feature stories","urn":"twitterid:767659860#tumaaron","external_id":"1140928844112814089","received_on":"2019-06-18T10:26:48.526Z"}]}',
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
-
-        self.login(self.admin)
-
-        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-
-        # check read page shows un-redacted content for a regular org
-        response = self.client.get(read_url)
-        self.assertNotRedacted(response, ("767659860", "Aaron Tumukunde", "tumaaron"))
-
-        # but for anon org we see redaction...
-        with self.anonymous(self.org):
-            response = self.client.get(read_url)
-            self.assertRedacted(response, ("767659860", "Aaron Tumukunde", "tumaaron"))
-
-    def test_redaction_for_twitter_when_no_match(self):
-        urn = "twitterid:767659860"
-        contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
-            http_logs=[
-                {
-                    "url": "https://twitter.com/There is no contact identifying information",
-                    "status_code": 200,
-                    "request": 'POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\n{"json": "There is no contact identifying information"}',
-                    "response": 'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nContent-Type: application/json\r\n\r\n{"json": "There is no contact identifying information"}',
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
-
-        self.login(self.admin)
-
-        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-
-        # check read page shows un-redacted content for a regular org
-        response = self.client.get(read_url)
-        self.assertNotRedacted(response, ("767659860",))
-
-        # but for anon org we see complete redaction...
-        with self.anonymous(self.org):
-            response = self.client.get(read_url)
-            self.assertRedacted(response, ("767659860", "twitter.com", "/65474/sendMessage"))
-
     def test_redaction_for_facebook(self):
         urn = "facebook:2150393045080607"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE,
-            is_error=False,
+        log = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": f"https://textit.in/c/fb/{channel.uuid}/receive",
@@ -1965,10 +1938,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "facebook:2150393045080607"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
+        log = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://facebook.com/There is no contact identifying information",
@@ -1999,10 +1970,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_redaction_for_twilio(self):
         contact = self.create_contact("Fred Jones", phone="+593979099111")
         channel = self.create_channel("T", "Test Twilio Channel", "+12345")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_STATUS,
-            is_error=False,
+        log = self.create_channel_log(
+            ChannelLog.LOG_TYPE_MSG_SEND,
             http_logs=[
                 {
                     "url": "https://textit.in/c/t/1234-5678/status?id=2466753&action=callback",

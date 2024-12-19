@@ -40,4 +40,4 @@ class DTOneType(IntegrationType):
             formax.add_section(self.slug, account_url, icon=self.icon, action="redirect", nobutton=True)
 
     def get_urls(self):
-        return [re_path(r"^account$", AccountView.as_view(integration_type=self), name="account")]
+        return [re_path(r"^account/$", AccountView.as_view(integration_type=self), name="account")]

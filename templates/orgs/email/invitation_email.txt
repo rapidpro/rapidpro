@@ -1,7 +1,8 @@
 {% load i18n %}
 
-{% blocktrans trimmed with org=org.name brand=branding.name %}
-You've been invited to join {{ org }} on {{ brand }}
+{% blocktrans trimmed with org=org.name %}
+You've been invited to join the <b>{{ org }}</b> workspace.
 {% endblocktrans %}
-
-{% trans "Click this link to join" %}: https://{{ branding.domain }}/org/join/{{ invitation.secret }}/
+{% blocktrans trimmed with domain=branding.domain secret=invitation.secret %}
+Go to https://{{ domain }}/org/join/{{ secret }}/ to accept the invitation.
+{% endblocktrans %}

@@ -2,29 +2,27 @@
 {% load i18n %}
 
 {% block content %}
-  <div id="pjax">
-    {% block pjax %}
-      <div class="lp-frame">
-        <div class="right">
-          <div class="flex w-full mb-4">
-            <div class="flex-grow ml-1">
-              {% if not file_error %}
-                <div class="mb-12">
-                  {% blocktrans trimmed %}
-                    Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.
-                  {% endblocktrans %}
-                </div>
-                <a href="{{ download_url }}" class="button-primary">{% trans "Download Now" %}</a>
-              {% else %}
-                <temba-alert level="warning">
-                  {{ file_error }}
-                </temba-alert>
-              {% endif %}
-            </div>
+  <div>
+    <div class="lp-frame">
+      <div class="right">
+        <div class="flex w-full mb-4">
+          <div class="flex-grow ml-1">
+            {% if not file_error %}
+              <div class="mb-12">
+                {% blocktrans trimmed %}
+                  Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.
+                {% endblocktrans %}
+              </div>
+              <a href="{{ download_url }}" class="button-primary">{% trans "Download Now" %}</a>
+            {% else %}
+              <temba-alert level="warning">
+                {{ file_error }}
+              </temba-alert>
+            {% endif %}
           </div>
         </div>
       </div>
-    {% endblock pjax %}
+    </div>
   </div>
 {% endblock content %}
 {% block extra-script %}

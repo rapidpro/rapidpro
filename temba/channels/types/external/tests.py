@@ -29,7 +29,7 @@ class ExternalTypeTest(TembaTest):
         post_data["country"] = "RW"
         post_data["url"] = "http://localhost:8000/foo"
         post_data["method"] = "POST"
-        post_data["body"] = "send=true"
+        post_data["body"] = '{"from":"{{from_no_plus}}","to":{{to_no_plus}},"text":\'{{text}}\' }'
         post_data["content_type"] = Channel.CONTENT_TYPE_JSON
         post_data["max_length"] = 180
         post_data["send_authorization"] = "Token 123"
@@ -55,6 +55,12 @@ class ExternalTypeTest(TembaTest):
         post_data["scheme"] = "tel"
         post_data["number"] = "12345"
         response = self.client.post(url, post_data)
+        self.assertFormError(
+            response.context["form"], "body", "Invalid JSON, make sure to remove quotes around variables"
+        )
+
+        post_data["body"] = '{"from":{{from_no_plus}},"to":{{to_no_plus}},"text":{{text}},"channel":{{channel}} }'
+        response = self.client.post(url, post_data)
         channel = Channel.objects.get()
 
         self.assertEqual(channel.country, "RW")
@@ -67,7 +73,10 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual(channel.config[ExternalType.CONFIG_SEND_AUTHORIZATION], "Token 123")
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
-        self.assertEqual("send=true", channel.config[ExternalType.CONFIG_SEND_BODY])
+        self.assertEqual(
+            '{"from":{{from_no_plus}},"to":{{to_no_plus}},"text":{{text}},"channel":{{channel}} }',
+            channel.config[ExternalType.CONFIG_SEND_BODY],
+        )
         self.assertEqual("SENT", channel.config[ExternalType.CONFIG_MT_RESPONSE_CHECK])
 
         config_url = reverse("channels.channel_configuration", args=[channel.uuid])
@@ -85,31 +94,33 @@ class ExternalTypeTest(TembaTest):
         # test substitution in our url
         self.assertEqual(
             "http://example.com/send.php?from=5080&text=test&to=%2B250788383383",
-            channel.replace_variables(ext_url, {"from": "5080", "text": "test", "to": "+250788383383"}),
+            ExternalType.replace_variables(ext_url, {"from": "5080", "text": "test", "to": "+250788383383"}),
         )
 
         # test substitution with unicode
         self.assertEqual(
             "http://example.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383",
-            channel.replace_variables(ext_url, {"from": "5080", "text": "Reply “1” for good", "to": "+250788383383"}),
+            ExternalType.replace_variables(
+                ext_url, {"from": "5080", "text": "Reply “1” for good", "to": "+250788383383"}
+            ),
         )
 
         # test substitution with XML encoding
         body = "<xml>{{text}}</xml>"
         self.assertEqual(
             "<xml>Hello &amp; World</xml>",
-            channel.replace_variables(body, {"text": "Hello & World"}, Channel.CONTENT_TYPE_XML),
+            ExternalType.replace_variables(body, {"text": "Hello & World"}, Channel.CONTENT_TYPE_XML),
         )
 
         self.assertEqual(
-            "<xml>التوطين</xml>", channel.replace_variables(body, {"text": "التوطين"}, Channel.CONTENT_TYPE_XML)
+            "<xml>التوطين</xml>", ExternalType.replace_variables(body, {"text": "التوطين"}, Channel.CONTENT_TYPE_XML)
         )
 
         # test substitution with JSON encoding
         body = "{ body: {{text}} }"
         self.assertEqual(
             '{ body: "this is \\"quote\\"" }',
-            channel.replace_variables(body, {"text": 'this is "quote"'}, Channel.CONTENT_TYPE_JSON),
+            ExternalType.replace_variables(body, {"text": 'this is "quote"'}, Channel.CONTENT_TYPE_JSON),
         )
 
         # raw content type should be loaded on setting page as is
@@ -131,9 +142,10 @@ class ExternalTypeTest(TembaTest):
 
         post_data["scheme"] = "ext"
         post_data["address"] = "123456789"
-        post_data["url"] = "http://example.com/send.php?from={{from}}&text={{text}}&to={{to}}"
-        post_data["method"] = "GET"
+        post_data["url"] = "http://example.com/send.php"
+        post_data["method"] = "POST"
         post_data["content_type"] = Channel.CONTENT_TYPE_JSON
+        post_data["body"] = '{"from":{{from_no_plus}},"to":{{to_no_plus}},"text":{{text}} }'
         post_data["max_length"] = 180
         post_data["encoding"] = Channel.ENCODING_SMART
 

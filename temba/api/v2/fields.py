@@ -1,6 +1,5 @@
 from rest_framework import fields, relations, serializers
 
-from django.contrib.auth.models import User
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
@@ -9,6 +8,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.msgs.models import Attachment, Label, Media, Msg
+from temba.orgs.models import User
 from temba.tickets.models import Ticket, Topic
 from temba.utils import languages
 from temba.utils.uuid import find_uuid, is_uuid

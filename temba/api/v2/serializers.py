@@ -9,7 +9,6 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
-from django.contrib.auth.models import User
 
 from temba import mailroom
 from temba.archives.models import Archive
@@ -22,7 +21,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
 from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
-from temba.orgs.models import Org, OrgRole
+from temba.orgs.models import Org, OrgRole, User
 from temba.tickets.models import Ticket, Topic
 from temba.utils import json
 from temba.utils.fields import NameValidator
@@ -165,19 +164,22 @@ class ArchiveReadSerializer(ReadSerializer):
 
 class BroadcastReadSerializer(ReadSerializer):
     STATUSES = {
-        "I": "queued",  # may exist in older data
+        Broadcast.STATUS_PENDING: "pending",
         Broadcast.STATUS_QUEUED: "queued",
-        Broadcast.STATUS_SENT: "sent",
+        Broadcast.STATUS_STARTED: "started",
+        Broadcast.STATUS_COMPLETED: "completed",
         Broadcast.STATUS_FAILED: "failed",
+        Broadcast.STATUS_INTERRUPTED: "interrupted",
     }
 
+    status = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
     text = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
     base_language = fields.LanguageField()
-    status = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_text(self, obj):
@@ -187,7 +189,10 @@ class BroadcastReadSerializer(ReadSerializer):
         return {lang: trans.get("attachments", []) for lang, trans in obj.translations.items()}
 
     def get_status(self, obj):
-        return self.STATUSES.get(obj.status, "sent")
+        return self.STATUSES[obj.status]
+
+    def get_progress(self, obj):
+        return {"total": obj.contact_count or -1, "started": obj.msg_count}
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:
@@ -197,7 +202,18 @@ class BroadcastReadSerializer(ReadSerializer):
 
     class Meta:
         model = Broadcast
-        fields = ("id", "urns", "contacts", "groups", "text", "attachments", "base_language", "status", "created_on")
+        fields = (
+            "id",
+            "status",
+            "progress",
+            "urns",
+            "contacts",
+            "groups",
+            "text",
+            "attachments",
+            "base_language",
+            "created_on",
+        )
 
 
 class BroadcastWriteSerializer(WriteSerializer):
@@ -1034,21 +1050,16 @@ class FlowRunReadSerializer(ReadSerializer):
         if not self.context["include_paths"]:
             return None
 
-        def convert_step(step):
-            arrived_on = iso8601.parse_date(step["arrived_on"])
-            return {"node": step["node_uuid"], "time": format_datetime(arrived_on)}
-
-        return [convert_step(s) for s in obj.path]
+        return [{"node": str(s.node), "time": format_datetime(s.time)} for s in obj.get_path()]
 
     def get_values(self, obj):
         def convert_result(result):
             return {
+                "name": result.get("name"),
                 "value": result["value"],
                 "category": result.get("category"),
                 "node": result["node_uuid"],
                 "time": format_datetime(iso8601.parse_date(result["created_on"])),
-                "input": result.get("input"),
-                "name": result.get("name"),
             }
 
         return {k: convert_result(r) for k, r in obj.results.items()}
@@ -1077,13 +1088,16 @@ class FlowRunReadSerializer(ReadSerializer):
 class FlowStartReadSerializer(ReadSerializer):
     STATUSES = {
         FlowStart.STATUS_PENDING: "pending",
-        FlowStart.STATUS_STARTING: "starting",
-        FlowStart.STATUS_COMPLETE: "complete",
+        FlowStart.STATUS_QUEUED: "queued",
+        FlowStart.STATUS_STARTED: "started",
+        FlowStart.STATUS_COMPLETED: "completed",
         FlowStart.STATUS_FAILED: "failed",
+        FlowStart.STATUS_INTERRUPTED: "interrupted",
     }
 
     flow = fields.FlowField()
     status = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
     params = serializers.JSONField(required=False)
@@ -1098,6 +1112,9 @@ class FlowStartReadSerializer(ReadSerializer):
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
+    def get_progress(self, obj):
+        return {"total": obj.contact_count or -1, "started": obj.run_count}
+
     def get_restart_participants(self, obj):
         return not (obj.exclusions and obj.exclusions.get(FlowStart.EXCLUSION_STARTED_PREVIOUSLY, False))
 
@@ -1107,15 +1124,17 @@ class FlowStartReadSerializer(ReadSerializer):
     class Meta:
         model = FlowStart
         fields = (
-            "id",
             "uuid",
             "flow",
             "status",
+            "progress",
             "groups",
             "contacts",
             "params",
             "created_on",
             "modified_on",
+            # deprecated
+            "id",
             "extra",
             "restart_participants",
             "exclude_active",
@@ -1715,6 +1734,7 @@ class UserReadSerializer(ReadSerializer):
 
     avatar = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
+    team = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=tzone.utc, source="date_joined")
 
     def get_avatar(self, obj):
@@ -1722,12 +1742,15 @@ class UserReadSerializer(ReadSerializer):
         return settings.avatar.url if settings and settings.avatar else None
 
     def get_role(self, obj):
-        role = self.context["user_roles"][obj]
-        return self.ROLES[role]
+        return self.ROLES[self.context["memberships"][obj].role]
+
+    def get_team(self, obj):
+        team = self.context["memberships"][obj].team
+        return {"uuid": str(team.uuid), "name": team.name} if team else None
 
     class Meta:
         model = User
-        fields = ("email", "first_name", "last_name", "role", "created_on", "avatar")
+        fields = ("email", "first_name", "last_name", "role", "team", "created_on", "avatar")
 
 
 class WorkspaceReadSerializer(ReadSerializer):

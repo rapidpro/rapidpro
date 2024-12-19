@@ -6,7 +6,7 @@ from django.db.models import Count
 MAX_CONTACTS = 50
 
 
-def trim_old_broadcasts_to_nodes(apps, schema_editor):
+def trim_old_broadcasts_to_nodes(apps, schema_editor):  # pragma: no cover
     Broadcast = apps.get_model("msgs", "Broadcast")
 
     # find sent broadcasts to a lot of contacts that likely came from sending to a node in a flow
@@ -20,7 +20,7 @@ def trim_old_broadcasts_to_nodes(apps, schema_editor):
         trim_broadcast_to_node(bcast)
 
 
-def trim_broadcast_to_node(bcast):
+def trim_broadcast_to_node(bcast):  # pragma: no cover
     through_model = bcast.contacts.through
     num_trimmed = 0
 

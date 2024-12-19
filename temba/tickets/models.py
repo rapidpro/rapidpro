@@ -1,3 +1,4 @@
+import itertools
 import logging
 from abc import ABCMeta
 from datetime import date
@@ -6,21 +7,47 @@ import openpyxl
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Q, Sum
-from django.db.models.functions import Lower
+from django.db.models import F, Q, Sum, Value
+from django.db.models.functions import Cast, Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.contacts.models import Contact
-from temba.orgs.models import DependencyMixin, Export, ExportType, Org, User, UserSettings
-from temba.utils import chunk_list
+from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgMembership, User
 from temba.utils.dates import date_range
+from temba.utils.db.functions import SplitPart
 from temba.utils.export import MultiSheetExporter
-from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
-from temba.utils.uuid import uuid4
+from temba.utils.models import TembaModel
+from temba.utils.models.counts import DailyCountModel, DailyTimingModel
+from temba.utils.uuid import is_uuid, uuid4
 
 logger = logging.getLogger(__name__)
+
+
+class Shortcut(TembaModel):
+    """
+    A canned response available from the ticketing interface.
+    """
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="shortcuts")
+    text = models.TextField(max_length=10_000)
+
+    @classmethod
+    def create(cls, org, user, name: str, text: str):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid shortcut name"
+        assert not org.shortcuts.filter(name__iexact=name).exists(), f"shortcut with name '{name}' already exists"
+
+        return org.shortcuts.create(name=name, text=text, created_by=user, modified_by=user)
+
+    def release(self, user):
+        self.is_active = False
+        self.name = self._deleted_name()
+        self.modified_by = user
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_shortcut_names")]
 
 
 class Topic(TembaModel, DependencyMixin):
@@ -28,19 +55,17 @@ class Topic(TembaModel, DependencyMixin):
     The topic of a ticket which controls who can access that ticket.
     """
 
-    DEFAULT_TOPIC = "General"
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
     is_default = models.BooleanField(default=False)
 
     org_limit_key = Org.LIMIT_TOPICS
 
     @classmethod
-    def create_default_topic(cls, org):
+    def create_system(cls, org):
         assert not org.topics.filter(is_default=True).exists(), "org already has default topic"
 
         org.topics.create(
-            name=cls.DEFAULT_TOPIC,
+            name="General",
             is_default=True,
             is_system=True,
             created_by=org.created_by,
@@ -50,7 +75,7 @@ class Topic(TembaModel, DependencyMixin):
     @classmethod
     def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid topic name"
-        assert not org.topics.filter(name__iexact=name).exists()
+        assert not org.topics.filter(name__iexact=name).exists(), f"topic with name '{name}' already exists"
 
         return org.topics.create(name=name, created_by=user, modified_by=user)
 
@@ -58,10 +83,32 @@ class Topic(TembaModel, DependencyMixin):
     def create_from_import_def(cls, org, user, definition: dict):
         return cls.create(org, user, definition["name"])
 
+    @classmethod
+    def get_accessible(cls, org, user):
+        """
+        Gets the topics accessible to the given user in the given org.
+        """
+
+        if not user.is_staff:
+            membership = org.get_membership(user)
+            if membership.team and not membership.team.all_topics:
+                return membership.team.topics.all()
+
+        return org.topics.filter(is_active=True)
+
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system topics"
         assert not self.tickets.exists(), "can't release topic with tickets"
+
         super().release(user)
+
+        for team in self.teams.all():
+            team.topics.remove(self)
+
+        # delete ticket counts for this topic
+        self.org.counts.prefix(
+            [f"tickets:{Ticket.STATUS_OPEN}:{self.id}:", f"tickets:{Ticket.STATUS_CLOSED}:{self.id}:"]
+        ).delete()
 
         self.is_active = False
         self.name = self._deleted_name()
@@ -70,6 +117,60 @@ class Topic(TembaModel, DependencyMixin):
 
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
+
+
+class Team(TembaModel):
+    """
+    Agent users are assigned to a team which controls which topics they can access.
+    """
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
+    topics = models.ManyToManyField(Topic, related_name="teams")
+    all_topics = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
+
+    org_limit_key = Org.LIMIT_TEAMS
+    max_topics = 10
+
+    @classmethod
+    def create_system(cls, org):
+        assert not org.teams.filter(is_default=True).exists(), "org already has default team"
+
+        org.teams.create(
+            name="All Topics",
+            is_default=True,
+            is_system=True,
+            all_topics=True,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+
+    @classmethod
+    def create(cls, org, user, name: str, *, topics=(), all_topics: bool = False):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
+        assert not org.teams.filter(name__iexact=name, is_active=True).exists()
+        assert not (topics and all_topics), "can't specify topics and all_topics"
+
+        team = org.teams.create(name=name, all_topics=all_topics, created_by=user, modified_by=user)
+        team.topics.add(*topics)
+        return team
+
+    def get_users(self):
+        return self.org.users.filter(orgmembership__team=self)
+
+    def release(self, user):
+        assert not (self.is_system and self.org.is_active), "can't release system teams"
+
+        # re-assign agents in this team to the default team
+        OrgMembership.objects.filter(org=self.org, team=self).update(team=self.org.default_ticket_team)
+
+        self.name = self._deleted_name()
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_team_names")]
 
 
 class Ticket(models.Model):
@@ -137,6 +238,37 @@ class Ticket(models.Model):
     def get_allowed_assignees(cls, org):
         return org.get_users(with_perm=cls.ASSIGNEE_PERMISSION)
 
+    @classmethod
+    def get_assignee_count(cls, org, user, topics, status: str) -> int:
+        """
+        Gets the count of tickets assigned to the given user across the given topics and status.
+        """
+        return org.counts.filter(scope__in=[f"tickets:{status}:{t.id}:{user.id if user else 0}" for t in topics]).sum()
+
+    @classmethod
+    def get_status_count(cls, org, topics, status: str) -> int:
+        """
+        Gets the count across the given topics and status.
+        """
+        return org.counts.prefix([f"tickets:{status}:{t.id}:" for t in topics]).sum()
+
+    @classmethod
+    def get_topic_counts(cls, org, topics, status: str) -> dict[Topic, int]:
+        """
+        Gets the count for each topic and the given status.
+        """
+
+        # count scopes are stored as 'tickets:<status>:<topic-id>:<assignee-id>' so get all counts with the prefix
+        # 'tickets:<status>:' and group by topic-id extracted as the 3rd split part.
+        counts = (
+            org.counts.prefix(f"tickets:{status}:")
+            .annotate(topic_id=Cast(SplitPart(F("scope"), Value(":"), Value(3)), output_field=models.IntegerField()))
+            .values_list("topic_id")
+            .annotate(count_sum=Sum("count"))
+        )
+        by_topic_id = {c[0]: c[1] for c in counts}
+        return {t: by_topic_id.get(t.id, 0) for t in topics}
+
     def delete(self):
         self.events.all().delete()
 
@@ -203,13 +335,21 @@ class TicketEvent(models.Model):
 
 
 class TicketFolder(metaclass=ABCMeta):
-    id = None
+    slug = None
     name = None
     icon = None
     verbose_name = None
 
-    def get_queryset(self, org, user, ordered):
-        qs = Ticket.objects.filter(org=org)
+    def get_icon(self, count) -> str:
+        return self.icon
+
+    def get_queryset(self, org, user, *, ordered: bool):
+        qs = org.tickets.all()
+
+        if not user.is_staff:
+            membership = org.get_membership(user)
+            if membership.team and not membership.team.all_topics:
+                qs = qs.filter(topic__in=list(membership.team.topics.all()))
 
         if ordered:
             qs = qs.order_by("-last_activity_on", "-id")
@@ -217,195 +357,75 @@ class TicketFolder(metaclass=ABCMeta):
         return qs.select_related("topic", "assignee").prefetch_related("contact")
 
     @classmethod
-    def from_id(cls, org, id: str):
-        folder = FOLDERS.get(id, None)
-        if not folder:
-            topic = Topic.objects.filter(org=org, uuid=id).first()
+    def from_slug(cls, org, user, slug_or_uuid: str):
+        if is_uuid(slug_or_uuid):
+            topic = Topic.get_accessible(org, user).filter(uuid=slug_or_uuid).first()
             if topic:
-                folder = TopicFolder(topic)
-        return folder
+                return TopicFolder(topic)
+
+        return FOLDERS.get(slug_or_uuid, None)
 
     @classmethod
     def all(cls):
         return FOLDERS
 
 
-class TopicFolder(TicketFolder):
-    """
-    Tickets assigned to the current user
-    """
-
-    def __init__(self, topic: Topic):
-        self.topic = topic
-        self.id = topic.uuid
-        self.name = topic.name
-        self.is_system = topic.is_system
-
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered).filter(topic=self.topic)
-
-
 class MineFolder(TicketFolder):
     """
-    Tickets assigned to the current user
+    Tickets assigned to the current user.
     """
 
-    id = "mine"
+    slug = "mine"
     name = _("My Tickets")
     icon = "tickets_mine"
 
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered).filter(assignee=user)
+    def get_icon(self, count) -> str:
+        return self.icon if count else "tickets_mine_done"
+
+    def get_queryset(self, org, user, *, ordered: bool):
+        return super().get_queryset(org, user, ordered=ordered).filter(assignee=user)
 
 
 class UnassignedFolder(TicketFolder):
     """
-    Tickets not assigned to any user
+    Tickets not assigned to any user.
     """
 
-    id = "unassigned"
+    slug = "unassigned"
     name = _("Unassigned")
     verbose_name = _("Unassigned Tickets")
     icon = "tickets_unassigned"
 
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered).filter(assignee=None)
+    def get_queryset(self, org, user, *, ordered: bool):
+        return super().get_queryset(org, user, ordered=ordered).filter(assignee=None)
 
 
 class AllFolder(TicketFolder):
     """
-    All tickets
+    All tickets the user can access.
     """
 
-    id = "all"
+    slug = "all"
     name = _("All")
     verbose_name = _("All Tickets")
     icon = "tickets_all"
 
-    def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered)
+
+FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
 
 
-FOLDERS = {f.id: f() for f in TicketFolder.__subclasses__() if f.id}
-
-
-class TicketCount(SquashableModel):
+class TopicFolder(TicketFolder):
     """
-    Counts of tickets by assignment/topic and status
+    Wraps a topic so we can use it like a folder.
     """
 
-    squash_over = ("org_id", "scope", "status")
+    def __init__(self, topic: Topic):
+        self.slug = topic.uuid
+        self.name = topic.name
+        self.topic = topic
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
-    scope = models.CharField(max_length=32)
-    status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set) -> tuple:
-        sql = """
-        WITH removed as (
-            DELETE FROM %(table)s WHERE "org_id" = %%s AND "scope" = %%s AND "status" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("org_id", "scope", "status", "count", "is_squashed")
-        VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        params = (distinct_set.org_id, distinct_set.scope, distinct_set.status) * 2
-
-        return sql, params
-
-    @classmethod
-    def get_by_assignees(cls, org, assignees: list, status: str) -> dict:
-        """
-        Gets counts for a set of assignees (None means no assignee)
-        """
-
-        scopes = [cls._assignee_scope(a) for a in assignees]
-        counts = (
-            cls.objects.filter(org=org, scope__in=scopes, status=status)
-            .values_list("scope")
-            .annotate(count_sum=Sum("count"))
-        )
-        counts_by_scope = {c[0]: c[1] for c in counts}
-
-        return {a: counts_by_scope.get(cls._assignee_scope(a), 0) for a in assignees}
-
-    @classmethod
-    def get_by_topics(cls, org, topics: list, status: str) -> dict:
-        """
-        Gets counts for a set of topics
-        """
-
-        scopes = [cls._topic_scope(t) for t in topics]
-        counts = (
-            cls.objects.filter(org=org, scope__in=scopes, status=status)
-            .values_list("scope")
-            .annotate(count_sum=Sum("count"))
-        )
-        counts_by_scope = {c[0]: c[1] for c in counts}
-
-        return {t: counts_by_scope.get(cls._topic_scope(t), 0) for t in topics}
-
-    @classmethod
-    def get_all(cls, org, status: str) -> int:
-        """
-        Gets count for org and status regardless of assignee
-        """
-        return cls.sum(cls.objects.filter(org=org, scope__startswith="assignee:", status=status))
-
-    @staticmethod
-    def _assignee_scope(user) -> str:
-        return f"assignee:{user.id if user else 0}"
-
-    @staticmethod
-    def _topic_scope(topic) -> str:
-        return f"topic:{topic.id}"
-
-    class Meta:
-        indexes = [
-            models.Index(fields=("org", "status")),
-            models.Index(fields=("org", "scope", "status")),
-            # for squashing task
-            models.Index(
-                name="ticket_count_unsquashed", fields=("org", "scope", "status"), condition=Q(is_squashed=False)
-            ),
-        ]
-
-
-class Team(TembaModel):
-    """
-    Every user can be a member of a ticketing team
-    """
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
-    topics = models.ManyToManyField(Topic, related_name="teams")
-
-    org_limit_key = Org.LIMIT_TEAMS
-
-    @classmethod
-    def create(cls, org, user, name: str):
-        assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
-        assert not org.teams.filter(name__iexact=name, is_active=True).exists()
-
-        return org.teams.create(name=name, created_by=user, modified_by=user)
-
-    def get_users(self):
-        return User.objects.filter(settings__team=self)
-
-    def release(self, user):
-        # remove all users from this team
-        UserSettings.objects.filter(team=self).update(team=None)
-
-        self.name = self._deleted_name()
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
-
-    class Meta:
-        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_team_names")]
+    def get_queryset(self, org, user, *, ordered: bool):
+        return super().get_queryset(org, user, ordered=ordered).filter(topic=self.topic)
 
 
 class TicketDailyCount(DailyCountModel):
@@ -560,7 +580,7 @@ class TicketExport(ExportType):
         num_records = 0
 
         # add tickets to the export in batches of 1k to limit memory usage
-        for batch_ids in chunk_list(ticket_ids, 1000):
+        for batch_ids in itertools.batched(ticket_ids, 1000):
             tickets = (
                 Ticket.objects.filter(id__in=batch_ids)
                 .order_by("opened_on")

@@ -1,3 +1,5 @@
+import json
+
 from smartmin.views import SmartFormView
 
 from django import forms
@@ -93,12 +95,36 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean(self):
+            from .type import ExternalType
+
             cleaned_data = super().clean()
             scheme = cleaned_data.get("scheme")
             if scheme == URN.TEL_SCHEME and not cleaned_data.get("number"):
                 raise ValidationError({"number": _("This field is required.")})
             elif scheme != URN.TEL_SCHEME and not cleaned_data.get("address"):
                 raise ValidationError({"address": _("This field is required.")})
+
+            content_type = cleaned_data.get("content_type")
+
+            variables = {
+                "text": "",
+                "from": "",
+                "from_no_plus": "",
+                "to": "",
+                "to_no_plus": "",
+                "id": "",
+                "quick_replies": "",
+                "channel": "",
+            }
+            replaced_body = ExternalType.replace_variables(
+                cleaned_data.get("body"), variables, content_type=content_type
+            )
+            if content_type == Channel.CONTENT_TYPE_JSON:
+                try:
+
+                    json.loads(replaced_body)
+                except json.decoder.JSONDecodeError:
+                    raise ValidationError({"body": _("Invalid JSON, make sure to remove quotes around variables")})
 
     class SendClaimForm(ClaimViewMixin.Form):
         url = ExternalURLField(

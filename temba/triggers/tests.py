@@ -12,7 +12,8 @@ from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, TembaTest
-from temba.utils.views import TEMBA_MENU_SELECTION
+from temba.tests.mailroom import mock_mailroom
+from temba.utils.views.mixins import TEMBA_MENU_SELECTION
 
 from .models import Trigger
 from .types import KeywordTriggerType
@@ -202,9 +203,16 @@ class TriggerTest(TembaTest):
         self.org.import_app(export_def, self.admin)
         self.assertEqual(1, Trigger.objects.count())
 
-    def test_export_import(self):
-        # tweak our current channel to be twitter so we can create a channel-based trigger
-        Channel.objects.filter(id=self.channel.id).update(channel_type="TWT")
+    @patch("temba.channels.types.facebookapp.type.FacebookAppType.deactivate_trigger")
+    @patch("temba.channels.types.facebookapp.type.FacebookAppType.activate_trigger")
+    def test_export_import(self, mock_activate_trigger, mock_deactivate_trigger):
+        mock_activate_trigger.return_value = None
+        mock_deactivate_trigger.return_value = None
+
+        # tweak our current channel to be facebook so we can create a channel-based trigger
+        Channel.objects.filter(id=self.channel.id).update(
+            channel_type="FBA", config={Channel.CONFIG_AUTH_TOKEN: "1234"}
+        )
         flow = self.create_flow("Test")
 
         doctors = self.create_group("Doctors", contacts=[])
@@ -567,7 +575,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # the archived trigger not counted
         self.assertPageMenu(menu_url, self.user, ["Active (1)", "Archived (1)", "Messages (1)"])
 
-    def test_create(self):
+    @mock_mailroom
+    def test_create(self, mr_mocks):
         create_url = reverse("triggers.trigger_create")
         create_new_convo_url = reverse("triggers.trigger_create_new_conversation")
         create_inbound_call_url = reverse("triggers.trigger_create_inbound_call")

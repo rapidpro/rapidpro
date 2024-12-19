@@ -1,0 +1,290 @@
+{% load humanize i18n temba %}
+
+{% block content %}
+  <style type="text/css"></style>
+  <div id="timeline_container">
+    <h4>{% trans "Responses" %}</h4>
+    <div id="timeline" class="p-2" style="height: 200px"></div>
+  </div>
+  <div id="completion_container">
+    <h4>{% trans "Completion" %}</h4>
+    <div id="completion" class="p-2" style="height: 200px"></div>
+  </div>
+  <div id="dow_container">
+    <h4>{% trans "Day of Week" %}</h4>
+    <div id="dow" class="p-2" style="height: 200px"></div>
+  </div>
+  <div id="hod_container">
+    <h4>{% trans "Time of Day" %} ({{ user_org.timezone }})</h4>
+    <div id="hod" class="p-2" style="height: 200px"></div>
+  </div>
+  <script type="text/javascript">
+    new function() {
+      const store = document.querySelector('temba-store');
+
+      store.getUrl("{% url 'flows.flow_engagement' flow.id %}", {
+        headers: {
+          "accept": "application/json"
+        },
+        force: true
+      }).then(function(response) {
+        const chartData = response.json;
+
+        // hour of day histogram
+        new Highcharts.Chart({
+          title: {
+            text: null
+          },
+          colors: ['#2387CA'],
+          chart: {
+            renderTo: 'hod',
+            type: 'column',
+            backgroundColor: 'transparent',
+          },
+          xAxis: {
+            title: {
+              text: null
+            },
+            min: 0,
+            max: 23,
+            labels: {
+              rotation: 0,
+              style: {
+                textOverflow: 'none'
+              }
+            },
+            lineWidth: 1,
+            lineColor: '#2980b9',
+            minorGridLineWidth: 0,
+            minorTickLength: 0,
+            tickLength: 0,
+            categories: ['00:00', '', '', '', '', '', '06:00', '', '', '', '', '', '12:00', '', '', '', '', '', '18:00', '', '', '', '', '']
+          },
+          yAxis: {
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: false
+            },
+            lineWidth: 0,
+            minorGridLineWidth: 0,
+            lineColor: 'transparent',
+            gridLineWidth: 0,
+          },
+          legend: {
+            enabled: false
+          },
+          plotOptions: {
+            series: {
+              groupPadding: .05,
+              pointPadding: 0,
+              borderWidth: 0
+            },
+          },
+          tooltip: {
+            formatter: function() {
+              return '<b>{{ _("Messages")|escapejs }}</b>: ' + Highcharts.numberFormat(this.point.y, 0);
+            }
+          },
+          series: [{
+            data: chartData.hod.data
+          }],
+          credits: {
+            enabled: false
+          }
+        });
+
+        // load our run status pie chart
+        new Highcharts.chart({
+          title: {
+            text: null
+          },
+          chart: {
+            renderTo: 'completion',
+            type: 'pie',
+            backgroundColor: 'transparent',
+            margin: [0, 0, -40, 0],
+            spacingTop: 0,
+            spacingBottom: 0,
+            spacingLeft: 0,
+            spacingRight: 0
+          },
+          legend: {
+            enabled: false
+          },
+          tooltip: {
+            formatter: function() {
+              return '<b>' + this.point.name + ':</b> ' + Highcharts.numberFormat(this.point.y, 0) + '</b> <span style="font-size:90%"> (' + Highcharts.numberFormat(this.percentage, 2) + '%)</span>';
+            }
+          },
+          series: [{
+            name: '{{ _("Completion")|escapejs }}',
+            innerSize: '50%',
+            data: chartData.completion.summary
+          }],
+          drilldown: {
+            series: chartData.completion.drilldown
+          },
+          plotOptions: {
+            pie: {
+              size: '130%',
+              dataLabels: {
+                enabled: false,
+                distance: -50,
+              },
+              startAngle: -90,
+              endAngle: 90,
+              center: ['50%', '75%']
+            }
+          },
+          credits: {
+            enabled: false
+          }
+        });
+
+        // day of week histogram
+        new Highcharts.Chart({
+          title: {
+            text: null
+          },
+          colors: ['#2387CA'],
+          chart: {
+            renderTo: 'dow',
+            type: 'column',
+            backgroundColor: 'transparent'
+          },
+          xAxis: {
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: true
+            },
+            lineWidth: 1,
+            minorGridLineWidth: 0,
+            lineColor: '#2387CA',
+            minorTickLength: 0,
+            tickLength: 0,
+            categories: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+          },
+          yAxis: {
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: false
+            },
+            lineWidth: 0,
+            minorGridLineWidth: 0,
+            lineColor: 'transparent',
+            gridLineWidth: 0,
+          },
+          legend: {
+            enabled: false
+          },
+          plotOptions: {
+            series: {
+              groupPadding: .05,
+              pointPadding: 0,
+              borderWidth: 0
+            },
+            column: {
+              dataLabels: {
+                enabled: true,
+                formatter: function() {
+                  return '<span style="font-size:75%">' + Highcharts.numberFormat(this.point.y, 0) + '%</span>';
+                }
+              }
+            }
+          },
+          tooltip: {
+            formatter: function() {
+              return '<b>{{ _("Messages")|escapejs }}</b>: ' + Highcharts.numberFormat(this.point.msgs, 0);
+            }
+          },
+          series: [{
+            data: chartData.dow.data
+          }],
+          credits: {
+            enabled: false
+          }
+        });
+
+        // timeline histogram
+        new Highcharts.chart({
+          title: {
+            text: null
+          },
+          chart: {
+            renderTo: 'timeline',
+            type: 'column',
+            backgroundColor: 'transparent',
+          },
+          xAxis: {
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: true
+            },
+            lineWidth: 1,
+            minorGridLineWidth: 0,
+            lineColor: '#2980b9',
+            minorTickLength: 0,
+            tickLength: 0,
+            min: chartData.timeline.xmin,
+            max: chartData.timeline.xmax,
+            type: 'datetime',
+            dateTimeLabelFormats: {
+              millisecond: '%H:%M:%S.%L',
+              second: '%H:%M:%S',
+              minute: '%H:%M',
+              hour: '%H:%M',
+              day: '%e. %b',
+              week: '%e. %b',
+              month: '%b \'%y',
+              year: '%Y'
+            }
+          },
+          yAxis: {
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: false
+            },
+            lineWidth: 0,
+            minorGridLineWidth: 0,
+            lineColor: 'transparent',
+            gridLineWidth: 0,
+            min: 0,
+            max: chartData.timeline.ymax,
+          },
+          legend: {
+            enabled: false
+          },
+          plotOptions: {
+            series: {
+              groupPadding: 0,
+              pointPadding: 0,
+              borderWidth: 0
+            }
+          },
+          tooltip: {
+            formatter: function() {
+              return '<b>' + this.series.name + '</b>: ' + this.y + '<br />' + Highcharts.dateFormat('%b %e, %Y %l:%M %P', this.x);
+            }
+          },
+          series: [{
+            name: '{{ _("Messages")|escapejs }}',
+            data: chartData.timeline.data
+          }],
+          credits: {
+            enabled: false
+          }
+        });
+      });
+    }();
+  </script>
+{% endblock content %}

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "9.3.21"
+version = "9.3.139"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 
@@ -8,8 +8,8 @@ authors = ["Nyaruka <code@nyaruka.com>"]
 repository = "http://github.com/rapidpro/rapidpro"
 
 [tool.poetry.dependencies]
-python = "~3.11"
-Django = "^5.1"
+python = "~3.12"
+Django = "^5.1.4"
 django-compressor = "^4.3.1"
 django-countries = "^7.0"
 django-mptt = "^0.16.0"
@@ -18,15 +18,14 @@ django-storages = "^1.11.1"
 django-timezone-field = "^6.1.0"
 djangorestframework = "^3.15.1"
 dj-database-url = "^0.5.0"
-smartmin = "^5.1.0"
+smartmin = "5.1.1"
 celery = "^5.4.0"
-redis = "^5.0.7"
-boto3 = "^1.34.137"
-cryptography = "^42.0.4"
-vonage = "2.5.2"
+redis = "^5.2.0"
+boto3 = "^1.35.54"
+cryptography = "^43.0.3"
+vonage = "3.17.4"
 pyotp = "2.4.1"
-twilio = "6.24.0"
-twython = "3.5.0"
+twilio = "9.3.7"
 geojson = "^2.5.0"
 Markdown = "^3.3.4"
 polib = "^1.1.0"
@@ -36,7 +35,7 @@ colorama = "^0.4.6"
 gunicorn = "^22.0.0"
 iptools = "^0.7.0"
 iso8601 = "^0.1.14"
-phonenumbers = "^8.13.40"
+phonenumbers = "^8.13.49"
 pycountry = "^22.3.5"
 python-dateutil = "^2.9.0"
 packaging = "^22.0"
@@ -46,7 +45,7 @@ openpyxl = "^3.1.5"
 ffmpeg-python = "^0.2.0"
 slack-sdk = "3.17.0"
 django-formtools = "^2.4.1"
-psycopg = "^3.1.9"
+psycopg = { extras = ["pool"], version = "^3.2.1" }
 pillow = "^10.1.0"
 django-imagekit = "^5.0.0"
 iso639-lang = "^2.2.3"
@@ -54,7 +53,7 @@ google-auth = "^2.30.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
-coverage = {extras = ["toml"], version = "^7.5.4"}
+coverage = { extras = ["toml"], version = "^7.5.4" }
 isort = "^5.13.2"
 responses = "^0.25.3"
 ruff = "^0.5.0"
@@ -79,13 +78,20 @@ force_grid_wrap = 0
 line_length = 120
 include_trailing_comma = true
 combine_as_imports = true
-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
+sections = [
+    "FUTURE",
+    "STDLIB",
+    "THIRDPARTY",
+    "DJANGO",
+    "FIRSTPARTY",
+    "LOCALFOLDER",
+]
 known_django = ["django"]
 
 [tool.djlint]
 blank_line_after_tag = "load"
 custom_blocks = "render"
-custom_html="temba-[a-z-]+"
+custom_html = "temba-[a-z-]+"
 format_css = true
 format_js = true
 ignore = "H021,H023"

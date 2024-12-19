@@ -47,4 +47,4 @@ warnings.filterwarnings(
 # -----------------------------------------------------------------------------------
 # Make our sitestatic URL be our static URL on development
 # -----------------------------------------------------------------------------------
-STATIC_URL = "/sitestatic/"
+STATIC_URL = "/static/"

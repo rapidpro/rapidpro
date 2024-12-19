@@ -81,6 +81,23 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_android_sync(self, mock_post):
+        mock_post.return_value = MockJsonResponse(200, {"id": 12345})
+        response = self.client.android_sync(
+            channel=self.channel,
+        )
+
+        self.assertEqual({"id": 12345}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/android/sync",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
+                "channel_id": self.channel.id,
+            },
+        )
+
+    @patch("requests.post")
     def test_contact_create(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         bob = self.create_contact("Bob", urns=["tel:+12340000002"])
@@ -134,6 +151,21 @@ class MailroomClientTest(TembaTest):
                     "groups": ["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
                 },
             },
+        )
+
+    @patch("requests.post")
+    def test_contact_deindex(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        mock_post.return_value = MockJsonResponse(200, {"deindexed": 2})
+        response = self.client.contact_deindex(self.org, [ann, bob])
+
+        self.assertEqual({"deindexed": 2}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/deindex",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={"org_id": self.org.id, "contact_ids": [ann.id, bob.id]},
         )
 
     @patch("requests.post")
@@ -559,6 +591,19 @@ class MailroomClientTest(TembaTest):
                 "attachments": [],
                 "ticket_id": ticket.id,
             },
+        )
+
+    @patch("requests.post")
+    def test_org_deindex(self, mock_post):
+        mock_post.return_value = MockJsonResponse(200, {})
+        response = self.client.org_deindex(self.org)
+
+        self.assertEqual({}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/org/deindex",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={"org_id": self.org.id},
         )
 
     def test_po_export(self):

@@ -9,78 +9,91 @@
     }
   </style>
 {% endblock extra-style %}
-{% block table %}
-  <table class="list lined header">
-    <thead>
-      <tr>
-        <th colspan="3">
-          <div class="flex justify-end">
-            <div class="flow-start-type-selector flex">
-              <div onclick="goto(event, this)"
-                   href="{% url 'flows.flowstart_list' %}"
-                   class="{% if not filtered %}is-active{% endif %} linked mr-1">{% trans "All" %}</div>
-              |
-              <div onclick="goto(event, this)"
-                   href="{% url 'flows.flowstart_list' %}?type=manual"
-                   class="{% if filtered %}is-active{% endif %} linked ml-1">{% trans "Manual" %}</div>
-            </div>
-          </div>
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for obj in object_list %}
+{% block content %}
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow overflow-y-auto shadow rounded-b-lg">
+    <table class="list lined header scrolled">
+      <thead>
         <tr>
-          <td width="16px">
-            {% if obj.status == "P" or obj.status == "S" %}
-              <temba-icon name="progress_spinner" spin>
-              </temba-icon>
-            {% elif obj.status == "C" %}
-              <temba-icon name="check">
-              </temba-icon>
-            {% elif obj.status == "F" %}
-              <temba-icon name="error">
-              </temba-icon>
-            {% endif %}
-          </td>
-          <td>
-            {% if obj.flow.is_active %}
-              <a href="{% url 'flows.flow_editor' obj.flow.uuid %}">{{ obj.flow.name }}</a>
-            {% else %}
-              {% trans "A deleted flow" %}
-            {% endif %}
-            {% if obj.start_type == "M" %}
-              {% blocktrans trimmed with user=obj.created_by %}
-                was started by {{ user }}
-              {% endblocktrans %}
-            {% elif obj.start_type == "Z" %}
-              {% trans "was started by Zapier" %}
-            {% else %}
-              {% trans "was started by an API call" %}
-            {% endif %}
-            <div style="padding-top: 10px; max-height: 150px; overflow-y: auto;" class="flex flex-wrap">
-              {% include "includes/recipients.html" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query %}
-              {% include "includes/exclusions.html" with exclusions=obj.exclusions %}
-            </div>
-          </td>
-          <td style="text-align: right">
-            <div class="flex flex-col">
-              <div>{{ obj.created_on|timedate }}</div>
-              <div style="padding-top: 10px; font-size: 11px">
-                {% blocktrans trimmed with count=obj.run_count|intcomma count counter=obj.run_count %}
-                  <b>{{ count }}</b> run
-                {% plural %}
-                  <b>{{ count }}</b> runs
-                {% endblocktrans %}
+          <th colspan="3">
+            <div class="flex justify-end">
+              <div class="flow-start-type-selector flex">
+                <div onclick="goto(event, this)"
+                     href="{% url 'flows.flowstart_list' %}"
+                     class="{% if not filtered %}is-active{% endif %} linked mr-1">{% trans "All" %}</div>
+                |
+                <div onclick="goto(event, this)"
+                     href="{% url 'flows.flowstart_list' %}?type=manual"
+                     class="{% if filtered %}is-active{% endif %} linked ml-1">{% trans "Manual" %}</div>
               </div>
             </div>
-          </td>
+          </th>
         </tr>
-      {% empty %}
-        <tr class="empty_list">
-          <td colspan="99">{% trans "No flow starts" %}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-{% endblock table %}
+      </thead>
+      <tbody>
+        {% for obj in object_list %}
+          <tr style="{% if obj.is_starting %}border:none;{% endif %}">
+            <td style="{% if obj.is_starting %}border:none;{% endif %}">
+              {% if obj.flow.is_active %}
+                <a href="{% url 'flows.flow_editor' obj.flow.uuid %}">{{ obj.flow.name }}</a>
+              {% else %}
+                {% trans "A deleted flow" %}
+              {% endif %}
+              {% if obj.start_type == "M" %}
+                {% blocktrans trimmed with user=obj.created_by %}
+                  was started by {{ user }}
+                {% endblocktrans %}
+              {% elif obj.start_type == "Z" %}
+                {% trans "was started by Zapier" %}
+              {% else %}
+                {% trans "was started by an API call" %}
+              {% endif %}
+              <div style="padding-top: 10px; max-height: 150px; overflow-y: auto;" class="flex flex-wrap">
+                {% include "includes/recipients.html" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query %}
+                {% include "includes/exclusions.html" with exclusions=obj.exclusions %}
+              </div>
+            </td>
+            <td style="text-align: right; {% if obj.is_starting %}border:none;{% endif %}">
+              <div class="flex flex-col">
+                <div style="white-space:nowrap">{{ obj.created_on|timedate }}</div>
+                <div style="padding-top: 10px; font-size: 11px; white-space: nowrap;">
+                  {% if obj.status == 'F' %}
+                    {% trans "Failed" %}
+                  {% elif obj.status == 'I' %}
+                    {% trans "Interrupted" %}
+                  {% else %}
+                    {% if obj.is_starting %}
+                      {% trans "Starting" %}
+                    {% else %}
+                      {% trans "Started" %}
+                    {% endif %}
+                    {% blocktrans trimmed with count=obj.contact_count|intcomma count counter=obj.contact_count %}
+                      <b>{{ count }}</b> contact
+                    {% plural %}
+                      <b>{{ count }}</b> contacts
+                    {% endblocktrans %}
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% if obj.is_starting %}
+            <tr>
+              <td colspan="99" style="padding:0px 1rem; padding-bottom:1rem;margin:0px;">
+                <temba-start-progress id="{{ obj.id }}"
+                                      interrupttitle="Interrupt Flow"
+                                      interruptendpoint="{% url 'flows.flowstart_interrupt' obj.id %}"
+                                      statusendpoint="{% url 'flows.flowstart_status' %}?id={{ obj.id }}">
+                </temba-start-progress>
+              </td>
+            </tr>
+          {% endif %}
+        {% empty %}
+          <tr class="empty_list">
+            <td colspan="99">{% trans "No flow starts" %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

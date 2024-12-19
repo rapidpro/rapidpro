@@ -17,77 +17,75 @@
   {% endif %}
 {% endblock extra-script %}
 {% block content %}
-  {% block pjax %}
-    <div id="pjax">
-      <div class="card">
-        <div class="import-result text-lg mt-2">
-          {% if is_finished %}
-            <temba-icon name="check" class="text-success mr-2">
-            </temba-icon>
-          {% else %}
-            <temba-icon name="progress_spinner" class="mr-2" spin>
-            </temba-icon>
-          {% endif %}
-          {% blocktrans trimmed count info.num_created as count %}
-            Created {{ count }} new contact
-          {% plural %}
-            Created {{ count }} new contacts
-          {% endblocktrans %}
-        </div>
-        <div class="import-result text-lg mt-2">
-          {% if is_finished %}
-            <temba-icon name="check" class="text-success mr-2">
-            </temba-icon>
-          {% else %}
-            <temba-icon name="progress_spinner" class="mr-2" spin>
-            </temba-icon>
-          {% endif %}
-          {% blocktrans trimmed count info.num_updated as count %}
-            Updated {{ count }} existing contact
-          {% plural %}
-            Updated {{ count }} existing contacts
-          {% endblocktrans %}
-        </div>
-        {% if is_finished and object.group %}
-          <div class="import-result text-lg mt-2">
-            <temba-icon name="check" class="text-success mr-2">
-            </temba-icon>
-            {% url 'contacts.contact_filter' object.group.uuid as group_url %}
-            {% blocktrans trimmed count info.num_created|add:info.num_updated as count with group_url=group_url group_name=object.group.name %}
-              Added {{ count }} contact to the <span class="linked" onclick="goto(event)" href="{{ group_url }}">{{ group_name }}</span> group
-            {% plural %}
-              Added {{ count }} contacts to the <span class="linked" onclick="goto(event)" href="{{ group_url }}">{{ group_name }}</span> group
-            {% endblocktrans %}
-          </div>
+  <div>
+    <div class="card">
+      <div class="import-result text-lg mt-2">
+        {% if is_finished %}
+          <temba-icon name="check" class="text-success mr-2">
+          </temba-icon>
+        {% else %}
+          <temba-icon name="progress_spinner" class="mr-2" spin>
+          </temba-icon>
         {% endif %}
-        {% if info.num_errored %}
-          <div class="import-result text-lg mt-2">
-            <temba-icon name="alert_warning" class="text-error mr-2">
-            </temba-icon>
-            {% blocktrans trimmed count info.num_errored as count %}
-              Ignored {{ count }} record because of errors
-            {% plural %}
-              Ignored {{ count }} records because of errors
-            {% endblocktrans %}
-          </div>
-        {% endif %}
-        {% if info.errors %}
-          <div class="import-result text-lg mt-6">
-            <strong>{% trans "Errors" %}</strong>
-            <div class="well well-small mb-0 mt-4">
-              {% for error in info.errors %}
-                <div class="import-error">
-                  {% blocktrans trimmed with row=error.record|add:"2" message=error.message %}
-                    Row {{ row }}: {{ message }}
-                  {% endblocktrans %}
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-        {% endif %}
+        {% blocktrans trimmed count info.num_created as count %}
+          Created {{ count }} new contact
+        {% plural %}
+          Created {{ count }} new contacts
+        {% endblocktrans %}
       </div>
+      <div class="import-result text-lg mt-2">
+        {% if is_finished %}
+          <temba-icon name="check" class="text-success mr-2">
+          </temba-icon>
+        {% else %}
+          <temba-icon name="progress_spinner" class="mr-2" spin>
+          </temba-icon>
+        {% endif %}
+        {% blocktrans trimmed count info.num_updated as count %}
+          Updated {{ count }} existing contact
+        {% plural %}
+          Updated {{ count }} existing contacts
+        {% endblocktrans %}
+      </div>
+      {% if is_finished and object.group %}
+        <div class="import-result text-lg mt-2">
+          <temba-icon name="check" class="text-success mr-2">
+          </temba-icon>
+          {% url 'contacts.contact_group' object.group.uuid as group_url %}
+          {% blocktrans trimmed count info.num_created|add:info.num_updated as count with group_url=group_url group_name=object.group.name %}
+            Added {{ count }} contact to the <span class="linked" onclick="goto(event)" href="{{ group_url }}">{{ group_name }}</span> group
+          {% plural %}
+            Added {{ count }} contacts to the <span class="linked" onclick="goto(event)" href="{{ group_url }}">{{ group_name }}</span> group
+          {% endblocktrans %}
+        </div>
+      {% endif %}
+      {% if info.num_errored %}
+        <div class="import-result text-lg mt-2">
+          <temba-icon name="alert_warning" class="text-error mr-2">
+          </temba-icon>
+          {% blocktrans trimmed count info.num_errored as count %}
+            Ignored {{ count }} record because of errors
+          {% plural %}
+            Ignored {{ count }} records because of errors
+          {% endblocktrans %}
+        </div>
+      {% endif %}
+      {% if info.errors %}
+        <div class="import-result text-lg mt-6">
+          <strong>{% trans "Errors" %}</strong>
+          <div class="well well-small mb-0 mt-4">
+            {% for error in info.errors %}
+              <div class="import-error">
+                {% blocktrans trimmed with row=error.record|add:"2" message=error.message %}
+                  Row {{ row }}: {{ message }}
+                {% endblocktrans %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
     </div>
-  {% endblock pjax %}
+  </div>
 {% endblock content %}
 {% block extra-style %}
   {{ block.super }}

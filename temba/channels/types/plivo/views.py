@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.views import BaseClaimNumberMixin, ChannelTypeMixin, ClaimViewMixin
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.views.mixins import OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.http import http_headers

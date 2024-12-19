@@ -1,0 +1,62 @@
+{% extends "orgs/base/list.html" %}
+{% load i18n temba smartmin humanize %}
+
+{% block modaxes %}
+  <temba-modax header="{{ _("Update Workspace") |escapejs }}" id="update-child">
+  </temba-modax>
+  <temba-modax header="{{ _("Delete Workspace") |escapejs }}" id="delete-child">
+  </temba-modax>
+{% endblock modaxes %}
+{% block table %}
+  <table class="list lined scrolled">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th style="text-align:right">{% trans "Users" %}</th>
+        <th style="text-align:right">{% trans "Contacts" %}</th>
+        <th style="text-align:right">{% trans "Created On" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr onclick="{% if obj.id != user_org.id %}showUpdateChildModal({{ obj.id }}){% endif %}"
+            class="{% if obj.id != user_org.id %}hover-linked update{% endif %}">
+          <td>{{ obj.name }}</td>
+          <td style="text-align:right">{{ obj.users.all|length }}</td>
+          <td style="text-align:right">{{ obj.get_contact_count|intcomma }}</td>
+          <td style="text-align:right">{{ obj.created_on|day }}</td>
+          <td class="w-2">
+            {% if obj.id != user_org.id %}
+              <temba-icon name="delete"
+                          clickable="true"
+                          style="--icon-color:#bbb"
+                          onclick="event.stopPropagation(); showDeleteChildModal({{ obj.id }});">
+              </temba-icon>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No workspaces" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showUpdateChildModal(id) {
+      var modax = document.querySelector('#update-child');
+      modax.endpoint = `/org/update/${id}/`;
+      modax.open = true;
+    }
+
+    function showDeleteChildModal(id) {
+      var modax = document.querySelector('#delete-child');
+      modax.endpoint = `/org/delete/${id}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}

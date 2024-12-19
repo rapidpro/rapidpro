@@ -1,293 +1,123 @@
-{% extends "smartmin/list.html" %}
-{% load smartmin sms contacts temba i18n humanize %}
+{% extends "orgs/base/list.html" %}
+{% load contacts temba i18n humanize %}
 
-{% block extra-style %}
-  {{ block.super }}
-  <style type="text/css">
-    tr.contacts th a span.icon {
-      visibility: hidden;
-      text-decoration: none;
-      font-size: 14px;
-      margin-top: -1px;
-    }
-
-    tr.contacts th a {
-      text-decoration: none;
-      font-weight: 500;
-      color: #717171;
-      font-size: 0.75rem;
-    }
-
-    .span9 .contact_list tr.contacts {
-      border-top: none;
-    }
-
-    .span9 .object-list tbody td.value-text {
-      min-width: 30px;
-    }
-
-    .modal .modal-body .control-group .control-label {
-      display: none;
-    }
-
-    .search-error {
-      color: #da4f49;
-    }
-
-    .pagination-notification {
-      background: #ecf0f1;
-      padding: 10px;
-    }
-
-    table {
-      text-align: left;
-      position: relative;
-      border-collapse: collapse;
-    }
-
-    th,
-    td {
-      padding: 0.25rem;
-    }
-
-    temba-icon.sorting {
-      display: inline-block;
-      opacity: 0;
-    }
-
-    th:hover a div temba-icon.sorting {
-      opacity: 1;
-    }
-
-    temba-icon.sorting.show {
-      opacity: 1;
-    }
-
-    .spa-container,
-    .spa-content {
-      overflow-x: auto !important;
-    }
-  </style>
-{% endblock extra-style %}
-{% block content %}
-  <div>
-    <form method="get" action="{{ request.path }}" id="search-form">
-      <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-      </temba-textinput>
-      <input type="submit" class="hide">
-    </form>
-  </div>
-  {% if search_error %}
-    <div class="alert alert-error mt-4">
-      {{ search_error }}
-    </div>
-  {% endif %}
-  {% if org_perms.contacts.contact_delete %}
-    <temba-dialog header="{{ _("Delete Selected Contacts") |escapejs }}"
-                  primaryButtonName="{{ _("Delete") |escapejs }}"
-                  destructive="true"
-                  class="hide"
-                  id="delete-confirmation">
-      <div class="p-6">{% trans "Are you sure you want to delete the selected contacts? This cannot be undone." %}</div>
-    </temba-dialog>
-    <temba-dialog header="{{ _("Delete All Contacts") |escapejs }}"
-                  primaryButtonName="{{ _("Delete") |escapejs }}"
-                  destructive="true"
-                  class="hide"
-                  id="delete-all-confirmation">
-      <div class="p-6">
-        {% blocktrans trimmed with count=paginator.count %}
-          Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
-        {% endblocktrans %}
-        {% if paginator.count > 50 %}
-          <br>
-          <br>
-          {% blocktrans trimmed %}
-            This operation can take a while to complete. Contacts may remain in this view during the process.
-          {% endblocktrans %}
-        {% endif %}
-      </div>
-    </temba-dialog>
-  {% endif %}
+{% block modaxes %}
   <temba-modax header="{% trans "Create Group" %}"
                endpoint="{% url 'contacts.contactgroup_create' %}"
                -temba-loaded="handleCreateGroupModalLoaded"
                id="create-group-modal">
   </temba-modax>
-  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">
-    {% include "includes/short_pagination.html" %}
-    {% if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000 %}
-      <div class="text-gray-400 text-sm self-end mt-2">{% trans "To view more than 10,000 search results, save it as a group." %}</div>
-    {% endif %}
-  </div>
-  <div class="flex-grow shadow overflow-y-auto">
-    <table class="relative list object-list lined selectable scrolled sticky">
-      <tbody>
-        {% if object_list %}
-          <tr class="contacts">
-            {% if org_perms.contacts.contact_update %}<th class="z-10"></th>{% endif %}
-            <th></th>
-            <th></th>
-            {% for field in contact_fields %}
-              {% if field.show_in_table %}
-                <th>
-                  {% if sort_field == field.key %}
-                    {% if sort_direction == 'desc' %}
-                      <a href="{{ request.path }}?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}">
-                        <div>
-                          {{ field.name }}
-                          <temba-icon name="sort_down" class="sorting show">
-                          </temba-icon>
-                        </div>
-                      </a>
-                    {% else %}
-                      <a href="{{ request.path }}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}">
-                        <div>
-                          {{ field.name }}
-                          <temba-icon name="sort_up" class="sorting show">
-                          </temba-icon>
-                        </div>
-                      </a>
-                    {% endif %}
-                  {% else %}
-                    <a href="{{ request.path }}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}">
-                      <div>
-                        {{ field.name }}
-                        <temba-icon name="sort" class="sorting">
-                        </temba-icon>
-                      </div>
-                    </a>
-                  {% endif %}
-                </th>
+  <temba-dialog header="{{ _("Delete Selected Contacts") |escapejs }}"
+                primaryButtonName="{{ _("Delete") |escapejs }}"
+                destructive="true"
+                class="hide"
+                id="delete-confirmation">
+    <div class="p-6">{% trans "Are you sure you want to delete the selected contacts? This cannot be undone." %}</div>
+  </temba-dialog>
+  <temba-dialog header="{{ _("Delete All Contacts") |escapejs }}"
+                primaryButtonName="{{ _("Delete") |escapejs }}"
+                destructive="true"
+                class="hide"
+                id="delete-all-confirmation">
+    <div class="p-6">
+      {% blocktrans trimmed with count=paginator.count %}
+        Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
+      {% endblocktrans %}
+      {% if paginator.count > 50 %}
+        <br>
+        <br>
+        {% blocktrans trimmed %}
+          This operation can take a while to complete. Contacts may remain in this view during the process.
+        {% endblocktrans %}
+      {% endif %}
+    </div>
+  </temba-dialog>
+{% endblock modaxes %}
+{% block table %}
+  <table class="list object-list lined selectable scrolled">
+    <thead>
+      <tr>
+        {% if org_perms.contacts.contact_update %}<th></th>{% endif %}
+        <th></th>
+        <th></th>
+        {% for field in contact_fields %}
+          <th class="sortable">
+            {% if sort_field == field.key %}
+              {% if sort_direction == 'desc' %}
+                <a href="{{ request.path }}?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}">
+                  <div>
+                    {{ field.name }}
+                    <temba-icon name="sort_down" class="sorting show">
+                    </temba-icon>
+                  </div>
+                </a>
+              {% else %}
+                <a href="{{ request.path }}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}">
+                  <div>
+                    {{ field.name }}
+                    <temba-icon name="sort_up" class="sorting show">
+                    </temba-icon>
+                  </div>
+                </a>
               {% endif %}
-            {% endfor %}
-            <th class="px-6 py-3 pt-4 border-b border-gray-200 bg-gray-100 text-left font-medium uppercase text-xs tracking-wider">
-              {% if object_list %}
-                {% if sort_field == 'last_seen_on' %}
-                  {% if sort_direction == 'desc' %}
-                    <a href="{{ request.path }}?sort_on=last_seen_on{% if search %}&search={{ search|escape }}{% endif %}">
-                      <div>
-                        {% trans "Last Seen On" %}
-                        <temba-icon name="sort_down" class="sorting show">
-                        </temba-icon>
-                      </div>
-                    </a>
-                  {% else %}
-                    <a href="{{ request.path }}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}">
-                      <div>
-                        {% trans "Last Seen On" %}
-                        <temba-icon name="sort_up" class="sorting show">
-                        </temba-icon>
-                      </div>
-                    </a>
-                  {% endif %}
-                {% else %}
-                  <a href="{{ request.path }}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}">
-                    <div>
-                      {% trans "Last Seen On" %}
-                      <temba-icon name="sort" class="sorting">
-                      </temba-icon>
-                    </div>
-                  </a>
-                {% endif %}
-              {% endif %}
-            </th>
-            <th class="px-6 py-3 pt-4 border-b border-gray-200 bg-gray-100 text-left font-medium uppercase text-xs tracking-wider">
-              {% if object_list %}
-                {% if sort_field == 'created_on' %}
-                  {% if sort_direction == 'desc' %}
-                    <a href="{{ request.path }}?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}">
-                      <div>
-                        {% trans "Created On" %}
-                        <temba-icon name="sort_down" class="sorting show">
-                        </temba-icon>
-                      </div>
-                    </a>
-                  {% else %}
-                    <a href="{{ request.path }}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}">
-                      <div>
-                        {% trans "Created On" %}
-                        <temba-icon name="sort_up" class="sorting show">
-                        </temba-icon>
-                      </div>
-                    </a>
-                  {% endif %}
-                {% else %}
-                  <a href="{{ request.path }}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}">
-                    <div>
-                      {% trans "Created On" %}
-                      <temba-icon name="sort" class="sorting">
-                      </temba-icon>
-                    </div>
-                  </a>
-                {% endif %}
-              {% endif %}
-            </th>
-          </tr>
-          {% for object in contacts %}
-            <tr onclick="handleRowClicked(event)"
-                data-uuid="{{ object.uuid }}"
-                data-object-id="{{ object.id }}"
-                href="{% url 'contacts.contact_read' object.uuid %}"
-                class="contact select-row object-row">
-              {% if org_perms.contacts.contact_update or org_perms.msgs.broadcast_create %}
-                <td onclick="checkInner(event);" class="contact checkbox object-row-checkbox">
-                  <temba-checkbox onclick="handleRowSelection(this)">
-                  </temba-checkbox>
-                </td>
-              {% endif %}
-              <td>
-                <div class="whitespace-nowrap">{{ object.name|default:"--" }}</div>
-              </td>
-              <td class="w-full">
-                <div class="whitespace-nowrap">{{ object|urn_or_anon:user_org }}</div>
-              </td>
-              {% for field in contact_fields %}
-                {% if field.show_in_table %}
-                  <td style="max-width:240px" class="field truncate">{% contact_field object field.key %}</td>
-                {% endif %}
-              {% endfor %}
-              <td class="value-received field_received">
-                <div class="whitespace-nowrap">
-                  {% if object.last_seen_on %}
-                    {{ object.last_seen_on|timedate }}
-                  {% else %}
-                    {{ "--" }}
-                  {% endif %}
+            {% else %}
+              <a href="{{ request.path }}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}">
+                <div>
+                  {{ field.name }}
+                  <temba-icon name="sort" class="sorting">
+                  </temba-icon>
                 </div>
-              </td>
-              <td class="value-received field_received">
-                <div class="whitespace-nowrap">{{ object.created_on|timedate }}</div>
-              </td>
-              <!-- This is needed for action buttons -->
-              <td class="hide">
-                <div class="value-labels">
-                  <nobr>
-                    {% for group in object.all_groups.all %}
-                      {% if group.group_type == 'U' %}
-                        <span data-id="{{ group.id }}" class="label label-info lbl">
-                          <a href="{% url 'contacts.contact_filter' group.uuid %}">{{ group.name }}</a>
-                        </span>
-                      {% endif %}
-                    {% endfor %}
-                  </nobr>
-                </div>
-              </td>
-            </tr>
-          {% empty %}
-            <tr class="empty_list">
-              <td colspan="99">{% trans "No matching contacts." %}</td>
-              {% for field in contact_fields %}
-                {% if field.show_in_table %}<td class="field"></td>{% endif %}
-              {% endfor %}
-              <td></td>
-            </tr>
+              </a>
+            {% endif %}
+          </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for object in object_list %}
+        <tr onclick="handleRowClicked(event)"
+            data-uuid="{{ object.uuid }}"
+            data-object-id="{{ object.id }}"
+            href="{% url 'contacts.contact_read' object.uuid %}"
+            class="contact select-row object-row">
+          {% if org_perms.contacts.contact_update or org_perms.msgs.broadcast_create %}
+            <td onclick="checkInner(event);" class="contact checkbox object-row-checkbox w-10">
+              <temba-checkbox onclick="handleRowSelection(this)">
+              </temba-checkbox>
+            </td>
+          {% endif %}
+          <td>
+            <div class="whitespace-nowrap">{{ object.name|default:"--" }}</div>
+          </td>
+          <td class="w-full">
+            <div class="whitespace-nowrap">{{ object|urn_or_anon:user_org }}</div>
+          </td>
+          {% for field in contact_fields %}
+            <td style="max-width:240px" class="field truncate">{% contact_field object field %}</td>
           {% endfor %}
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
-{% endblock content %}
+          <!-- This is needed for action buttons -->
+          <td class="hide">
+            <div class="value-labels">
+              <nobr>
+                {% for group in object.all_groups.all %}
+                  {% if group.group_type == 'U' %}
+                    <span data-id="{{ group.id }}" class="label label-info lbl">
+                      <a href="{% url 'contacts.contact_group' group.uuid %}">{{ group.name }}</a>
+                    </span>
+                  {% endif %}
+                {% endfor %}
+              </nobr>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No contacts" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
@@ -393,3 +223,27 @@
     {% endif %}
   </script>
 {% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    th.sortable a {
+      text-decoration: none;
+      font-weight: 500;
+      color: #717171;
+      font-size: 0.75rem;
+    }
+
+    th.sortable temba-icon.sorting {
+      display: inline-block;
+      opacity: 0;
+    }
+
+    th.sortable:hover temba-icon.sorting {
+      opacity: 1;
+    }
+
+    th.sortable temba-icon.sorting.show {
+      opacity: 1;
+    }
+  </style>
+{% endblock extra-style %}

@@ -26,6 +26,14 @@ function showLightbox(evt, url) {
   }
 }
 
+function showErrorDialog() {
+  var dialog = document.querySelector('#error-dialog');
+  dialog.style = 'display:block';
+  dialog.width = 'initial';
+  dialog.buttons = [{ type: 'secondary', name: 'Ok', closes: true }];
+  dialog.open = true;
+}
+
 function showPreview(evt, ele) {
   evt.stopPropagation();
   evt.preventDefault();
@@ -129,9 +137,9 @@ function initializeVideoPlayer(element) {
       vjsdownload: {
         beforeElement: 'playbackRateMenuButton',
         textControl: 'Download',
-        name: 'downloadButton',
-      },
-    },
+        name: 'downloadButton'
+      }
+    }
   });
 }
 
@@ -167,7 +175,6 @@ function stopEvent(event) {
   event.stopPropagation();
   event.preventDefault();
 }
-
 
 document.addEventListener('temba-refresh-complete', function () {
   wireTableListeners();

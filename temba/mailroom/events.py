@@ -4,7 +4,6 @@ from datetime import datetime
 import iso8601
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 
@@ -14,7 +13,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import Call
 from temba.msgs.models import Msg, OptIn
-from temba.orgs.models import Org
+from temba.orgs.models import Org, User
 from temba.tickets.models import Ticket, TicketEvent, Topic
 
 
@@ -262,7 +261,9 @@ class Event:
 
 
 def _url_for_user(org: Org, user: User, view_name: str, args: list, perm: str = None) -> str:
-    return reverse(view_name, args=args) if user.has_org_perm(org, perm or view_name) else None
+    allowed = user.has_org_perm(org, perm or view_name) or user.is_staff
+
+    return reverse(view_name, args=args) if allowed else None
 
 
 def _msg_in(obj) -> dict:

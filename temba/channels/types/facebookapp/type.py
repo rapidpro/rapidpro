@@ -38,7 +38,7 @@ class FacebookAppType(ChannelType):
         return [
             self.get_claim_url(),
             re_path(
-                r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(channel_type=self), name="refresh_token"
+                r"^(?P<uuid>[a-z0-9\-]+)/refresh_token/$", RefreshToken.as_view(channel_type=self), name="refresh_token"
             ),
         ]
 
@@ -76,7 +76,7 @@ class FacebookAppType(ChannelType):
                 url, json=body, params={"access_token": access_token}, headers={"Content-Type": "application/json"}
             )
 
-            if response.status_code != 200:  # pragma: no cover
+            if response.status_code != 200:
                 raise Exception("Unable to update call to action: %s" % response.text)
 
     def get_redact_values(self, channel) -> tuple:  # pragma: needs cover

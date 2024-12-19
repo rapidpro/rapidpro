@@ -1,13 +1,7 @@
 {% extends "smartmin/base.html" %}
-{% load smartmin i18n humanize %}
+{% load i18n %}
 
-{% block page-title %}
-  {% trans "Custom Fields" %}
-{% endblock page-title %}
 {% block content %}
-  <temba-field-manager priority-endpoint="{% url "contacts.contactfield_update_priority" %}"
-                       -temba-selection="handleFieldClicked">
-  </temba-field-manager>
   {% block pre-tables %}
     <temba-modax header="{{ _("Update Field") |escapejs }}" -temba-submitted="handleFieldUpdated" id="update-field">
     </temba-modax>
@@ -16,6 +10,9 @@
     <temba-modax header="{{ _("Usages") |escapejs }}" id="usages-modal">
     </temba-modax>
   {% endblock pre-tables %}
+  <temba-field-manager priority-endpoint="{% url "contacts.contactfield_update_priority" %}"
+                       -temba-selection="handleFieldClicked">
+  </temba-field-manager>
 {% endblock content %}
 {% block extra-script %}
   {{ block.super }}
@@ -57,64 +54,3 @@
     }
   </script>
 {% endblock extra-script %}
-{% block extra-style %}
-  {{ block.super }}
-  <style type="text/css">
-    .page-content {
-      align-self: auto;
-      max-width: 100%;
-    }
-
-    .drag-handle {
-      cursor: move;
-      display: block;
-    }
-
-    .drag-icon {
-      width: 15px;
-    }
-
-    .drag-icon:before {
-      content: '';
-      display: block;
-      width: 15px;
-    }
-
-    .sortable-drag {
-      background-color: #f5f9fa;
-      ;
-    }
-
-    .sortable-ghost {
-      background-color: #f5f9ff;
-    }
-
-    .draggable-row .icon {
-      display: none;
-    }
-
-    .draggable-row>td {
-      cursor: move;
-    }
-
-    .draggable-row>td * {
-      user-select: none;
-      -webkit-user-select: none;
-      pointer-events: none;
-    }
-
-    .draggable-row>td:nth-child(2)>div {
-      padding-left: 0rem;
-      cursor: move !important;
-    }
-
-    .draggable-row:hover .icon {
-      display: inline-block;
-      color: #cccccc;
-    }
-
-    tr:hover .delete-link {
-      visibility: visible !important;
-    }
-  </style>
-{% endblock extra-style %}

@@ -9,15 +9,16 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
-from temba.orgs.models import Export
+from temba.orgs.models import Export, Invitation, Org, OrgMembership, OrgRole
+from temba.orgs.tasks import squash_item_counts
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
 from .models import (
+    Shortcut,
     Team,
     Ticket,
-    TicketCount,
     TicketDailyCount,
     TicketDailyTiming,
     TicketEvent,
@@ -102,16 +103,24 @@ class TicketTest(TembaTest):
         def assert_counts(
             org, *, assignee_open: dict, assignee_closed: dict, topic_open: dict, topic_closed: dict, contacts: dict
         ):
+            all_topics = org.topics.filter(is_active=True)
             assignees = [None] + list(Ticket.get_allowed_assignees(org))
 
-            self.assertEqual(assignee_open, TicketCount.get_by_assignees(org, assignees, Ticket.STATUS_OPEN))
-            self.assertEqual(assignee_closed, TicketCount.get_by_assignees(org, assignees, Ticket.STATUS_CLOSED))
+            self.assertEqual(
+                assignee_open, {u: Ticket.get_assignee_count(org, u, all_topics, Ticket.STATUS_OPEN) for u in assignees}
+            )
+            self.assertEqual(
+                assignee_closed,
+                {u: Ticket.get_assignee_count(org, u, all_topics, Ticket.STATUS_CLOSED) for u in assignees},
+            )
 
-            self.assertEqual(sum(assignee_open.values()), TicketCount.get_all(org, Ticket.STATUS_OPEN))
-            self.assertEqual(sum(assignee_closed.values()), TicketCount.get_all(org, Ticket.STATUS_CLOSED))
+            self.assertEqual(sum(assignee_open.values()), Ticket.get_status_count(org, all_topics, Ticket.STATUS_OPEN))
+            self.assertEqual(
+                sum(assignee_closed.values()), Ticket.get_status_count(org, all_topics, Ticket.STATUS_CLOSED)
+            )
 
-            self.assertEqual(topic_open, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_OPEN))
-            self.assertEqual(topic_closed, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_CLOSED))
+            self.assertEqual(topic_open, Ticket.get_topic_counts(org, list(org.topics.all()), Ticket.STATUS_OPEN))
+            self.assertEqual(topic_closed, Ticket.get_topic_counts(org, list(org.topics.all()), Ticket.STATUS_CLOSED))
 
             self.assertEqual(contacts, {c: Contact.objects.get(id=c.id).ticket_count for c in contacts})
 
@@ -201,7 +210,7 @@ class TicketTest(TembaTest):
             contacts={contact1: 2, contact2: 2},
         )
 
-        squash_ticket_counts()  # shouldn't change counts
+        squash_item_counts()  # shouldn't change counts
 
         assert_counts(
             self.org,
@@ -235,17 +244,134 @@ class TicketTest(TembaTest):
             contacts={org2_contact: 0},
         )
 
+        squash_item_counts()
+
+        # check count model raw values are consistent
+        self.assertEqual(
+            {
+                f"tickets:O:{general.id}:{self.editor.id}": 1,
+                f"tickets:O:{cats.id}:0": 1,
+                f"tickets:O:{cats.id}:{self.admin.id}": 1,
+            },
+            {c["scope"]: c["count"] for c in self.org.counts.order_by("scope").values("scope", "count")},
+        )
+
+
+class ShortcutCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_create(self):
+        create_url = reverse("tickets.shortcut_create")
+
+        self.assertRequestDisallowed(create_url, [None, self.agent, self.user])
+
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name", "text"))
+
+        # try to create with empty values
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "", "text": ""},
+            form_errors={"name": "This field is required.", "text": "This field is required."},
+        )
+
+        # try to create with name that is already taken
+        Shortcut.create(self.org, self.admin, "Reboot", "Try switching it off and on again")
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "reboot", "text": "Have you tried..."},
+            form_errors={"name": "Shortcut with this name already exists."},
+        )
+
+        # try to create with name that has invalid characters
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "\\reboot", "text": "x"},
+            form_errors={"name": "Cannot contain the character: \\"},
+        )
+
+        # try to create with name that is too long
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "X" * 65, "text": "x"},
+            form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Not Interested", "text": "We're not interested"},
+            new_obj_query=Shortcut.objects.filter(name="Not Interested", text="We're not interested", is_system=False),
+            success_status=302,
+        )
+
+    def test_update(self):
+        shortcut = Shortcut.create(self.org, self.admin, "Planes", "Planes are...")
+        Shortcut.create(self.org, self.admin, "Trains", "Trains are...")
+
+        update_url = reverse("tickets.shortcut_update", args=[shortcut.id])
+
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=["name", "text"])
+
+        # names must be unique (case-insensitive)
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "trains", "text": "Trains are..."},
+            form_errors={"name": "Shortcut with this name already exists."},
+            object_unchanged=shortcut,
+        )
+
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Cars", "text": "Cars are..."}, success_status=302)
+
+        shortcut.refresh_from_db()
+        self.assertEqual(shortcut.name, "Cars")
+        self.assertEqual(shortcut.text, "Cars are...")
+
+    def test_delete(self):
+        shortcut1 = Shortcut.create(self.org, self.admin, "Planes", "Planes are...")
+        shortcut2 = Shortcut.create(self.org, self.admin, "Trains", "Trains are...")
+
+        delete_url = reverse("tickets.shortcut_delete", args=[shortcut1.id])
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
+        self.assertContains(response, "You are about to delete")
+
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=shortcut1, success_status=302)
+
+        # other shortcut unaffected
+        shortcut2.refresh_from_db()
+        self.assertTrue(shortcut2.is_active)
+
+    def test_list(self):
+        shortcut1 = Shortcut.create(self.org, self.admin, "Planes", "Planes are...")
+        shortcut2 = Shortcut.create(self.org, self.admin, "Trains", "Trains are...")
+        Shortcut.create(self.org2, self.admin, "Cars", "Other org")
+
+        list_url = reverse("tickets.shortcut_list")
+
+        self.assertRequestDisallowed(list_url, [None, self.agent])
+
+        self.assertListFetch(list_url, [self.editor, self.admin], context_objects=[shortcut1, shortcut2])
+
 
 class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
-    def setUp(self):
-        super().setUp()
-
+    @override_settings(ORG_LIMIT_DEFAULTS={"topics": 2})
     def test_create(self):
         create_url = reverse("tickets.topic_create")
 
         self.assertRequestDisallowed(create_url, [None, self.agent, self.user])
+
         self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name",))
 
+        # try to create with empty name
         self.assertCreateSubmit(
             create_url,
             self.admin,
@@ -253,63 +379,275 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"name": "This field is required."},
         )
 
+        # try to create with name that is too long
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"name": "Hot Topic"},
-            new_obj_query=Topic.objects.filter(name="Hot Topic", is_system=False),
+            {"name": "X" * 65},
+            form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Sales"},
+            new_obj_query=Topic.objects.filter(name="Sales", is_system=False),
             success_status=302,
         )
 
-    def test_update(self):
-        system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
-        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
-
-        # can't edit a system topic
-        update_url = reverse("tickets.topic_update", args=[system_topic.uuid])
-        self.assertUpdateSubmit(
-            update_url,
+        # try again with same name
+        self.assertCreateSubmit(
+            create_url,
             self.admin,
-            {"name": "My Topic"},
-            form_errors={"name": "Cannot edit system topic"},
-            object_unchanged=system_topic,
+            {"name": "sales"},
+            form_errors={"name": "Topic with this name already exists."},
         )
 
-        # check permissions
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Support"},
+            new_obj_query=Topic.objects.filter(name="Support", is_system=False),
+            success_status=302,
+        )
+
+        # try to create another now that we've reached the limit
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Training"},
+            form_errors={
+                "__all__": "This workspace has reached its limit of 2 topics. You must delete existing ones before you can create new ones."
+            },
+        )
+
+    def test_update(self):
+        topic = Topic.create(self.org, self.admin, "Hot Topic")
+
+        update_url = reverse("tickets.topic_update", args=[topic.id])
+
         self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+
         self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=["name"])
 
-        # names must be unique
-        update_url = reverse("tickets.topic_update", args=[user_topic.uuid])
+        # names must be unique (case-insensitive)
         self.assertUpdateSubmit(
             update_url,
             self.admin,
-            {"name": "General"},
-            form_errors={"name": "Topic already exists, please try another name"},
-            object_unchanged=user_topic,
+            {"name": "general"},
+            form_errors={"name": "Topic with this name already exists."},
+            object_unchanged=topic,
         )
 
-        # edit successfully
-        self.assertUpdateSubmit(update_url, self.admin, {"name": "Boring Tickets"}, success_status=302)
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Boring"}, success_status=302)
 
-        user_topic.refresh_from_db()
-        self.assertEqual(user_topic.name, "Boring Tickets")
+        topic.refresh_from_db()
+        self.assertEqual(topic.name, "Boring")
+
+        # can't edit a system topic
+        self.assertRequestDisallowed(
+            reverse("tickets.topic_update", args=[self.org.default_ticket_topic.id]), [self.admin]
+        )
 
     def test_delete(self):
-        system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
-        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
+        topic1 = Topic.create(self.org, self.admin, "Planes")
+        topic2 = Topic.create(self.org, self.admin, "Trains")
+        ticket = self.create_ticket(self.create_contact("Bob", urns=["twitter:bobby"]), topic=topic1)
 
-        delete_url = reverse("tickets.topic_delete", args=[user_topic.uuid])
+        delete_url = reverse("tickets.topic_delete", args=[topic1.id])
+
         self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
 
+        # deleting blocked for topic with tickets
         response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
-        self.assertContains(response, "You are about to delete")
+        self.assertContains(response, "Sorry, the <b>Planes</b> topic can't be deleted")
 
-        # submit to delete it
-        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=user_topic, success_status=302)
+        ticket.topic = topic2
+        ticket.save(update_fields=("topic",))
 
-        # we should have been redirected to the system topic
-        self.assertEqual(f"/ticket/{system_topic.uuid}/open/", response.url)
+        # try again...
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
+        self.assertContains(response, "You are about to delete the <b>Planes</b> topic")
+
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=topic1, success_status=302)
+
+        # other topic unafected
+        topic2.refresh_from_db()
+        self.assertTrue(topic2.is_active)
+
+        # we should have been redirected to the default topic
+        self.assertEqual(f"/ticket/{self.org.default_ticket_topic.uuid}/open/", response.url)
+
+
+class TeamCRUDLTest(TembaTest, CRUDLTestMixin):
+    @override_settings(ORG_LIMIT_DEFAULTS={"teams": 1})
+    def test_create(self):
+        create_url = reverse("tickets.team_create")
+
+        # nobody can access if new orgs feature not enabled
+        response = self.requestView(create_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(create_url, [None, self.agent, self.user, self.editor])
+
+        self.assertCreateFetch(create_url, [self.admin], form_fields=("name", "topics"))
+
+        sales = Topic.create(self.org, self.admin, "Sales")
+        for n in range(Team.max_topics + 1):
+            Topic.create(self.org, self.admin, f"Topic {n}")
+
+        # try to create with empty values
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "", "topics": []},
+            form_errors={"name": "This field is required."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "all topics", "topics": []},
+            form_errors={"name": "Team with this name already exists."},
+        )
+
+        # try to create with name that has invalid characters
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "\\ministry", "topics": []},
+            form_errors={"name": "Cannot contain the character: \\"},
+        )
+
+        # try to create with name that is too long
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "X" * 65, "topics": []},
+            form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
+        )
+
+        # try to create with too many topics
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Everything", "topics": [t.id for t in self.org.topics.all()]},
+            form_errors={"topics": "Teams can have at most 10 topics."},
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Sales", "topics": [sales.id]},
+            new_obj_query=Team.objects.filter(name="Sales", is_system=False),
+            success_status=302,
+        )
+
+        team = Team.objects.get(name="Sales")
+        self.assertEqual({sales}, set(team.topics.all()))
+
+        # try to create another now that we've reached the limit
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Training", "topics": [sales.id]},
+            form_errors={
+                "__all__": "This workspace has reached its limit of 1 teams. You must delete existing ones before you can create new ones."
+            },
+        )
+
+    def test_update(self):
+        sales = Topic.create(self.org, self.admin, "Sales")
+        marketing = Topic.create(self.org, self.admin, "Marketing")
+        team = Team.create(self.org, self.admin, "Sales", topics=[sales])
+
+        update_url = reverse("tickets.team_update", args=[team.id])
+
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.editor, self.admin2])
+
+        self.assertUpdateFetch(update_url, [self.admin], form_fields=["name", "topics"])
+
+        # names must be unique (case-insensitive)
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "all topics"},
+            form_errors={"name": "Team with this name already exists."},
+            object_unchanged=team,
+        )
+
+        self.assertUpdateSubmit(
+            update_url, self.admin, {"name": "Marketing", "topics": [marketing.id]}, success_status=302
+        )
+
+        team.refresh_from_db()
+        self.assertEqual(team.name, "Marketing")
+        self.assertEqual({marketing}, set(team.topics.all()))
+
+        # can't edit a system team
+        self.assertRequestDisallowed(
+            reverse("tickets.team_update", args=[self.org.default_ticket_team.id]), [self.admin]
+        )
+
+    def test_delete(self):
+        sales = Topic.create(self.org, self.admin, "Sales")
+        team1 = Team.create(self.org, self.admin, "Sales", topics=[sales])
+        team2 = Team.create(self.org, self.admin, "Other", topics=[sales])
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
+        invite = Invitation.create(self.org, self.admin, "newagent@textit.com", OrgRole.AGENT, team=team1)
+
+        delete_url = reverse("tickets.team_delete", args=[team1.id])
+
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.editor, self.admin2])
+
+        # deleting blocked for team with agents
+        response = self.assertDeleteFetch(delete_url, [self.admin])
+        self.assertContains(response, "Sorry, the <b>Sales</b> team can't be deleted while it still has agents")
+
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team2)
+
+        # deleting blocked for team with pending invitations
+        response = self.assertDeleteFetch(delete_url, [self.admin])
+        self.assertContains(
+            response, "Sorry, the <b>Sales</b> team can't be deleted while it still has pending invitations"
+        )
+
+        invite.release()
+
+        # try again...
+        response = self.assertDeleteFetch(delete_url, [self.admin])
+        self.assertContains(response, "You are about to delete the <b>Sales</b> team")
+
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=team1, success_status=302)
+
+        # other team unafected
+        team2.refresh_from_db()
+        self.assertTrue(team2.is_active)
+
+        # we should have been redirected to the team list
+        self.assertEqual("/team/", response.url)
+
+    def test_list(self):
+        sales = Topic.create(self.org, self.admin, "Sales")
+        team1 = Team.create(self.org, self.admin, "Sales", topics=[sales])
+        team2 = Team.create(self.org, self.admin, "Other", topics=[sales])
+        Team.create(self.org2, self.admin2, "Cars", topics=[])
+
+        list_url = reverse("tickets.team_list")
+
+        # nobody can access if new orgs feature not enabled
+        response = self.requestView(list_url, self.admin)
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
+
+        self.org.features = [Org.FEATURE_TEAMS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(list_url, [None, self.agent, self.editor])
+
+        self.assertListFetch(list_url, [self.admin], context_objects=[self.org.default_ticket_team, team2, team1])
 
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -317,63 +655,110 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         super().setUp()
 
         self.contact = self.create_contact("Bob", urns=["twitter:bobby"])
+        self.sales = Topic.create(self.org, self.admin, "Sales")
+        self.support = Topic.create(self.org, self.admin, "Support")
+
+        # create other agent users in teams with limited topic access
+        self.agent2 = self.create_user("agent2@textit.com")
+        sales_only = Team.create(self.org, self.admin, "Sales", topics=[self.sales])
+        self.org.add_user(self.agent2, OrgRole.AGENT, team=sales_only)
+
+        self.agent3 = self.create_user("agent3@textit.com")
+        support_only = Team.create(self.org, self.admin, "Support", topics=[self.support])
+        self.org.add_user(self.agent3, OrgRole.AGENT, team=support_only)
 
     def test_list(self):
         list_url = reverse("tickets.ticket_list")
-        ticket = self.create_ticket(self.contact, assignee=self.admin)
+
+        ticket = self.create_ticket(self.contact, assignee=self.admin, topic=self.support)
 
         # just a placeholder view for frontend components
         self.assertRequestDisallowed(list_url, [None])
-        self.assertListFetch(list_url, [self.user, self.editor, self.admin, self.agent], context_objects=[])
+        self.assertListFetch(
+            list_url, [self.user, self.editor, self.admin, self.agent, self.agent2, self.agent3], context_objects=[]
+        )
 
-        # can hit this page with a uuid
-        # TODO: work out reverse for deep link
-        # deep_link = reverse(
-        #    "tickets.ticket_list", kwargs={"folder": "all", "status": "open", "uuid": str(ticket.uuid)}
-        # )
+        # link to our ticket within the All folder
+        deep_link = f"{list_url}all/open/{ticket.uuid}/"
 
-        deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
-        response = self.assertListFetch(deep_link, [self.user, self.editor, self.admin, self.agent], context_objects=[])
+        response = self.assertListFetch(
+            deep_link, [self.user, self.editor, self.admin, self.agent, self.agent3], context_objects=[]
+        )
+        self.assertEqual("All", response.context["title"])
+        self.assertEqual("all", response.context["folder"])
+        self.assertEqual("open", response.context["status"])
 
         # our ticket exists on the first page, so it'll get flagged to be focused
         self.assertEqual(str(ticket.uuid), response.context["nextUUID"])
 
-        # deep link into a page that doesn't have our ticket
-        deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
+        # we have a specific ticket so we should show context menu for it
+        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
 
-        self.login(self.admin)
+        with self.assertNumQueries(11):
+            self.client.get(deep_link)
 
-        response = self.client.get(deep_link)
+        # try same request but for agent that can't see this ticket
+        response = self.assertListFetch(deep_link, [self.agent2], context_objects=[])
+        self.assertEqual("All", response.context["title"])
+        self.assertEqual("all", response.context["folder"])
+        self.assertEqual("open", response.context["status"])
+        self.assertNotIn("nextUUID", response.context)
 
-        # now our ticket is listed as the uuid and we were redirected to all/open
+        # can also link to our ticket within the Support topic
+        deep_link = f"{list_url}{self.support.uuid}/open/{ticket.uuid}/"
+
+        self.assertRequestDisallowed(deep_link, [self.agent2])  # doesn't have access to that topic
+
+        response = self.assertListFetch(
+            deep_link, [self.user, self.editor, self.admin, self.agent, self.agent3], context_objects=[]
+        )
+        self.assertEqual("Support", response.context["title"])
+        self.assertEqual(str(self.support.uuid), response.context["folder"])
+        self.assertEqual("open", response.context["status"])
+
+        # try to link to our ticket but with mismatched topic
+        deep_link = f"{list_url}{self.sales.uuid}/closed/{str(ticket.uuid)}/"
+
+        # redirected to All
+        response = self.assertListFetch(deep_link, [self.agent], context_objects=[])
         self.assertEqual("all", response.context["folder"])
         self.assertEqual("open", response.context["status"])
         self.assertEqual(str(ticket.uuid), response.context["uuid"])
 
-        # bad topic should give a 404
-        bad_topic_link = f"{list_url}{uuid4()}/open/{str(ticket.uuid)}/"
-        response = self.client.get(bad_topic_link)
+        # try to link to our ticket but with mismatched status
+        deep_link = f"{list_url}all/closed/{ticket.uuid}/"
+
+        # now our ticket is listed as the uuid and we were redirected to All folder with Open status
+        response = self.assertListFetch(deep_link, [self.agent], context_objects=[])
+        self.assertEqual("all", response.context["folder"])
+        self.assertEqual("open", response.context["status"])
+        self.assertEqual(str(ticket.uuid), response.context["uuid"])
+
+        # and again we have a specific ticket so we should show context menu for it
+        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
+
+        # non-existent topic should give a 404
+        bad_topic_link = f"{list_url}{uuid4()}/open/{ticket.uuid}/"
+        response = self.requestView(bad_topic_link, self.agent)
         self.assertEqual(404, response.status_code)
 
         response = self.client.get(
             list_url,
             content_type="application/json",
-            HTTP_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
+            HTTP_X_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
         )
-
         self.assertEqual(("tickets", "mine", "open", str(ticket.uuid)), response.context["temba_referer"])
 
-        # contacts in a flow get interrupt menu option instead
-        flow = self.get_flow("color")
+        # contacts in a flow don't get a start flow option
+        flow = self.create_flow("Test")
         self.contact.current_flow = flow
         self.contact.save()
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Interrupt"])
+        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note"])
 
         # closed our tickets don't get extra menu options
         ticket.status = Ticket.STATUS_CLOSED
-        ticket.save()
+        ticket.save(update_fields=("status",))
         deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
         self.assertContentMenu(deep_link, self.admin, [])
 
@@ -397,15 +782,33 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("tickets.ticket_menu")
 
         self.create_ticket(self.contact, assignee=self.admin)
-        self.create_ticket(self.contact, assignee=self.admin)
+        self.create_ticket(self.contact, assignee=self.admin, topic=self.sales)
         self.create_ticket(self.contact, assignee=None)
         self.create_ticket(self.contact, closed_on=timezone.now())
 
         self.assertRequestDisallowed(menu_url, [None])
         self.assertPageMenu(
-            menu_url, self.admin, ["My Tickets (2)", "Unassigned (1)", "All (3)", "Export", "New Topic", "General (3)"]
+            menu_url,
+            self.admin,
+            [
+                "My Tickets (2)",
+                "Unassigned (1)",
+                "All (3)",
+                "Shortcuts (0)",
+                "Export",
+                "New Topic",
+                "General (2)",
+                "Sales (1)",
+                "Support (0)",
+            ],
         )
-        self.assertPageMenu(menu_url, self.agent, ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (3)"])
+        self.assertPageMenu(
+            menu_url,
+            self.agent,
+            ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (2)", "Sales (1)", "Support (0)"],
+        )
+        self.assertPageMenu(menu_url, self.agent2, ["My Tickets (0)", "Unassigned (0)", "All (1)", "Sales (1)"])
+        self.assertPageMenu(menu_url, self.agent3, ["My Tickets (0)", "Unassigned (0)", "All (0)", "Support (0)"])
 
     @mock_mailroom
     def test_folder(self, mr_mocks):
@@ -465,7 +868,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_outgoing_msg(contact3, "Yes", created_by=self.agent)
 
         # fetching open folder returns all open tickets
-        response = self.client.get(open_url)
+        with self.assertNumQueries(12):
+            response = self.client.get(open_url)
+
         assert_tickets(response, [c2_t1, c1_t2, c1_t1])
 
         joes_open_tickets = contact1.tickets.filter(status="O").order_by("-opened_on")
@@ -501,7 +906,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "direction": "O",
                         "type": "T",
                         "created_on": matchers.ISODate(),
-                        "sender": {"id": self.admin.id, "email": "admin@nyaruka.com"},
+                        "sender": {"id": self.admin.id, "email": "admin@textit.com"},
                         "attachments": [],
                     },
                     "ticket": {
@@ -521,7 +926,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "direction": "O",
                         "type": "T",
                         "created_on": matchers.ISODate(),
-                        "sender": {"id": self.admin.id, "email": "admin@nyaruka.com"},
+                        "sender": {"id": self.admin.id, "email": "admin@textit.com"},
                         "attachments": [],
                     },
                     "ticket": {
@@ -530,7 +935,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                             "id": self.admin.id,
                             "first_name": "Andy",
                             "last_name": "",
-                            "email": "admin@nyaruka.com",
+                            "email": "admin@textit.com",
                         },
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
                         "last_activity_on": matchers.ISODate(),
@@ -577,7 +982,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "direction": "O",
                     "type": "T",
                     "created_on": matchers.ISODate(),
-                    "sender": {"id": self.agent.id, "email": "agent@nyaruka.com"},
+                    "sender": {"id": self.agent.id, "email": "agent@textit.com"},
                     "attachments": [],
                 },
                 "ticket": {
@@ -599,6 +1004,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         with patch("temba.tickets.views.TicketCRUDL.Folder.paginate_by", 1):
             response = self.client.get(open_url + "?_format=json")
             self.assertIsNotNone(response.json()["next"])
+
+        # requesting my tickets as servicing staff should return empty list
+        response = self.requestView(mine_url, self.customer_support, choose_org=self.org)
+        assert_tickets(response, [])
+
+        response = self.requestView(unassigned_url, self.customer_support, choose_org=self.org)
+        assert_tickets(response, [c2_t1, c1_t2])
 
     @mock_mailroom
     def test_note(self, mr_mocks):
@@ -1155,20 +1567,60 @@ class TopicTest(TembaTest):
         self.assertIsNone(topic15)
         self.assertEqual(Topic.ImportResult.IGNORED_LIMIT_REACHED, result)
 
+    def test_get_accessible(self):
+        topic1 = Topic.create(self.org, self.admin, "Sales")
+        topic2 = Topic.create(self.org, self.admin, "Support")
+        team1 = Team.create(self.org, self.admin, "Sales & Support", topics=[topic1, topic2])
+        team2 = Team.create(self.org, self.admin, "Nothing", topics=[])
+        agent2 = self.create_user("agent2@textit.com")
+        self.org.add_user(agent2, OrgRole.AGENT, team=team1)
+        agent3 = self.create_user("agent3@textit.com")
+        self.org.add_user(agent3, OrgRole.AGENT, team=team2)
+
+        self.assertEqual(
+            {self.org.default_ticket_topic, topic1, topic2}, set(Topic.get_accessible(self.org, self.admin))
+        )
+        self.assertEqual(
+            {self.org.default_ticket_topic, topic1, topic2}, set(Topic.get_accessible(self.org, self.agent))
+        )
+        self.assertEqual({topic1, topic2}, set(Topic.get_accessible(self.org, agent2)))
+        self.assertEqual(set(), set(Topic.get_accessible(self.org, agent3)))
+        self.assertEqual(
+            {self.org.default_ticket_topic, topic1, topic2}, set(Topic.get_accessible(self.org, self.customer_support))
+        )
+
     def test_release(self):
         topic1 = Topic.create(self.org, self.admin, "Sales")
+        topic2 = Topic.create(self.org, self.admin, "Support")
         flow = self.create_flow("Test")
         flow.topic_dependencies.add(topic1)
+        team = Team.create(self.org, self.admin, "Sales & Support", topics=[topic1, topic2])
+        ticket = self.create_ticket(self.create_contact("Ann"), topic=topic1)
+        self.create_ticket(self.create_contact("Bob"), topic=topic2)
+
+        # can't release a topic with tickets
+        with self.assertRaises(AssertionError):
+            topic1.release(self.admin)
+
+        ticket.delete()
 
         topic1.release(self.admin)
 
         self.assertFalse(topic1.is_active)
         self.assertTrue(topic1.name.startswith("deleted-"))
 
+        # topic should be removed from team
+        self.assertEqual({topic2}, set(team.topics.all()))
+
+        # counts should be deleted
+        self.assertEqual(0, self.org.counts.filter(scope__startswith=f"tickets:O:{topic1.id}:").count())
+        self.assertEqual(1, self.org.counts.filter(scope__startswith=f"tickets:O:{topic2.id}:").count())
+
+        # flow should be flagged as having issues
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
 
-        # can't release default topic
+        # can't release system topic
         with self.assertRaises(AssertionError):
             self.org.default_ticket_topic.release(self.admin)
 
@@ -1177,22 +1629,27 @@ class TopicTest(TembaTest):
         with self.assertRaises(AssertionError):
             topic1.release(self.admin)
 
-        # can delete a topic with no tickets
-        ticket.delete()
-        topic1.release(self.admin)
-
 
 class TeamTest(TembaTest):
     def test_create(self):
-        team1 = Team.create(self.org, self.admin, "Sales")
-        self.admin.set_team(team1)
-        self.agent.set_team(team1)
+        sales = Topic.create(self.org, self.admin, "Sales")
+        support = Topic.create(self.org, self.admin, "Support")
+        team1 = Team.create(self.org, self.admin, "Sales & Support", topics=[sales, support])
+        agent2 = self.create_user("tickets@textit.com")
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
+        self.org.add_user(agent2, OrgRole.AGENT, team=team1)
 
-        self.assertEqual("Sales", team1.name)
-        self.assertEqual("Sales", str(team1))
-        self.assertEqual(f'<Team: id={team1.id} name="Sales">', repr(team1))
+        self.assertEqual("Sales & Support", team1.name)
+        self.assertEqual("Sales & Support", str(team1))
+        self.assertEqual(f'<Team: id={team1.id} name="Sales & Support">', repr(team1))
+        self.assertEqual({self.agent, agent2}, set(team1.get_users()))
+        self.assertEqual({sales, support}, set(team1.topics.all()))
+        self.assertFalse(team1.all_topics)
 
-        self.assertEqual({self.admin, self.agent}, set(team1.get_users()))
+        # create an unrestricted team
+        team2 = Team.create(self.org, self.admin, "Any Topic", all_topics=True)
+        self.assertEqual(set(), set(team2.topics.all()))
+        self.assertTrue(team2.all_topics)
 
         # try to create with invalid name
         with self.assertRaises(AssertionError):
@@ -1200,26 +1657,31 @@ class TeamTest(TembaTest):
 
         # try to create with name that already exists
         with self.assertRaises(AssertionError):
-            Team.create(self.org, self.admin, "Sales")
+            Team.create(self.org, self.admin, "Sales & Support")
 
     def test_release(self):
         team1 = Team.create(self.org, self.admin, "Sales")
-        self.admin.set_team(team1)
-        self.agent.set_team(team1)
+        self.org.add_user(self.agent, OrgRole.AGENT, team=team1)
 
         team1.release(self.admin)
 
         self.assertFalse(team1.is_active)
         self.assertTrue(team1.name.startswith("deleted-"))
-
         self.assertEqual(0, team1.get_users().count())
+
+        # check agent was re-assigned to default team
+        self.assertEqual({self.agent}, set(self.org.default_ticket_team.get_users()))
+
+        # can't release system team
+        with self.assertRaises(AssertionError):
+            self.org.default_ticket_team.release(self.admin)
 
 
 class TicketDailyCountTest(TembaTest):
     def test_model(self):
         sales = Team.create(self.org, self.admin, "Sales")
-        self.agent.set_team(sales)
-        self.editor.set_team(sales)
+        self.org.add_user(self.agent, OrgRole.AGENT, team=sales)
+        self.org.add_user(self.editor, OrgRole.AGENT, team=sales)
 
         self._record_opening(self.org, date(2022, 4, 30))
         self._record_opening(self.org, date(2022, 5, 3))
@@ -1314,9 +1776,11 @@ class TicketDailyCountTest(TembaTest):
 
     def _record_reply(self, org, user, d: date):
         TicketDailyCount.objects.create(count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}", day=d, count=1)
-        if user.settings.team:
+
+        team = OrgMembership.objects.get(org=org, user=user).team
+        if team:
             TicketDailyCount.objects.create(
-                count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{user.settings.team.id}", day=d, count=1
+                count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{team.id}", day=d, count=1
             )
         TicketDailyCount.objects.create(
             count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
@@ -1360,7 +1824,7 @@ class TicketDailyTimingTest(TembaTest):
 
         assert_timings()
 
-        TicketDailyTiming.squash()
+        squash_ticket_counts()
 
         assert_timings()
 

@@ -1,3 +1,4 @@
+import itertools
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone as tzone
@@ -11,21 +12,10 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 
 from temba import mailroom
-from temba.utils import chunk_list
 from temba.utils.crons import cron_task
 from temba.utils.models import delete_in_batches
 
-from .models import (
-    Flow,
-    FlowCategoryCount,
-    FlowNodeCount,
-    FlowPathCount,
-    FlowRevision,
-    FlowRun,
-    FlowRunStatusCount,
-    FlowSession,
-    FlowStartCount,
-)
+from .models import Flow, FlowActivityCount, FlowCategoryCount, FlowRevision, FlowRun, FlowSession, FlowStartCount
 
 logger = logging.getLogger(__name__)
 
@@ -39,18 +29,20 @@ def update_session_wait_expires(flow_id):
     flow = Flow.objects.get(id=flow_id)
     session_ids = flow.sessions.filter(status=FlowSession.STATUS_WAITING).values_list("id", flat=True)
 
-    for id_batch in chunk_list(session_ids, 1000):
+    for id_batch in itertools.batched(session_ids, 1000):
         batch = FlowSession.objects.filter(id__in=id_batch)
         batch.update(wait_expires_on=F("wait_started_on") + timedelta(minutes=flow.expires_after_minutes))
 
 
 @cron_task(lock_timeout=7200)
+def squash_activity_counts():
+    FlowActivityCount.squash()
+
+
+@cron_task(lock_timeout=7200)
 def squash_flow_counts():
-    FlowNodeCount.squash()
-    FlowRunStatusCount.squash()
     FlowCategoryCount.squash()
     FlowStartCount.squash()
-    FlowPathCount.squash()
 
 
 @cron_task()
@@ -93,7 +85,7 @@ def interrupt_flow_sessions():
         by_org[session.org].append(session)
 
     for org, sessions in by_org.items():
-        for batch in chunk_list(sessions, 100):
+        for batch in itertools.batched(sessions, 100):
             mailroom.queue_interrupt(org, sessions=batch)
             num_interrupted += len(sessions)
 

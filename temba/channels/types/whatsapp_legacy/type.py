@@ -1,4 +1,5 @@
 import base64
+import logging
 
 import requests
 
@@ -23,6 +24,8 @@ CONFIG_FB_TEMPLATE_LIST_DOMAIN = "fb_template_list_domain"
 CONFIG_FB_TEMPLATE_API_VERSION = "fb_template_list_domain_api_version"
 
 TEMPLATE_LIST_URL = "https://%s/%s/%s/message_templates"
+
+logger = logging.getLogger(__name__)
 
 
 class WhatsAppLegacyType(ChannelType):
@@ -49,7 +52,7 @@ class WhatsAppLegacyType(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
-            re_path(r"^(?P<uuid>[a-z0-9\-]+)/refresh$", RefreshView.as_view(channel_type=self), name="refresh"),
+            re_path(r"^(?P<uuid>[a-z0-9\-]+)/refresh/$", RefreshView.as_view(channel_type=self), name="refresh"),
         ]
 
     def get_api_headers(self, channel):
@@ -113,14 +116,23 @@ class WhatsAppLegacyType(ChannelType):
 
     def check_health(self, channel):
         headers = self.get_api_headers(channel)
+        start = timezone.now()
 
         try:
             response = requests.get(channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=headers)
         except Exception as ex:
-            raise Exception(f"Could not establish a connection with the WhatsApp server: {ex}")
+            logger.debug(f"Could not establish a connection with the WhatsApp server: {ex}")
+            return
 
         if response.status_code >= 400:
-            raise requests.RequestException(f"Error checking API health: {response.content}", response=response)
+            HTTPLog.from_exception(
+                HTTPLog.WHATSAPP_CHECK_HEALTH,
+                requests.RequestException(f"Error checking API health: {response.content}", response=response),
+                start,
+                channel=channel,
+            )
+            logger.debug(f"Error checking API health: {response.content}")
+            return
 
         return response
 

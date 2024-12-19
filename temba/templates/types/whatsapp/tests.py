@@ -129,6 +129,96 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}], trans.variables)
         self.assertTrue(trans.is_supported)
 
+        # try a template with multiple components with components order changed
+        trans = self.type.update_local(
+            channel,
+            {
+                "name": "order_template",
+                "components": [
+                    {"type": "FOOTER", "text": "Thanks for your patience"},
+                    {
+                        "type": "BODY",
+                        "text": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
+                        "example": {"body_text": [["#123 for shoes", "3"]]},
+                    },
+                    {
+                        "type": "BUTTONS",
+                        "buttons": [
+                            {"type": "QUICK_REPLY", "text": "Yes {{1}}"},
+                            {"type": "QUICK_REPLY", "text": "No"},
+                            {"type": "PHONE_NUMBER", "text": "Call center", "phone_number": "+1234"},
+                            {
+                                "type": "URL",
+                                "text": "Check website",
+                                "url": r"https:\/\/example.com\/?wa_customer={{1}}",
+                                "example": [r"https:\/\/example.com\/?wa_customer=id_123"],
+                            },
+                            {
+                                "type": "URL",
+                                "text": "Check website",
+                                "url": r"https:\/\/example.com\/help",
+                                "example": [r"https:\/\/example.com\/help"],
+                            },
+                        ],
+                    },
+                    {"type": "HEADER", "format": "TEXT", "text": "Your order!"},
+                ],
+                "language": "en",
+                "status": "APPROVED",
+                "rejected_reason": "NONE",
+                "category": "UTILITY",
+            },
+        )
+        self.assertEqual("order_template", trans.template.name)
+        self.assertEqual(
+            [
+                {"name": "header", "type": "header/text", "content": "Your order!", "variables": {}},
+                {
+                    "name": "body",
+                    "type": "body/text",
+                    "content": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
+                    "variables": {"1": 0, "2": 1},
+                },
+                {
+                    "name": "footer",
+                    "type": "footer/text",
+                    "content": "Thanks for your patience",
+                    "variables": {},
+                },
+                {
+                    "name": "button.0",
+                    "type": "button/quick_reply",
+                    "content": "Yes {{1}}",
+                    "variables": {"1": 2},
+                },
+                {"name": "button.1", "type": "button/quick_reply", "content": "No", "variables": {}},
+                {
+                    "name": "button.2",
+                    "type": "button/phone_number",
+                    "content": "+1234",
+                    "display": "Call center",
+                    "variables": {},
+                },
+                {
+                    "name": "button.3",
+                    "type": "button/url",
+                    "content": r"https:\/\/example.com\/?wa_customer={{1}}",
+                    "display": "Check website",
+                    "variables": {"1": 3},
+                },
+                {
+                    "name": "button.4",
+                    "type": "button/url",
+                    "content": r"https:\/\/example.com\/help",
+                    "display": "Check website",
+                    "variables": {},
+                },
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}], trans.variables)
+        self.assertTrue(trans.is_supported)
+
         # try a template with non-text header
         trans = self.type.update_local(
             channel,

@@ -5,10 +5,10 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     container:
-      image: python:3.11-bullseye
+      image: python:3.12-bullseye
     env:
       node-version: '20'
-      mailroom-version: '9.3.3'
+      mailroom-version: '9.3.59'
 
     services:
       redis:
@@ -62,6 +62,11 @@ jobs:
           ./mailroom -db=postgres://temba:temba@postgres:5432/temba?sslmode=disable -redis=redis://redis:6379/15 -log-level=info > mailroom.log &
         working-directory: ${{ github.workspace }}
 
+      - name: Install and start DynamoDB
+        uses: rrainn/dynamodb-action@v4.0.0
+        with:
+          port: 6000
+
       - name: Initialize environment
         run: |
           npm install -g yarn less
@@ -69,6 +74,12 @@ jobs:
           yarn install
           ln -s settings.py.dev temba/settings.py
           poetry run python manage.py migrate
+          poetry run python manage.py migrate_dynamo --testing
+          # fetch, extract and start mailroom
+          wget https://github.com/${{ github.repository_owner }}/mailroom/releases/download/v${{ env.mailroom-version }}/mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz
+          tar -xvf mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz mailroom
+          # start mailroom but use different redis db so that it doesn't actually handle tasks
+          ./mailroom -db=postgres://temba:temba@localhost:5432/temba?sslmode=disable -redis=redis://localhost:6379/15 -log-level=info > mailroom.log &
         working-directory: ${{ github.workspace }} # https://github.com/actions/runner/issues/2058#issuecomment-2085119510
 
       - name: Run pre-test checks

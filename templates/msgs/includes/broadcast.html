@@ -19,7 +19,7 @@
         {% endif %}
       </div>
     </div>
-    <div class="flex flex-row p-4">
+    <div class="flex flex-row p-4 flex-grow">
       <div class="flex-grow">
         <div class="text">
           {{ translation.text }}
@@ -56,21 +56,7 @@
         {% endfor %}
       </div>
     </div>
-    {% if not broadcast.schedule %}
-      <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule text-center">
-        <div class="inline-block align-bottom text-gray-700 flex">
-          {% if broadcast.status == "Q" %}
-            <temba-icon name="progress_spinner" spin class="mr-1">
-            </temba-icon>
-          {% endif %}
-          {% blocktrans count message_count=broadcast.get_message_count %}
-             {{message_count}} message
-          {% plural %}
-             {{message_count}} messages
-          {% endblocktrans %}
-        </div>
-      </div>
-    {% else %}
+    {% if broadcast.schedule %}
       <div class="flex flex-row pr-4 bg-gray-100 text-sm schedule">
         <div class="text-gray-700 flex flex-wrap items-center" style="min-height:2em">
           {% if broadcast.schedule and broadcast.schedule.repeat_period != "O" %}
@@ -102,6 +88,28 @@
             </temba-icon>
           {% endif %}
         {% endif %}
+      </div>
+    {% else %}
+      <div class="flex flex-col bg-gray-100 text-sm schedule">
+        <div class="text-gray-700 flex items-center flex-row px-2" style="min-height:2em">
+          <div class="pr-4">
+            {% blocktrans with message_count=broadcast.get_message_count|intcomma count counter=broadcast.get_message_count %}
+             {{message_count}} message
+          {% plural %}
+             {{message_count}} messages
+          {% endblocktrans %}
+          </div>
+          <div class="flex-grow flex flex-row py-2">
+            {% if broadcast.status == "P" or broadcast.status == "S" or broadcast.status == "Q" %}
+              <temba-start-progress id="{{ broadcast.id }}"
+                                    class="flex-grow"
+                                    interrupttitle="Interrupt Broadcast"
+                                    interruptendpoint="{% url 'msgs.broadcast_interrupt' broadcast.id %}"
+                                    statusendpoint="{% url 'msgs.broadcast_status' %}?id={{ broadcast.id }}">
+              </temba-start-progress>
+            {% endif %}
+          </div>
+        </div>
       </div>
     {% endif %}
   </div>

@@ -1,7 +1,15 @@
-{% extends "smartmin/list.html" %}
+{% extends "orgs/base/list.html" %}
 {% load smartmin temba i18n humanize %}
 
-{% block content %}
+{% block modaxes %}
+  <temba-modax header="{{ _("Update Global") |escapejs }}" -temba-redirected="refreshGlobals" id="update-global">
+  </temba-modax>
+  <temba-modax header="{{ _("Delete Global") |escapejs }}" -temba-redirected="refreshGlobals" id="delete-global">
+  </temba-modax>
+  <temba-modax header="{{ _("Usages") |escapejs }}" id="usages-global">
+  </temba-modax>
+{% endblock modaxes %}
+{% block pre-table %}
   <div class="mb-4">
     {% blocktrans trimmed %}
       Globals are variables you can use across all of your flows but
@@ -10,86 +18,52 @@
       might change later.
     {% endblocktrans %}
   </div>
-  <div class="flex">
-    <div class="flex-grow self-end items-end">
-      <div class="flex flex-col">
-        <form method="get" action="{{ request.path }}" id="search-form">
-          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-          </temba-textinput>
-          <input type="submit" class="hide">
-        </form>
-        {% if search_error %}
-          <div class="mb-4 ml-2">
-            <span class="search-error">{{ search_error }}</span>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  {% block pre-table %}
-    <temba-modax header="{{ _("Update Global") |escapejs }}" -temba-redirected="refreshGlobals" id="update-global">
-    </temba-modax>
-    <temba-modax header="{{ _("Delete Global") |escapejs }}" -temba-redirected="refreshGlobals" id="delete-global">
-    </temba-modax>
-    <temba-modax header="{{ _("Usages") |escapejs }}" id="usages-global">
-    </temba-modax>
-  {% endblock pre-table %}
-  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
-  <div class="flex-grow overflow-y-auto shadow">
-    <table class="list lined scrolled">
-      <tbody>
-        {% for obj in object_list %}
-          <tr onclick="showUpdateGlobalModal({{ obj.id }})" class="hover-linked update">
-            <td style="min-width: 50px">{{ obj.name }}</td>
-            <td style="font-family: monospace; font-size: 12px;">@globals.{{ obj.key }}</td>
-            <td>
-              <div class="break-all">{{ obj.value|truncatechars:25 }}</div>
-            </td>
-            <td class="w-12">
-              <div class="flex text-center">
-                {% with usage_count=obj.usage_count %}
-                  {% if usage_count %}
-                    <div onclick="event.stopPropagation(); showGlobalUsagesModal('{{ obj.uuid }}');" class="uses">
-                      <div class="lbl linked">
-                        {% blocktrans trimmed count counter=usage_count %}
-                          {{ counter }} use
-                        {% plural %}
-                          {{ counter }} uses
-                        {% endblocktrans %}
-                      </div>
+{% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled">
+    <tbody>
+      {% for obj in object_list %}
+        <tr onclick="showUpdateGlobalModal({{ obj.id }})" class="hover-linked update">
+          <td style="min-width: 50px">{{ obj.name }}</td>
+          <td style="font-family: monospace; font-size: 12px;">@globals.{{ obj.key }}</td>
+          <td>
+            <div class="break-all">{{ obj.value|truncatechars:25 }}</div>
+          </td>
+          <td class="w-12">
+            <div class="flex text-center">
+              {% with usage_count=obj.usage_count %}
+                {% if usage_count %}
+                  <div onclick="event.stopPropagation(); showGlobalUsagesModal('{{ obj.uuid }}');" class="uses">
+                    <div class="lbl linked">
+                      {% blocktrans trimmed count counter=usage_count %}
+                        {{ counter }} use
+                      {% plural %}
+                        {{ counter }} uses
+                      {% endblocktrans %}
                     </div>
-                  {% endif %}
-                {% endwith %}
-              </div>
-            </td>
+                  </div>
+                {% endif %}
+              {% endwith %}
+            </div>
+          </td>
+          {% if org_perms.globals.global_delete %}
             <td class="w-10">
-              {% if org_perms.globals.global_delete %}
-                <div style="visibility:hidden"
-                     onclick="event.stopPropagation(); showDeleteGlobalModal('{{ obj.uuid }}');"
-                     class="pl-2 pt-1 delete-link linked text-gray-400">
-                  <temba-icon name="delete_small">
-                  </temba-icon>
-                </div>
-              {% endif %}
+              <temba-icon name="delete"
+                          clickable="true"
+                          style="--icon-color:#bbb"
+                          onclick="event.stopPropagation(); showDeleteGlobalModal('{{ obj.uuid }}');">
+              </temba-icon>
             </td>
-          </tr>
-        {% empty %}
-          <tr class="empty_list">
-            <td colspan="99">
-              {% if search %}
-                {% blocktrans trimmed with search=search %}
-                  No globals found for {{ search }}
-                {% endblocktrans %}
-              {% else %}
-                {% trans "No globals" %}
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-{% endblock content %}
+          {% endif %}
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No globals" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
 {% block extra-script %}
   {{ block.super }}
   <script>
@@ -115,14 +89,6 @@
 {% block extra-style %}
   {{ block.super }}
   <style type="text/css">
-    tr.global {
-      cursor: pointer;
-    }
-
-    tr:hover .delete-link {
-      visibility: visible !important;
-    }
-
     td.dependencies {
       text-align: right;
       white-space: nowrap;

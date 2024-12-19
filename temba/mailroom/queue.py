@@ -10,9 +10,6 @@ from temba.utils import json
 HIGH_PRIORITY = -10000000
 DEFAULT_PRIORITY = 0
 
-QUEUE_PATTERN = "%s:%d"
-ACTIVE_PATTERN = "%s:active"
-
 
 class BatchTask(Enum):
     START_FLOW = "start_flow"
@@ -112,11 +109,11 @@ def _queue_batch_task(org_id, task_type, task, priority):
 
     r = get_redis_connection("default")
     pipe = r.pipeline()
-    _queue_task(pipe, org_id, "batch", task_type, task, priority)
+    _queue_task(pipe, org_id, task_type, task, priority)
     pipe.execute()
 
 
-def _queue_task(pipe, org_id, queue, task_type, task, priority):
+def _queue_task(pipe, org_id, task_type, task, priority):
     """
     Queues a task to mailroom
 
@@ -136,14 +133,11 @@ def _queue_task(pipe, org_id, queue, task_type, task, priority):
     # create our payload
     payload = _create_mailroom_task(task_type, task)
 
-    org_queue = QUEUE_PATTERN % (queue, org_id)
-    active_queue = ACTIVE_PATTERN % queue
-
     # push onto our org queue
-    pipe.zadd(org_queue, {json.dumps(payload): score})
+    pipe.zadd(f"tasks:batch:{org_id}", {json.dumps(payload): score})
 
     # and mark that org as active
-    pipe.zincrby(active_queue, 0, org_id)
+    pipe.zincrby("tasks:batch:active", 0, org_id)
 
 
 def _create_mailroom_task(task_type, task):

@@ -1,0 +1,72 @@
+{% extends "orgs/base/list.html" %}
+{% load smartmin temba i18n %}
+
+{% block modaxes %}
+  <temba-modax header="{{ _("Update Shortcut") |escapejs }}" id="update-shortcut">
+  </temba-modax>
+  <temba-modax header="{{ _("Delete Shortcut") |escapejs }}" id="delete-shortcut">
+  </temba-modax>
+{% endblock modaxes %}
+{% block pre-table %}
+  <div class="mb-4">
+    {% blocktrans trimmed %}
+      These are canned responses that agents can use to quickly reply to tickets.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled">
+    <tbody>
+      {% for obj in object_list %}
+        <tr onclick="showUpdateShortcutModal({{ obj.id }})" class="hover-linked update">
+          <td class="whitespace-nowrap"
+              style="min-width: 50px;
+                     max-width:150px;
+                     overflow: hidden;
+                     text-overflow: ellipsis">{{ obj.name }}</td>
+          <td>
+            <div style="overflow: hidden;
+                        text-overflow: ellipsis;
+                        display: -webkit-box;
+                        line-height: 16px;
+                        max-height: 16px;
+                        -webkit-line-clamp: 1;
+                        -webkit-box-orient: vertical">{{ obj.text }}</div>
+          </td>
+          <td class="w-10">
+            {% if org_perms.tickets.shortcut_delete %}
+              <temba-icon name="delete"
+                          clickable="true"
+                          style="--icon-color:#bbb"
+                          onclick="event.stopPropagation(); showDeleteShortcutModal({{ obj.id }});">
+              </temba-icon>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No shortcuts" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    // refresh our cached shortcuts in case we just created one
+    document.querySelector("temba-store").refreshShortcuts();
+
+    function showUpdateShortcutModal(id) {
+      var modax = document.querySelector('#update-shortcut');
+      modax.endpoint = `/shortcut/update/${id}/`;
+      modax.open = true;
+    }
+
+    function showDeleteShortcutModal(id) {
+      var modax = document.querySelector('#delete-shortcut');
+      modax.endpoint = `/shortcut/delete/${id}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}

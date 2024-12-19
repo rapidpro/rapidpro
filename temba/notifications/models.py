@@ -1,7 +1,6 @@
 import logging
 from abc import abstractmethod
 
-from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
 from django.urls import reverse
@@ -9,9 +8,8 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactImport
-from temba.orgs.models import Export, Org
+from temba.orgs.models import Export, Org, User
 from temba.utils.email import EmailSender
-from temba.utils.models import SquashableModel
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +163,7 @@ class Notification(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
-    notification_type = models.CharField(max_length=16)
+    notification_type = models.CharField(max_length=32)
     medium = models.CharField(max_length=2)
 
     # The scope is what we maintain uniqueness of unseen notifications for within an org. For some notification types,
@@ -182,6 +180,7 @@ class Notification(models.Model):
     export = models.ForeignKey(Export, null=True, on_delete=models.PROTECT, related_name="notifications")
     contact_import = models.ForeignKey(ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications")
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
+    data = models.JSONField(null=True, default=dict)
 
     @classmethod
     def create_all(cls, org, notification_type: str, *, scope: str, users, medium: str = MEDIUM_UI, **kwargs):
@@ -223,7 +222,7 @@ class Notification(models.Model):
 
     @classmethod
     def get_unseen_count(cls, org: Org, user: User) -> int:
-        return NotificationCount.get_total(org, user)
+        return org.counts.filter(scope=f"notifications:{user.id}:U").sum()
 
     @property
     def type(self):
@@ -260,33 +259,3 @@ class Notification(models.Model):
                 condition=Q(is_seen=False),
             ),
         ]
-
-
-class NotificationCount(SquashableModel):
-    """
-    A count of a user's unseen notifications in a specific org
-    """
-
-    squash_over = ("org_id", "user_id")
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notification_counts")
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notification_counts")
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-            WITH deleted as (
-                DELETE FROM %(table)s WHERE "org_id" = %%s AND "user_id" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("org_id", "user_id", "count", "is_squashed")
-            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-            """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.org_id, distinct_set.user_id) * 2
-
-    @classmethod
-    def get_total(cls, org: Org, user: User) -> int:
-        return cls.sum(cls.objects.filter(org=org, user=user))

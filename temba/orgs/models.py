@@ -20,11 +20,12 @@ from timezone_field import TimeZoneField
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import OpClass
 from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import models, transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -41,6 +42,7 @@ from temba.utils.dates import datetime_to_str
 from temba.utils.email import EmailSender
 from temba.utils.fields import UploadToIdPathAndRename
 from temba.utils.models import JSONField, TembaUUIDMixin, delete_in_batches
+from temba.utils.models.counts import BaseScopedCount
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_secret, generate_token
 from temba.utils.timezones import timezone_to_country_code
@@ -203,13 +205,6 @@ class User(AuthUser):
                 owned_orgs.append(org)
         return owned_orgs
 
-    def set_team(self, team):
-        """
-        Sets the ticketing team for this user
-        """
-        self.settings.team = team
-        self.settings.save(update_fields=("team",))
-
     def record_auth(self):
         """
         Records that this user authenticated
@@ -263,11 +258,6 @@ class User(AuthUser):
         """
         Determines if a user has the given permission in the given org.
         """
-        if self.is_staff:
-            return True
-
-        if self.is_anonymous:  # pragma: needs cover
-            return False
 
         # has it innately? e.g. Granter group
         if self.has_perm(permission):
@@ -321,13 +311,12 @@ class User(AuthUser):
 
 class UserSettings(models.Model):
     """
-    Custom fields for users
+    Additional non-org specific fields for users
     """
 
     STATUS_UNVERIFIED = "U"
     STATUS_VERIFIED = "V"
     STATUS_FAILING = "F"
-
     STATUS_CHOICES = (
         (STATUS_UNVERIFIED, _("Unverified")),
         (STATUS_VERIFIED, _("Verified")),
@@ -336,7 +325,6 @@ class UserSettings(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="settings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
-    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)
@@ -345,6 +333,7 @@ class UserSettings(models.Model):
     email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
     email_verification_secret = models.CharField(max_length=64, db_index=True)
     avatar = models.ImageField(upload_to=UploadToIdPathAndRename("avatars/"), storage=public_file_storage, null=True)
+    is_system = models.BooleanField(default=False)
 
 
 @receiver(post_save, sender=User)
@@ -399,6 +388,10 @@ class OrgRole(Enum):
     @cached_property
     def api_permissions(self) -> set:
         return set(settings.API_PERMISSIONS.get(self.group_name, ()))
+
+    @classmethod
+    def choices(cls):
+        return [(r.code, r.display) for r in cls if r != cls.VIEWER]
 
     def has_perm(self, permission: str) -> bool:
         """
@@ -463,10 +456,12 @@ class Org(SmartModel):
     FEATURE_USERS = "users"  # can invite users to this org
     FEATURE_NEW_ORGS = "new_orgs"  # can create new workspace with same login
     FEATURE_CHILD_ORGS = "child_orgs"  # can create child workspaces of this org
+    FEATURE_TEAMS = "teams"  # can create teams to organize agent users
     FEATURES_CHOICES = (
         (FEATURE_USERS, _("Users")),
         (FEATURE_NEW_ORGS, _("New Orgs")),
         (FEATURE_CHILD_ORGS, _("Child Orgs")),
+        (FEATURE_TEAMS, _("Teams")),
     )
 
     LIMIT_CHANNELS = "channels"
@@ -537,14 +532,14 @@ class Org(SmartModel):
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
 
-    # when this org was released and when it was actually deleted
+    suspended_on = models.DateTimeField(null=True)
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._user_role_cache = {}
+        self._membership_cache = {}
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -657,10 +652,13 @@ class Org(SmartModel):
 
         if not self.is_suspended:
             self.is_suspended = True
+            self.suspended_on = timezone.now()
             self.modified_on = timezone.now()
-            self.save(update_fields=("is_suspended", "modified_on"))
+            self.save(update_fields=("is_suspended", "suspended_on", "modified_on"))
 
-            self.children.filter(is_active=True).update(is_suspended=True, modified_on=timezone.now())
+            self.children.filter(is_active=True).update(
+                is_suspended=True, suspended_on=timezone.now(), modified_on=timezone.now()
+            )
 
             OrgSuspendedIncidentType.get_or_create(self)  # create incident which will notify admins
 
@@ -674,10 +672,13 @@ class Org(SmartModel):
 
         if self.is_suspended:
             self.is_suspended = False
+            self.suspended_on = None
             self.modified_on = timezone.now()
-            self.save(update_fields=("is_suspended", "modified_on"))
+            self.save(update_fields=("is_suspended", "suspended_on", "modified_on"))
 
-            self.children.filter(is_active=True).update(is_suspended=False, modified_on=timezone.now())
+            self.children.filter(is_active=True).update(
+                is_suspended=False, suspended_on=None, modified_on=timezone.now()
+            )
 
             OrgSuspendedIncidentType.get_or_create(self).end()
 
@@ -843,6 +844,44 @@ class Org(SmartModel):
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
+    def is_outbox_full(self) -> bool:
+        from temba.msgs.models import SystemLabel
+
+        return SystemLabel.get_counts(self)[SystemLabel.TYPE_OUTBOX] >= 1_000_000
+
+    def get_estimated_send_time(self, msg_count):
+        """
+        Estimates the time it will take to send the given number of messages
+        """
+        channels = self.channels.filter(is_active=True)
+        channel_counts = {}
+        month_ago = timezone.now() - timedelta(days=30)
+        total_count = 0
+
+        for channel in channels:
+            channel_count = channel.get_msg_count(since=month_ago)
+            total_count += channel_count
+            channel_counts[channel.uuid] = {"count": channel_count, "tps": channel.tps or 10}
+
+        # balance all channels equally if we have nothing to go on
+        if not total_count:
+            for channel_uuid in channel_counts:
+                channel_counts[channel_uuid]["count"] = 1
+            total_count = len(channel_counts)
+
+        # calculate pct of messages that will go to each channel
+        for channel_uuid, channel_count in channel_counts.items():
+            pct = channel_count["count"] / total_count
+            channel_counts[channel_uuid]["time"] = pct * msg_count / channel_count["tps"]
+
+        longest_time = 0
+        if channel_counts:
+            longest_time = max(
+                [channel_count["time"] if "time" in channel_count else 0 for channel_count in channel_counts.values()]
+            )
+
+        return timedelta(seconds=longest_time)
+
     def get_channel(self, role: str, scheme: str):
         """
         Gets a channel for this org which supports the given role and scheme
@@ -915,6 +954,10 @@ class Org(SmartModel):
     @cached_property
     def default_ticket_topic(self):
         return self.topics.get(is_default=True)
+
+    @cached_property
+    def default_ticket_team(self):
+        return self.teams.get(is_default=True)
 
     def get_resthooks(self):
         """
@@ -999,7 +1042,7 @@ class Org(SmartModel):
         """
         Gets users in this org, filtered by role or permission.
         """
-        qs = self.users.filter(is_active=True)
+        qs = self.users.filter(is_active=True).select_related("settings")
 
         if with_perm:
             app_label, codename = with_perm.split(".")
@@ -1014,9 +1057,9 @@ class Org(SmartModel):
 
     def get_admins(self):
         """
-        Convenience method for getting all org administrators
+        Convenience method for getting all org administrators, excluding system users
         """
-        return self.get_users(roles=[OrgRole.ADMINISTRATOR])
+        return self.get_users(roles=[OrgRole.ADMINISTRATOR]).exclude(settings__is_system=True)
 
     def has_user(self, user: User) -> bool:
         """
@@ -1024,26 +1067,30 @@ class Org(SmartModel):
         """
         return self.users.filter(id=user.id).exists()
 
-    def add_user(self, user: User, role: OrgRole):
+    def add_user(self, user: User, role: OrgRole, *, team=None):
         """
         Adds the given user to this org with the given role
         """
 
         assert role in OrgRole, f"invalid role: {role}"
+        assert role == OrgRole.AGENT or not team, "only agent users can be assigned to a team"
+        assert not team or team.org == self, "team must belong to this org"
 
         if self.has_user(user):  # remove user from any existing roles
             self.remove_user(user)
 
-        self.users.add(user, through_defaults={"role_code": role.code})
-        self._user_role_cache[user] = role
+        if role == OrgRole.AGENT and not team:
+            team = self.default_ticket_team
+
+        self._membership_cache[user] = OrgMembership.objects.create(org=self, user=user, role_code=role.code, team=team)
 
     def remove_user(self, user: User):
         """
         Removes the given user from this org by removing them from any roles
         """
         self.users.remove(user)
-        if user in self._user_role_cache:
-            del self._user_role_cache[user]
+        if user in self._membership_cache:
+            del self._membership_cache[user]
 
     def get_owner(self) -> User:
         # look thru roles in order for the first added user
@@ -1055,21 +1102,25 @@ class Org(SmartModel):
         # default to user that created this org (converting to our User proxy model)
         return User.objects.get(id=self.created_by_id)
 
+    def get_membership(self, user: User):
+        """
+        Gets the membership of the given user in this org (if any).
+        """
+
+        def get():
+            return OrgMembership.objects.filter(org=self, user=user).first()
+
+        if user not in self._membership_cache:
+            self._membership_cache[user] = get()
+        return self._membership_cache[user]
+
     def get_user_role(self, user: User):
         """
-        Gets the role of the given user in this org if any.
+        Convenience method to get just the role of the given user in this org (if any).
         """
 
-        def get_role():
-            if user.is_staff:
-                return OrgRole.ADMINISTRATOR
-
-            membership = OrgMembership.objects.filter(org=self, user=user).first()
-            return membership.role if membership else None
-
-        if user not in self._user_role_cache:
-            self._user_role_cache[user] = get_role()
-        return self._user_role_cache[user]
+        membership = self.get_membership(user)
+        return membership.role if membership else None
 
     def create_sample_flows(self, api_url):
         # get our sample dir
@@ -1194,12 +1245,13 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.tickets.models import Topic
+        from temba.tickets.models import Team, Topic
 
         with transaction.atomic():
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
-            Topic.create_default_topic(self)
+            Team.create_system(self)
+            Topic.create_system(self)
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
@@ -1262,10 +1314,9 @@ class Org(SmartModel):
         user = self.modified_by
         counts = defaultdict(int)
 
-        # delete notifications and exports
         delete_in_batches(self.notifications.all())
-        delete_in_batches(self.notification_counts.all())
         delete_in_batches(self.incidents.all())
+        delete_in_batches(self.invitations.all())
         delete_in_batches(self.flow_labels.all())
 
         for exp in self.exports.all():
@@ -1302,13 +1353,14 @@ class Org(SmartModel):
         delete_in_batches(self.sessions.all())
         delete_in_batches(self.ticket_events.all())
         delete_in_batches(self.tickets.all())
-        delete_in_batches(self.ticket_counts.all())
         delete_in_batches(self.topics.all())
+        delete_in_batches(self.teams.all())
         delete_in_batches(self.airtime_transfers.all())
 
         # delete our contacts
         for contact in self.contacts.all():
-            contact.release(user, immediately=True)
+            # release synchronously and don't deindex as that will happen for the whole org
+            contact.release(user, immediately=True, deindex=False)
             contact.delete()
             counts["contacts"] += 1
 
@@ -1352,13 +1404,16 @@ class Org(SmartModel):
 
         # delete other related objects
         delete_in_batches(self.api_tokens.all(), pk="key")
-        delete_in_batches(self.invitations.all())
         delete_in_batches(self.schedules.all())
         delete_in_batches(self.boundaryalias_set.all())
         delete_in_batches(self.templates.all())
 
-        # needs to come after deletion of msgs and broadcasts as those insert new counts
+        # needs to come after deletion of other things as those insert new negative counts
         delete_in_batches(self.system_labels.all())
+        delete_in_batches(self.counts.all())
+
+        # now that contacts are no longer in the database, we can start de-indexing them from search
+        mailroom.get_client().org_deindex(self)
 
         # save when we were actually deleted
         self.modified_on = timezone.now()
@@ -1394,6 +1449,7 @@ class OrgMembership(models.Model):
     org = models.ForeignKey(Org, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     role_code = models.CharField(max_length=1)
+    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
 
     @property
     def role(self):
@@ -1458,12 +1514,19 @@ class Invitation(SmartModel):
     An invitation to an e-mail address to join an org as a specific role.
     """
 
-    ROLE_CHOICES = [(r.code, r.display) for r in OrgRole]
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="invitations")
     email = models.EmailField()
     secret = models.CharField(max_length=64, unique=True)
-    user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.VIEWER.code)
+    role_code = models.CharField(max_length=1, choices=OrgRole.choices(), default=OrgRole.EDITOR.code)
+    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True, related_name="invitations")
+
+    @classmethod
+    def create(cls, org, user, email: str, role: OrgRole, *, team=None):
+        assert not team or org == team.org
+
+        return cls.objects.create(
+            org=org, email=email, role_code=role.code, team=team, created_by=user, modified_by=user
+        )
 
     def save(self, *args, **kwargs):
         if not self.secret:
@@ -1473,7 +1536,7 @@ class Invitation(SmartModel):
 
     @property
     def role(self):
-        return OrgRole.from_code(self.user_group)
+        return OrgRole.from_code(self.role_code)
 
     def send(self):
         sender = EmailSender.from_email_type(self.org.branding, "notifications")
@@ -1484,10 +1547,20 @@ class Invitation(SmartModel):
             {"org": self.org, "invitation": self},
         )
 
-    def release(self):
+    def accept(self, user):
+        from temba.notifications.types.builtin import InvitationAcceptedNotificationType
+
+        self.org.add_user(user, self.role, team=self.team)
+
+        InvitationAcceptedNotificationType.create(self, user)
+
+        self.release()
+
+    def release(self, user=None):
         self.is_active = False
         self.modified_on = timezone.now()
-        self.save(update_fields=("is_active", "modified_on"))
+        self.modified_by = user or self.modified_by
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
 
 class BackupToken(models.Model):
@@ -1797,3 +1870,20 @@ class Export(TembaUUIDMixin, models.Model):
 
     def __repr__(self):  # pragma: no cover
         return f'<Export: id={self.id} type="{self.export_type}">'
+
+
+class ItemCount(BaseScopedCount):
+    """
+    Org-level counts of things.
+    """
+
+    squash_over = ("org_id", "scope")
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="counts", db_index=False)  # indexed below
+
+    class Meta:
+        indexes = [
+            models.Index("org", OpClass("scope", name="varchar_pattern_ops"), name="orgcount_org_scope"),
+            # for squashing task
+            models.Index(name="orgcount_unsquashed", fields=("org", "scope"), condition=Q(is_squashed=False)),
+        ]

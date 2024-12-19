@@ -1,0 +1,57 @@
+{% extends "orgs/base/list.html" %}
+{% load i18n temba %}
+
+{% block modaxes %}
+  <temba-modax header="{{ _("Delete Token") |escapejs }}" id="delete-token">
+  </temba-modax>
+{% endblock modaxes %}
+{% block pre-table %}
+  <div class="mb-4">
+    {% url "api.v2.root" as api_url %}
+    {% blocktrans trimmed with api_url=api_url limit=token_limit %}
+      These are your personal tokens for accessing the <a href="{{ api_url }}">API</a>. You can have a maximum of {{ limit }}.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-table %}
+{% block table %}
+  <table class="list lined scrolled">
+    <tr>
+      <th>{% trans "Key" %}</th>
+      <th>{% trans "Last Used" %}</th>
+      <th></th>
+    </tr>
+    {% for obj in object_list %}
+      <tr>
+        <td>{{ obj.key }}</td>
+        <td>
+          {% if obj.last_used_on %}
+            {{ obj.last_used_on|duration }}
+          {% else %}
+            --
+          {% endif %}
+        </td>
+        <td class="w-10">
+          <temba-icon name="delete"
+                      clickable="true"
+                      style="--icon-color:#bbb"
+                      onclick="event.stopPropagation(); showDeleteTokenModal('{{ obj.key }}');">
+          </temba-icon>
+        </td>
+      </tr>
+    {% empty %}
+      <tr class="empty_list">
+        <td colspan="99" class="text-center">{% trans "No tokens" %}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock table %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showDeleteTokenModal(key) {
+      var modax = document.querySelector('#delete-token');
+      modax.endpoint = `/apitoken/delete/${key}/`;
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}

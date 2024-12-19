@@ -12,11 +12,6 @@ class AnalyticsBackend(metaclass=abc.ABCMeta):
     slug: str = None
     hook_templates = {}
 
-    def gauges(self, values: dict):
-        """
-        Records gauge values
-        """
-
     def track(self, user, event: str, properties: dict):
         """
         Tracks a user event
@@ -52,11 +47,6 @@ class ConsoleBackend(AnalyticsBackend):
 
     slug = "console"
 
-    def gauges(self, values: dict):
-        if not settings.TESTING:  # pragma: no cover
-            for name, value in values.items():
-                print(f"[analytics] gauge={name} value={value}")
-
     def track(self, user, event: str, properties: dict):
         if not settings.TESTING:  # pragma: no cover
             print(f"[analytics] event={event} user={user.email}")
@@ -66,17 +56,6 @@ def get_backends() -> list:
     from . import backends
 
     return list(backends.values())
-
-
-def gauges(values: dict):
-    """
-    Reports a gauge value
-    """
-    for backend in get_backends():
-        try:
-            backend.gauges(values)
-        except Exception:
-            logger.exception(f"error reporting gauges on {backend.slug}")
 
 
 def identify(user, brand, org):

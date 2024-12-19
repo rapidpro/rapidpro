@@ -104,7 +104,7 @@ class Call(models.Model):
             return None
 
     def get_logs(self) -> list:
-        return ChannelLog.get_logs(self.channel, self.log_uuids or [])
+        return ChannelLog.get_by_uuid(self.channel, self.log_uuids or [])
 
     def release(self):
         session = self.get_session()

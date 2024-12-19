@@ -1,6 +1,0 @@
-{% extends "contacts/contact_list.html" %}
-{% load smartmin i18n %}
-
-{% block subtitle %}
-  {% if current_group.is_smart %}<div class="font-mono text-sm mt-2 bg-gray-200 text-gray-700 p-3 rounded-lg">{{ current_group.query }}</div>{% endif %}
-{% endblock subtitle %}

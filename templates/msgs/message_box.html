@@ -10,23 +10,17 @@
   </style>
 {% endblock extra-style %}
 {% block content %}
-  <temba-modax header="{% trans "Create Label" %}"
+  <temba-modax header="{% trans "New Label" %}"
                endpoint="{% url 'msgs.label_create' %}"
                -temba-loaded="handleCreateLabelModalLoaded"
                -temba-submitted="handleCreateLabelModalSubmitted"
                id="create-label-modal">
   </temba-modax>
-  <div class="flex">
-    <div class="flex-grow self-end items-end">
-      <div class="flex flex-col">
-        <form method="get" id="search-form">
-          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-          </temba-textinput>
-          <input type="submit" value="Submit" class="hidden">
-        </form>
-      </div>
-    </div>
-  </div>
+  <form method="get" action="{{ request.path }}" id="search-form">
+    <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+    </temba-textinput>
+    <input type="submit" class="hide">
+  </form>
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
   <div class="flex-grow overflow-y-auto shadow rounded-b-lg">
     {% if has_messages %}
@@ -107,12 +101,11 @@
                 </div>
               </td>
             </tr>
-          {% endfor %}
-          {% if not object_list %}
+          {% empty %}
             <tr class="empty_list">
-              <td colspan="99">{% trans "No messages" %}</td>
+              <td colspan="99" class="text-center">{% trans "No messages" %}</td>
             </tr>
-          {% endif %}
+          {% endfor %}
         </tbody>
       </table>
     {% else %}

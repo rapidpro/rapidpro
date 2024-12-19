@@ -2,15 +2,7 @@
 {% load i18n %}
 
 {% block fields %}
-  {% if owned_orgs %}
-    {% trans "Deleting this user will also delete the following workspaces owned by this user." %}
-    <div class="mt-2 mb-2 ml-8">
-      <ul class="list-disc">
-        {% for org in owned_orgs %}<li>{{ org.name }}</li>{% endfor %}
-      </ul>
-    </div>
-  {% endif %}
-  {% blocktrans trimmed with username=object.username %}
-    Are you sure you want to delete <b>{{ username }}</b>?"
+  {% blocktrans trimmed %}
+    You are about to remove the user <b>{{ object }}</b> from your workspace. Are you sure?
   {% endblocktrans %}
 {% endblock fields %}

@@ -1,14 +1,38 @@
-{% extends "smartmin/list.html" %}
-{% load smartmin sms temba compress i18n humanize %}
+{% extends "orgs/base/list.html" %}
+{% load i18n humanize %}
 
-{% block extra-style %}
-  {{ block.super }}
-  <style type="text/css">
-    temba-button {
-      display: block;
-    }
-  </style>
-{% endblock extra-style %}
+{% block table %}
+  <table class="list lined selectable scrolled">
+    <tbody>
+      {% for obj in object_list %}
+        <tr data-object-id="{{ obj.id }}"
+            data-uuid="{{ obj.uuid }}"
+            onclick="handleRowClicked(event)"
+            href="{% url 'campaigns.campaign_read' obj.uuid %}"
+            class="campaign object-row select-row">
+          {% if org_perms.campaigns.campaign_update %}
+            <td onclick="checkInner(event);" class="campaign checkbox object-row-checkbox">
+              <temba-checkbox onclick="handleRowSelection(this)">
+              </temba-checkbox>
+            </td>
+          {% endif %}
+          <td class="w-full">{{ obj.name }}</td>
+          <td class="whitespace-nowrap">
+            {# in the past we let users delete groups used by campaigns #}
+            {% if obj.group.is_active %}
+              <div class="recipients inline-block">{% include "includes/recipients_group.html" with group=obj.group %}</div>
+            {% endif %}
+          </td>
+          <td class="whitespace-nowrap">{{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}</td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99" class="text-center">{% trans "No campaigns" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
@@ -22,52 +46,3 @@
     }
   </script>
 {% endblock extra-script %}
-{% block content %}
-  <div class="page-title"></div>
-  <div class="flex">
-    <div class="flex-grow self-end items-end">
-      <div class="flex flex-col">
-        <form method="get" action="{{ request.path }}" id="search-form">
-          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-          </temba-textinput>
-          <input type="submit" class="hide">
-        </form>
-      </div>
-    </div>
-  </div>
-  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
-  <div class="flex-grow overflow-y-auto shadow">
-    <table class="list lined selectable scrolled">
-      <tbody>
-        {% for obj in object_list %}
-          <tr data-object-id="{{ obj.id }}"
-              data-uuid="{{ obj.uuid }}"
-              onclick="handleRowClicked(event)"
-              href="{% url 'campaigns.campaign_read' obj.uuid %}"
-              class="campaign object-row select-row">
-            {% if org_perms.campaigns.campaign_update %}
-              <td onclick="checkInner(event);" class="campaign checkbox object-row-checkbox">
-                <temba-checkbox onclick="handleRowSelection(this)">
-                </temba-checkbox>
-              </td>
-            {% endif %}
-            <td class="w-full">{{ obj.name }}</td>
-            <td class="whitespace-nowrap">
-              {# in the past we let users delete groups used by campaigns #}
-              {% if obj.group.is_active %}
-                <div class="recipients inline-block">{% include "includes/recipients_group.html" with group=obj.group %}</div>
-              {% endif %}
-            </td>
-            <td class="whitespace-nowrap">{{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}</td>
-          </tr>
-        {% empty %}
-          <tr class="empty_list">
-            <td colspan="99">{% trans "No matching campaigns" %}</td>
-          </tr>
-        {% endfor %}
-        {% block extra-rows %}
-        {% endblock extra-rows %}
-      </tbody>
-    </table>
-  </div>
-{% endblock content %}

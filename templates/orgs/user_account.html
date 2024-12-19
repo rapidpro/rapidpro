@@ -25,10 +25,10 @@
       </div>
     </div>
   </div>
-  {% if org_perms.orgs.user_tokens %}
+  {% if org_perms.api.apitoken_list %}
     <div class="flex flex-row bg-gray-200 border border-gray-400 rounded-lg cursor-pointer items-center mb-4"
          onclick="goto(event, this)"
-         href="{% url 'orgs.user_tokens' %}">
+         href="{% url 'api.apitoken_list' %}">
       <div class="m-8 text-4xl text-gray-600 items-center">
         <temba-icon name="user_token">
         </temba-icon>

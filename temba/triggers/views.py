@@ -1,6 +1,6 @@
 from enum import Enum
 
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.functions import Upper
@@ -13,12 +13,12 @@ from temba.channels.types.android import AndroidType
 from temba.contacts.models import ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import Flow
-from temba.formax import FormaxMixin
-from temba.msgs.views import ModalMixin
-from temba.orgs.views import MenuMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.formax import FormaxMixin, FormaxSectionMixin
+from temba.orgs.views.base import BaseListView, BaseMenuView
+from temba.orgs.views.mixins import BulkActionMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ComponentFormMixin, ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Trigger
 
@@ -195,7 +195,7 @@ class TriggerCRUDL(SmartCRUDL):
         "folder",
     )
 
-    class Menu(MenuMixin, SmartTemplateView):
+    class Menu(BaseMenuView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
@@ -242,7 +242,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             return menu
 
-    class Create(SpaMixin, FormaxMixin, OrgFilterMixin, OrgPermsMixin, SmartTemplateView):
+    class Create(SpaMixin, FormaxMixin, OrgPermsMixin, SmartTemplateView):
         title = _("New Trigger")
         menu_path = "/trigger/new-trigger"
 
@@ -274,7 +274,7 @@ class TriggerCRUDL(SmartCRUDL):
                 add_section("trigger-opt-in", "triggers.trigger_create_opt_in", "optin")
                 add_section("trigger-opt-out", "triggers.trigger_create_opt_out", "optout")
 
-    class BaseCreate(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
+    class BaseCreate(FormaxSectionMixin, OrgPermsMixin, ComponentFormMixin, SmartCreateView):
         trigger_type = None
         permission = "triggers.trigger_create"
         success_url = "@triggers.trigger_list"
@@ -370,7 +370,7 @@ class TriggerCRUDL(SmartCRUDL):
     class CreateOptOut(BaseCreate):
         trigger_type = Trigger.TYPE_OPT_OUT
 
-    class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalFormMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         def get_form_class(self):
             return self.object.type.form
 
@@ -424,7 +424,7 @@ class TriggerCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
-    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(SpaMixin, BulkActionMixin, BaseListView):
         """
         Base class for list views
         """
@@ -434,15 +434,14 @@ class TriggerCRUDL(SmartCRUDL):
         default_template = "triggers/trigger_list.html"
         search_fields = ("keywords__icontains", "flow__name__icontains", "channel__name__icontains")
 
-        def get_queryset(self, *args, **kwargs):
-            qs = super().get_queryset(*args, **kwargs)
-            qs = (
-                qs.filter(is_active=True)
+        def derive_queryset(self, *args, **kwargs):
+            return (
+                super()
+                .derive_queryset(*args, **kwargs)
                 .order_by("-created_on")
                 .select_related("flow", "channel")
                 .prefetch_related("contacts", "groups", "exclude_groups")
             )
-            return qs
 
     class List(BaseList):
         """
@@ -463,7 +462,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_archived=False)
 
-    class Archived(ContentMenuMixin, BaseList):
+    class Archived(ContextMenuMixin, BaseList):
         """
         Archived triggers of all types
         """
@@ -472,7 +471,7 @@ class TriggerCRUDL(SmartCRUDL):
         title = _("Archived")
         menu_path = "/trigger/archived"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             menu.add_js("triggers_delete_all", _("Delete All"))
 
         def get_queryset(self, *args, **kwargs):

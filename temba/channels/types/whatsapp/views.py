@@ -10,10 +10,9 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.views import ChannelTypeMixin
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.text import truncate
-from temba.utils.views import ContentMenuMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -219,7 +218,7 @@ class ClearSessionToken(ChannelTypeMixin, OrgPermsMixin, SmartTemplateView):
         return JsonResponse({})
 
 
-class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class RequestCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView, SmartFormView):
     class Form(forms.Form):
         pass
 
@@ -239,11 +238,6 @@ class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMix
 
     def derive_menu_path(self):
         return f"/settings/channels/{self.get_object().uuid}"
-
-    def build_content_menu(self, menu):
-        obj = self.get_object()
-
-        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -283,7 +277,7 @@ class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMix
                 )
 
 
-class VerifyCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class VerifyCode(ChannelTypeMixin, OrgObjPermsMixin, SmartModelActionView, SmartFormView):
     class Form(forms.Form):
         code = forms.CharField(
             min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()
@@ -297,11 +291,6 @@ class VerifyCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixi
     template_name = "channels/types/whatsapp/verify_code.html"
     title = _("Verify Number")
     submit_button_name = _("Verify Number")
-
-    def build_content_menu(self, menu):
-        obj = self.get_object()
-
-        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_queryset(self):
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type=self.channel_type.code)
@@ -345,6 +334,10 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     class WhatsappCloudConnectForm(forms.Form):
         user_access_token = forms.CharField(min_length=32, required=True)
 
+        def __init__(self, org, *args, **kwargs):
+            self.org = org
+            super().__init__(*args, **kwargs)
+
         def clean(self):
             try:
                 auth_token = self.cleaned_data.get("user_access_token", None)
@@ -352,37 +345,32 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
                 app_id = settings.FACEBOOK_APPLICATION_ID
                 app_secret = settings.FACEBOOK_APPLICATION_SECRET
 
-                url = "https://graph.facebook.com/v18.0/debug_token"
-                params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
-
-                response = requests.get(url, params=params)
-                if response.status_code != 200:  # pragma: no cover
-                    auth_code = auth_token
-
+                if settings.FACEBOOK_LOGIN_WHATSAPP_CONFIG_ID:
                     token_request_data = {
                         "client_id": app_id,
                         "client_secret": app_secret,
-                        "code": auth_code,
+                        "code": auth_token,
                         "grant_type": "authorization_code",
                         "redirect_uri": "https://"
-                        + self.derive_org().get_brand_domain()
+                        + self.org.get_brand_domain()
                         + reverse("channels.types.whatsapp.connect"),
                     }
                     token_url = "https://graph.facebook.com/v18.0/oauth/access_token"
                     response = requests.post(token_url, json=token_request_data)
                     response_json = response.json()
+                    if int(response.status_code / 100) == 2:
+                        auth_token = response_json["access_token"]
 
-                    auth_token = response_json["access_token"]
+                url = "https://graph.facebook.com/v18.0/debug_token"
+                params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
 
-                    params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
-
-                    response = requests.get(url, params=params)
-                    if response.status_code == 200:
-                        self.cleaned_data["user_access_token"] = auth_token
-                    else:
-                        raise Exception("Failed to debug user token")
-
+                response = requests.get(url, params=params)
                 response_json = response.json()
+
+                if response.status_code == 200:
+                    self.cleaned_data["user_access_token"] = auth_token
+                else:
+                    raise Exception("Failed to debug user token")
 
                 for perm in ["business_management", "whatsapp_business_management", "whatsapp_business_messaging"]:
                     if perm not in response_json.get("data", dict()).get("scopes", []):
@@ -394,7 +382,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
 
             return self.cleaned_data
 
-    permission = "channels.types.whatsapp.connect"
+    permission = "channels.channel_claim"
     form_class = WhatsappCloudConnectForm
     success_url = "@channels.types.whatsapp.claim"
     field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
@@ -404,8 +392,8 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     menu_path = "/settings/workspace"
     title = "Connect WhatsApp"
 
-    def has_org_perm(self, permission):
-        return self.get_user().is_beta  # only beta users are allowed
+    def has_permission(self, request, *args, **kwargs) -> bool:
+        return super().has_permission(request, *args, **kwargs) and self.request.user.is_beta
 
     def pre_process(self, request, *args, **kwargs):
         session_token = self.request.session.get(self.channel_type.SESSION_USER_TOKEN, None)
@@ -413,6 +401,11 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
             return HttpResponseRedirect(self.get_success_url())
 
         return super().pre_process(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["org"] = self.request.org
+        return kwargs
 
     def form_valid(self, form):
         auth_token = form.cleaned_data["user_access_token"]

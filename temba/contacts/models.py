@@ -1,3 +1,4 @@
+import itertools
 import logging
 from datetime import date, datetime, timedelta, timezone as tzone
 from decimal import Decimal
@@ -26,9 +27,10 @@ from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole, User
-from temba.utils import chunk_list, format_number, on_transaction_commit
+from temba.utils import format_number, on_transaction_commit
 from temba.utils.export import MultiSheetExporter
-from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
+from temba.utils.models import JSONField, LegacyUUIDMixin, TembaModel, delete_in_batches
+from temba.utils.models.counts import BaseSquashableCount
 from temba.utils.text import unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
@@ -495,12 +497,15 @@ class ContactField(TembaModel, DependencyMixin):
         )
 
     @classmethod
-    def get_fields(cls, org: Org, viewable_by=None):
+    def get_fields(cls, org: Org, featured=None, viewable_by=None):
         """
         Gets the fields for the given org
         """
 
         fields = org.fields.filter(is_active=True, is_proxy=False)
+
+        if featured is not None:
+            fields = fields.filter(show_in_table=featured)
 
         if viewable_by and org.get_user_role(viewable_by) == OrgRole.AGENT:
             fields = fields.exclude(agent_access=cls.ACCESS_NONE)
@@ -639,7 +644,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         Returns the counts for each contact status for the given org
         """
         groups = org.groups.filter(group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
-        return {g.group_type: count for g, count in ContactGroupCount.get_totals(groups).items()}
+        return {g.group_type: count for g, count in ContactGroup.get_member_counts(groups).items()}
 
     def get_scheduled_broadcasts(self):
         from temba.msgs.models import SystemLabel
@@ -836,7 +841,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         return value_dict.get(engine_type)
 
-    def get_field_value(self, field):
+    def get_field_value(self, field: ContactField):
         """
         Given the passed in contact field object, returns the value (as a string, decimal, datetime, AdminBoundary)
         for this contact or None.
@@ -858,7 +863,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
             elif field.value_type in [ContactField.TYPE_STATE, ContactField.TYPE_DISTRICT, ContactField.TYPE_WARD]:
                 return AdminBoundary.get_by_path(self.org, string_value)
 
-    def get_field_display(self, field):
+    def get_field_display(self, field: ContactField) -> str:
         """
         Returns the display value for the passed in field, or empty string if None
         """
@@ -1057,12 +1062,16 @@ class Contact(LegacyUUIDMixin, SmartModel):
         Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
         self.refresh_from_db()
 
-    def release(self, user, *, immediately=False):
+    def release(self, user, *, immediately=False, deindex=True):
         """
         Releases this contact. Note that we clear all identifying data but don't hard delete the contact because we need
         to expose deleted contacts over the API to allow external systems to know that contacts have been deleted.
         """
         from .tasks import full_release_contact
+
+        # do de-indexing first so if it fails for some reason, we don't go through with the delete
+        if deindex:
+            mailroom.get_client().contact_deindex(self.org, [self])
 
         with transaction.atomic():
             # prep our urns for deletion so our old path creates a new urn
@@ -1152,7 +1161,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 broadcast.contacts.remove(self)
 
     @classmethod
-    def bulk_urn_cache_initialize(cls, contacts, *, using="default"):
+    def bulk_urn_cache_initialize(cls, contacts, *, using: str = "default"):
         """
         Initializes the URN caches on the given contacts.
         """
@@ -1426,7 +1435,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         assert not org.groups.filter(is_system=True).exists(), "org already has system groups"
 
         org.groups.create(
-            name="Active",
+            name="\\Active",  # to avoid name collisions with real groups
             group_type=ContactGroup.TYPE_DB_ACTIVE,
             is_system=True,
             status=cls.STATUS_READY,
@@ -1434,7 +1443,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             modified_by=org.modified_by,
         )
         org.groups.create(
-            name="Blocked",
+            name="\\Blocked",
             group_type=ContactGroup.TYPE_DB_BLOCKED,
             is_system=True,
             status=cls.STATUS_READY,
@@ -1442,7 +1451,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             modified_by=org.modified_by,
         )
         org.groups.create(
-            name="Stopped",
+            name="\\Stopped",
             group_type=ContactGroup.TYPE_DB_STOPPED,
             is_system=True,
             status=cls.STATUS_READY,
@@ -1450,7 +1459,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             modified_by=org.modified_by,
         )
         org.groups.create(
-            name="Archived",
+            name="\\Archived",
             group_type=ContactGroup.TYPE_DB_ARCHIVED,
             is_system=True,
             status=cls.STATUS_READY,
@@ -1587,11 +1596,20 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         if reevaluate:
             on_transaction_commit(lambda: queue_populate_dynamic_group(self))
 
+    @classmethod
+    def get_member_counts(cls, groups) -> dict:
+        """
+        Gets contact counts for the given groups
+        """
+        counts = ContactGroupCount.objects.filter(group__in=groups).values("group_id").annotate(count_sum=Sum("count"))
+        by_group_id = {c["group_id"]: c["count_sum"] for c in counts}
+        return {g: by_group_id.get(g.id, 0) for g in groups}
+
     def get_member_count(self):
         """
         Returns the number of contacts in the group
         """
-        return ContactGroupCount.get_totals([self])[self]
+        return ContactGroup.get_member_counts([self])[self]
 
     def get_dependents(self):
         dependents = super().get_dependents()
@@ -1640,7 +1658,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         ContactGroupContacts = self.contacts.through
         memberships = ContactGroupContacts.objects.filter(contactgroup_id=self.id)
 
-        for batch in chunk_list(memberships, 100):
+        for batch in itertools.batched(memberships, 100):
             ContactGroupContacts.objects.filter(id__in=[m.id for m in batch]).delete()
             Contact.objects.filter(id__in=[m.contact_id for m in batch]).update(modified_on=timezone.now())
 
@@ -1700,7 +1718,7 @@ class ContactNote(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="contact_notes")
 
 
-class ContactGroupCount(SquashableModel):
+class ContactGroupCount(BaseSquashableCount):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
     by a recurring task.
@@ -1709,42 +1727,6 @@ class ContactGroupCount(SquashableModel):
     squash_over = ("group_id",)
 
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-        WITH deleted as (
-            DELETE FROM %(table)s WHERE "group_id" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("group_id", "count", "is_squashed")
-        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.group_id,) * 2
-
-    @classmethod
-    def get_totals(cls, groups) -> dict:
-        """
-        Gets total counts for all the given groups
-        """
-        counts = cls.objects.filter(group__in=groups)
-        counts = counts.values("group").order_by("group").annotate(count_sum=Sum("count"))
-        counts_by_group_id = {c["group"]: c["count_sum"] for c in counts}
-        return {g: counts_by_group_id.get(g.id, 0) for g in groups}
-
-    @classmethod
-    def populate_for_group(cls, group):
-        # remove old ones
-        ContactGroupCount.objects.filter(group=group).delete()
-
-        # calculate our count for the group
-        count = group.contacts.all().count()
-
-        # insert updated count, returning it
-        return ContactGroupCount.objects.create(group=group, count=count)
 
     class Meta:
         indexes = [
@@ -1868,7 +1850,7 @@ class ContactExport(ExportType):
         num_records = 0
 
         # write out contacts in batches to limit memory usage
-        for batch_ids in chunk_list(contact_ids, 1000):
+        for batch_ids in itertools.batched(contact_ids, 1000):
             # fetch all the contacts for our batch
             batch_contacts = (
                 Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "groups").using("readonly")
@@ -1985,7 +1967,10 @@ class ContactImport(SmartModel):
         total number of records. Otherwise raises a ValidationError.
         """
 
-        workbook = load_workbook(filename=file, read_only=True)
+        try:
+            workbook = load_workbook(filename=file, read_only=True, data_only=True)
+        except Exception:
+            raise ValidationError(_("Import file appears to be corrupted."))
         ws = workbook.active
 
         # see https://openpyxl.readthedocs.io/en/latest/optimized.html#worksheet-dimensions but even with this we need
@@ -2203,8 +2188,9 @@ class ContactImport(SmartModel):
             self.save(update_fields=("group",))
 
         # parse each row, creating batch tasks for mailroom
-        workbook = load_workbook(filename=self.file, read_only=True)
+        workbook = load_workbook(filename=self.file, read_only=True, data_only=True)
         ws = workbook.active
+        ws.reset_dimensions()  # see https://openpyxl.readthedocs.io/en/latest/optimized.html#worksheet-dimensions
         data = ws.iter_rows(min_row=2)
 
         urns = []

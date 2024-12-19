@@ -44,9 +44,6 @@
           </div>
         </div>
         {% block alert-messages %}
-          {% if user_org.is_suspended %}
-            {% include "org_suspended_include.html" %}
-          {% endif %}
           {% if messages %}
             {% for msg in messages %}
               <temba-alert class="mb-3">

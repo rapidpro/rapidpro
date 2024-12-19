@@ -5,7 +5,6 @@ from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -73,9 +72,9 @@ class APIPermission(BasePermission):
 
         if request.auth:
             # auth token was used
-            role = org.get_user_role(request.auth.user)
+            role = org.get_user_role(request.user)
 
-            # only editors and administrators can use API tokens
+            # only editors, administrators can use API tokens
             if role not in APIToken.ALLOWED_ROLES:
                 return False
         elif org:
@@ -83,13 +82,15 @@ class APIPermission(BasePermission):
         else:
             return False
 
-        has_perm = role.has_api_perm(permission)
+        has_perm = request.user.is_staff or role.has_api_perm(permission)
+        if not has_perm:
+            return False
 
-        # viewers can only ever get from the API
-        if role == OrgRole.VIEWER:
-            return has_perm and request.method == "GET"
+        # viewers and servicing staff can only ever GET from the API
+        if role == OrgRole.VIEWER or (not role and request.user.is_staff):
+            return request.method == "GET"
 
-        return has_perm
+        return True
 
 
 class SSLPermission(BasePermission):  # pragma: no cover
@@ -214,9 +215,6 @@ class APIToken(models.Model):
     created = models.DateTimeField(default=timezone.now)
     last_used_on = models.DateTimeField(null=True)
     is_active = models.BooleanField(default=True)
-
-    # TODO remove
-    role = models.ForeignKey(Group, on_delete=models.PROTECT, null=True)
 
     @classmethod
     def create(cls, org, user):

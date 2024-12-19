@@ -1,13 +1,14 @@
 from gettext import gettext as _
 
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartUpdateView
 
 from django import forms
 from django.urls import reverse
 
-from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views.base import BaseDependencyDeleteModal, BaseListView, BaseUsagesModal
+from temba.orgs.views.mixins import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
-from temba.utils.views import ContentMenuMixin, SpaMixin
+from temba.utils.views.mixins import ContextMenuMixin, ModalFormMixin, SpaMixin
 
 from .models import Global
 
@@ -78,7 +79,7 @@ class GlobalCRUDL(SmartCRUDL):
     model = Global
     actions = ("create", "update", "delete", "list", "unused", "usages")
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ModalFormMixin, OrgPermsMixin, SmartCreateView):
         form_class = CreateGlobalForm
         submit_button_name = _("Create")
 
@@ -98,7 +99,7 @@ class GlobalCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalFormMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateGlobalForm
         submit_button_name = _("Update")
 
@@ -107,22 +108,22 @@ class GlobalCRUDL(SmartCRUDL):
             kwargs["org"] = self.derive_org()
             return kwargs
 
-    class Delete(DependencyDeleteModal):
+    class Delete(BaseDependencyDeleteModal):
         cancel_url = "@globals.global_list"
         success_url = "@globals.global_list"
 
-    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
-        title = _("Manage Globals")
+    class List(SpaMixin, ContextMenuMixin, BaseListView):
+        title = _("Globals")
         fields = ("name", "key", "value")
         search_fields = ("name__icontains", "key__icontains")
         default_order = ("key",)
         paginate_by = 250
         menu_path = "/flow/globals"
 
-        def build_content_menu(self, menu):
+        def build_context_menu(self, menu):
             if self.has_org_perm("globals.global_create"):
                 menu.add_modax(
-                    _("New Global"),
+                    _("New"),
                     "new-global",
                     reverse("globals.global_create"),
                     title=_("New Global"),
@@ -131,7 +132,7 @@ class GlobalCRUDL(SmartCRUDL):
                 )
 
         def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True)
+            qs = super().get_queryset(**kwargs)
             return Global.annotate_usage(qs)
 
         def get_context_data(self, **kwargs):
@@ -152,5 +153,5 @@ class GlobalCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(usage_count=0)
 
-    class Usages(DependencyUsagesModal):
+    class Usages(BaseUsagesModal):
         permission = "globals.global_read"

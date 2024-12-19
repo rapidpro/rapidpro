@@ -1,12 +1,12 @@
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.api.tests import APITestMixin
+from temba.api.tests.mixins import APITestMixin
 from temba.contacts.models import ContactExport
 from temba.notifications.types import ExportFinishedNotificationType
 from temba.templates.models import TemplateTranslation
 from temba.tests import TembaTest, matchers
-from temba.tickets.models import TicketExport
+from temba.tickets.models import Shortcut, TicketExport
 
 NUM_BASE_QUERIES = 4  # number of queries required for any request (internal API is session only)
 
@@ -121,6 +121,37 @@ class EndpointsTest(APITestMixin, TembaTest):
         self.assertEqual(0, self.admin.notifications.filter(is_seen=False).count())
         self.assertEqual(2, self.admin.notifications.filter(is_seen=True).count())
         self.assertEqual(1, self.editor.notifications.filter(is_seen=False).count())
+
+    def test_shortcuts(self):
+        endpoint_url = reverse("api.internal.shortcuts") + ".json"
+
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
+
+        shortcut1 = Shortcut.create(self.org, self.admin, "Planes", "Planes are...")
+        shortcut2 = Shortcut.create(self.org, self.admin, "Trains", "Trains are...")
+        Shortcut.create(self.org2, self.admin, "Cars", "Other org")
+
+        self.assertGet(
+            endpoint_url,
+            [self.admin],
+            results=[
+                {
+                    "uuid": str(shortcut2.uuid),
+                    "name": "Trains",
+                    "text": "Trains are...",
+                    "modified_on": matchers.ISODate(),
+                },
+                {
+                    "uuid": str(shortcut1.uuid),
+                    "name": "Planes",
+                    "text": "Planes are...",
+                    "modified_on": matchers.ISODate(),
+                },
+            ],
+            num_queries=NUM_BASE_QUERIES + 1,
+        )
 
     def test_templates(self):
         endpoint_url = reverse("api.internal.templates") + ".json"

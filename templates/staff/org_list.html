@@ -1,0 +1,31 @@
+{% extends "smartmin/list.html" %}
+{% load i18n %}
+
+{% block title-text %}
+  {% trans "Workspaces" %}
+{% endblock title-text %}
+{% block page-header %}
+  <div class="hidden" id="title-text">{{ title }}</div>
+{% endblock page-header %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    a:hover,
+    a:hover * {
+      text-decoration: none;
+      color: var(--color-link-primary);
+    }
+
+    .field_created_on {
+      white-space: nowrap;
+      width: 64px;
+    }
+  </style>
+{% endblock extra-style %}
+{% block pre-table %}
+  <form method="get" id="search-form">
+    <temba-textinput name="search" value="{{ search }}" placeholder="Search">
+    </temba-textinput>
+    <input type="submit" value="Submit" class="hidden">
+  </form>
+{% endblock pre-table %}
