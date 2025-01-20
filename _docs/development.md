@@ -14,7 +14,8 @@ and Ubuntu, you'll likely need to modify the directions below if using Windows.
 
 You'll need the following to get started:
 
- * [Python](https://www.python.org/) 3.6.5 or later
+ * [Python](https://www.python.org/) 3.10 or later
+ * [Poetry](https://python-poetry.org) 2.0 or later
  * [PostgreSQL](https://www.postgresql.org/) 9.6 or later along with the PostGIS extensions
  * [Redis](https://redis.io) 3.2 or later installed and listening on localhost
  * [NPM](https://www.npmjs.com/) which handles our JS dependencies
@@ -68,9 +69,9 @@ pinned dependencies for RapidPro can be found in ```pip-freeze.txt```. You can
 build the needed environment as follows (from the root rapidpro directory):
 
 {% highlight bash %}
-$ virtualenv -p python3 env
+$ python3 -m venv env
 $ source env/bin/activate
-(env) $ pip install -r pip-freeze.txt
+(env) $ poetry install
 {% endhighlight %}
 
 ## Sync your database
