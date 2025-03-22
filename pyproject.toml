@@ -42,7 +42,7 @@ pyexcel-xlsx = "^0.6.0"
 python-magic = "^0.4.22"
 xlsxlite = "^0.2.0"
 colorama = "^0.4.4"
-gunicorn = "^20.0.4"
+gunicorn = "^23.0.0"
 iptools = "^0.7.0"
 iso-639 = {git = "https://github.com/noumar/iso639.git", tag = "0.4.5"}
 iso8601 = "^0.1.14"
