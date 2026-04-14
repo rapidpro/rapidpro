@@ -42,6 +42,7 @@ from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -2153,7 +2154,9 @@ class OrgCRUDL(SmartCRUDL):
         # valid form means we set our org and redirect to their inbox
         def form_valid(self, form):
             switch_to_org(self.request, form.cleaned_data["other_org"])
-            success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
+            success_url = form.cleaned_data["next"]
+            if not success_url or not url_has_allowed_host_and_scheme(success_url, self.request.get_host()):
+                success_url = reverse("msgs.msg_inbox")
             return HttpResponseRedirect(success_url)
 
         # invalid form login 'logs out' the user from the org and takes them to the org manage page
