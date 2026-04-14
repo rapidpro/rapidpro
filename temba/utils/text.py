@@ -1,6 +1,6 @@
 import base64
 import io
-import random
+import secrets
 import sys
 from os import urandom
 
@@ -112,7 +112,7 @@ def random_string(length):
     Generates a random alphanumeric string
     """
     letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
-    return "".join([random.choice(letters) for _ in range(length)])
+    return "".join(secrets.choice(letters) for _ in range(length))
 
 
 def generate_token():
