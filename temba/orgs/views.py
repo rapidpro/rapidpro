@@ -1,5 +1,5 @@
 import itertools
-import random
+import secrets
 import smtplib
 import string
 from collections import OrderedDict
@@ -771,7 +771,7 @@ class UserCRUDL(SmartCRUDL):
                 subject = _("Password Recovery Request")
                 template = "orgs/email/user_forget"
 
-                token = "".join(random.choice(string.ascii_uppercase + string.digits) for x in range(32))
+                token = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(32))
                 RecoveryToken.objects.create(token=token, user=user)
                 FailedLogin.objects.filter(username__iexact=user.username).delete()
 
