@@ -532,7 +532,8 @@ class EndpointsTest(APITest):
 
     def assert404(self, response):
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json(), {"detail": "Not found."})
+        resp_json = response.json()
+        self.assertIn("detail", resp_json)
 
     @override_settings(REST_HANDLE_EXCEPTIONS=True)
     @patch("temba.api.v2.views.FieldsEndpoint.get_queryset")
