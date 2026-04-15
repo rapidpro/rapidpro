@@ -1,3 +1,5 @@
+from hmac import compare_digest
+
 from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect
@@ -28,7 +30,7 @@ class ConnectView(BaseConnectView):
             code = self.request.session.get("verification_code")
             if not code:
                 raise forms.ValidationError(_("No verification code found, please start over."))
-            if code != value:
+            if not compare_digest(code, value):
                 raise forms.ValidationError(_("Code does not match, please check your email."))
 
             return value
