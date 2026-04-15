@@ -103,7 +103,7 @@ class RocketChatViewTest(RocketChatMixin):
             self.assertEqual(len(response.context["messages"]), 1)
             self.assertEqual([f"{m}" for m in response.context["messages"]][0], msg)
 
-    @patch("secrets.choice")
+    @patch("temba.utils.text.secrets.choice")
     def test_session_key(self, mock_choices):
         choices = (c for c in self.secret)
         mock_choices.side_effect = lambda letters: next(choices)
@@ -112,7 +112,7 @@ class RocketChatViewTest(RocketChatMixin):
         self.assertEqual(response.wsgi_request.session.get(ConnectView.SESSION_KEY), self.secret)
         response.wsgi_request.session.pop(ConnectView.SESSION_KEY, None)
 
-    @patch("secrets.choice")
+    @patch("temba.utils.text.secrets.choice")
     def test_form_initial(self, mock_choices):
         def configure():
             choices = (c for c in self.secret)
@@ -131,7 +131,7 @@ class RocketChatViewTest(RocketChatMixin):
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
     @patch("socket.gethostbyname")
-    @patch("secrets.choice")
+    @patch("temba.utils.text.secrets.choice")
     def test_form_valid(self, mock_choices, mock_socket, mock_settings):
         choices = (c for c in self.secret)
         mock_choices.side_effect = lambda letters: next(choices)
@@ -161,7 +161,7 @@ class RocketChatViewTest(RocketChatMixin):
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
     @patch("socket.gethostbyname")
-    @patch("secrets.choice")
+    @patch("temba.utils.text.secrets.choice")
     def test_form_invalid_url(self, mock_choices, mock_socket, mock_settings):
         mock_choices.side_effect = lambda letters: next(choices)
         mock_socket.return_value = "192.55.123.1"  # Fake IP
@@ -222,7 +222,7 @@ class RocketChatViewTest(RocketChatMixin):
         )
 
     @patch("socket.gethostbyname")
-    @patch("secrets.choice")
+    @patch("temba.utils.text.secrets.choice")
     @patch("requests.put")
     def test_settings_exception(self, mock_request, mock_choices, mock_socket):
         mock_socket.return_value = "192.55.123.1"  # Fake IP
