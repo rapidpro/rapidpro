@@ -714,22 +714,23 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
-    def test_queue_interrupt_by_flow(self):
+    @mock_mailroom
+    def test_queue_interrupt_by_flow(self, mr_mocks):
         flow = self.get_flow("favorites")
         flow.archive(self.admin)
 
-        self.assert_org_queued(self.org, "batch")
-        self.assert_queued_batch_task(
-            self.org,
+        self.assertEqual(
             {
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
                 "task": {"flow_ids": [flow.id]},
-                "queued_on": matchers.ISODate(),
+                "queued_on": matchers.Datetime(),
             },
+            mr_mocks.queued_batch_tasks[-1],
         )
 
-    def test_queue_interrupt_by_session(self):
+    @mock_mailroom
+    def test_queue_interrupt_by_session(self, mr_mocks):
         jim = self.create_contact("Jim", phone="+12065551212")
 
         flow = self.get_flow("favorites")
@@ -750,15 +751,14 @@ class MailroomQueueTest(TembaTest):
         session = run.session
         run.delete()
 
-        self.assert_org_queued(self.org, "batch")
-        self.assert_queued_batch_task(
-            self.org,
+        self.assertEqual(
             {
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
                 "task": {"session_ids": [session.id]},
-                "queued_on": matchers.ISODate(),
+                "queued_on": matchers.Datetime(),
             },
+            mr_mocks.queued_batch_tasks[-1],
         )
 
     def assert_org_queued(self, org, queue):
