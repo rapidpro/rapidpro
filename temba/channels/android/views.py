@@ -75,9 +75,9 @@ def sync(request, channel_id):
     # base64 and url sanitize
     signature = base64.urlsafe_b64encode(signature).strip()
 
-    if request_signature != signature:
+    if not hmac.compare_digest(request_signature, signature):
         return JsonResponse(
-            {"error_id": 1, "error": "Invalid signature: '%(request)s'" % {"request": request_signature}, "cmds": []},
+            {"error_id": 1, "error": "Invalid signature", "cmds": []},
             status=401,
         )
 
