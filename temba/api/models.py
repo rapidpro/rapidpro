@@ -1,6 +1,5 @@
-import hmac
 import logging
-from hashlib import sha1
+import secrets
 
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
@@ -13,7 +12,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import Org, OrgRole, User
 from temba.utils.models import JSONAsTextField
-from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -261,8 +259,7 @@ class APIToken(models.Model):
         return super().save(*args, **kwargs)
 
     def generate_key(self):
-        unique = uuid4()
-        return hmac.new(unique.bytes, digestmod=sha1).hexdigest()
+        return secrets.token_hex(20)
 
     def release(self):
         self.is_active = False
