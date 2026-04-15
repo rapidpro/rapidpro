@@ -131,7 +131,7 @@ class RocketChatViewTest(RocketChatMixin):
         }
 
     @patch("socket.gethostbyname", return_value="123.123.123.123")
-    @patch("temba.utils.text.secrets.choice")
+    @patch("temba.utils.text._secrets_choice")
     def submit_form(self, data, mock_choices, mock_socket):
         choices = (c for c in self.secret)
         mock_choices.side_effect = lambda letters: next(choices)
@@ -140,7 +140,7 @@ class RocketChatViewTest(RocketChatMixin):
 
         return self.client.post(self.claim_url, data=data)
 
-    @patch("temba.utils.text.secrets.choice")
+    @patch("temba.utils.text._secrets_choice")
     def test_session_key(self, mock_choices):
         choices = (c for c in self.secret)
         mock_choices.side_effect = lambda letters: next(choices)
@@ -149,7 +149,7 @@ class RocketChatViewTest(RocketChatMixin):
         self.assertEqual(response.wsgi_request.session.get(ClaimView.SESSION_KEY), self.secret)
         response.wsgi_request.session.pop(ClaimView.SESSION_KEY, None)
 
-    @patch("temba.utils.text.secrets.choice")
+    @patch("temba.utils.text._secrets_choice")
     def test_form_initial(self, mock_choices):
         def configure():
             choices = (c for c in self.secret)
@@ -269,7 +269,7 @@ class RocketChatViewTest(RocketChatMixin):
         self.assertFormError(response, "form", "admin_user_id", "This field is required.")
 
     @patch("socket.gethostbyname", return_value="123.123.123.123")
-    @patch("temba.utils.text.secrets.choice")
+    @patch("temba.utils.text._secrets_choice")
     @patch("requests.put")
     def test_settings_exception(self, mock_request, mock_choices, mock_socket):
         self.check_exceptions(
