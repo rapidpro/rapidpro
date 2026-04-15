@@ -1,8 +1,8 @@
 import base64
 import io
-from secrets import choice as _secrets_choice
 import sys
 from os import urandom
+from secrets import choice as _secrets_choice
 
 import chardet
 import regex
