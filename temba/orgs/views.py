@@ -2155,7 +2155,9 @@ class OrgCRUDL(SmartCRUDL):
         def form_valid(self, form):
             switch_to_org(self.request, form.cleaned_data["other_org"])
             success_url = form.cleaned_data["next"]
-            if not success_url or not url_has_allowed_host_and_scheme(success_url, self.request.get_host()):
+            if not success_url or not url_has_allowed_host_and_scheme(
+                success_url, {self.request.get_host()}, require_https=self.request.is_secure()
+            ):
                 success_url = reverse("msgs.msg_inbox")
             return HttpResponseRedirect(success_url)
 

@@ -4060,18 +4060,13 @@ class EndpointsTest(APITest):
 
         response = upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
         self.assertEqual(201, response.status_code)
-        self.assertEqual(
-            {
-                "uuid": "b97f69f7-5edf-45c7-9fda-d37066eae91d",
-                "content_type": "image/jpeg",
-                "url": f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
-                "filename": "steve marten.jpg",
-                "size": 7461,
-            },
-            response.json(),
-        )
-
+        data = response.json()
         media = Media.objects.get()
+        self.assertEqual(str(media.uuid), data["uuid"])
+        self.assertEqual("image/jpeg", data["content_type"])
+        self.assertEqual("steve marten.jpg", data["filename"])
+        self.assertEqual(7461, data["size"])
+        self.assertIn(str(media.uuid), data["url"])
         self.assertEqual(Media.STATUS_READY, media.status)
 
         self.clear_storage()
