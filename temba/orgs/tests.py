@@ -3663,6 +3663,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(service_url, dict(other_org=self.org.id, next="/flow/"))
         self.assertRedirect(response, "/flow/")
 
+        # external redirect targets should be ignored in favor of the inbox
+        response = self.client.post(service_url, dict(other_org=self.org.id, next="https://evil.example.com/steal"))
+        self.assertRedirect(response, inbox_url)
+
+        # protocol-relative URLs are also treated as external
+        response = self.client.post(service_url, dict(other_org=self.org.id, next="//evil.example.com/steal"))
+        self.assertRedirect(response, inbox_url)
+
         # create a new contact
         response = self.client.post(
             reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="0788123123")
