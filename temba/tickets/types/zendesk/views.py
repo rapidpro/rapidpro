@@ -6,7 +6,7 @@ from smartmin.views import SmartFormView, SmartReadView
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.http import FileResponse, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import FileResponse, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -304,6 +304,7 @@ class FileCallbackView(View):
         return super().dispatch(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        path = "attachments/" + kwargs["path"]
-        assert ".." not in kwargs["path"]
-        return FileResponse(public_file_storage.open(path))
+        sub_path = kwargs["path"]
+        if ".." in sub_path or sub_path.startswith("/"):
+            return HttpResponseNotFound()
+        return FileResponse(public_file_storage.open("attachments/" + sub_path))
