@@ -4061,9 +4061,9 @@ class EndpointsTest(APITest):
         self.assertEqual(201, response.status_code)
         self.assertEqual(
             {
-                "uuid": "14f6ea01-456b-4417-b0b8-35e942f549f1",
+                "uuid": "b97f69f7-5edf-45c7-9fda-d37066eae91d",
                 "content_type": "image/jpeg",
-                "url": f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/steve%20marten.jpg",
+                "url": f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
                 "filename": "steve marten.jpg",
                 "size": 7461,
             },
