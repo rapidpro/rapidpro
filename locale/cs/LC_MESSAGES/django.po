@@ -1019,8 +1019,8 @@ msgstr "FreshChat API Auth Token"
 msgid "The API auth token- leave out the bearer"
 msgstr "Auth token API - vynechte nosič"
 
-msgid "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and receive messages on your short code."
-msgstr "Pokud sídlíte na Filipínách, můžete integrovat {{ brand.name }} s Globe Labs a odesílat a přijímat zprávy na svém krátkém kódu."
+msgid "If you are based in the Phillipines, you can integrate {{ branding.name }} with Globe Labs to send and receive messages on your short code."
+msgstr "Pokud sídlíte na Filipínách, můžete integrovat {{ branding.name }} s Globe Labs a odesílat a přijímat zprávy na svém krátkém kódu."
 
 msgid "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your application configuration page."
 msgstr "Pro dokončení konfigurace připojení Globe Labs je třeba na stránce konfigurace aplikace nastavit následující notifikační URI pro SMS."

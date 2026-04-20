@@ -2,25 +2,16 @@
 {% load i18n %}
 
 {% block body %}
-<p>
-    {% trans "Hi there" %}
-</p>
-<p>
-    {% trans "Someone has requested that the password for this email address be reset." %}
-</p>
-<p>
-    {% blocktrans trimmed with email=user.username  %}
-    Clicking on the following link will allow you to reset the password for the account {{ email }}:
+  <p>{% trans "Hi there" %}</p>
+  <p>{% trans "Someone has requested that the password for this email address be reset." %}</p>
+  <p>
+    {% blocktrans trimmed with email=user.username %}
+      Clicking on the following link will allow you to reset the password for the account {{ email }}:
     {% endblocktrans %}
-</p>
-<p align="center">
-    <a href='{{ branding.link }}{{ path }}'>Reset password</a>
-</p>
-<p>
-    {% trans "If you did not request this, don't worry, this email has only been sent to you and your account remains secure." %}
-</p>
-<p>
-    {% trans "Thank you. Please do not reply to this email." %}
-</p>
-
+  </p>
+  <p align="center">
+    <a href='https://{{ branding.domain }}{{ path }}'>Reset password</a>
+  </p>
+  <p>{% trans "If you did not request this, don't worry, this email has only been sent to you and your account remains secure." %}</p>
+  <p>{% trans "Thank you. Please do not reply to this email." %}</p>
 {% endblock body %}

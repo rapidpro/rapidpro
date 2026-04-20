@@ -1,0 +1,229 @@
+{% extends "smartmin/base.html" %}
+{% load i18n %}
+{% load smartmin temba compress %}
+
+{% block extra-style %}
+  <style type="text/css">
+    .workflow-btn {
+      padding: 4px 10px;
+    }
+
+    .workflow-section {
+      margin-top: 30px;
+      margin-bottom: 30px;
+    }
+
+    .medium-title {
+      color: #e6e6e6;
+      font-weight: 100;
+      font-size: 21px;
+    }
+
+    .workflow-glyph {
+      line-height: 1;
+      font-size: 120px;
+      height: 160px;
+      width: 160px;
+      padding: 20px;
+      text-decoration: none;
+      border-radius: 50%;
+      text-align: center;
+    }
+
+    .workflow-glyph.icon-1 {
+      line-height: 1.9em;
+    }
+
+    a.workflow-glyph {
+      text-decoration: none;
+    }
+  </style>
+{% endblock extra-style %}
+{% block messages %}
+{% endblock messages %}
+{% block content %}
+  {% if 'success' in request.GET.keys %}
+    {% blocktrans with name=branding.name %}
+    Your channel is now connected. You can now start flows through {{name}}.
+    {% endblocktrans %}
+  {% else %}
+    {% blocktrans %}
+      Here's a short introduction to help you get started.
+    {% endblocktrans %}
+  {% endif %}
+  <div class="mt-6">
+    <div class="flex">
+      <div class="summary card p-12 overflow-hidden relative">
+        <temba-icon name="flow"
+                    style="font-size:200px;
+                           transform: rotate(-5deg) translate(-120px, -40px)"
+                    class="text-gray-100 absolute">
+        </temba-icon>
+        <div class="-mt-8 mx-20">
+          <div class="title">
+            <a href="{% url 'flows.flow_list' %}">{% trans "Flows" %}</a>
+          </div>
+          {% blocktrans %}
+            Using a simple drag-and-drop interface, anybody can design a custom SMS application
+            that is tailored to their needs. Design a flow in minutes and start getting responses
+            instantly. Once people start interacting with your flow, use real-time analytics to
+            see how things are going.
+
+          {% endblocktrans %}
+          <div class="mt-6">
+            <a href="{% url 'flows.flow_list' %}" onclick="goto(event)" class="button-light lift inline-block">{% trans "Create a Flow" %}</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% if 'success' in request.GET.keys %}
+    <div class="flex mt-6">
+      <div class="summary card p-12 overflow-hidden relative">
+        <temba-icon name="contact"
+                    style="font-size:200px;
+                           transform: rotate(-5deg) translate(-120px, -40px)"
+                    class="text-gray-100 absolute">
+        </temba-icon>
+        <div class="-mt-8 mx-20">
+          <div class="title">
+            <a href="{% url 'channels.channel_claim' %}">{% trans "Get Connected" %}</a>
+          </div>
+          {% blocktrans with name=branding.name %}
+            No matter where you are in the world, it's easy to configure {{name}} to work on real phones without delay.
+            Whether you want to use a Twilio number, a direct connection with your local carriers, or even the SIM card
+            you already have, we've got you covered.
+
+          {% endblocktrans %}
+          <div class="mt-2">
+            {% blocktrans %}
+              You can also use our flow simulator if you don't want to setup a number right away.
+
+            {% endblocktrans %}
+          </div>
+          <div class="mt-6">
+            <div href="{% url 'channels.channel_claim' %}"
+                 onclick="goto(event)"
+                 class="button-primary lift inline-block">{% trans "Add Number" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  <div class="flex mt-6">
+    <div class="summary card p-12 overflow-hidden relative">
+      <temba-icon name="contact"
+                  style="font-size:200px;
+                         transform: rotate(-5deg) translate(-120px, -40px)"
+                  class="text-gray-100 absolute">
+      </temba-icon>
+      <div class="-mt-8 mx-20">
+        <div class="title">
+          <a href="{% url 'contacts.contact_list' %}">{% trans "Contacts" %}</a>
+        </div>
+        {% blocktrans with name=branding.name %}
+          Before you do anything else in {{name}}, it is helpful to have a list of contacts. This will make it easy to send a message or survey out
+          to a wide distribution list.
+
+          For example, you might have groups
+          called <i>Field Staff</i>, <i>Office Managers</i>, or <i>Trainees</i>. You can import these groups into
+          {{name}} by uploading an Excel file using our
+          <a href="{{STATIC_URL}}/examples/contacts.xls">
+            template
+          </a>
+          as a guide. We'll create a group for you automatically for each file you upload. Don't worry, it's easy to add or
+          remove people from groups later if you need to tweak things.
+
+        {% endblocktrans %}
+        <div class="mt-2">
+          {% blocktrans %}
+            If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who
+            texts with that keyword will automatically be registered into the group.
+
+          {% endblocktrans %}
+        </div>
+        <div class="mt-6">
+          <div href="{% url 'contacts.contactimport_create' %}"
+               onclick="goto(event)"
+               class="button-primary lift inline-block mr-1 mb-1">{% trans "Import Contacts" %}</div>
+          <temba-modax endpoint="{% url 'contacts.contact_create' %}"
+                       header="{{ _("Create Contact") |escapejs }}"
+                       class="inline-block mb-1">
+            <div href="{% url 'contacts.contact_list' %}#contact" class="button-light lift inline-block mr-1">{% trans "Create Contact" %}</div>
+          </temba-modax>
+          <temba-modax endpoint="{% url 'contacts.contactgroup_create' %}"
+                       header="{{ _("Create Group") |escapejs }}"
+                       class="inline-block mb-1">
+            <div href="{% url 'contacts.contact_list' %}#group" class="button-light lift inline-block mr-1 mb-1">{% trans "Create Group" %}</div>
+          </temba-modax>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="flex mt-6">
+    <div class="summary card p-12 overflow-hidden relative">
+      <temba-icon name="message"
+                  style="font-size:200px;
+                         transform: rotate(-5deg) translate(-100px, -40px)"
+                  class="text-gray-100 absolute z-0">
+      </temba-icon>
+      <div class="-mt-8 mx-20 z-10 relative">
+        <div class="title">
+          <a href="{% url 'msgs.msg_inbox' %}">{% trans "Messages" %}</a>
+        </div>
+        {% blocktrans with name=branding.name %}
+          If you use e-mail, reading and writing messages in {{name}} should already be familiar to you. Just like e-mail, you have an Inbox and it's easy to label
+          messages so you can follow up with them later. {{name}} also allows you to schedule a message to be sent later or even as a reminder
+          on a regular schedule.
+
+        {% endblocktrans %}
+        <div class="mt-2">
+          {% blocktrans with name=branding.name %}
+            For example you might have {{name}} send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.
+            If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.
+
+          {% endblocktrans %}
+        </div>
+        <div class="mt-6">
+          <temba-modax endpoint="{% url 'msgs.broadcast_create' %}"
+                       header="{{ _("New Broadcast") |escapejs }}"
+                       class="inline-block mb-1">
+            <div class="button-primary lift">{% trans "Send Message" %}</div>
+          </temba-modax>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="flex mt-6">
+    <div class="summary card p-12 overflow-hidden relative">
+      <temba-icon name="workspace"
+                  style="font-size:200px;
+                         transform: rotate(-5deg) translate(-120px, -40px)"
+                  class="text-gray-100 absolute">
+      </temba-icon>
+      <div class="-mt-8 mx-20">
+        <div class="title">
+          <a href="{% url 'orgs.org_workspace' %}">{% trans "Workspace" %}</a>
+        </div>
+        {% block account-blurb %}
+        {% endblock account-blurb %}
+        <div class="mt-2">
+          {% url 'api' as api_url %}
+          {% blocktrans with name=branding.name %}
+            {{name}} also offers a robust REST API to add SMS features to your own website. Have a look through the
+            <a href="{{api_url}}">
+              API documentation
+            </a>
+            to learn more.
+
+          {% endblocktrans %}
+        </div>
+        <div class="mt-6">
+          {% block account-details %}
+          {% endblock account-details %}
+          <div href="{% url 'api' %}" onclick="goto(event)" class="button-light lift inline-block">{% trans "API Documentation" %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

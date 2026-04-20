@@ -1,7 +1,6 @@
-from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
-from ...models import Channel, ChannelType
+from ...models import Channel, ChannelType, ConfigUI
 from .views import ClaimView, UpdateForm
 
 
@@ -11,19 +10,18 @@ class ExternalType(ChannelType):
     """
 
     code = "EX"
+    name = "External API"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^ex/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive|stopped)$"
-
-    name = "External API"
+    schemes = None  # can be any scheme
 
     claim_blurb = _("Use our pluggable API to connect an external service you already have.")
     claim_view = ClaimView
 
-    update_form = UpdateForm
+    config_ui = ConfigUI()  # has own template
 
-    schemes = None  # can be any scheme
-    max_length = 160
+    update_form = UpdateForm
 
     CONFIG_SEND_AUTHORIZATION = "send_authorization"
     CONFIG_MAX_LENGTH = "max_length"
@@ -37,8 +35,8 @@ class ExternalType(ChannelType):
         "&channel={{channel}}"
     )
 
-    def get_configuration_context_dict(self, channel):
-        context = dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
+    def get_config_ui_context(self, channel):
+        context = super().get_config_ui_context(channel)
 
         config = channel.config
         send_method = config.get(ExternalType.CONFIG_SEND_METHOD)

@@ -1,0 +1,14 @@
+{% load i18n %}
+
+{% blocktrans trimmed %}
+  Your WhatsApp channel is now connected, you should be able to send and receive messages as normal.
+{% endblocktrans %}
+{% blocktrans trimmed %}
+  In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh
+  the contacts on the WhatsApp application. This may take a few minutes.
+{% endblocktrans %}
+<div class="mt-4">
+  <a href="{% url 'channels.types.whatsapp_legacy.refresh' channel.uuid %}"
+     onclick="handlePosterizeClick(event)"
+     class="button-primary inline-block mt-2 posterize">{% trans "Refresh Contacts" %}</a>
+</div>

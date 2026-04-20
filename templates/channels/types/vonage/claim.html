@@ -1,0 +1,24 @@
+{% extends "channels/channel_claim_number.html" %}
+{% load i18n %}
+
+{% block account-warning %}
+  {% if current_creds_account %}
+    <div class="card mt-6">
+      {% trans "Using account" %}
+      <div class="text-lg font-bold inline-block ml-2">{{ current_creds_account }}</div>
+      <a href="{% url "channels.types.vonage.connect" %}?reset_creds=reset" class="inline-block ml-4">{% trans "Change" %}</a>
+    </div>
+  {% endif %}
+{% endblock account-warning %}
+{% block country-select %}
+  <temba-select name="country" label="{{ _("Country") |escapejs }}" id="country">
+    {% for country in search_countries %}
+      <temba-option name="{{ country.label }}" value="{{ country.key }}">
+      </temba-option>
+    {% endfor %}
+  </temba-select>
+{% endblock country-select %}
+{% block search-pattern %}
+  <temba-textinput type="text" maxlength="7" name="pattern" label="{{ _("Pattern") |escapejs }}" id="pattern">
+  </temba-textinput>
+{% endblock search-pattern %}

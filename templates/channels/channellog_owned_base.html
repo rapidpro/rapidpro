@@ -1,0 +1,51 @@
+{% extends "smartmin/list.html" %}
+{% load i18n compress %}
+
+{% block content %}
+  <div class="bg-white rounded-lg shadow flex mt-0 flex-shrink-0 mb-4">
+    <div class="p-4">
+      {% block group_object %}
+      {% endblock group_object %}
+    </div>
+  </div>
+  {% for log in logs %}
+    {% include "channels/channellog.html" with log=log %}
+  {% endfor %}
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    onSpload(function() {
+      prettyPrint();
+    });
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css" />
+  <style type="text/css">
+    table.http-log tbody tr:first-child td {
+      padding: 1.5rem;
+    }
+
+    pre.prettyprint {
+      margin: 0;
+      border: 0;
+      max-height: none !important;
+      padding: 1.5rem;
+    }
+
+    pre.prettyprint.request {
+      background: #ffffff;
+    }
+  </style>
+  <style type="text/css">
+    .page-content {
+      max-width: 100%;
+    }
+
+    .log-error {
+      color: rgb(var(--error-rgb));
+    }
+  </style>
+{% endblock extra-style %}

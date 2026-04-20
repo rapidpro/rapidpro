@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.clickmobile.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class ClickMobileType(ChannelType):
@@ -12,11 +12,12 @@ class ClickMobileType(ChannelType):
     """
 
     code = "CM"
+    name = "Click Mobile"
     category = ChannelType.Category.PHONE
 
-    name = "Click Mobile"
-
     courier_url = r"^cm/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
+    schemes = [URN.TEL_SCHEME]
+    available_timezones = ["Africa/Accra", "Africa/Blantyre"]
 
     claim_blurb = _(
         "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple "
@@ -25,18 +26,11 @@ class ClickMobileType(ChannelType):
 
     claim_view = ClaimView
 
-    schemes = [URN.TEL_SCHEME]
-    max_length = 459
-
-    configuration_blurb = _(
-        "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.cm' channel.uuid 'receive' %}",
+    config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring this channel, you need to configure Click Mobile to send new messages to the URL below."
         ),
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
+        ],
     )
-
-    available_timezones = ["Africa/Accra", "Africa/Blantyre"]

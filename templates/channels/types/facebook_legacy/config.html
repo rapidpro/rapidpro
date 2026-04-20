@@ -1,0 +1,37 @@
+{% load i18n %}
+
+{% blocktrans trimmed %}
+  To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's
+  Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list.
+{% endblocktrans %}
+<div class="card">
+  <div class="subtitle">{% trans "Referral Parmeters" %}</div>
+  <div class="code inline-block m-1">messaging_referrals</div>
+  <div class="code inline-block m-1">messages</div>
+  <div class="code inline-block m-1">messsages_deliveries</div>
+  <div class="code inline-block m-1">messaging_postbacks</div>
+  <div class="code inline-block m-1">message_reads</div>
+  <div class="code inline-block m-1">messaging_handovers</div>
+  <div class="code inline-block m-1">messaging_optins</div>
+  <div class="code inline-block m-1">messaging_referrals</div>
+</div>
+<div class="mt-4 card">
+  <div class="subtitle">{% trans "Permissions" %}</div>
+  {% blocktrans trimmed with subscriptions='<div class="code inline py-1 px-2">pages_messaging_subscriptions</div>' messaging='<div class="code inline py-1 px-2">pages_messaging</div>' %}
+  When submitting your application for approval, make sure to include the {{ messaging }}
+  and {{ subscriptions }} permissions so that you are able to initiate conversations with your contacts.
+{% endblocktrans %}
+</div>
+<div class="card">
+  <div class="subtitle">{% trans "Verify Token" %}</div>
+  <div class="code">{{ channel.config.secret }}</div>
+  <div class="subtitle mt-4">{% trans "Webhook URL" %}</div>
+  <div class="code">https://{{ channel.callback_domain }}{% url 'courier.fb' channel.uuid %}</div>
+  <div class="mt-4">
+    {% blocktrans trimmed %}
+      It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application. Remember,
+      until your Facebook application is approved by Facebook you will only be able to send and receive messages
+      with administrators of your application.
+    {% endblocktrans %}
+  </div>
+</div>

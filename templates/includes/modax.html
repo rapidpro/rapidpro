@@ -1,0 +1,25 @@
+{% extends "includes/modal.html" %}
+{% load i18n temba smartmin %}
+
+{% block modal %}
+  {% block pre-form %}
+  {% endblock pre-form %}
+  {% for field, errors in form.errors.items %}
+    {% if field == '__all__' %}{{ errors }}{% endif %}
+  {% endfor %}
+  <form method="post">
+    {% csrf_token %}
+    {% block fields %}
+      {% for field in form.fields %}
+        {% render_field field %}
+      {% endfor %}
+    {% endblock fields %}
+    <div class="hidden">
+      <div class="form-actions">
+        {% block form-buttons %}
+          <input type="submit" value="{{ submit_button_name }}">
+        {% endblock form-buttons %}
+      </div>
+    </div>
+  </form>
+{% endblock modal %}

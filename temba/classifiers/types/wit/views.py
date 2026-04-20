@@ -38,6 +38,8 @@ class ConnectView(BaseConnectView):
             WitType.CONFIG_APP_ID: str(form.cleaned_data["app_id"]),
         }
 
-        self.object = Classifier.create(self.org, self.request.user, WitType.slug, form.cleaned_data["name"], config)
+        self.object = Classifier.create(
+            self.request.org, self.request.user, WitType.slug, form.cleaned_data["name"], config
+        )
 
         return super().form_valid(form)

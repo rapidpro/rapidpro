@@ -1,8 +1,9 @@
 blank_issues_enabled: false
+
 contact_links:
-  - name: Getting Help
-    url: https://groups.google.com/g/rapidpro-dev
-    about: If you have a question about your own installation, ask a question on the dev list.
-  - name: Bugs and feature requests
-    url: https://github.com/nyaruka/rapidpro/issues
-    about: Open an issue with the maintainers to file a bug you found or to collaborate on new features.
+  - name: Feature Requests
+    url: https://github.com/nyaruka/rapidpro/discussions/categories/ideas
+    about: Suggest a new feature to discuss before beginning development
+  - name: Questions
+    url: https://github.com/nyaruka/rapidpro/discussions/categories/q-a
+    about: Ask general questions about RapidPro

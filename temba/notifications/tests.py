@@ -1,6 +1,4 @@
-from datetime import date, datetime
-
-import pytz
+from datetime import date, datetime, timezone as tzone
 
 from django.core import mail
 from django.test import override_settings
@@ -23,13 +21,13 @@ class IncidentTest(TembaTest):
     def test_create(self):
         # we use a unique constraint to enforce uniqueness on org+type+scope for ongoing incidents which allows use of
         # INSERT .. ON CONFLICT DO NOTHING
-        incident1 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
+        incident1 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
 
         # try to create another for the same scope
-        incident2 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
+        incident2 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
 
         # different scope
-        incident3 = Incident.get_or_create(self.org, "incident:test", scope="scope2")
+        incident3 = Incident.get_or_create(self.org, "org:flagged", scope="scope2")
 
         self.assertEqual(incident1, incident2)
         self.assertNotEqual(incident1, incident3)
@@ -42,7 +40,7 @@ class IncidentTest(TembaTest):
         # check that once incident 1 ends, new incidents can be created for same scope
         incident1.end()
 
-        incident4 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
+        incident4 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
 
         self.assertNotEqual(incident1, incident4)
         self.assertEqual(3, Notification.objects.count())
@@ -87,7 +85,7 @@ class IncidentTest(TembaTest):
             org=self.org,
             incident_type="webhooks:unhealthy",
             scope="",
-            started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=pytz.UTC),
+            started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=tzone.utc),
         )
 
         self.assertEqual(
@@ -351,8 +349,16 @@ class NotificationTest(TembaTest):
                 },
             },
             expected_users={self.editor, self.admin},
-            email=False,
+            email=True,
         )
+
+        send_notification_emails()
+
+        self.assertEqual(2, len(mail.outbox))
+        self.assertEqual("[Nyaruka] Incident: Workspace Flagged", mail.outbox[0].subject)
+        self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual("[Nyaruka] Incident: Workspace Flagged", mail.outbox[1].subject)
+        self.assertEqual(["editor@nyaruka.com"], mail.outbox[1].recipients())
 
         # if a user visits the incident page, all incident notifications are now read
         self.login(self.editor)
@@ -366,11 +372,14 @@ class NotificationTest(TembaTest):
             org=self.org, mappings={}, num_records=5, created_by=self.editor, modified_by=self.editor
         )
         Notification.create_all(
-            imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp
+            imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp, medium="UE"
         )
-        Notification.create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor])
-        Notification.create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor])
-        Notification.create_all(self.org2, "tickets:activity", scope="", users=[self.editor])  # different org
+        Notification.create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor], medium="UE")
+        Notification.create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor], medium="UE")
+        Notification.create_all(self.org, "tickets:reply", scope="12", users=[self.editor], medium="E")  # email only
+        Notification.create_all(
+            self.org2, "tickets:activity", scope="", users=[self.editor], medium="UE"
+        )  # different org
 
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.agent))
         self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))

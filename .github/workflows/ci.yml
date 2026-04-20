@@ -7,8 +7,7 @@ jobs:
     env:
       python-version: "3.10.x"
       node-version: "12"
-      rpindexer-version: "8.2.0"
-      mailroom-version: "8.2.0"
+      mailroom-version: "9.0.0"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
 
     services:
@@ -17,7 +16,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: postgis/postgis:14-3.3-alpine
+        image: postgis/postgis:15-3.3-alpine
         env:
           POSTGRES_DB: temba
           POSTGRES_USER: temba
@@ -64,13 +63,11 @@ jobs:
           sudo yarn global add less
           ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
           poetry run python manage.py migrate
-          # fetch and extract rp-indexer
-          wget https://github.com/nyaruka/rp-indexer/releases/download/v${{ env.rpindexer-version }}/rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz
-          tar -xvf rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz rp-indexer
           # fetch, extract and start mailroom
           wget https://github.com/nyaruka/mailroom/releases/download/v${{ env.mailroom-version }}/mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz
           tar -xvf mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz mailroom
-          ./mailroom -db=postgres://temba:temba@localhost:5432/temba?sslmode=disable -redis=redis://localhost:6379/10 -log-level=info > mailroom.log &
+          # start mailroom but use different redis db so that it doesn't actually handle tasks
+          ./mailroom -db=postgres://temba:temba@localhost:5432/temba?sslmode=disable -redis=redis://localhost:6379/15 -log-level=info > mailroom.log &
 
       - name: Run pre-test checks
         run: |
@@ -78,7 +75,7 @@ jobs:
           poetry run python code_check.py --debug
           # check we can collect and compress all static files
           poetry run python manage.py collectstatic --noinput --verbosity=0
-          poetry run python manage.py compress --extension=".haml" --settings=temba.settings_compress
+          poetry run python manage.py compress --extension=".html" --settings=temba.settings_compress
 
       - name: Run tests
         run: |
@@ -86,6 +83,12 @@ jobs:
           poetry run coverage report -i
           poetry run coverage xml
           poetry run coverage html
+
+      - name: Save coverage report as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-report
+          path: htmlcov/
 
       - name: Mailroom log
         if: failure()

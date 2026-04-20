@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.utils.fields import ExternalURLField
-from temba.utils.text import random_string, truncate
+from temba.utils.text import generate_secret, truncate
 from temba.utils.uuid import uuid4
 
 from ...models import Channel
@@ -85,7 +85,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         self._secret = self.request.session.get(self.SESSION_KEY)
         if not self._secret or self.request.method.lower() != "post":
-            self.request.session[self.SESSION_KEY] = self._secret = random_string(SECRET_LENGTH)
+            self.request.session[self.SESSION_KEY] = self._secret = generate_secret(SECRET_LENGTH)
 
         return self._secret
 
@@ -114,7 +114,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         self.object = Channel(
             uuid=uuid4(),
-            org=self.org,
+            org=self.request.org,
             channel_type=RocketChatType.code,
             config=config,
             name=truncate(f"{RocketChatType.name}: {rc_host}", Channel._meta.get_field("name").max_length),
@@ -127,7 +127,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         try:
             client.settings(webhook_url, bot_username)
-        except ClientError as err:
+        except ClientError as err:  # pragma: no cover
             messages.error(self.request, err.msg if err.msg else _("Configuration has failed"))
             return super().get(self.request, *self.args, **self.kwargs)
         else:

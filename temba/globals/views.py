@@ -134,13 +134,13 @@ class GlobalCRUDL(SmartCRUDL):
                 )
 
         def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs).filter(org=self.org, is_active=True)
+            qs = super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True)
             return Global.annotate_usage(qs)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            org_globals = self.org.globals.filter(is_active=True)
+            org_globals = self.request.org.globals.filter(is_active=True)
             all_count = org_globals.count()
             unused_count = Global.annotate_usage(org_globals).filter(usage_count=0).count()
 

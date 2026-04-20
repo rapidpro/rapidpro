@@ -1,0 +1,47 @@
+{% extends "smartmin/list.html" %}
+{% load i18n temba smartmin humanize %}
+
+{% block subtitle %}
+{% endblock subtitle %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    td {
+      padding-bottom: 0.25em;
+      padding-right: 1em;
+      padding-left: 1em;
+    }
+  </style>
+{% endblock extra-style %}
+{% block table %}
+  <table class="rounded-b-lg shadow bg-white">
+    <tbody>
+      <tr>
+        <td class="p-1"></td>
+      </tr>
+      {% for obj in object_list %}
+        <tr class="{% if obj.is_error %}warning{% endif %}">
+          <td class="w-full clickable">
+            <div onclick="goto(event, this)" href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.get_log_type_display }}</div>
+          </td>
+          <td class="clickable">
+            <div onclick="goto(event, this)"
+                 href="{% url "request_logs.httplog_read" obj.id %}"
+                 class="linked whitespace-nowrap">{{ obj.status_code|default:"--" }}</div>
+          </td>
+          <td class="whitespace-nowrap">
+            {% if obj.request_time %}
+              {{ obj.request_time|intcomma }}ms
+            {% else %}
+              {{ "--" }}
+            {% endif %}
+          </td>
+          <td class="text-right whitespace-nowrap">{% format_datetime obj.created_on seconds=True %}</td>
+        </tr>
+      {% endfor %}
+      <tr>
+        <td class="p-1"></td>
+      </tr>
+    </tbody>
+  </table>
+{% endblock table %}

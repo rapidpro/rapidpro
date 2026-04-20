@@ -1,0 +1,7 @@
+{% extends "api/docs.html" %}
+{% load i18n %}
+
+{% block api-menu %}
+  <a class="button-light ml-4" href="{% url "api.v2.root" %}">{% trans "Endpoints" %}</a>
+  <a class="button-light ml-4" href="{% url "api.v2.explorer" %}">{% trans "Explorer" %}</a>
+{% endblock api-menu %}

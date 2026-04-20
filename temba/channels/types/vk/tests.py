@@ -38,7 +38,7 @@ class VKTypeTest(TembaTest):
 
         data = {
             "community_access_token": token,
-            "community_id": "123456",
+            "address": "123456",
             "community_name": "Temba" * 20,
             "callback_verification_string": "123456",
         }
@@ -50,7 +50,7 @@ class VKTypeTest(TembaTest):
 
         data = {
             "community_access_token": token,
-            "community_id": "123456",
+            "address": "123456",
             "community_name": "Temba",
             "callback_verification_string": "123456",
         }

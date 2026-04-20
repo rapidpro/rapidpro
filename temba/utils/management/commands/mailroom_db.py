@@ -1,7 +1,8 @@
 import json
 import subprocess
+import time
+from zoneinfo import ZoneInfo
 
-import pytz
 from django_redis import get_redis_connection
 
 from django.conf import settings
@@ -19,7 +20,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Team, Ticketer, Topic
+from temba.tickets.models import Team, Topic
 
 SPECS_FILE = "temba/utils/management/commands/data/mailroom_db.json"
 
@@ -70,9 +71,10 @@ class Command(BaseCommand):
         self._sql(f"CREATE USER {db_user} PASSWORD 'temba'")
         self._sql(f"ALTER ROLE {db_user} WITH SUPERUSER")
 
-        # always use test db as our db
+        # always use test db as our db and override mailroom location
         settings.DATABASES["default"]["NAME"] = db_name
         settings.DATABASES["default"]["USER"] = db_user
+        settings.MAILROOM_URL = "http://host.docker.internal:8090"
 
         self._log("Running migrations...\n")
 
@@ -139,13 +141,15 @@ class Command(BaseCommand):
                         MAILROOM_DB_USER,
                     ],
                     input=f.read(),
-                    stdout=subprocess.PIPE,
                     check=True,
                 )
             except subprocess.CalledProcessError:
                 raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
 
         self._log(self.style.SUCCESS("OK") + "\n")
+
+        # TODO figure out why this is needed
+        time.sleep(1)
 
         return AdminBoundary.objects.filter(level=0).get()
 
@@ -160,7 +164,7 @@ class Command(BaseCommand):
         org = Org.objects.create(
             uuid=spec["uuid"],
             name=spec["name"],
-            timezone=pytz.timezone("America/Los_Angeles"),
+            timezone=ZoneInfo("America/Los_Angeles"),
             flow_languages=spec["languages"],
             country=country,
             created_on=timezone.now(),
@@ -183,7 +187,6 @@ class Command(BaseCommand):
         self.create_campaigns(spec, org, superuser)
         self.create_templates(spec, org, superuser)
         self.create_classifiers(spec, org, superuser)
-        self.create_ticketers(spec, org, superuser)
         self.create_topics(spec, org, superuser)
         self.create_teams(spec, org, superuser)
         self.create_users(spec, org)
@@ -228,22 +231,6 @@ class Command(BaseCommand):
                 classifier.intents.create(
                     name=intent["name"], external_id=intent["external_id"], created_on=timezone.now()
                 )
-
-        self._log(self.style.SUCCESS("OK") + "\n")
-
-    def create_ticketers(self, spec, org, user):
-        self._log(f"Creating {len(spec['ticketers'])} ticketers... ")
-
-        for t in spec["ticketers"]:
-            Ticketer.objects.create(
-                org=org,
-                name=t["name"],
-                config=t["config"],
-                ticketer_type=t["ticketer_type"],
-                uuid=t["uuid"],
-                created_by=user,
-                modified_by=user,
-            )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
@@ -411,13 +398,15 @@ class Command(BaseCommand):
                 TemplateTranslation.get_or_create(
                     channel,
                     t["name"],
-                    tt["language"],
-                    tt["country"],
-                    tt["content"],
-                    tt["variable_count"],
-                    tt["status"],
-                    tt["external_id"],
-                    tt["namespace"],
+                    locale=tt["locale"],
+                    content=tt["content"],
+                    variable_count=tt["variable_count"],
+                    status=tt["status"],
+                    external_id=tt["external_id"],
+                    external_locale=tt["external_locale"],
+                    namespace=tt["namespace"],
+                    components=tt["components"],
+                    params=tt["params"],
                 )
 
         self._log(self.style.SUCCESS("OK") + "\n")

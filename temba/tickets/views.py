@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
+from smartmin.views import SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.conf import settings
@@ -10,12 +10,11 @@ from django.http import Http404, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.html import mark_safe
 from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
@@ -30,7 +29,6 @@ from .models import (
     MineFolder,
     Ticket,
     TicketCount,
-    Ticketer,
     TicketFolder,
     Topic,
     TopicFolder,
@@ -38,46 +36,6 @@ from .models import (
     export_ticket_stats,
 )
 from .tasks import export_tickets_task
-
-
-class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
-    class Form(forms.Form):
-        def __init__(self, **kwargs):
-            self.request = kwargs.pop("request")
-            self.ticketer_type = kwargs.pop("ticketer_type")
-
-            super().__init__(**kwargs)
-
-    submit_button_name = _("Connect")
-    permission = "tickets.ticketer_connect"
-    ticketer_type = None
-    form_blurb = ""
-    success_url = "@tickets.ticket_list"
-
-    def __init__(self, ticketer_type):
-        self.ticketer_type = ticketer_type
-
-        super().__init__()
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["request"] = self.request
-        kwargs["ticketer_type"] = self.ticketer_type
-        return kwargs
-
-    def get_template_names(self):
-        return ("tickets/types/%s/connect.html" % self.ticketer_type.slug, "tickets/ticketer_connect_form.html")
-
-    def derive_title(self):
-        return _("Connect %(ticketer)s") % {"ticketer": self.ticketer_type.name}
-
-    def get_form_blurb(self):
-        return self.form_blurb
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["form_blurb"] = mark_safe(self.get_form_blurb())
-        return context
 
 
 class NoteForm(forms.ModelForm):
@@ -527,22 +485,3 @@ class TicketCRUDL(SmartCRUDL):
             response = self.render_modal_response(form)
             response["REDIRECT"] = self.get_success_url()
             return response
-
-
-class TicketerCRUDL(SmartCRUDL):
-    model = Ticketer
-    actions = ("connect", "read", "delete")
-
-    class Connect(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.request.user)]
-            return context
-
-    class Read(OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = "uuid"
-
-    class Delete(DependencyDeleteModal):
-        cancel_url = "@orgs.org_workspace"
-        success_url = "@orgs.org_workspace"
-        success_message = _("Your ticketing service has been deleted.")

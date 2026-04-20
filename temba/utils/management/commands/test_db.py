@@ -2,17 +2,16 @@ import json
 import math
 import random
 import resource
+import subprocess
 import sys
 import time
 import uuid
+import zoneinfo
 from collections import defaultdict
 from datetime import timedelta
-from subprocess import CalledProcessError, check_call
 
-import pytz
 from django_redis import get_redis_connection
 
-from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.management import BaseCommand, CommandError
 from django.db import connection
@@ -38,6 +37,10 @@ USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
 LOCATIONS_DUMP = "test-data/nigeria.bin"
+
+PG_CONTAINER_NAME = "textit-postgres-1"
+TEMBA_DB_NAME = "temba"
+TEMBA_DB_USER = "temba"
 
 # number of each type of archive to create
 ARCHIVES = 50
@@ -228,24 +231,34 @@ class Command(BaseCommand):
         """
         self._log("Loading locations from %s... " % path)
 
-        # load dump into current db with pg_restore
-        db_config = settings.DATABASES["default"]
-        try:
-            check_call(
-                f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
-                f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
-                shell=True,
-            )
-        except CalledProcessError:  # pragma: no cover
-            raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
+        with open(path, "rb") as f:
+            try:
+                subprocess.run(
+                    [
+                        "docker",
+                        "exec",
+                        "-i",
+                        PG_CONTAINER_NAME,
+                        "pg_restore",
+                        "-d",
+                        TEMBA_DB_NAME,
+                        "-U",
+                        TEMBA_DB_USER,
+                    ],
+                    input=f.read(),
+                    stdout=subprocess.PIPE,
+                    check=True,
+                )
+            except subprocess.CalledProcessError:
+                raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
+
+        time.sleep(1)
+        self._log(self.style.SUCCESS("OK") + "\n")
 
         # fetch as tuples of (WARD, DISTRICT, STATE)
         wards = AdminBoundary.objects.filter(level=3).prefetch_related("parent", "parent__parent")
         locations = [(w, w.parent, w.parent.parent) for w in wards]
-
         country = AdminBoundary.objects.filter(level=0).get()
-
-        self._log(self.style.SUCCESS("OK") + "\n")
         return country, locations
 
     def create_orgs(self, superuser, country, num_total):
@@ -262,7 +275,7 @@ class Command(BaseCommand):
             orgs.append(
                 Org.objects.create(
                     name=org_names[o % len(org_names)],
-                    timezone=self.random.choice(pytz.all_timezones),
+                    timezone=self.random.choice(zoneinfo.available_timezones()),
                     country=country,
                     created_on=self.db_begins_on,
                     created_by=superuser,
@@ -333,27 +346,59 @@ class Command(BaseCommand):
                     TemplateTranslation.get_or_create(
                         channel,
                         "hello",
-                        "eng",
-                        "US",
-                        "Hello {{1}}",
-                        1,
-                        TemplateTranslation.STATUS_APPROVED,
-                        "1234",
-                        "",
+                        locale="eng-US",
+                        content="Hello {{1}}",
+                        variable_count=1,
+                        status=TemplateTranslation.STATUS_APPROVED,
+                        external_id="1234",
+                        external_locale="en_US",
+                        namespace="",
+                        components=[
+                            {
+                                "type": "BODY",
+                                "text": "Hello {{1}}",
+                                "example": {"body_text": [["Bob"]]},
+                            },
+                        ],
+                        params={"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
                         "hello",
-                        "fra",
-                        "FR",
-                        "Bonjour {{1}}",
-                        1,
-                        TemplateTranslation.STATUS_APPROVED,
-                        "5678",
-                        "",
+                        locale="fra-FR",
+                        content="Bonjour {{1}}",
+                        variable_count=1,
+                        status=TemplateTranslation.STATUS_APPROVED,
+                        external_id="5678",
+                        external_locale="fr_FR",
+                        namespace="",
+                        components=[
+                            {
+                                "type": "BODY",
+                                "text": "Bonjour {{1}}",
+                                "example": {"body_text": [["Bob"]]},
+                            },
+                        ],
+                        params={"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
-                        channel, "bye", "eng", "US", "See ya {{1}}", 1, TemplateTranslation.STATUS_PENDING, "6789", ""
+                        channel,
+                        "bye",
+                        locale="eng-US",
+                        content="See ya {{1}}",
+                        variable_count=1,
+                        status=TemplateTranslation.STATUS_PENDING,
+                        external_id="6789",
+                        external_locale="en_US",
+                        namespace="",
+                        components=[
+                            {
+                                "type": "BODY",
+                                "text": "See ya {{1}}",
+                                "example": {"body_text": [["Bob"]]},
+                            },
+                        ],
+                        params={"body": [{"type": "text"}]},
                     )
 
             self._log(self.style.SUCCESS("OK") + "\n")

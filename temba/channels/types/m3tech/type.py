@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class M3TechType(ChannelType):
@@ -12,40 +12,25 @@ class M3TechType(ChannelType):
     """
 
     code = "M3"
+    name = "M3 Tech"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^m3/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$"
-
-    name = "M3 Tech"
+    schemes = [URN.TEL_SCHEME]
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://m3techservice.com">M3 Tech</a>'
     }
     claim_view = AuthenticatedExternalClaimView
 
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
-
-    configuration_blurb = _(
-        "To finish configuring your connection you'll need to notify M3Tech of the following callback URLs."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Received URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'receive' %}",
-        ),
-        dict(
-            label=_("Sent URL"), url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'sent' %}"
-        ),
-        dict(
-            label=_("Delivered URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'delivered' %}",
-        ),
-        dict(
-            label=_("Failed URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'failed' %}",
-        ),
+    config_ui = ConfigUI(
+        blurb=_("To finish configuring this channel, you'll need to notify M3Tech of the following callback URLs."),
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Received URL")),
+            ConfigUI.Endpoint(courier="sent", label=_("Sent URL")),
+            ConfigUI.Endpoint(courier="delivered", label=_("Delivered URL")),
+            ConfigUI.Endpoint(courier="failed", label=_("Failed URL")),
+        ],
     )
 
     available_timezones = ["Asia/Karachi"]

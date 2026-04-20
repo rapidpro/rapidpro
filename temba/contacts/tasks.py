@@ -1,8 +1,7 @@
 import logging
-from datetime import timedelta
+from datetime import timedelta, timezone as tzone
 
 import iso8601
-import pytz
 from celery import shared_task
 
 from django.conf import settings
@@ -79,7 +78,7 @@ def check_elasticsearch_lag():
         if es_last_modified_contact:
             # if we have elastic results, make sure they aren't more than five minutes behind
             db_contact = Contact.objects.order_by("-modified_on").first()
-            es_modified_on = iso8601.parse_date(es_last_modified_contact["modified_on"], pytz.utc)
+            es_modified_on = iso8601.parse_date(es_last_modified_contact["modified_on"], tzone.utc)
             es_id = es_last_modified_contact["id"]
 
             # no db contact is an error, ES should be empty as well

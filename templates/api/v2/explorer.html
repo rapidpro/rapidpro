@@ -1,0 +1,283 @@
+{% extends "no_nav.html" %}
+{% load smartmin i18n %}
+
+{% block page-title %}
+  {{ branding.name }} - API Explorer
+{% endblock page-title %}
+{% block content %}
+  <div class="px-8 pb-8">
+    <div class="flex mb-4">
+      <div class="flex-grow page-title">API Explorer</div>
+      <div>
+        <a class="button-light ml-4" href="{% url "api.v2.root" %}">{% trans "Documentation" %}</a>
+      </div>
+    </div>
+    <div class="mb-4">
+      <temba-alert level="warning">
+        {% blocktrans trimmed with org=user_org.name %}
+          All operations work against real data in the <b>{{ org }}</b> workspace.
+        {% endblocktrans %}
+      </temba-alert>
+    </div>
+    {% for endpoint in endpoints %}
+      <div class="card hover-box">
+        <div onclick="handleToggle(event)"
+             data-slug="{{ endpoint.slug }}"
+             data-method="{{ endpoint.method }}"
+             class="cursor-pointer endpoint-title">
+          <div class="md:hidden endpoint-description my-2">{{ endpoint.title }}</div>
+          <div class="flex items-center">
+            <div class="method-{{ endpoint.method|lower }} endpoint-method font-mono rounded-lg">{{ endpoint.method }}</div>
+            <div class="endpoint-url flex-grow font-mono">{{ endpoint.url }}.json</div>
+            <div class="md:block endpoint-description hidden">{{ endpoint.title }}</div>
+          </div>
+        </div>
+        <div class="endpoint-{{ endpoint.method|lower }} endpoint bg-white border-t">
+          {% if endpoint.params %}
+            <div class="title my-4">{% trans "Query String Parameters" %}</div>
+            <table>
+              <div class="tbody">
+                {% for item in endpoint.params %}
+                  <tr>
+                    <td class="{% if item.required %}field-required{% endif %} field text-right font-medium text-gray-600 px-4 py-2">{{ item.name }}</td>
+                    <td class="font-light">
+                      {{ item.help }}
+                      {% if item.required %}
+                        (required)
+                      {% else %}
+                        (optional)
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </div>
+            </table>
+          {% endif %}
+          {% if endpoint.fields %}
+            <div class="title my-4">{% trans "Post Body Fields" %}</div>
+            <table>
+              <div class="tbody">
+                {% for item in endpoint.fields %}
+                  <tr>
+                    <td class="{% if item.required %}field-required{% endif %} field text-right font-medium text-gray-600 px-4 py-2">{{ item.name }}</td>
+                    <td class="font-light">
+                      {{ item.help }}
+                      {% if item.required %}
+                        (required)
+                      {% else %}
+                        (optional)
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </div>
+            </table>
+          {% endif %}
+          <div class="request-form rounded-lg border p-6 bg-gray-100">
+            <div class="request-header font-mono mb-4">
+              <b class="font-bold">{{ endpoint.method }}</b>
+              <div class="md:text-base md:inline whitespace-nowrap text-sm">
+                https://{{ branding.domain }}{{ endpoint.url }}.json<span class="query-display"></span>
+                <br />
+              </div>
+              <b class="font-bold">Authorization:</b>
+              <div class="md:text-base md:inline whitespace-nowrap text-sm">Token {{ api_token }}</div>
+            </div>
+            {% if endpoint.params %}
+              <div class="md:flex form-group items-center">
+                <label class="md:text-right control-label self-start pt-4 w-56 pr-6">{% trans "Query String" %}</label>
+                <div class="flex-grow">
+                  <textarea oninput="handleQueryInput(event)"
+                            rows="1"
+                            class="textinput p-2 rounded request-query"
+                            id="request-query-{{ endpoint.slug }}">{{ endpoint.example.query }}</textarea>
+                </div>
+              </div>
+            {% endif %}
+            {% if endpoint.fields %}
+              <div class="md:flex form-group items-center">
+                <label class="md:text-right control-label self-start pt-4 w-56 pr-6">{% trans "Post Body" %}</label>
+                <div class="flex-grow">
+                  <textarea rows="5" class="textinput p-2 rounded request-body" id="request-body-{{ endpoint.slug }}">{{ endpoint.example.body }}</textarea>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+          <div class="request-buttons flex justify-between items-center mt-4 h-12">
+            <div class="pull-left">
+              <a href="{{ endpoint.url }}">{% trans "View Full Documentation" %}</a>
+            </div>
+            {% if api_token %}
+              <div onclick="javascript:handleRequest('{{ endpoint.slug }}', '{{ endpoint.method }}', '{{ endpoint.url }}.json')"
+                   class="button-primary">{{ endpoint.method|upper }}</div>
+            {% else %}
+              <span>{% trans "Log in to use the Explorer" %}</span>
+            {% endif %}
+          </div>
+          <pre style="margin-bottom:0;" class="prettyprint result mb-0 mt-4 p-4" id="result-{{ endpoint.slug }}"></pre>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function handleToggle(event) {
+      event.currentTarget.parentElement.classList.toggle("expanded");
+    }
+
+    function handleQueryInput(event) {
+      var query = event.currentTarget.value;
+      query = ensureQueryPrefix(query);
+      var display = event.currentTarget.closest(".request-form").querySelector(".query-display");
+      display.innerText = query;
+    }
+
+    function ensureQueryPrefix(query) {
+      if (query && !query.startsWith('?')) {
+        return '?' + query;
+      } else {
+        return query
+      }
+    }
+
+    function handleRequest(slug, method, url) {
+      var queryEditor = document.querySelector("#request-query-" + slug);
+      var bodyEditor = document.querySelector("#request-body-" + slug);
+
+      var query = queryEditor ? ensureQueryPrefix(queryEditor.value) : '';
+      var body = bodyEditor ? bodyEditor.value : '';
+
+      var results = document.querySelector("#result-" + slug);
+      results.style.display = "block";
+      results.innerHTML = "Requesting...";
+
+      var store = document.querySelector("temba-store");
+
+      var headers = {
+        "Accept": "application/json; charset=utf-8; indent=4;",
+        "Content-Type": "application/json; charset=utf-8; indent=4;"
+      }
+
+      if (method == "GET") {
+        store.getUrl(url + query, {
+          "headers": headers
+        }).then(function(response) {
+          results.innerText = "HTTP/1.0 " + response.status + " " + "\n" + response.body;
+        });
+      } else if (method == "POST") {
+        store.postUrl(url + query, body, headers).then(function(response) {
+          results.innerText = "HTTP/1.0 " + response.status + " " + "\n" + response.body;
+        });
+      } else if (method == "DELETE") {
+        $.ajax({
+          url: url + query,
+          type: 'DELETE',
+          complete: function(xhr) {
+            results.innerText = "HTTP/1.0 " + xhr.status + " " + "\n" + xhr.responseText;
+          }
+        });
+      }
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .main-logo {
+      margin: 1.5em;
+    }
+
+    .content-card {
+      width: 80%;
+    }
+
+    .breadcrumb {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .token {
+      white-space: nowrap;
+    }
+
+    .card {
+      padding: 0;
+    }
+
+    .page-content {
+      max-width: 100%;
+    }
+
+    .expanded .endpoint {
+      display: block;
+    }
+
+    .endpoint-title {
+      padding: 1em;
+    }
+
+    .endpoint {
+      display: none;
+      padding: 2em;
+    }
+
+    .method-get {
+      background-color: #058C40;
+      color: #fff;
+      padding: 3px;
+      text-align: center;
+      width: 60px;
+      display: inline-block;
+      margin-right: 15px;
+    }
+
+    .method-delete {
+      background-color: #952624;
+      color: #fff;
+      padding: 3px;
+      text-align: center;
+      width: 60px;
+      display: inline-block;
+      margin-right: 15px;
+    }
+
+    .method-post {
+      background-color: #1793cd;
+      color: #fff;
+      width: 60px;
+      text-align: center;
+      padding: 3px;
+      display: inline-block;
+      margin-right: 15px;
+    }
+
+    table.list tr td:first-child {
+      width: 14rem;
+    }
+
+    .result {
+      display: none;
+    }
+
+    .request-form {
+      overflow-x: hidden;
+    }
+
+    .request-query {
+      font-family: monospace;
+      min-height: 30px;
+      max-width: 700px;
+      width: 100%;
+    }
+
+    .request-body {
+      font-family: monospace;
+      max-width: 700px;
+      width: 100%;
+      min-height: 100px;
+      height: 110px;
+    }
+  </style>
+{% endblock extra-style %}

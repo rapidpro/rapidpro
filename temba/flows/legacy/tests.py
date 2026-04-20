@@ -122,9 +122,7 @@ class FlowMigrationTest(TembaTest):
 
         flow_json = self.get_flow_json("malformed_single_message")["definition"]
 
-        FlowRevision.objects.create(
-            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
-        )
+        FlowRevision.objects.create(flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin)
 
         flow.ensure_current_version()
         flow_json = flow.get_definition()
@@ -538,20 +536,10 @@ class FlowMigrationTest(TembaTest):
             version_number=1,
         )
         FlowRevision.objects.create(
-            flow=flow1,
-            definition=fre_definition,
-            spec_version=1,
-            revision=1,
-            created_by=self.admin,
-            modified_by=self.admin,
+            flow=flow1, definition=fre_definition, spec_version=1, revision=1, created_by=self.admin
         )
         FlowRevision.objects.create(
-            flow=flow2,
-            definition=fre_definition,
-            spec_version=1,
-            revision=1,
-            created_by=self.admin,
-            modified_by=self.admin,
+            flow=flow2, definition=fre_definition, spec_version=1, revision=1, created_by=self.admin
         )
 
         new_definition = migrate_to_version_11_2(fre_definition, flow=flow1)
@@ -631,9 +619,7 @@ class FlowMigrationTest(TembaTest):
             version_number=1,
         )
 
-        FlowRevision.objects.create(
-            flow=flow, definition=definition, spec_version=1, revision=1, created_by=self.admin, modified_by=self.admin
-        )
+        FlowRevision.objects.create(flow=flow, definition=definition, spec_version=1, revision=1, created_by=self.admin)
 
         new_definition = migrate_to_version_11_1(definition, flow=flow)
 

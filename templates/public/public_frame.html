@@ -1,0 +1,29 @@
+{% extends "frame.html" %}
+{% block page-container %}
+  <div class="flex flex-col h-full">
+    <div class="top flex-shrink flex-grow"></div>
+    <div class="middle flex flex-row mb-10">
+      <div class="flex-grow"></div>
+      <div class="w-128">
+        <div class="mb-6 w-64 mt-12">
+          <a href="/">
+            <img src="{{ STATIC_URL }}images/logo-dark.svg">
+          </a>
+        </div>
+        {% block content %}
+        {% endblock content %}
+      </div>
+      <div class="flex-grow"></div>
+    </div>
+    <div style="flex-grow: 3" class="bottom">
+      <div class="flex flex-col h-full">
+        <div class="flex-grow"></div>
+        <div class="bottom">
+          {% block footer %}
+            {{ block.super }}
+          {% endblock footer %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock page-container %}

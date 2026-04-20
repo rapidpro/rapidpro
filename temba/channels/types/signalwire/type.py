@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.models import Channel
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import SignalWireClaimView
 
 
@@ -18,8 +18,12 @@ class SignalWireType(ChannelType):
     """
 
     code = "SW"
+    name = "SignalWire"
     category = ChannelType.Category.PHONE
 
+    courier_url = r"^sw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
+    schemes = [URN.TEL_SCHEME]
+    async_activation = False
     available_timezones = [
         "America/New_York",
         "America/Detroit",
@@ -64,28 +68,22 @@ class SignalWireType(ChannelType):
     ]
     recommended_timezones = available_timezones
 
-    courier_url = r"^sw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
-    name = "SignalWire"
-
     claim_blurb = _("Easily add a two way number you have with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://www.signalwire.com/">SignalWire</a>'
     }
     claim_view = SignalWireClaimView
 
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
-
-    async_activation = False
-
-    configuration_blurb = _("Your SignalWire channel is now connected.")
-
-    configuration_urls = (
-        dict(
-            label=_("Inbound URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.sw' channel.uuid 'receive' %}",
-            description=_("This endpoint will be called by SignalWire when new messages are received to your number."),
+    config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring this channel, you may need to set this callback URL in your Signalwire account."
         ),
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Inbound URL"),
+                help=_("This endpoint will be called by SignalWire when new messages are received to your number."),
+            ),
+        ],
     )
 
     def deactivate(self, channel):

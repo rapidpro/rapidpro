@@ -81,7 +81,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
         self.object = Channel.add_config_external_channel(
-            org, self.request.user, country, number, "KN", config, role=role, parent=None
+            org, self.request.user, country, number, "KN", config, role=role
         )
 
         # if they didn't set a username or password, generate them, we do this after the addition above

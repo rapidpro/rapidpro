@@ -1,0 +1,40 @@
+{% extends "smartmin/update.html" %}
+{% load i18n %}
+
+{% block pre-form %}
+  <div class="mb-2">
+    {% blocktrans trimmed with ga_url="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" authy_url="https://authy.com/" %}
+      To enable two-factor authentication on your login, use a one-time password (OTP) application such as
+      <a target="_blank" href="{{ ga_url }}">Google Authenticator</a> or <a target="_blank" href="{{ authy_url }}">Authy</a> to scan the QR code
+      below.
+    {% endblocktrans %}
+  </div>
+  <div class="mb-2 text-center">
+    <canvas id="qr"></canvas>
+  </div>
+{% endblock pre-form %}
+{% block form-buttons %}
+  <div class="form-actions">
+    <input type="submit" value="{{ submit_button_name }}" class="button-primary">
+  </div>
+{% endblock form-buttons %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    onSpload(function() {
+      var secretUrl = "{{ secret_url }}";
+      if (secretUrl) {
+        var element = document.getElementById('qr');
+        if (element) {
+          element.style.display = "initial";
+          new QRious({
+            element: element,
+            value: secretUrl,
+            background: "#fff",
+            size: 150
+          });
+        }
+      }
+    });
+  </script>
+{% endblock extra-script %}

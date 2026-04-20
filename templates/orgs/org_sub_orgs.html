@@ -1,0 +1,113 @@
+{% extends "smartmin/list.html" %}
+{% load compress temba smartmin humanize %}
+{% load i18n %}
+
+{% block title-text %}
+  {% trans "Workspaces" %}
+{% endblock title-text %}
+{% block subtitle %}
+  {{ user_org.name|capfirst }}
+{% endblock subtitle %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    table.list {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    tr th.header-created_on {
+      text-align: right;
+      width: 160px;
+    }
+
+    tr th.header-manage {
+      font-size: 0;
+    }
+
+    tr td.field_created_on {
+      text-align: right;
+    }
+
+    .num-credits {
+      text-align: right;
+      font-size: 1.5rem;
+    }
+
+    .org-timezone {
+      font-size: 11px;
+      line-height: 11px;
+    }
+
+    .delete-icon {
+      opacity: 0;
+    }
+
+    tr:hover .delete-icon {
+      opacity: 1;
+    }
+
+    .delete-icon:hover {
+      color: var(--color-link)
+    }
+  </style>
+{% endblock extra-style %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function editWorkspace(event) {
+      showModax("{{_('Edit Workspace')|escapejs}}", "{% url 'orgs.org_edit_sub_org' %}?org=" + event.target.dataset.id);
+    }
+
+    function showDelete(id) {
+      showModax("{{_('Delete Workspace')|escapejs}}", "/org/delete_child/" + id + "/");
+    }
+  </script>
+{% endblock extra-script %}
+{% block table %}
+  <table class="list lined">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th style="text-align:right">{% trans "Users" %}</th>
+        <th style="text-align:right">{% trans "Contacts" %}</th>
+        <th style="text-align:right">{% trans "Created" %}</th>
+        <th></th>
+      </tr>
+      <tbody>
+        {% for org in object_list %}
+          <tr>
+            <td>
+              {% if org.id == user_org.id %}
+                <div onclick="goto(event)" href="{% url 'orgs.org_manage_accounts' %}" class="linked">{{ org.name }}</div>
+              {% else %}
+                <div onclick="editWorkspace(event)" data-id="{{ org.id }}" class="linked">{{ org.name }}</div>
+              {% endif %}
+            </td>
+            <td style="text-align:right">
+              {% if manage_users %}
+                <div onclick="goto(event)"
+                     href="{% url 'orgs.org_manage_accounts_sub_org' %}?org={{ org.id }}"
+                     class="linked">{{ org.users.all|length }}</div>
+              {% else %}
+                {{ org.users.all|length }}
+              {% endif %}
+            </td>
+            <td style="text-align:right">{{ org.get_contact_count|intcomma }}</td>
+            <td style="text-align:right">{{ org.created_on|day }}</td>
+            <td class="w-2">
+              <div class="delete-icon">
+                <temba-icon name="delete_small" clickable="true" linked="true" onclick="showDelete({{ org.id }})">
+                </temba-icon>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr class="empty_list">
+            <td colspan="5"></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </thead>
+  </table>
+{% endblock table %}

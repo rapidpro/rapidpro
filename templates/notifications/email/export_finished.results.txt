@@ -8,5 +8,5 @@
  * {{ flow.name }}
 {% endfor %}
 
-{% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}
+{% blocktrans with url="https://"|add:branding.domain|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}
 {% endblock notification-body %}

@@ -4,6 +4,7 @@ from datetime import timedelta
 from celery import shared_task
 
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN, ContactURN, ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
@@ -12,20 +13,46 @@ from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
 from temba.utils.crons import cron_task
+from temba.utils.email import send_template_email
+from temba.utils.text import generate_secret
 
-from .models import Invitation, Org, OrgImport
+from .models import Invitation, Org, OrgImport, User, UserSettings
 
 
 @shared_task
 def start_org_import_task(import_id):
-    org_import = OrgImport.objects.get(pk=import_id)
+    org_import = OrgImport.objects.get(id=import_id)
     org_import.start()
 
 
 @shared_task
 def send_invitation_email_task(invitation_id):
-    invitation = Invitation.objects.get(pk=invitation_id)
+    invitation = Invitation.objects.get(id=invitation_id)
     invitation.send_email()
+
+
+@shared_task
+def send_user_verification_email(user_id):
+    user = User.objects.get(id=user_id)
+    if user.settings.email_status == UserSettings.STATUS_VERIFIED:
+        return
+
+    verification_secret = user.settings.email_verification_secret
+    if not verification_secret:
+        verification_secret = generate_secret(64)
+
+        user.settings.email_verification_secret = verification_secret
+        user.settings.save(update_fields=("email_verification_secret",))
+
+    org = user.get_orgs().first()
+
+    subject = _("%(name)s Email Verification") % org.branding
+    template = "orgs/email/email_verification"
+
+    context = dict(org=org, now=timezone.now(), branding=org.branding, secret=verification_secret)
+    context["subject"] = subject
+
+    send_template_email(user.email, subject, template, context, org.branding)
 
 
 @shared_task

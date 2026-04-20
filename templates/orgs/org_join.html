@@ -1,0 +1,44 @@
+{% extends "smartmin/base.html" %}
+{% load i18n smartmin %}
+
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .content-card {
+      width: 32rem;
+    }
+  </style>
+{% endblock extra-style %}
+{% block content %}
+  <div class="mb-8">
+    {% blocktrans trimmed with org=invitation.org %}
+      Sign in to join the <b>{{ org }}</b> workspace.
+    {% endblocktrans %}
+  </div>
+  <form method="post"
+        action="{% url 'users.user_login' %}?next={% url 'orgs.org_join_accept' invitation.secret %}"
+        class="mt-6"
+        id="login-form">
+    <fieldset>
+      <div class="control-group">
+        <temba-textinput type="text"
+                         name="email"
+                         label="{% trans "Email Address" %}"
+                         value="{{ invitation.email }}"
+                         disabled>
+        </temba-textinput>
+      </div>
+      <div class="control-group">
+        <temba-textinput type="password"
+                         name="password"
+                         label="{% trans "Password" %}"
+                         placeholder="{% trans "Your password" %}"
+                         password>
+        </temba-textinput>
+      </div>
+    </fieldset>
+    {% csrf_token %}
+    <input type="hidden" name="username" value="{{ invitation.email }}">
+    <input type="submit" value="Login" class="button-primary">
+  </form>
+{% endblock content %}

@@ -1,0 +1,10 @@
+{% extends "notifications/email/base.html" %}
+{% load i18n %}
+
+{% block notification-body %}
+  <p>
+    {% blocktrans trimmed %}
+    Your workspace has been suspended. To re-enable starting flows and sending messages, please contact support.
+    {% endblocktrans %}
+  </p>
+{% endblock notification-body %}

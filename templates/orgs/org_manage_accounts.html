@@ -1,0 +1,69 @@
+{% extends "smartmin/form.html" %}
+{% load smartmin temba compress i18n %}
+
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .role .control-group {
+      margin-bottom: 0;
+    }
+
+    table.list tr td temba-checkbox {
+      --icon-color: #666 !important;
+    }
+  </style>
+{% endblock extra-style %}
+{% block fields %}
+  <table class="list mb-0">
+    <thead>
+      <tr>
+        <th>{% trans "Login" %}</th>
+        <th>{% trans "Role" %}</th>
+        <th>
+          <div class="text-center">{% trans "Remove" %}</div>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in form.user_rows %}
+        <tr>
+          <td class="login-user">
+            {{ row.user.email }}
+            {% if row.user.first_name or row.user.last_name %}({{ row.user.first_name }} {{ row.user.last_name }}){% endif %}
+          </td>
+          <td style="padding-top:6px" class="role">{% render_field row.role_field %}</td>
+          <td>
+            <div style="width:24px" class="m-auto mt-4">{% render_field row.remove_field %}</div>
+          </td>
+        </tr>
+      {% endfor %}
+      <!-- pending invites -->
+      {% if has_invites %}
+        <tr class="invites-title">
+          <th colspan="3">{% trans "Pending Invitations" %}</th>
+        </tr>
+      {% endif %}
+      {% for row in form.invite_rows %}
+        <tr>
+          <td class="opacity-50">{{ row.invite.email }} (Invite Sent)</td>
+          <td style="padding-top:6px" class="role w-48 opacity-50">{% render_field row.role_field %}</td>
+          <td>
+            <div style="width:24px" class="m-auto mt-4">{% render_field row.remove_field %}</div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="card">
+    <div class="text-xl mb-0 pb-0">{% trans "Invite New Users" %}</div>
+    <div class="flex w-full items-end">
+      <div class="pr-4 flex-grow">{% render_field 'invite_emails' %}</div>
+      <div class="group w-48">{% render_field 'invite_role' %}</div>
+    </div>
+  </div>
+{% endblock fields %}
+{% block form-buttons %}
+  <div class="form-actions mt-4 ml-2">
+    <input type="submit" value="{{ submit_button_name }}" class="button-primary">
+  </div>
+{% endblock form-buttons %}

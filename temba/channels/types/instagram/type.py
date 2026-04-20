@@ -15,32 +15,22 @@ class InstagramType(ChannelType):
     A Instagram channel
     """
 
-    extra_links = [
-        dict(
-            label=_("Reconnect Instagram Business Account"),
-            view_name="channels.types.instagram.refresh_token",
-        )
-    ]
-
     code = "IG"
+    name = "Instagram"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^ig/receive"
-
-    name = "Instagram"
-
-    show_config_page = False
+    schemes = [URN.INSTAGRAM_SCHEME]
+    redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
 
     claim_blurb = _("Add an %(link)s bot to send and receive messages on behalf of a business Instagram account.") % {
         "link": '<a target="_blank" href="http://instagram.com">Instagram</a>',
     }
     claim_view = ClaimView
 
-    schemes = [URN.INSTAGRAM_SCHEME]
-    max_length = 2000
-    free_sending = True
-
-    redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
+    menu_items = [dict(label=_("Reconnect Business Account"), view_name="channels.types.instagram.refresh_token")]
 
     def get_urls(self):
         return [
@@ -55,7 +45,7 @@ class InstagramType(ChannelType):
     def deactivate(self, channel):
         config = channel.config
         requests.delete(
-            f"https://graph.facebook.com/v12.0/{channel.address}/subscribed_apps",
+            f"https://graph.facebook.com/v18.0/{channel.address}/subscribed_apps",
             params={"access_token": config[Channel.CONFIG_AUTH_TOKEN]},
         )
 

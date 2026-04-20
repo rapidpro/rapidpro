@@ -17,20 +17,15 @@ class JustCallType(ChannelType):
 
     code = "JCL"
     name = "JustCall"
+    category = ChannelType.Category.PHONE
 
     courier_url = r"^jcl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
-    category = ChannelType.Category.PHONE
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     claim_view = ClaimView
-
     claim_blurb = _("If you have a %(link)s number, you can quickly connect it using their APIs.") % {
         "link": '<a target="_blank" href="https://justcall.io/">JustCall</a>'
     }
-
-    show_config_page = False
 
     def activate(self, channel):
         api_key = channel.config[Channel.CONFIG_API_KEY]

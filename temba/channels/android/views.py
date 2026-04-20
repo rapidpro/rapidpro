@@ -2,9 +2,7 @@ import base64
 import hashlib
 import hmac
 import time
-from datetime import datetime, timedelta
-
-import pytz
+from datetime import datetime, timedelta, timezone as tzone
 
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
@@ -16,7 +14,7 @@ from temba.contacts.models import URN
 from temba.msgs.models import Msg
 from temba.utils import analytics, json
 
-from ..models import Alert, Channel, SyncEvent
+from ..models import Channel, SyncEvent
 from .claim import UnsupportedAndroidChannelError, get_or_create_channel
 from .sync import create_event, create_incoming, get_channel_commands, update_message
 
@@ -133,7 +131,7 @@ def sync(request, channel_id):
 
             # creating a new message
             elif keyword == "mo_sms":
-                date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+                date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=tzone.utc)
 
                 # it is possible to receive spam SMS messages from no number on some carriers
                 tel = cmd["phone"] if cmd["phone"] else "empty"
@@ -151,7 +149,7 @@ def sync(request, channel_id):
             # phone event
             elif keyword == "call":
                 call_tuple = (cmd["ts"], cmd["type"], cmd["phone"])
-                date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+                date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=tzone.utc)
 
                 duration = 0
                 if cmd["type"] != "miss":
@@ -193,7 +191,6 @@ def sync(request, channel_id):
 
             elif keyword == "status":
                 sync_event = SyncEvent.create(channel, cmd, cmds)
-                Alert.check_power_alert(sync_event)
 
                 # tell the channel to update its org if this channel got moved
                 if channel.org and "org_id" in cmd and channel.org.pk != cmd["org_id"]:

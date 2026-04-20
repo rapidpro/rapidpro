@@ -12,18 +12,16 @@ class RedRabbitType(ChannelType):
     """
 
     code = "RR"
+    name = "Red Rabbit"
     category = ChannelType.Category.PHONE
 
-    name = "Red Rabbit"
+    schemes = [URN.TEL_SCHEME]
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://www.redrabbitsms.com/">Red Rabbit</a>'
     }
 
     claim_view = AuthenticatedExternalClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     def is_available_to(self, org, user):
         return False, False  # Hidden since it is MT only

@@ -1,0 +1,29 @@
+{% extends "channels/channellog_owned_base.html" %}
+{% load i18n contacts %}
+
+{% block title-text %}
+  {% trans "Message Log" %}
+{% endblock title-text %}
+{% block group_object %}
+  <div class="inline-flex items-center">
+    <div style="font-size:1.5em" class="mr-4">{{ msg|msg_status_badge }}</div>
+    <div class="summary">
+      <span>{{ msg.get_direction_display }}</span>
+      <span>{% trans "message" %}</span>
+      <span>
+        {% if msg.direction == "I" %}
+          {% trans "from" %}
+        {% else %}
+          {% trans "to" %}
+        {% endif %}
+      </span>
+      <span>
+        <temba-anchor href="{% url "contacts.contact_read" msg.contact.uuid %}">
+          {{ msg.contact_urn.get_display }}
+        </temba-anchor>
+      </span>
+      <span>{% trans "on" %}</span>
+      <span>{% format_datetime msg.created_on seconds=True %}</span>
+    </div>
+  </div>
+{% endblock group_object %}

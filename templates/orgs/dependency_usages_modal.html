@@ -1,0 +1,14 @@
+{% extends "includes/modal.html" %}
+{% load i18n %}
+
+{% block modal %}
+  {% block pjax %}
+    {% if dependents %}
+      {% for type_qs in dependents.values %}
+        {% include "includes/dependents.html" with dependents=type_qs %}
+      {% endfor %}
+    {% else %}
+      {% trans "None" %}
+    {% endif %}
+  {% endblock pjax %}
+{% endblock modal %}

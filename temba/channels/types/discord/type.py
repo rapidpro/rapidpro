@@ -12,12 +12,12 @@ class DiscordType(ChannelType):
     """
 
     code = "DS"
+    name = "Discord"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^ds/(?P<uuid>[a-z0-9\-]+)/receive$"
-
-    name = "Discord"
-    show_config_page = False
+    schemes = [URN.DISCORD_SCHEME]
+    redact_response_keys = {"first_name", "last_name", "username"}
 
     claim_blurb = _(
         "Add a %(link)s bot to send messages to Discord users for free. "
@@ -30,9 +30,3 @@ class DiscordType(ChannelType):
         }
     )
     claim_view = ClaimView
-
-    schemes = [URN.DISCORD_SCHEME]
-    max_length = 1600
-    free_sending = True
-
-    redact_response_keys = {"first_name", "last_name", "username"}

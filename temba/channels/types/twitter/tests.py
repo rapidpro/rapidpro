@@ -207,7 +207,15 @@ class TwitterTypeTest(TembaTest):
 
         self.login(self.admin)
         response = self.client.get(update_url)
-        self.assertEqual(["name", "alert_email", "loc"], list(response.context["form"].fields.keys()))
+        self.assertEqual(["name", "loc"], list(response.context["form"].fields.keys()))
+
+        # staff users see extra log policy field
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "log_policy", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
 
 
 class TwitterClientTest(TembaTest):

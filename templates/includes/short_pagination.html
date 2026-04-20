@@ -1,0 +1,152 @@
+{% load humanize i18n %}
+
+<div class="paging flex flex-row items-center h-10">
+  {% if actions|length and paginator.count %}
+    <div style="padding-left: 0.55em" class="check">
+      <temba-checkbox onclick="handleSelectAll(this)" class="select-all">
+      </temba-checkbox>
+    </div>
+  {% endif %}
+  <div class="action-buttons flex-grow">
+    <div class="list-buttons-container">
+      <div class="list-buttons flex items-center h-full -mx-1">
+        {% if 'label' in actions %}
+          <temba-dropdown offsety="8" offsetx="-8" class="ml-4">
+            <temba-tip position="top" text="{{ _("Labels") |escapejs }}" slot="toggle">
+              <temba-icon name="label" clickable="true">
+              </temba-icon>
+            </temba-tip>
+            <div slot="dropdown" style="min-width:200px" class="label-menu px-6 py-4">
+              {% for label in labels %}
+                <div onclick="labelObjectRows({{ label.id }}, false, refreshMenu)"
+                     data-id="{{ label.id }}"
+                     class="lbl-menu">
+                  <div class="flex items-center py-1 hover-linked">
+                    <temba-checkbox size="1.1" class="mr-1">
+                    </temba-checkbox>
+                    <div class="name px-1">{{ label.name }}</div>
+                  </div>
+                </div>
+              {% endfor %}
+              {% if org_perms.msgs.label_create %}
+                {% if labels %}<div class="separator -mx-4 border-b my-3"></div>{% endif %}
+                <div onclick="handleAddLabelClicked()" class="lbl-menu add-label linked">{% trans "New Label..." %}</div>
+              {% endif %}
+            </div>
+          </temba-dropdown>
+        {% endif %}
+        {% if 'resend' in actions %}
+          <div onclick="runActionOnObjectRows('resend', refreshMenu)" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Retry") |escapejs }}">
+              <temba-icon name="resend" size="1.2" clickable="true" class="show-loading">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
+        {% if 'restore' in actions %}
+          <div onclick="runActionOnObjectRows('restore', refreshMenu)" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Reactivate") |escapejs }}">
+              <temba-icon name="restore" size="1.2" clickable="true" class="show-loading">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
+        {% if 'archive' in actions %}
+          <div onclick="runActionOnObjectRows('archive', refreshMenu)" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Archive") |escapejs }}">
+              <temba-icon name="archive" clickable="true" class="show-loading">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
+        {% if 'send' in actions %}
+          {% if org_perms.msgs.broadcast_create and not reply_disabled %}
+            <div onclick="handleSendMessageClicked()" class="linked ml-4">
+              <temba-tip position="top" text="{{ _("New Broadcast") |escapejs }}">
+                <temba-icon name="message" clickable="true">
+                </temba-icon>
+              </temba-tip>
+            </div>
+          {% endif %}
+        {% endif %}
+        {% if 'delete' in actions %}
+          <div onclick="onDeleteClicked()" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Delete") |escapejs }}">
+              <temba-icon name="delete" clickable="true">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
+        {% if 'unlabel' in actions %}
+          <div onclick="unlabelObjectRows({{ current_group.pk }}, refreshMenu);" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Remove from group") |escapejs }}">
+              <temba-icon name="delete_small" clickable="true" class="show-loading">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
+        {% if 'block' in actions %}
+          <div onclick="runActionOnObjectRows('block', refreshMenu)" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Block") |escapejs }}">
+              <temba-icon name="contact_blocked" clickable="true" class="show-loading">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
+        {% if 'start-flow' in actions and org_perms.flows.flow_start %}
+          <div onclick="handleStartFlowClicked(event)" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Start Flow") |escapejs }}">
+              <temba-icon name="flow" clickable="true" class="show-loading">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
+        {% if 'download-results' in actions %}
+          <div onclick="handleDownloadFlowResults(event)" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Download Results") |escapejs }}">
+              <temba-icon name="download" clickable="true" class="show-loading">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="paging-range mr-4">
+    {% blocktrans trimmed with start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma total=paginator.count|intcomma %}
+      {{ start }} - {{ end }} of {{ total }}
+    {% endblocktrans %}
+  </div>
+  <div style="margin-top:2px;" class="paging-controls flex flex-row mr-2">
+    <div class="paging-previous mr-2">
+      {% if page_obj.has_previous %}
+        <div onclick="goto(event, this)"
+             href="{{ request.path }}{{ url_params|safe }}page={{ page_obj.previous_page_number }}"
+             class="linked">
+          <temba-icon size="1.2" name="arrow_left" clickable="true">
+          </temba-icon>
+        </div>
+      {% else %}
+        <div class="disabled">
+          <temba-icon size="1.2" name="arrow_left">
+          </temba-icon>
+        </div>
+      {% endif %}
+    </div>
+    <div class="paging-next">
+      {% if page_obj.has_next %}
+        <div onclick="goto(event, this)"
+             href="{{ request.path }}{{ url_params|safe }}page={{ page_obj.next_page_number }}"
+             class="linked">
+          <temba-icon size="1.2" name="arrow_right" clickable="true">
+          </temba-icon>
+        </div>
+      {% else %}
+        <div class="disabled">
+          <temba-icon size="1.2" name="arrow_right">
+          </temba-icon>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>

@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class ClickSendType(ChannelType):
@@ -13,6 +13,8 @@ class ClickSendType(ChannelType):
 
     code = "CS"
     name = "ClickSend"
+    category = ChannelType.Category.PHONE
+
     available_timezones = [
         "America/New_York",
         "America/Detroit",
@@ -55,9 +57,7 @@ class ClickSendType(ChannelType):
         "US/Mountain",
         "US/Pacific",
     ]
-    category = ChannelType.Category.PHONE
     schemes = [URN.TEL_SCHEME]
-    max_length = 1224
 
     claim_view = AuthenticatedExternalClaimView
     claim_view_kwargs = {
@@ -67,24 +67,22 @@ class ClickSendType(ChannelType):
         "password_help": _("Your API Password"),
         "form_blurb": _("You can connect your ClickSend number by entering the settings below."),
     }
-
     claim_blurb = _("If you have a %(link)s number, you can quickly connect it using their APIs.") % {
         "link": '<a target="_blank" href="https://www.clicksend.com/">ClickSend</a>'
     }
 
-    configuration_blurb = _(
-        "To finish connecting your channel, you need to set your inbound SMS URL below for your number."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{channel.callback_domain}}/c/cs/{{channel.uuid}}/receive",
-            description=_(
-                "This URL should be called by ClickSend when new messages are received. "
-                "On your ClickSend dashboard, you can set this URL by going to SMS, then Settings, "
-                "then the Inbound SMS Settings menu. "
-                "Add a new rule, select action URL, and use the URL above, then click save."
+    config_ui = ConfigUI(
+        blurb=_("To finish configuring this channel, you need to set your inbound SMS URL below for your number."),
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_(
+                    "This URL should be called by ClickSend when new messages are received. "
+                    "On your ClickSend dashboard, you can set this URL by going to SMS, then Settings, "
+                    "then the Inbound SMS Settings menu. "
+                    "Add a new rule, select action URL, and use the URL above, then click save."
+                ),
             ),
-        ),
+        ],
     )

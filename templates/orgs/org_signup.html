@@ -1,0 +1,42 @@
+{% extends "orgs/login/login_base.html" %}
+{% load smartmin temba compress i18n %}
+
+{% block login-title %}
+  {% trans "Create Account" %}
+{% endblock login-title %}
+{% block login-content %}
+  {% blocktrans trimmed with branding.name as brand %}
+    Creating a {{ brand }} account is free and only takes a minute.
+  {% endblocktrans %}
+  <form method="post" class="my-6">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-error form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="flex">
+      <div class="mr-3">{% render_field 'first_name' %}</div>
+      <div class="flex-grow">{% render_field 'last_name' %}</div>
+    </div>
+    {% render_field 'email' %}
+    {% render_field 'password' %}
+    <div class="my-8">{% render_field 'name' %}</div>
+    <div class="hidden">
+      {% with form|field:'timezone' as form_field %}{{ form_field }}{% endwith %}
+    </div>
+    <div class="mt-4">
+      <input type="submit" value="Sign Up" class="button-primary">
+    </div>
+    <div class="mt-6">
+      Already have an account?
+      <a href="/users/login/">{% trans "Sign In" %}</a>
+    </div>
+  </form>
+{% endblock login-content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script src="{{ STATIC_URL }}bower/jsTimezoneDetect/jstz.js"></script>
+  <script type="text/javascript">
+    onSpload(function() {
+      var timezone = jstz.determine().name();
+      document.getElementById("id_timezone").value = timezone;
+    });
+  </script>
+{% endblock extra-script %}

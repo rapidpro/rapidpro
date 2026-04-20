@@ -1,0 +1,73 @@
+{% extends "smartmin/form.html" %}
+{% load smartmin i18n %}
+
+{% block fields %}
+  <div class="mb-4">
+    <div class="field formax-vertical">{% render_field 'first_name' %}</div>
+    <div class="field formax-vertical">{% render_field 'last_name' %}</div>
+    <div class="field formax-vertical">{% render_field 'language' %}</div>
+    <div class="field formax-vertical">{% render_field 'email' %}</div>
+    <div class="field formax-vertical">{% render_field 'new_password' %}</div>
+    <div class="field formax-vertical p-4 bg-gray-100 rounded-lg mt-4 hidden" id="current-password">
+      <div class="mb-2">
+        {% blocktrans trimmed %}
+          Confirm your current password to save these changes
+        {% endblocktrans %}
+      </div>
+      {% render_field 'current_password' %}
+    </div>
+  </div>
+{% endblock fields %}
+{% block summary %}
+  <div class="flex items-center">
+    <div class="flex-grow mr-4 api_token_container">
+      {% blocktrans trimmed with email=user.username %}
+        Your email address is <b>{{ email }}</b>
+      {% endblocktrans %}
+    </div>
+    <div class="buttons">
+      {% if user.settings.email_status != 'V' %}
+        <div onclick="handlePosterizeClick(event)"
+             href="{% url 'orgs.user_send_verification_email' %}"
+             class="button-light posterize">{% trans "Verify Email" %}</div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock summary %}
+{% block extra-script %}
+  <script type="text/javascript">
+    function wireHandlers() {
+      // hide our password field by default
+      var passwordContainer = document.getElementById("current-password");
+      var passwordField = passwordContainer.querySelector(".field_current_password");
+
+      // but show it if the try to update their email address or password
+      var email = document.getElementById("id_email");
+      var newPw = document.getElementById("id_new_password");
+
+      var listener = function(event) {
+        passwordContainer.classList.remove("hidden");
+      }
+
+      // if our field has an error, make sure we show it on load
+      if (passwordField.classList.contains("error")) {
+        passwordContainer.classList.remove("hidden");
+      }
+
+      // a change event is fired on initial value, ignore it
+      window.setTimeout(function() {
+        email.addEventListener("change", listener);
+        newPw.addEventListener("change", listener);
+      }, 0);
+
+    }
+
+    onSpload(function() {
+      wireHandlers();
+      // also wire them if our formax submits
+      document.addEventListener("temba-formax-ready", function() {
+        wireHandlers();
+      });
+    })
+  </script>
+{% endblock extra-script %}

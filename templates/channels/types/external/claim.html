@@ -1,0 +1,137 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n %}
+
+{% block pre-form %}
+  {% blocktrans trimmed with branding.name as brand %}
+    You can connect an external aggregator or messaging service to {{ brand }} using our external API. You can
+    specify parameters to substitute in the URL or body by using these variables:
+  {% endblocktrans %}
+  <ul class="my-4">
+    <li>
+      <div class="code">text</div>
+      {% trans "the message of the text being sent" %}
+    </li>
+    <li>
+      <div class="code">from</div>
+      {% trans "the phone number or address you have configured for this service" %}
+    </li>
+    <li>
+      <div class="code">from_no_plus</div>
+      {% trans "the phone number or address you have configured for this service, with leading +'s removed" %}
+    </li>
+    <li>
+      <div class="code">to</div>
+      {% trans "the phone number or URN this message is addressed to" %}
+    </li>
+    <li>
+      <div class="code">to_no_plus</div>
+      {% trans "the phone number or URN this message is addressed to, with leading +'s removed" %}
+    </li>
+    <li>
+      <div class="code">id</div>
+      {% trans "the unique ID of this message" %}
+    </li>
+    <li>
+      <div class="code">quick_replies</div>
+      {% trans "the quick replies for this message, formatted according to send method and content type" %}
+    </li>
+  </ul>
+  <div class="mb-2">
+    {% blocktrans trimmed %}
+      An example that would substitute variables in the URL:
+    {% endblocktrans %}
+  </div>
+  <pre>http://myservice.com/send.php?from={% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}&text={% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}&to={% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}{% templatetag openbrace %}{% templatetag openbrace %}quick_replies{% templatetag closebrace %}{% templatetag closebrace %}{% templatetag closebrace %}</pre>
+  <div class="mt-6">
+    {% blocktrans trimmed %}
+      If using POST or PUT, you can specify the body of the request using the same variables.
+    {% endblocktrans %}
+  </div>
+  <div class="mt-4 leading-loose">
+    {% blocktrans trimmed with "<div class='code'>quick_replies</div>" as quick_replies_var and "<div class='code'>&quick_reply=(reply)</div>" as quick_replies_output %}
+    The {{ quick_replies_var }} variable with method GET or content type URL Encoded will be
+    replaced by {{ quick_replies_output }} for each quick reply.
+  {% endblocktrans %}
+</div>
+<div class="mt-4">
+  {% blocktrans trimmed with branding.name as brand %}
+    After connecting your service we will provide URLs for the endpoints to call when you want to push a message to
+    {{ brand }} or notify {{ brand }} of the delivery status of a message.
+  {% endblocktrans %}
+</div>
+{% endblock pre-form %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function updateFormForMethod(method) {
+      var bodyCtrlGroup = $('#id_body').parents('.control-group');
+      if (method == 'GET') {
+        bodyCtrlGroup.hide();
+      } else {
+        bodyCtrlGroup.show();
+      }
+    }
+
+    function updateFormForScheme(scheme) {
+      var numberCtrlGroup = $('#id_number').parents('.control-group');
+      var addressCtrlGroup = $('#id_address').parents('.control-group');
+      var countryCtrlGroup = $('#id_country').parents('.control-group');
+
+      if (scheme == 'tel') {
+        numberCtrlGroup.show();
+        addressCtrlGroup.hide();
+        countryCtrlGroup.show();
+      } else {
+        numberCtrlGroup.hide();
+        addressCtrlGroup.show();
+        countryCtrlGroup.hide();
+      }
+    }
+
+    $(function() {
+      var methodSelect = document.querySelector("temba-select[name='method']");
+      methodSelect.addEventListener('change', function(event) {
+        updateFormForMethod(event.target.values[0].value);
+      });
+
+      updateFormForMethod('POST');
+
+      var schemeSelect = document.querySelector("temba-select[name='scheme']");
+      schemeSelect.addEventListener('change', function(event) {
+        updateFormForScheme(event.target.values[0].value);
+      });
+
+      updateFormForScheme('{{ form.scheme.value }}');
+    });
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    li {
+      padding: 5px 0px;
+    }
+
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .medium-help {
+      font-size: 50px;
+      height: 50px;
+    }
+
+    .header-margin {
+      margin-left: 60px;
+    }
+
+    .variable-sub::before {
+      content: '{{'
+    }
+
+    .variable-sub::after {
+      content: '}}'
+    }
+  </style>
+{% endblock extra-style %}

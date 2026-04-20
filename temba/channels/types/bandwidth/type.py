@@ -20,32 +20,15 @@ class BandwidthType(ChannelType):
     code = "BW"
     name = "Bandwidth"
     category = ChannelType.Category.PHONE
-
     beta_only = True
 
     courier_url = r"^bw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
     schemes = [URN.TEL_SCHEME]
-    max_length = 2048
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {
         "link": '<a target="_blank" href="https://www.bandwidth.com/">Bandwidth</a>'
     }
-
-    show_config_page = True
-
-    configuration_blurb = _(
-        "To finish configuring your Bandwidth connection you need to associate the locaiton of the phone number to "
-        "the Bandwidth application on the following URLs in your Bandwidth account dashboard."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Bandwidth application URL"),
-            url="https://dashboard.bandwidth.com/portal/r/a/{{channel.config.account_id}}/applications/{{channel.config.application_id}}",
-        ),
-    )
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()

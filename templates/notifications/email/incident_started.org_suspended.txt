@@ -1,0 +1,8 @@
+{% extends "notifications/email/base.txt" %}
+{% load i18n %}
+
+{% block notification-body %}
+{% blocktrans %}
+Your workspace has been suspended. To re-enable starting flows and sending messages, please contact support.
+{% endblocktrans %}
+{% endblock notification-body %}

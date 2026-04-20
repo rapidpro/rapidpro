@@ -22,17 +22,27 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 raise ValidationError("Error validating authentication token: %s" % response.json()["status_message"])
             return auth_token
 
+        def clean(self):
+            auth_token = self.cleaned_data.get("auth_token")
+
+            if not auth_token:  # pragma: no cover
+                raise ValidationError(_("Missing auth token"))
+
+            response = requests.post("https://chatapi.viber.com/pa/get_account_info", json={"auth_token": auth_token})
+            response_json = response.json()
+
+            self.cleaned_data["name"] = response_json["uri"]
+            self.cleaned_data["address"] = response_json["id"]
+
+            return super().clean()
+
     form_class = Form
 
     def form_valid(self, form):
         org = self.request.org
         auth_token = form.cleaned_data["auth_token"]
-
-        response = requests.post("https://chatapi.viber.com/pa/get_account_info", json={"auth_token": auth_token})
-        response_json = response.json()
-
-        name = response_json["uri"]
-        address = response_json["id"]
+        name = form.cleaned_data["name"]
+        address = form.cleaned_data["address"]
         config = {Channel.CONFIG_AUTH_TOKEN: auth_token, Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
         self.object = Channel.create(
@@ -62,5 +72,5 @@ class UpdateForm(UpdateChannelForm):
         )
 
     class Meta(UpdateChannelForm.Meta):
-        fields = ("name", "address", "alert_email")
+        fields = ("name", "address", "log_policy")
         readonly = ("address",)

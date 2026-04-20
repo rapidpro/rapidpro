@@ -1,19 +1,16 @@
 import io
-import subprocess
-import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tzone
 from decimal import Decimal
 from unittest.mock import PropertyMock, call, patch
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import iso8601
-import pytz
 import xlrd
 from openpyxl import load_workbook
 
 from django.conf import settings
 from django.core.validators import ValidationError
-from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.db.utils import IntegrityError
@@ -24,7 +21,7 @@ from django.utils import timezone
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent
-from temba.contacts.search import SearchException, search_contacts
+from temba.contacts.search import search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import Call
@@ -33,21 +30,13 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import (
-    AnonymousOrg,
-    CRUDLTestMixin,
-    ESMockWithScroll,
-    TembaNonAtomicTest,
-    TembaTest,
-    matchers,
-    mock_mailroom,
-)
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
-from temba.tickets.models import Ticket, TicketCount, Ticketer
+from temba.tickets.models import Ticket, TicketCount
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.dates import datetime_to_str, datetime_to_timestamp
+from temba.utils.dates import datetime_to_timestamp
 from temba.utils.templatetags.temba import datetime as datetime_tag, duration
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -150,7 +139,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             mr_mocks.contact_search(f"{joe.id}", cleaned=f"id = {joe.id}", contacts=[joe])
 
             response = self.client.get(list_url + f"?search={joe.id}")
@@ -376,7 +365,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.assertReadFetch(group1_url, allow_viewers=True, allow_editors=True)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
-        self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
+        self.assertEqual(["block", "unlabel", "send", "start-flow"], list(response.context["actions"]))
 
         self.assertContentMenu(
             group1_url,
@@ -387,13 +376,13 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
         self.assertEqual([frank], list(response.context["object_list"]))
-        self.assertEqual(["block", "archive"], list(response.context["actions"]))
+        self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
         self.assertContains(response, "age &gt; 40")
 
         # can access system group like any other except no options to edit or delete
         response = self.assertReadFetch(open_tickets_url, allow_viewers=True, allow_editors=True)
         self.assertEqual([], list(response.context["object_list"]))
-        self.assertEqual(["block", "archive"], list(response.context["actions"]))
+        self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
         self.assertContains(response, "tickets &gt; 0")
         self.assertContentMenu(open_tickets_url, self.admin, ["Export", "Usages"])
 
@@ -428,7 +417,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # if there's an open ticket already, don't show open ticket option
-        self.create_ticket(self.org.ticketers.get(), joe, "Help")
+        self.create_ticket(joe, "Help")
         self.assertContentMenu(read_url, self.editor, ["Start Flow", "-", "Edit"])
 
         # login as viewer
@@ -625,9 +614,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.admin,
             "Hi again",
             contacts=[contact1, contact2],
-            schedule=Schedule.create_schedule(
-                self.org, self.admin, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY
-            ),
+            schedule=Schedule.create(self.org, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY),
         )
         self.create_broadcast(self.admin, "Bye", contacts=[contact1, contact2])  # not scheduled
 
@@ -638,9 +625,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.admin,
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=trigger1_flow,
-            schedule=Schedule.create_schedule(
-                self.org, self.admin, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY
-            ),
+            schedule=Schedule.create(self.org, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY),
         )
         trigger1.contacts.add(contact1, contact2)
 
@@ -651,9 +636,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.admin,
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=trigger2_flow,
-            schedule=Schedule.create_schedule(
-                self.org, self.admin, timezone.now() + timedelta(days=6), Schedule.REPEAT_MONTHLY
-            ),
+            schedule=Schedule.create(self.org, timezone.now() + timedelta(days=6), Schedule.REPEAT_MONTHLY),
         )
         trigger2.groups.add(farmers)
 
@@ -663,9 +646,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.admin,
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=self.create_flow("Favorites 3"),
-            schedule=Schedule.create_schedule(
-                self.org, self.admin, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY
-            ),
+            schedule=Schedule.create(self.org, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY),
         )
         trigger3.contacts.add(contact1, contact2)
         trigger3.exclude_groups.add(farmers)
@@ -720,60 +701,24 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
     @mock_mailroom
     def test_open_ticket(self, mr_mocks):
         contact = self.create_contact("Joe", phone="+593979000111")
-        internal = self.org.ticketers.get()
         general = self.org.default_ticket_topic
-
-        # create deleted ticketer
-        deleted_ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Deleted", config={})
-        deleted_ticketer.release(self.admin)
-
         open_url = reverse("contacts.contact_open_ticket", args=[contact.id])
 
         self.assertUpdateFetch(
             open_url, allow_viewers=False, allow_editors=True, form_fields=("topic", "body", "assignee")
         )
 
-        # try to submit with empty body
-        self.assertUpdateSubmit(
-            open_url,
-            {"ticketer": internal.id, "topic": general.id, "body": "", "assignee": ""},
-            form_errors={"body": "This field is required."},
-            object_unchanged=contact,
-        )
-
         # can submit with no assignee
-        response = self.assertUpdateSubmit(
-            open_url, {"ticketer": internal.id, "topic": general.id, "body": "Help", "assignee": ""}
-        )
+        response = self.assertUpdateSubmit(open_url, {"topic": general.id, "body": "Help", "assignee": ""})
 
         # should have new ticket
         ticket = contact.tickets.get()
-        self.assertEqual(internal, ticket.ticketer)
         self.assertEqual(general, ticket.topic)
         self.assertEqual("Help", ticket.body)
         self.assertIsNone(ticket.assignee)
 
         # and we're redirected to that ticket
         self.assertRedirect(response, f"/ticket/all/open/{ticket.uuid}/")
-
-        # create external ticketer
-        zendesk = Ticketer.create(self.org, self.admin, "zendesk", "Zendesk", config={})
-
-        # now ticketer is an option on the form
-        self.assertUpdateFetch(
-            open_url, allow_viewers=False, allow_editors=True, form_fields=("ticketer", "topic", "body", "assignee")
-        )
-
-        self.assertUpdateSubmit(
-            open_url, {"ticketer": zendesk.id, "topic": general.id, "body": "Help again", "assignee": self.agent.id}
-        )
-
-        # should have new ticket
-        ticket = contact.tickets.order_by("id").last()
-        self.assertEqual(zendesk, ticket.ticketer)
-        self.assertEqual(general, ticket.topic)
-        self.assertEqual("Help again", ticket.body)
-        self.assertEqual(self.agent, ticket.assignee)
 
     @mock_mailroom
     def test_interrupt(self, mr_mocks):
@@ -1152,7 +1097,7 @@ class ContactGroupTest(TembaTest):
         campaign.save()
 
         # create scheduled and regular broadcasts which send to both groups
-        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         bcast1 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2], schedule=schedule)
         bcast2 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2])
         bcast2.send_async()
@@ -1428,7 +1373,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             Trigger.TYPE_KEYWORD,
             flow,
-            keyword="test1",
+            keywords=["test1"],
             match_type=Trigger.MATCH_FIRST_WORD,
             groups=[group],
         )
@@ -1437,7 +1382,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             Trigger.TYPE_KEYWORD,
             flow,
-            keyword="test2",
+            keywords=["test2"],
             match_type=Trigger.MATCH_FIRST_WORD,
             exclude_groups=[group],
         )
@@ -1464,21 +1409,19 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         group3 = self.create_group("Group 3", contacts=[])
         flow2 = self.create_flow("Flow 2")
         flow2.group_dependencies.add(group3)
-        schedule1 = Schedule.create_schedule(
-            self.org, self.admin, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY
-        )
+        schedule1 = Schedule.create(self.org, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY)
         trigger1 = Trigger.create(
             self.org,
             self.admin,
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=flow2,
-            keyword="trigger1",
+            keywords=["trigger1"],
             match_type=Trigger.MATCH_FIRST_WORD,
             groups=[group3.id],
             schedule=schedule1,
         )
         self.assertEqual(1, group3.triggers.count())
-        self.assertEqual(trigger1, group3.triggers.get(is_active=True, keyword=trigger1.keyword))
+        self.assertEqual(trigger1, group3.triggers.get(is_active=True, keywords=trigger1.keywords))
 
         # create a group which is used by a flow (soft), a trigger (soft), and a campaign (hard dependency)
         group4 = self.create_group("Group 4", contacts=[])
@@ -1489,7 +1432,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             Trigger.TYPE_KEYWORD,
             flow3,
-            keyword="trigger2",
+            keywords=["trigger2"],
             match_type=Trigger.MATCH_FIRST_WORD,
             groups=[group4],
         )
@@ -1682,9 +1625,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
     def test_open_ticket(self, mock_contact_modify):
         mock_contact_modify.return_value = {self.joe.id: {"contact": {}, "events": []}}
 
-        ticket = self.joe.open_ticket(
-            self.admin, self.org.ticketers.get(), self.org.default_ticket_topic, "Looks sus", assignee=self.agent
-        )
+        ticket = self.joe.open_ticket(self.admin, self.org.default_ticket_topic, "Looks sus", assignee=self.agent)
 
         self.assertEqual(self.org.default_ticket_topic, ticket.topic)
         self.assertEqual("Looks sus", ticket.body)
@@ -1707,7 +1648,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         urn = old_contact.get_urn()
         self.create_channel_event(self.channel, urn.identity, ChannelEvent.TYPE_CALL_IN_MISSED)
 
-        self.create_ticket(self.org.ticketers.get(), old_contact, "Hi")
+        self.create_ticket(old_contact, "Hi")
 
         ivr_flow = self.get_flow("ivr")
         msg_flow = self.get_flow("favorites_v13")
@@ -1723,7 +1664,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         contact2 = self.create_contact("Billy", urns=["twitter:billy"])
 
         # create scheduled and regular broadcasts which send to both contacts
-        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         bcast1 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2], schedule=schedule)
         bcast2 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2])
 
@@ -1762,9 +1703,9 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.create_incoming_call(msg_flow, contact)
 
         # give contact an open and a closed ticket
-        self.create_ticket(self.org.ticketers.get(), contact, "Hi")
-        self.create_ticket(self.org.ticketers.get(), contact, "Hi", closed_on=timezone.now())
-        bcast_ticket = self.create_ticket(self.org.ticketers.get(), contact, "Hi All")
+        self.create_ticket(contact, "Hi")
+        self.create_ticket(contact, "Hi", closed_on=timezone.now())
+        bcast_ticket = self.create_ticket(contact, "Hi All")
         bcast2.ticket = bcast_ticket
         bcast2.save()
 
@@ -1840,8 +1781,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         label = self.create_label("Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
         static_group = self.create_group("Just Joe", [self.joe])
-
-        self.clear_cache()
 
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
@@ -2027,7 +1966,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("0768 383 383", str(self.voldemort))
         self.assertEqual("Billy Nophone", str(self.billy))
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
             self.assertEqual("Joe Blow", self.joe.get_display())
             self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.get_display())
@@ -2203,7 +2142,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             omnibox_request(f"g={joe_and_frank.uuid}"),
         )
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
                 SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
@@ -2314,9 +2253,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
         # two tickets for joe
-        ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
-        self.create_ticket(ticketer, self.joe, "Question 1", opened_on=timezone.now(), closed_on=timezone.now())
-        ticket = self.create_ticket(ticketer, self.joe, "Question 2")
+        self.create_ticket(self.joe, "Question 1", opened_on=timezone.now(), closed_on=timezone.now())
+        ticket = self.create_ticket(self.joe, "Question 2")
 
         # create missed incoming and outgoing calls
         self.create_channel_event(
@@ -2397,7 +2335,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 11, "flow_entered", flow__name="Colors")
         assertHistoryEvent(history, 12, "msg_received", msg__text="Message caption")
         assertHistoryEvent(
-            history, 13, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="viewer@nyaruka.com"
+            history, 13, "msg_created", msg__text="A beautiful broadcast", created_by__email="viewer@nyaruka.com"
         )
         assertHistoryEvent(history, 14, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
@@ -2619,7 +2557,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
         schedule_time = timezone.now() + timedelta(days=2)
-        broadcast.schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
+        broadcast.schedule = Schedule.create(self.org, schedule_time, Schedule.REPEAT_NEVER)
         broadcast.save(update_fields=("schedule",))
 
         self.assertEqual(self.joe.get_scheduled_broadcasts().count(), 1)
@@ -2635,10 +2573,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         broadcast.groups.remove(just_joe)
         self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
-        broadcast.schedule.next_fire = None
-        broadcast.schedule.save(update_fields=["next_fire"])
-        self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
-
     def test_update_urns_field(self):
         update_url = reverse("contacts.contact_update", args=[self.joe.pk])
 
@@ -2648,7 +2582,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Add Connection")
 
         # no field to add new urns for anon org
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.fetch_protected(update_url, self.admin)
             self.assertEqual(self.joe, response.context["object"])
             self.assertNotContains(response, "Add Connection")
@@ -3253,7 +3187,7 @@ class ContactFieldTest(TembaTest):
             "Be\02n Haggerty",
             phone="+12067799294",
             fields={"first": "On\02e", "third": "20/12/2015 08:30"},
-            last_seen_on=datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+            last_seen_on=datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
         )
 
         flow = self.get_flow("color_v13")
@@ -3360,7 +3294,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "",
                         "+12067799294",
                         "",
@@ -3428,7 +3362,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "",
                         "+12067799294",
                         "",
@@ -3494,7 +3428,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "",
                         "+12067799294",
                         "+12062233445",
@@ -3589,7 +3523,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "",
                         "+12067799294",
                         "+12062233445",
@@ -3758,7 +3692,7 @@ class ContactFieldTest(TembaTest):
                             "",
                             "Active",
                             contact.created_on,
-                            datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                            datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                             "",
                             "+12067799294",
                             "+12062233445",
@@ -3776,7 +3710,7 @@ class ContactFieldTest(TembaTest):
             assertImportExportedFile("?g=%s&s=Hagg" % group.uuid)
 
         # now try with an anonymous org
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertExcelSheet(
                 request_export()[0],
                 [
@@ -3816,7 +3750,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "20-12-2015 08:30",
                         "",
                         "One",
@@ -4289,7 +4223,11 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("contacts.contactfield_list")
 
         self.assertListFetch(
-            list_url, allow_viewers=False, allow_editors=True, context_objects=[self.age, self.gender, self.state]
+            list_url,
+            allow_viewers=True,
+            allow_editors=True,
+            allow_agents=False,
+            context_objects=[self.age, self.gender, self.state],
         )
 
     def test_create_warnings(self):
@@ -4556,342 +4494,6 @@ class URNTest(TembaTest):
         self.assertTrue(URN.validate("vk:12345678901234567"))
         self.assertTrue(URN.validate("instagram:12345678901234567"))
         self.assertFalse(URN.validate("instagram:abcdef"))
-
-
-class ESIntegrationTest(TembaNonAtomicTest):
-    def test_ES_contacts_index(self):
-        self.create_anonymous_user()
-        self.admin = self.create_user("Administrator")
-        self.user = self.admin
-
-        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
-        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
-        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
-        self.district1 = AdminBoundary.create(osm_id="1711131", name="Gatsibo", level=2, parent=self.state2)
-        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
-        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
-        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
-        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
-        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
-        self.ward3 = AdminBoundary.create(osm_id="171114281", name="Bukure", level=3, parent=self.district4)
-
-        self.org = Org.objects.create(
-            name="Temba",
-            timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
-            flow_languages=["eng"],
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        self.org.initialize()
-        self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
-
-        self.client.login(username=self.admin.username, password=self.admin.username)
-
-        age = self.create_field("age", "Age", value_type="N")
-        self.create_field("join_date", "Join Date", value_type="D")
-        self.create_field("state", "Home State", value_type="S")
-        self.create_field("home", "Home District", value_type="I")
-        ward = self.create_field("ward", "Home Ward", value_type="W")
-        self.create_field("profession", "Profession", value_type="T")
-        self.create_field("isureporter", "Is UReporter", value_type="T")
-        self.create_field("hasbirth", "Has Birth", value_type="T")
-
-        doctors = self.create_group("Doctors", contacts=[])
-        farmers = self.create_group("Farmers", contacts=[])
-        registration = self.create_flow("Registration")
-
-        names = ["Trey", "Mike", "Paige", "Fish", "", None]
-        districts = ["Gatsibo", "Kayônza", "Rwamagana", None]
-        wards = ["Kageyo", "Kabara", "Bukure", None]
-        date_format = self.org.get_datetime_formats()[0]
-
-        # reset contact ids so we don't get unexpected collisions with phone numbers
-        with connection.cursor() as cursor:
-            cursor.execute("""SELECT setval(pg_get_serial_sequence('"contacts_contact"','id'), 900)""")
-
-        # create some contacts
-        for i in range(90):
-            name = names[i % len(names)]
-
-            number = "0188382%s" % str(i).zfill(3)
-            twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
-            join_date = datetime_to_str(date(2014, 1, 1) + timezone.timedelta(days=i), date_format, tz=pytz.utc)
-
-            # create contact with some field data so we can do some querying
-            fields = {
-                "age": str(i + 10),
-                "join_date": str(join_date),
-                "state": "Eastern Province",
-                "home": districts[i % len(districts)],
-                "ward": wards[i % len(wards)],
-                "isureporter": "yes" if i % 2 == 0 else "no" if i % 3 == 0 else None,
-                "hasbirth": "no",
-            }
-
-            if i % 3 == 0:
-                fields["profession"] = "Farmer"  # only some contacts have any value for this
-
-            urns = [f"tel:{number}"]
-            if twitter:
-                urns.append(f"twitter:{twitter}")
-
-            c = self.create_contact(name, urns=urns, fields=fields)
-            if i % 3 == 0:
-                farmers.contacts.add(c)
-            if i % 7 == 0:
-                doctors.contacts.add(c)
-            if i % 10 == 0:
-                c.current_flow = registration
-                c.save(update_fields=("current_flow",))
-
-        db_config = connection.settings_dict
-        database_url = (
-            f"postgres://{db_config['USER']}:{db_config['PASSWORD']}@{db_config['HOST']}:{db_config['PORT']}/"
-            f"{db_config['NAME']}?sslmode=disable"
-        )
-        print(f"Using database: {database_url}")
-
-        result = subprocess.run(
-            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
-
-        def q(query):
-            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
-            return results.total
-
-        # give mailroom some time to flush its cache and ES to publish the results
-        time.sleep(5)
-
-        self.assertEqual(q("trey"), 15)
-        self.assertEqual(q("MIKE"), 15)
-        self.assertEqual(q("  paige  "), 15)
-        self.assertEqual(q("0188382011"), 1)
-        self.assertEqual(q("trey 0188382"), 15)
-
-        # name as property
-        self.assertEqual(q('name is "trey"'), 15)
-        self.assertEqual(q("name is mike"), 15)
-        self.assertEqual(q("name = paige"), 15)
-        self.assertEqual(q('name != ""'), 60)
-        self.assertEqual(q('NAME = ""'), 30)
-        self.assertEqual(q("name ~ Mi"), 15)
-        self.assertEqual(q('name != "Mike"'), 75)
-
-        # URN as property
-        self.assertEqual(q("tel is +250188382011"), 1)
-        self.assertEqual(q("tel has 0188382011"), 1)
-        self.assertEqual(q("twitter = tweep_13"), 1)
-        self.assertEqual(q('twitter = ""'), 60)
-        self.assertEqual(q('twitter != ""'), 30)
-        self.assertEqual(q("TWITTER has tweep"), 30)
-
-        # contact field as property
-        self.assertEqual(q("age > 30"), 69)
-        self.assertEqual(q("age >= 30"), 70)
-        self.assertEqual(q("age > 30 and age <= 40"), 10)
-        self.assertEqual(q("AGE < 20"), 10)
-        self.assertEqual(q('age != ""'), 90)
-        self.assertEqual(q('age = ""'), 0)
-
-        self.assertEqual(q("join_date = 1-1-14"), 1)
-        self.assertEqual(q("join_date < 30/1/2014"), 29)
-        self.assertEqual(q("join_date <= 30/1/2014"), 30)
-        self.assertEqual(q("join_date > 30/1/2014"), 60)
-        self.assertEqual(q("join_date >= 30/1/2014"), 61)
-        self.assertEqual(q('join_date != ""'), 90)
-        self.assertEqual(q('join_date = ""'), 0)
-
-        self.assertEqual(q('state is "Eastern Province"'), 90)
-        self.assertEqual(q("HOME is Kayônza"), 23)
-        self.assertEqual(q("ward is kageyo"), 23)
-        self.assertEqual(q("ward != kageyo"), 67)  # includes objects with empty ward
-
-        self.assertEqual(q('home is ""'), 22)
-        self.assertEqual(q('profession = ""'), 60)
-        self.assertEqual(q('profession is ""'), 60)
-        self.assertEqual(q('profession != ""'), 30)
-
-        # contact fields beginning with 'is' or 'has'
-        self.assertEqual(q('isureporter = "yes"'), 45)
-        self.assertEqual(q("isureporter = yes"), 45)
-        self.assertEqual(q("isureporter = no"), 15)
-        self.assertEqual(q("isureporter != no"), 75)  # includes objects with empty isureporter
-
-        self.assertEqual(q('hasbirth = "no"'), 90)
-        self.assertEqual(q("hasbirth = no"), 90)
-        self.assertEqual(q("hasbirth = yes"), 0)
-
-        self.assertEqual(q('group = "farmers"'), 30)
-        self.assertEqual(q('group = "DOCTORS"'), 13)
-
-        self.assertEqual(q('flow = "registration"'), 9)
-        self.assertEqual(q('flow != ""'), 9)
-
-        # boolean combinations
-        self.assertEqual(q("name is trey or name is mike"), 30)
-        self.assertEqual(q("name is trey and age < 20"), 2)
-        self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 45)
-        self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is trey'), 15)
-        self.assertEqual(q('name is MIKE and profession = ""'), 15)
-        self.assertEqual(q("profession = doctor or profession = farmer"), 30)  # same field
-        self.assertEqual(q("age = 20 or age = 21"), 2)
-        self.assertEqual(q("join_date = 30/1/2014 or join_date = 31/1/2014"), 2)
-
-        # create contact with no phone number, we'll try searching for it by id
-        contact = self.create_contact(name="Id Contact")
-
-        # a new contact was created, execute the rp-indexer again
-        result = subprocess.run(
-            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
-
-        # give ES some time to publish the results
-        time.sleep(5)
-
-        # NOTE: when this fails with `AssertionError: 90 != 0`, check if contact phone numbers might match
-        # NOTE: for example id=2507, tel=250788382011 ... will match
-        # non-anon orgs can't search by id (because they never see ids), but they match on tel
-        self.assertEqual(q("%d" % contact.pk), 0)
-
-        with AnonymousOrg(self.org):
-            # give mailroom time to clear its org cache
-            time.sleep(5)
-
-            # still allow name and field searches
-            self.assertEqual(q("trey"), 15)
-            self.assertEqual(q("name is mike"), 15)
-            self.assertEqual(q("age > 30"), 69)
-
-            # don't allow matching on URNs
-            self.assertEqual(q("0188382011"), 0)
-            self.assertRaises(SearchException, q, "tel is +250188382011")
-            self.assertRaises(SearchException, q, "twitter has tweep")
-
-            # anon orgs can search by id, with or without zero padding
-            self.assertEqual(q("%d" % contact.pk), 1)
-            self.assertEqual(q("%010d" % contact.pk), 1)
-
-        # give mailroom time to clear its org cache
-        time.sleep(5)
-
-        # invalid queries
-        self.assertRaises(SearchException, q, "((")
-        self.assertRaises(SearchException, q, 'name = "trey')  # unterminated string literal
-        self.assertRaises(SearchException, q, "name > trey")  # unrecognized non-field operator   # ValueError
-        self.assertRaises(SearchException, q, "profession > trey")  # unrecognized text-field operator   # ValueError
-        self.assertRaises(SearchException, q, "age has 4")  # unrecognized decimal-field operator   # ValueError
-        self.assertRaises(SearchException, q, "age = x")  # unparseable decimal-field comparison
-        self.assertRaises(
-            SearchException, q, "join_date has 30/1/2014"
-        )  # unrecognized date-field operator   # ValueError
-        self.assertRaises(SearchException, q, "join_date > xxxxx")  # unparseable date-field comparison
-        self.assertRaises(SearchException, q, "home > kigali")  # unrecognized location-field operator
-        self.assertRaises(SearchException, q, "credits > 10")  # non-existent field or attribute
-        self.assertRaises(SearchException, q, "tel < +250188382011")  # unsupported comparator for a URN   # ValueError
-        self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
-        self.assertRaises(SearchException, q, "data=“not empty”")  # unicode “,” are not accepted characters
-
-        # test contact_search_list
-        url = reverse("contacts.contact_list")
-        self.login(self.admin)
-
-        response = self.client.get("%s?sort_on=%s" % (url, "created_on"))
-        self.assertEqual(response.context["object_list"][0].name, "Trey")  # first contact in the set
-        self.assertEqual(response.context["object_list"][0].fields[str(age.uuid)], {"text": "10", "number": 10})
-
-        response = self.client.get("%s?sort_on=-%s" % (url, "created_on"))
-        self.assertEqual(response.context["object_list"][0].name, "Id Contact")  # last contact in the set
-        self.assertEqual(response.context["object_list"][0].fields, None)
-
-        response = self.client.get("%s?sort_on=-%s" % (url, str(ward.key)))
-        self.assertEqual(
-            response.context["object_list"][0].fields[str(ward.uuid)],
-            {
-                "district": "Rwanda > Eastern Province > Gatsibo",
-                "state": "Rwanda > Eastern Province",
-                "text": "Kageyo",
-                "ward": "Rwanda > Eastern Province > Gatsibo > Kageyo",
-            },
-        )
-
-        response = self.client.get("%s?sort_on=%s" % (url, str(ward.key)))
-        self.assertEqual(
-            response.context["object_list"][0].fields[str(ward.uuid)],
-            {
-                "district": "Rwanda > Eastern Province > Rwamagana",
-                "state": "Rwanda > Eastern Province",
-                "text": "Bukure",
-                "ward": "Rwanda > Eastern Province > Rwamagana > Bukure",
-            },
-        )
-
-        now = timezone.now()
-        next_two_days = timezone.now() + timezone.timedelta(days=2)
-
-        self.create_contact(name="James", urns=["tel:+250188382999"], last_seen_on=next_two_days)
-        self.create_contact(name="Chris", urns=["tel:+250188382888"], last_seen_on=now)
-
-        # new contacts were created, execute the rp-indexer again
-        result = subprocess.run(
-            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
-
-        # give ES some time to publish the results
-        time.sleep(5)
-
-        response = self.client.get("%s?sort_on=%s" % (url, "last_seen_on"))
-        self.assertEqual(response.context["object_list"][0].name, "Chris")  # oldest contact last seen
-
-        response = self.client.get("%s?sort_on=-%s" % (url, "last_seen_on"))
-        self.assertEqual(response.context["object_list"][0].name, "James")  # recent contact last seen
-
-        # create a dynamic group on age
-        self.login(self.admin)
-        url = reverse("contacts.contactgroup_create")
-        self.client.post(url, dict(name="Adults", group_query="age > 30"))
-        self.assertNoFormErrors(response)
-
-        time.sleep(5)
-
-        # check that it was created with the right counts
-        adults = ContactGroup.objects.get(org=self.org, name="Adults")
-        self.assertEqual(69, adults.get_member_count())
-
-        # create a campaign and event on this group
-        campaign = Campaign.create(self.org, self.admin, "Cake Day", adults)
-        created_on = ContactField.objects.get(org=self.org, key="created_on")
-        event = CampaignEvent.create_message_event(
-            self.org, self.admin, campaign, relative_to=created_on, offset=12, unit="M", message="Happy One Year!"
-        )
-
-        # mailroom creation of event fires
-        event.schedule_async()
-
-        # should have 69 events
-        EventFire.objects.filter(event=event, fired=None).count()
-
-        # update the query
-        url = reverse("contacts.contactgroup_update", args=[adults.id])
-        self.client.post(url, dict(name="Adults", query="age > 18"))
-        self.assertNoFormErrors(response)
-
-        # need to wait at least 10 seconds because mailroom will wait that long to give indexer time to catch up if it
-        # sees recently modified contacts
-        time.sleep(13)
-
-        # should have updated count
-        self.assertEqual(81, adults.get_member_count())
 
 
 class ContactImportTest(TembaTest):
@@ -5453,7 +5055,7 @@ class ContactImportTest(TembaTest):
 
     def test_parse_value(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
-        kgl = pytz.timezone("Africa/Kigali")
+        kgl = ZoneInfo("Africa/Kigali")
 
         tests = [
             ("", ""),
@@ -5462,7 +5064,7 @@ class ContactImportTest(TembaTest):
             (123.456, "123.456"),
             (date(2020, 9, 18), "2020-09-18"),
             (datetime(2020, 9, 18, 15, 45, 30, 0), "2020-09-18T15:45:30+02:00"),
-            (kgl.localize(datetime(2020, 9, 18, 15, 45, 30, 0)), "2020-09-18T15:45:30+02:00"),
+            (datetime(2020, 9, 18, 15, 45, 30, 0).replace(tzinfo=kgl), "2020-09-18T15:45:30+02:00"),
         ]
         for test in tests:
             self.assertEqual(test[1], imp._parse_value(test[0], tz=kgl))

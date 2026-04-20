@@ -165,23 +165,29 @@ class ExternalTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "alert_email", "role", "allow_international", "loc"],
+            ["name", "role", "allow_international", "loc"],
             list(response.context["form"].fields.keys()),
         )
 
-        post_data = dict(name="Receiver 1234", role=["R"], alert_email="alert@example.com")
+        post_data = dict(name="Receiver 1234", role=["R"])
         response = self.client.post(update_url, post_data)
 
         channel = Channel.objects.filter(pk=channel.pk).first()
         self.assertEqual(channel.role, "R")
         self.assertEqual(channel.name, "Receiver 1234")
-        self.assertEqual(channel.alert_email, "alert@example.com")
 
-        post_data = dict(name="Channel 1234", role=["R", "S"], alert_email="")
+        post_data = dict(name="Channel 1234", role=["R", "S"])
 
         response = self.client.post(update_url, post_data)
 
         channel = Channel.objects.filter(pk=channel.pk).first()
         self.assertEqual(channel.role, "RS")
         self.assertEqual(channel.name, "Channel 1234")
-        self.assertIsNone(channel.alert_email)
+
+        # staff users see extra log policy field
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "role", "log_policy", "allow_international", "loc"],
+            list(response.context["form"].fields.keys()),
+        )

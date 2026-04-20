@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.shaqodoon.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class ShaqodoonType(ChannelType):
@@ -12,30 +12,26 @@ class ShaqodoonType(ChannelType):
     """
 
     code = "SQ"
+    name = "Shaqodoon"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^sq/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$"
-
-    name = "Shaqodoon"
+    schemes = [URN.TEL_SCHEME]
+    available_timezones = ["Africa/Mogadishu"]
 
     claim_blurb = _(
         "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your short code."
     )
     claim_view = ClaimView
 
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
-
-    configuration_blurb = _(
-        "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery "
-        "URL for incoming messages to {{ channel.address }}."
+    config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring this channel, you'll need to provide Shaqodoon with the following delivery URL."
+        ),
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
+        ],
     )
-
-    configuration_urls = (
-        dict(label="", url="https://{{ channel.callback_domain }}{% url 'courier.sq' channel.uuid 'receive' %}"),
-    )
-
-    available_timezones = ["Africa/Mogadishu"]
 
     def is_recommended_to(self, org, user):
         return self.is_available_to(org, user)[0]

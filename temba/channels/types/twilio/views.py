@@ -92,6 +92,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             phone = phonenumbers.parse(phone, self.cleaned_data["country"])
             return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
+        def clean(self):
+            self.cleaned_data["address"] = self.cleaned_data["phone_number"]
+            return super().clean()
+
     form_class = Form
 
     def __init__(self, channel_type):
@@ -391,7 +395,7 @@ class UpdateForm(UpdateChannelForm):
         return super().clean()
 
     class Meta(UpdateChannelForm.Meta):
-        fields = ("name",)
+        fields = ("name", "log_policy")
 
 
 class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):

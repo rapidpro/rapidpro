@@ -35,8 +35,34 @@ class APIPermission(BasePermission):
     Verifies that the user has the permission set on the endpoint view
     """
 
+    perms_map = {
+        "GET": "%(app_label)s.%(model_name)s_list",
+        "POST": "%(app_label)s.%(model_name)s_create",
+        "PUT": "%(app_label)s.%(model_name)s_update",
+        "DELETE": "%(app_label)s.%(model_name)s_delete",
+    }
+
+    def get_required_permission(self, request, view) -> str:
+        """
+        Given a model and an HTTP method, return the list of permission
+        codes that the user is required to have.
+        """
+
+        if hasattr(view, "permission"):
+            return view.permission
+
+        if request.method not in self.perms_map or request.method not in view.allowed_methods:
+            view.http_method_not_allowed(request)
+
+        return self.perms_map[request.method] % {
+            "app_label": view.model._meta.app_label,
+            "model_name": view.model._meta.model_name,
+        }
+
     def has_permission(self, request, view):
-        if getattr(view, "permission", None):
+        permission = self.get_required_permission(request, view)
+
+        if permission:
             # no anon access to API endpoints
             if request.user.is_anonymous:
                 return False
@@ -55,7 +81,7 @@ class APIPermission(BasePermission):
             else:
                 return False
 
-            has_perm = role.has_perm(view.permission)
+            has_perm = role.has_api_perm(permission)
 
             # viewers can only ever get from the API
             if role == OrgRole.VIEWER:
@@ -270,17 +296,3 @@ class APIToken(models.Model):
 
     def __str__(self):
         return self.key
-
-
-def get_or_create_api_token(org, user):
-    """
-    Gets or creates an API token for this user. If user doen't have access to the API, this returns None.
-    """
-
-    try:
-        token = APIToken.get_or_create(org, user)
-        return token.key
-    except ValueError:
-        pass
-
-    return None

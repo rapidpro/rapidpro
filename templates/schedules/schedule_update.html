@@ -1,0 +1,68 @@
+{% extends "smartmin/form.html" %}
+{% load i18n humanize smartmin %}
+
+{% block fields %}
+  <div class="title">{% trans "Schedule" %}</div>
+  <div class="mb-3">{% trans "Select when you would like the message to be sent" %}</div>
+  {% include "includes/schedule_fields.html" with form=form %}
+{% endblock fields %}
+{% block summary %}
+  {% if object.next_fire %}
+    <div class="flex">
+      <div class="schedule-summary self-center">
+        {% if object.get_broadcast %}
+          {% blocktrans trimmed with when=object.next_fire|naturaltime %}
+            The next message will be sent <b>{{ when }}</b>.
+          {% endblocktrans %}
+        {% endif %}
+        {% if object.repeat_period == 'M' %}
+          {% blocktrans trimmed with date=object.repeat_day_of_month|ordinal %}
+            It will repeat every <b>month</b> on the {{ date }}.
+          {% endblocktrans %}
+        {% elif object.repeat_period == 'W' %}
+          {% trans "It will repeat every" %}
+          {% for day in object.get_repeat_days_display %}<b>{{ day }}</b>{{ forloop|oxford }}{% endfor %}
+          {% trans "at around the same time." %}
+        {% elif object.repeat_period == 'D' %}
+          {% trans "It will repeat <b>daily</b> at around the same time." %}
+        {% elif object.repeat_period == 'O' %}
+          {% trans "It will <b>not repeat</b>." %}
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    {% trans "Not scheduled" %}
+  {% endif %}
+{% endblock summary %}
+{% block form-buttons %}
+  <div class="mt-4" id="form-buttons">
+    <input type="submit" value="Schedule" class="button-primary">
+  </div>
+{% endblock form-buttons %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function wireRepeatListener() {
+      var repeatPeriod = document.querySelector("#id_repeat_period");
+      var repeatDays = document.querySelector(".repeat-days-container");
+      if (repeatPeriod) {
+        repeatPeriod.addEventListener("change", function(event) {
+          var currentRepeat = event.currentTarget.values[0].value;
+          if (currentRepeat === 'W') {
+            repeatDays.classList.remove("hidden");
+          } else {
+            repeatDays.classList.add("hidden");
+          }
+        });
+      } else {
+        // we can't use DOMContentLoaded here since we need it 
+        // to invoke after formax submission too
+        window.setTimeout(function() {
+          wireRepeatListener()
+        }, 300);
+      }
+    }
+
+    wireRepeatListener();
+  </script>
+{% endblock extra-script %}

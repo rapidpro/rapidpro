@@ -1,0 +1,62 @@
+{% extends "frame.html" %}
+{% load smartmin i18n %}
+
+{% block styles %}
+  {{ block.super }}
+  <style type="text/css">
+    .content-card {
+      margin-top: 8em;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      background: transparent;
+    }
+  </style>
+{% endblock styles %}
+{% block page-container %}
+  {% block extra-style %}
+    {{ block.super }}
+  {% endblock extra-style %}
+  {% block extra-script %}
+    {{ block.super }}
+  {% endblock extra-script %}
+  <div class="background"></div>
+  <div class="flex flex-col h-full z-10">
+    <div class="top flex-shrink flex-grow">
+      {% block top %}
+      {% endblock top %}
+    </div>
+    <div class="middle flex flex-row mb-10">
+      <div class="flex-grow"></div>
+      <div class="card content-card">
+        <div class="flex items-center">
+          <div class="brand flex-grow">
+            {% block logo %}
+              <img class="no-nav-logo"
+                   style="max-height:4em;
+                          margin: 1em 0"
+                   src="{{ STATIC_URL }}{{ branding.logos.primary }}">
+            {% endblock logo %}
+          </div>
+          <div class="top-right">
+            {% block top-right %}
+            {% endblock top-right %}
+          </div>
+        </div>
+        {% block content %}
+        {% endblock content %}
+      </div>
+      <div class="flex-grow"></div>
+    </div>
+    <div style="flex-grow: 8" class="bottom">
+      <div class="flex flex-col h-full">
+        <div class="flex-grow"></div>
+        <div class="bottom">
+          {% block footer %}
+            {{ block.super }}
+          {% endblock footer %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock page-container %}

@@ -63,6 +63,8 @@ class ConnectView(BaseConnectView):
             LuisType.CONFIG_SLOT: form.cleaned_data["slot"],
         }
 
-        self.object = Classifier.create(self.org, self.request.user, LuisType.slug, form.cleaned_data["name"], config)
+        self.object = Classifier.create(
+            self.request.org, self.request.user, LuisType.slug, form.cleaned_data["name"], config
+        )
 
         return super().form_valid(form)

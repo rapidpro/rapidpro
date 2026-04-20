@@ -1,0 +1,59 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n compress temba %}
+
+{% block pre-form %}
+  {% blocktrans with name=branding.name trimmed %}
+    To connect your VK community to RapidPro, you will need to
+    create a community token with messaging permissions.
+  {% endblocktrans %}
+  <div class="mt-2">
+    {% blocktrans trimmed %}
+      To obtain the name of your community, access it and enter the exact name below.
+    {% endblocktrans %}
+  </div>
+  <div class="mt-2">
+    {% blocktrans trimmed %}
+      To get your community id, go to Manage > API Usage > Callback API > Server Settings.
+      Copy the whole number you have right after the group_id present in the example json
+      present in the part regarding the verification of the request.
+    {% endblocktrans %}
+  </div>
+  <div class="mt-2">
+    {% blocktrans trimmed %}
+      To obtain the verification string, go to the Manage > API Usage > Callback API > Server Settings section.
+      You will find the verification string in an excerpt similar to: String to be returned: <code>4412dd18</code>, copy the string and inform below.
+    {% endblocktrans %}
+  </div>
+  <div class="mt-2">
+    <temba-alert level="warning">
+      {% blocktrans trimmed %}
+        The API Version of the configured server must be <code>5.103</code>. To configure this, go to Manage > API Usage > Callback API > Server Settings.
+      {% endblocktrans %}
+    </temba-alert>
+  </div>
+{% endblock pre-form %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .important {
+      background-color: #efefef;
+      border: 1px solid #ccc;
+      padding: 10px 10px 0px 10px;
+      margin-bottom: 10px;
+    }
+
+    .medium-help {
+      font-size: 50px;
+      height: 50px;
+    }
+
+    .header-margin {
+      margin-left: 60px;
+    }
+  </style>
+{% endblock extra-style %}

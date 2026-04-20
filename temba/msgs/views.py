@@ -40,7 +40,7 @@ from temba.orgs.views import (
 )
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils import analytics, json, on_transaction_commit
+from temba.utils import json, languages, on_transaction_commit
 from temba.utils.compose import compose_deserialize, compose_serialize
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
@@ -53,10 +53,10 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views import BulkActionMixin, ContentMenuMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
 from temba.utils.wizard import SmartWizardUpdateView, SmartWizardView
 
-from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -101,12 +101,11 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
     """
 
     permission = "msgs.msg_list"
-    refresh = 10000
     search_fields = ("text__icontains", "contact__name__icontains", "contact__urns__path__icontains")
     default_order = ("-created_on", "-id")
     allow_export = False
     bulk_actions = ()
-    bulk_action_permissions = {"resend": "msgs.broadcast_send", "delete": "msgs.msg_update"}
+    bulk_action_permissions = {"resend": "msgs.msg_create", "delete": "msgs.msg_update"}
 
     def derive_export_url(self):
         redirect = quote_plus(self.request.get_full_path())
@@ -146,8 +145,10 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
         return context
 
     def build_content_menu(self, menu):
-        if self.has_org_perm("msgs.broadcast_send"):
-            menu.add_modax(_("Send Message"), "send-message", reverse("msgs.broadcast_send"), title=_("Send Message"))
+        if self.has_org_perm("msgs.broadcast_create"):
+            menu.add_modax(
+                _("New Broadcast"), "send-message", reverse("msgs.broadcast_create"), title=_("New Broadcast")
+            )
         if self.has_org_perm("msgs.label_create"):
             menu.add_modax(_("New Label"), "new-msg-label", reverse("msgs.label_create"), title=_("New Label"))
 
@@ -157,31 +158,101 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
 
 class ComposeForm(Form):
     compose = ComposeField(
-        required=True,
-        initial={"text": "", "attachments": []},
-        widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True}),
+        widget=ComposeWidget(
+            attrs={
+                "chatbox": True,
+                "attachments": True,
+                "counter": True,
+                "completion": True,
+                "quickreplies": True,
+                "optins": True,
+            }
+        ),
     )
+
+    def clean_compose(self):
+        base_language = self.initial.get("base_language", "und")
+        primary_language = self.org.flow_languages[0] if self.org.flow_languages else None
+
+        def is_language_missing(values):
+            if values:
+                text = values.get("text", "")
+                attachments = values.get("attachments", [])
+                return not (text or attachments)
+            return True
+
+        # need at least a base or a primary
+        compose = self.cleaned_data["compose"]
+        base = compose.get(base_language, None)
+        primary = compose.get(primary_language, None)
+
+        if is_language_missing(base) and is_language_missing(primary):
+            raise forms.ValidationError(_("This field is required."))
+
+        # check that all of our text and attachments are limited
+        # these are also limited client side, so this is a fail safe
+        for values in compose.values():
+            if values:
+                text = values.get("text", "")
+                attachments = values.get("attachments", [])
+                if text and len(text) > Msg.MAX_TEXT_LEN:
+                    raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
+                if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
+                    raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
+
+        return compose
 
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.org = org
+        isos = [iso for iso in org.flow_languages]
 
-    def clean_compose(self):
-        compose = self.cleaned_data["compose"]
-        text = compose["text"]
-        attachments = compose["attachments"]
-        if not (text or attachments):
-            raise forms.ValidationError(_("Text or attachments are required."))
-        if text and len(text) > Msg.MAX_TEXT_LEN:
-            raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
-        if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
-            raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
-        return compose
+        if self.initial and "base_language" in self.initial:
+            compose = self.initial["compose"]
+            base_language = self.initial["base_language"]
+
+            if base_language not in isos:
+                # if we have a value for the primary org language show that first
+                if isos and isos[0] in compose:
+                    isos.append(base_language)
+                else:
+                    # otherwise, put our base_language first
+                    isos.insert(0, base_language)
+
+            # our base language might be a secondary language, see if it should be first
+            elif isos[0] not in compose:
+                isos.remove(base_language)
+                isos.insert(0, base_language)
+
+        langs = [{"iso": iso, "name": str(_("Default")) if iso == "und" else languages.get_name(iso)} for iso in isos]
+        compose_attrs = self.fields["compose"].widget.attrs
+        compose_attrs["languages"] = json.dumps(langs)
 
 
 class ScheduleForm(ScheduleFormMixin):
+    SEND_NOW = "now"
+    SEND_LATER = "later"
+
+    SEND_CHOICES = (
+        (SEND_NOW, _("Send right now")),
+        (SEND_LATER, _("Schedule for later")),
+    )
+
+    send_when = forms.ChoiceField(choices=SEND_CHOICES, widget=forms.RadioSelect(attrs={"widget_only": True}))
+
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["start_datetime"].required = False
         self.set_org(org)
+
+    def clean(self):
+        start_datetime = self.data.get("schedule-start_datetime", None)
+        if self.data["schedule-send_when"] == ScheduleForm.SEND_LATER and not start_datetime:
+            raise forms.ValidationError(_("Select when you would like the broadcast to be sent"))
+        return super().clean()
+
+    class Meta:
+        fields = ScheduleFormMixin.Meta.fields + ("send_when",)
 
 
 class TargetForm(Form):
@@ -190,11 +261,7 @@ class TargetForm(Form):
         required=True,
         help_text=_("The contacts to send the message to."),
         widget=OmniboxChoice(
-            attrs={
-                "placeholder": _("Search for contacts or groups"),
-                "groups": True,
-                "contacts": True,
-            }
+            attrs={"placeholder": _("Search for contacts or groups"), "groups": True, "contacts": True}
         ),
     )
 
@@ -212,121 +279,51 @@ class TargetForm(Form):
 
 class BroadcastCRUDL(SmartCRUDL):
     actions = (
+        "list",
         "create",
         "update",
         "scheduled",
         "scheduled_read",
         "scheduled_delete",
         "preview",
-        "send",
+        "to_node",
     )
     model = Broadcast
 
-    class Create(OrgPermsMixin, SmartWizardView):
-        form_list = [("compose", ComposeForm), ("target", TargetForm), ("schedule", ScheduleForm)]
-        success_url = "@msgs.broadcast_scheduled"
-        submit_button_name = _("Create Broadcast")
+    class List(MsgListView):
+        title = _("Broadcasts")
+        menu_path = "/msg/broadcasts"
+        paginate_by = 25
 
-        def get_form_kwargs(self, step):
-            return {"org": self.request.org}
-
-        def done(self, form_list, form_dict, **kwargs):
-            user = self.request.user
-            org = self.request.org
-
-            compose = form_dict["compose"].cleaned_data["compose"]
-            text, attachments = compose_deserialize(compose)
-
-            recipients = form_dict["target"].cleaned_data["omnibox"]
-
-            schedule_form = form_dict["schedule"]
-            start_time = schedule_form.cleaned_data["start_datetime"]
-            repeat_period = schedule_form.cleaned_data["repeat_period"]
-            repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
-
-            schedule = Schedule.create_schedule(
-                org, user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
+        def get_queryset(self, **kwargs):
+            return (
+                super()
+                .get_queryset(**kwargs)
+                .filter(is_active=True, schedule=None, org=self.request.org)
+                .select_related("org", "schedule")
+                .prefetch_related("groups", "contacts")
             )
 
-            self.object = Broadcast.create(
-                org,
-                user,
-                text={"und": text},
-                attachments={"und": attachments},
-                groups=list(recipients["groups"]),
-                contacts=list(recipients["contacts"]),
-                schedule=schedule,
-            )
-
-            return HttpResponseRedirect(self.get_success_url())
-
-    class Update(OrgObjPermsMixin, SmartWizardUpdateView):
-        form_list = [("compose", ComposeForm), ("target", TargetForm), ("schedule", ScheduleForm)]
-        success_url = "id@msgs.broadcast_scheduled_read"
-        template_name = "msgs/broadcast_create.html"
-        submit_button_name = _("Save Broadcast")
-
-        def get_form_kwargs(self, step):
-            return {"org": self.request.org}
-
-        def get_form_initial(self, step):
-            org = self.request.org
-
-            if step == "compose":
-                translation = self.object.get_translation()
-                compose = compose_serialize(translation)
-                return {"compose": compose}
-
-            if step == "target":
-                recipients = [*self.object.groups.all(), *self.object.contacts.all()]
-                omnibox = omnibox_results_to_dict(org, recipients)
-                return {"omnibox": omnibox}
-
-            if step == "schedule":
-                schedule = self.object.schedule
-                return {
-                    "start_datetime": schedule.next_fire,
-                    "repeat_period": schedule.repeat_period,
-                    "repeat_days_of_week": list(schedule.repeat_days_of_week) if schedule.repeat_days_of_week else [],
-                }
-
-        def done(self, form_list, form_dict, **kwargs):
-            broadcast = self.object
-            schedule = broadcast.schedule
-
-            # update message
-            compose = form_dict["compose"].cleaned_data["compose"]
-            text, attachments = compose_deserialize(compose)
-            broadcast.translations = {broadcast.base_language: {"text": text, "attachments": attachments}}
-
-            # update recipients
-            recipients = form_dict["target"].cleaned_data["omnibox"]
-            broadcast.update_recipients(**recipients)
-
-            # finally, update schedule
-            schedule_form = form_dict["schedule"]
-            start_time = schedule_form.cleaned_data["start_datetime"]
-            repeat_period = schedule_form.cleaned_data["repeat_period"]
-            repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
-            schedule.update_schedule(
-                self.request.user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
-            )
-
-            broadcast.save()
-
-            return HttpResponseRedirect(self.get_success_url())
+        def build_content_menu(self, menu):
+            if self.has_org_perm("msgs.broadcast_create"):
+                menu.add_modax(
+                    _("New Broadcast"),
+                    "new-scheduled",
+                    reverse("msgs.broadcast_create"),
+                    title=_("New Broadcast"),
+                    as_button=True,
+                )
 
     class Scheduled(MsgListView):
-        title = _("Broadcasts")
-        refresh = 30000
+        title = _("Scheduled Broadcasts")
+        menu_path = "/msg/scheduled"
         fields = ("contacts", "msgs", "sent", "status")
-        search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
+        paginate_by = 25
         default_order = (
             "schedule__next_fire",
             "-created_on",
         )
-        menu_path = "/msg/broadcasts"
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_create"):
@@ -347,6 +344,152 @@ class BroadcastCRUDL(SmartCRUDL):
                 .prefetch_related("groups", "contacts")
             )
 
+    class Create(OrgPermsMixin, SmartWizardView):
+        form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
+        success_url = "@msgs.broadcast_scheduled"
+        submit_button_name = _("Create Broadcast")
+
+        def get_form_kwargs(self, step):
+            return {"org": self.request.org}
+
+        def get_form_initial(self, step):
+            initial = {}
+            contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
+            if contact_uuids:
+                params = {}
+                if len(contact_uuids) > 0:
+                    params["c"] = ",".join(contact_uuids)
+
+                results = omnibox_query(self.request.org, **params)
+                initial["omnibox"] = omnibox_results_to_dict(self.request.org, results)
+                return initial
+            return super().get_form_initial(step)
+
+        def done(self, form_list, form_dict, **kwargs):
+            user = self.request.user
+            org = self.request.org
+
+            compose = form_dict["compose"].cleaned_data["compose"]
+            translations = compose_deserialize(compose)
+            optin = None
+
+            # extract our optin if it is set
+            for value in compose.values():
+                if "optin" in value:
+                    optin = value.pop("optin", None)
+                    break
+            if optin:
+                optin = OptIn.objects.filter(org=org, uuid=optin.get("uuid")).first()
+
+            recipients = form_dict["target"].cleaned_data["omnibox"]
+
+            schedule_form = form_dict["schedule"]
+            send_when = schedule_form.cleaned_data["send_when"]
+            schedule = None
+
+            if send_when == ScheduleForm.SEND_LATER:
+                start_time = schedule_form.cleaned_data["start_datetime"]
+                repeat_period = schedule_form.cleaned_data["repeat_period"]
+                repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
+                schedule = Schedule.create(org, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week)
+
+            self.object = Broadcast.create(
+                org,
+                user,
+                translations=translations,
+                groups=list(recipients["groups"]),
+                contacts=list(recipients["contacts"]),
+                schedule=schedule,
+                optin=optin,
+            )
+
+            # if we are sending now, just kick it off now
+            if send_when == ScheduleForm.SEND_NOW:
+                self.object.send_async()
+                return HttpResponseRedirect(reverse("msgs.broadcast_list"))
+
+            return HttpResponseRedirect(self.get_success_url())
+
+    class Update(OrgObjPermsMixin, SmartWizardUpdateView):
+        form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
+        success_url = "@msgs.broadcast_scheduled"
+        template_name = "msgs/broadcast_create.html"
+        submit_button_name = _("Save Broadcast")
+
+        def get_form_kwargs(self, step):
+            return {"org": self.request.org}
+
+        def get_form_initial(self, step):
+            org = self.request.org
+
+            if step == "target":
+                recipients = [*self.object.groups.all(), *self.object.contacts.all()]
+                omnibox = omnibox_results_to_dict(org, recipients)
+                return {"omnibox": omnibox}
+
+            if step == "compose":
+                base_language = self.object.base_language
+
+                compose = compose_serialize(
+                    self.object.translations, base_language=self.object.base_language, optin=self.object.optin
+                )
+
+                # remove any languages not present on the org
+                langs = [k for k in compose.keys()]
+                for iso in langs:
+                    if iso != base_language and iso not in org.flow_languages:
+                        del compose[iso]
+
+                return {"compose": compose, "optin": self.object.optin, "base_language": base_language}
+
+            if step == "schedule":
+                schedule = self.object.schedule
+                return {
+                    "send_when": ScheduleForm.SEND_LATER if schedule.next_fire else ScheduleForm.SEND_NOW,
+                    "start_datetime": schedule.next_fire,
+                    "repeat_period": schedule.repeat_period,
+                    "repeat_days_of_week": list(schedule.repeat_days_of_week) if schedule.repeat_days_of_week else [],
+                }
+
+        def done(self, form_list, form_dict, **kwargs):
+            broadcast = self.object
+            schedule = broadcast.schedule
+
+            # update message
+            compose = form_dict["compose"].cleaned_data["compose"]
+
+            # extract our optin if it is set
+            optin = compose[broadcast.base_language].pop("optin", None)
+            if optin:
+                optin = OptIn.objects.filter(org=broadcast.org, uuid=optin.get("uuid")).first()
+
+            broadcast.translations = compose_deserialize(compose)
+            broadcast.optin = optin
+            broadcast.save()
+
+            # update recipients
+            recipients = form_dict["target"].cleaned_data["omnibox"]
+            broadcast.update_recipients(**recipients)
+
+            # finally, update schedule
+            schedule_form = form_dict["schedule"]
+            send_when = schedule_form.cleaned_data["send_when"]
+
+            if send_when == ScheduleForm.SEND_LATER:
+                start_time = schedule_form.cleaned_data["start_datetime"]
+                repeat_period = schedule_form.cleaned_data["repeat_period"]
+                repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
+                schedule.update_schedule(start_time, repeat_period, repeat_days_of_week=repeat_days_of_week)
+                broadcast.save()
+            else:
+                broadcast.schedule = None
+                broadcast.save()
+                schedule.delete()
+                self.object.send_async()
+                return HttpResponseRedirect(reverse("msgs.broadcast_list"))
+
+            return HttpResponseRedirect(self.get_success_url())
+
     class ScheduledRead(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
         title = _("Broadcast")
         menu_path = "/msg/broadcasts"
@@ -362,7 +505,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             obj = self.get_object()
 
-            if self.has_org_perm("msgs.broadcast_update"):
+            if self.has_org_perm("msgs.broadcast_update") and obj.schedule.next_fire:
                 menu.add_modax(
                     _("Edit"),
                     "edit-broadcast",
@@ -393,7 +536,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return response
 
     class Preview(OrgPermsMixin, SmartCreateView):
-        permission = "msgs.broadcast_send"
+        permission = "msgs.broadcast_create"
 
         blockers = {
             "no_send_channel": _(
@@ -433,50 +576,17 @@ class BroadcastCRUDL(SmartCRUDL):
                 }
             )
 
-    class Send(OrgPermsMixin, ModalMixin, SmartFormView):
+    class ToNode(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(Form):
-            omnibox = OmniboxField(
-                label=_("Recipients"),
-                required=False,
-                help_text=_("The contacts to send the message to."),
-                widget=OmniboxChoice(
-                    attrs={
-                        "placeholder": _("Search for contacts or groups"),
-                        "widget_only": True,
-                        "groups": True,
-                        "contacts": True,
-                    }
-                ),
-            )
             text = forms.CharField(
                 widget=CompletionTextarea(
                     attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
                 )
             )
-            step_node = forms.CharField(widget=forms.HiddenInput, max_length=36, required=False)
 
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.org = org
-                self.fields["omnibox"].default_country = org.default_country_code
-
-            def clean(self):
-                cleaned = super().clean()
-
-                if self.is_valid():
-                    omnibox = cleaned.get("omnibox")
-                    step_node = cleaned.get("step_node")
-
-                    if not step_node and not omnibox:
-                        self.add_error("omnibox", _("At least one recipient is required."))
-
-                return cleaned
-
+        permission = "msgs.broadcast_create"
         form_class = Form
         title = _("Send Message")
-        fields = ("omnibox", "text", "step_node")
-        success_url = "@msgs.msg_inbox"
         submit_button_name = _("Send")
 
         blockers = {
@@ -486,38 +596,10 @@ class BroadcastCRUDL(SmartCRUDL):
             ),
         }
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-
-            org = self.request.org
-            contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
-
-            if contact_uuids:
-                params = {}
-                if len(contact_uuids) > 0:
-                    params["c"] = ",".join(contact_uuids)
-
-                results = omnibox_query(org, **params)
-                initial["omnibox"] = omnibox_results_to_dict(org, results)
-
-            initial["step_node"] = self.request.GET.get("step_node", None)
-            return initial
-
-        def derive_fields(self):
-            if self.request.GET.get("step_node"):
-                return ("text", "step_node")
-            else:
-                return super().derive_fields()
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["blockers"] = self.get_blockers(self.request.org)
-            context["recipient_count"] = int(self.request.GET.get("count", 0))
+            context["recipient_count"] = int(self.request.GET["count"])
             return context
 
         def get_blockers(self, org) -> list:
@@ -533,40 +615,16 @@ class BroadcastCRUDL(SmartCRUDL):
             return blockers
 
         def form_valid(self, form):
-            user = self.request.user
-            org = self.request.org
-            step_uuid = form.cleaned_data.get("step_node", None)
+            from .tasks import send_to_flow_node
+
+            node_uuid = self.request.GET["node"]
             text = form.cleaned_data["text"]
 
-            if step_uuid:
-                from .tasks import send_to_flow_node
-
-                get_params = {k: v for k, v in self.request.GET.items()}
-                get_params.update({"s": step_uuid})
-                send_to_flow_node.delay(org.pk, user.pk, text, **get_params)
-            else:
-                omnibox = omnibox_deserialize(org, form.cleaned_data["omnibox"])
-                groups = list(omnibox["groups"])
-                contacts = list(omnibox["contacts"])
-
-                broadcast = Broadcast.create(
-                    org, user, {"und": text}, groups=groups, contacts=contacts, status=Msg.STATUS_QUEUED
-                )
-
-                self.post_save(broadcast)
-                super().form_valid(form)
-
-                analytics.track(
-                    self.request.user, "temba.broadcast_created", dict(contacts=len(contacts), groups=len(groups))
-                )
+            send_to_flow_node.delay(self.request.org.id, self.request.user.id, node_uuid, text)
 
             response = self.render_to_response(self.get_context_data())
             response["Temba-Success"] = "hide"
             return response
-
-        def post_save(self, obj):
-            on_transaction_commit(lambda: obj.send_async())
-            return obj
 
 
 class MsgCRUDL(SmartCRUDL):
@@ -639,10 +697,15 @@ class MsgCRUDL(SmartCRUDL):
                     ),
                     self.create_divider(),
                     self.create_menu_item(
-                        menu_id="broadcasts",
-                        name="Broadcasts",
+                        menu_id="scheduled",
+                        name="Scheduled",
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
+                    ),
+                    self.create_menu_item(
+                        menu_id="broadcasts",
+                        name="Broadcasts",
+                        href=reverse("msgs.broadcast_list"),
                     ),
                     self.create_divider(),
                     self.create_menu_item(
@@ -954,18 +1017,7 @@ class LabelForm(BaseLabelForm):
 
 class LabelCRUDL(SmartCRUDL):
     model = Label
-    actions = ("create", "update", "usages", "delete", "list")
-
-    class List(OrgPermsMixin, SmartListView):
-        paginate_by = None
-        default_order = ("name",)
-
-        def derive_queryset(self, **kwargs):
-            return Label.get_active_for_org(self.request.org)
-
-        def render_to_response(self, context, **response_kwargs):
-            results = [{"id": str(lb.uuid), "text": lb.name} for lb in context["object_list"]]
-            return HttpResponse(json.dumps(results), content_type="application/json")
+    actions = ("create", "update", "usages", "delete")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "messages")
@@ -1017,10 +1069,12 @@ class MediaCRUDL(SmartCRUDL):
     path = "msgmedia"  # so we don't conflict with the /media directory
     actions = ("upload", "list")
 
-    class Upload(OrgPermsMixin, SmartCreateView):
+    class Upload(PostOnlyMixin, OrgPermsMixin, SmartCreateView):
         """
         TODO deprecated, migrate usages to /api/v2/media.json
         """
+
+        permission = "msgs.media_create"
 
         def post(self, request, *args, **kwargs):
             file = request.FILES["file"]

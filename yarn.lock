@@ -62,18 +62,18 @@
   dependencies:
     "@lit-labs/ssr-dom-shim" "^1.0.0"
 
-"@nyaruka/flow-editor@1.22.2":
-  version "1.22.2"
-  resolved "https://registry.npmjs.org/@nyaruka/flow-editor/-/flow-editor-1.22.2.tgz#a3200898ada939486efe7ef3af86add44d9e1b66"
-  integrity sha512-tLxsDQmJ+rcaAMAWKJH0CylmgG2ONBklXhFbo/syT5KJNFSpIAvmtB2RmUunRlwmSwYu7xt5u3V3RkjrBI3ZGg==
+"@nyaruka/flow-editor@1.26.3":
+  version "1.26.3"
+  resolved "https://registry.yarnpkg.com/@nyaruka/flow-editor/-/flow-editor-1.26.3.tgz#b4cccc5f82e848c0ddef580518cfc39f2266b2de"
+  integrity sha512-gWR/NY6Z6zNsfxKweuyX6E6CNS+Kyj3oZ/7cQkdc6QS2HJSoWlSkEZTqMBZm1YFN70t8aCW6wHkRmUxHeltyaw==
   dependencies:
     react "^16.8.6"
     react-dom "^16.8.6"
 
-"@nyaruka/temba-components@0.58.1":
-  version "0.58.1"
-  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.58.1.tgz#efb23d9ef36357230ce1c33d3cf86f962583135c"
-  integrity sha512-N8lK4MsKUX0ju5KdHzeaxA6DmmcC6PncPqAOyRaCaz/o+BfM+abjOgo6TsjXKW3Sqk+ioluZzohhhOfRL5BcJg==
+"@nyaruka/temba-components@0.66.1":
+  version "0.66.1"
+  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.66.1.tgz#b00501a1f37562e9a00b05f99472c8b572323d2e"
+  integrity sha512-IKUoz1WrVYeIWXUgiKxgFzEsUIsg99eIZoR8FeOiS7EVPOS0ziFU5i/X84sWPvUYOWfuchFBw94tq75/07FTlA==
   dependencies:
     "@lit/localize" "^0.11.4"
     color-hash "^2.0.2"
@@ -443,10 +443,10 @@ has@^1.0.3:
   dependencies:
     function-bind "^1.1.1"
 
-highcharts@5.0.6:
-  version "5.0.6"
-  resolved "https://registry.npmjs.org/highcharts/-/highcharts-5.0.6.tgz#9fba0fbd38c34cca23ffffa8898d39eb23fd35ba"
-  integrity sha512-7QxpMuCgHIUfcO6rvKza+0syBa+P9aZrGS/Z16wxOsjgN9ygwyeKzUWC3sZC9iBzeMhGNHt2oTnVIfx+RjJj5w==
+highcharts@9.3.0:
+  version "9.3.0"
+  resolved "https://registry.npmjs.org/highcharts/-/highcharts-9.3.0.tgz#999496c8af677d5f08e41e2e708d3eb7baf56640"
+  integrity sha512-nQ7yW5ni7wFiPgDN2IWrS6o6NjL1gK/OhZjrdpyB3FQuefMkTQngygP+JqZFMx7PDrP3YAvfejx0M5IgkC01ow==
 
 highlight.js@^10.7.1:
   version "10.7.3"

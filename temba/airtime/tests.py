@@ -1,7 +1,7 @@
 from django.urls import reverse
 
 from temba.airtime.models import AirtimeTransfer
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 
 
 class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -50,7 +50,7 @@ class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Ben Haggerty")
         self.assertContains(response, "+250 700 000 003")
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.requestView(list_url, self.admin)
 
             self.assertContains(response, "Ben Haggerty")
@@ -66,7 +66,7 @@ class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "+250 700 000 003")
         self.assertTrue(response.context["show_logs"])
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.requestView(read_url, self.admin)
 
             self.assertContains(response, "Ben Haggerty")

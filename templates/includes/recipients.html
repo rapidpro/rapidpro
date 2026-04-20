@@ -1,0 +1,49 @@
+{% load contacts i18n %}
+
+{% for contact in contacts %}
+  {% if contact.is_active %}
+    {% include "includes/recipients_contact.html" with contact=contact %}
+  {% endif %}
+{% endfor %}
+{% for group in groups %}
+  {% if group.is_active %}
+    {% include "includes/recipients_group.html" with group=group groups_as_filters=groups_as_filters exclusion=False %}
+  {% endif %}
+{% endfor %}
+{% for group in exclude_groups %}
+  {% if group.is_active %}
+    {% include "includes/recipients_group.html" with group=group groups_as_filters=groups_as_filters exclusion=True %}
+  {% endif %}
+{% endfor %}
+{% with groups|inactive_count as num_deleted_groups %}
+  {% if num_deleted_groups %}
+    <div class="item deleted-contacts lbl mr-2 mb-2">
+      {% blocktrans count count=num_deleted_groups %}
+        {{ count }} deleted group
+      {% plural %}
+        {{ count }} deleted groups
+
+      {% endblocktrans %}
+    </div>
+  {% endif %}
+{% endwith %}
+{% with contacts|inactive_count as num_deleted_contacts %}
+  {% if num_deleted_contacts %}
+    <div class="item deleted-contacts lbl mr-2 mb-2">
+      {% blocktrans count count=num_deleted_contacts %}
+        {{ count }} deleted contact
+      {% plural %}
+        {{ count }} deleted contacts
+
+      {% endblocktrans %}
+    </div>
+  {% endif %}
+{% endwith %}
+{% for urn in urns %}<div class="item urn lbl mr-2 mb-2">{{ urn|format_urn:user_org }}</div>{% endfor %}
+{% if query %}
+  <a href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}" onclick="goto(event, this)">
+    <temba-label icon="search" clickable>
+      {{ query }}
+    </temba-label>
+  </a>
+{% endif %}

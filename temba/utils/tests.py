@@ -1,17 +1,18 @@
 import datetime
 import io
 from collections import OrderedDict
-from datetime import date
+from datetime import date, timezone as tzone
 from decimal import Decimal
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
-import pytz
 from celery.app.task import Task
 from django_redis import get_redis_connection
 
 from django import forms
 from django.conf import settings
 from django.forms import ValidationError
+from django.template import Context, Template
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -24,13 +25,24 @@ from temba.utils import json, uuid
 from temba.utils.compose import compose_serialize
 from temba.utils.templatetags.temba import format_datetime, icon
 
-from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
+from . import (
+    chunk_list,
+    countries,
+    format_number,
+    get_nested_key,
+    languages,
+    percentage,
+    redact,
+    set_nested_key,
+    sizeof_fmt,
+    str_to_bool,
+)
 from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .fields import ExternalURLField, NameValidator
-from .templatetags.temba import oxford, short_datetime
-from .text import clean_string, decode_stream, generate_token, random_string, slugify_with, truncate, unsnakify
+from .templatetags.temba import short_datetime
+from .text import clean_string, decode_stream, generate_secret, generate_token, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -88,8 +100,8 @@ class InitTest(TembaTest):
         self.assertEqual("", unsnakify(""))
         self.assertEqual("Org Name", unsnakify("org_name"))
 
-    def test_random_string(self):
-        rs = random_string(1000)
+    def test_generate_secret(self):
+        rs = generate_secret(1000)
         self.assertEqual(1000, len(rs))
         self.assertFalse("1" in rs or "I" in rs or "0" in rs or "O" in rs)
 
@@ -135,25 +147,38 @@ class InitTest(TembaTest):
 
         self.assertEqual(curr, 100)
 
+    def test_nested_keys(self):
+        nested = {}
+
+        # set nested keys
+        set_nested_key(nested, "favorites.beer", "Turbo King")
+        self.assertEqual(nested, {"favorites": {"beer": "Turbo King"}})
+
+        # get nested keys
+        self.assertEqual("Turbo King", get_nested_key(nested, "favorites.beer"))
+        self.assertEqual("", get_nested_key(nested, "favorites.missing"))
+        self.assertEqual(None, get_nested_key(nested, "favorites.missing", None))
+
 
 class DatesTest(TembaTest):
     def test_datetime_to_timestamp(self):
-        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=pytz.utc)
+        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=tzone.utc)
         self.assertEqual(datetime_to_timestamp(d1), 1_388_631_845_123_456)  # from http://unixtimestamp.50x.eu
         self.assertEqual(timestamp_to_datetime(1_388_631_845_123_456), d1)
 
-        tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456))
+        tz = ZoneInfo("Africa/Kigali")
+        d2 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456).replace(tzinfo=tz)
         self.assertEqual(datetime_to_timestamp(d2), 1_388_624_645_123_456)
-        self.assertEqual(timestamp_to_datetime(1_388_624_645_123_456), d2.astimezone(pytz.utc))
+        self.assertEqual(timestamp_to_datetime(1_388_624_645_123_456), d2.astimezone(tzone.utc))
 
     def test_datetime_to_str(self):
-        tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))
+        tz = ZoneInfo("Africa/Kigali")
+        d2 = datetime.datetime(2014, 1, 2, 3, 4, 5, 6).replace(tzinfo=tz)
 
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
-        self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
+        self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=tzone.utc), "2014/01/02 01:04")
+        self.assertEqual(datetime_to_str(date(2023, 8, 16), "%Y/%m/%d %H:%M", tz=tzone.utc), "2023/08/16 00:00")
 
     def test_date_range(self):
         self.assertEqual(
@@ -176,24 +201,29 @@ class TimezonesTest(TembaTest):
         field = TimeZoneFormField(help_text="Test field")
 
         self.assertEqual(field.choices[0], ("Pacific/Midway", "(GMT-1100) Pacific/Midway"))
-        self.assertEqual(field.coerce("Africa/Kigali"), pytz.timezone("Africa/Kigali"))
+        self.assertEqual(field.coerce("Africa/Kigali"), ZoneInfo("Africa/Kigali"))
 
     def test_timezone_country_code(self):
-        self.assertEqual("RW", timezone_to_country_code(pytz.timezone("Africa/Kigali")))
-        self.assertEqual("US", timezone_to_country_code(pytz.timezone("America/Chicago")))
-        self.assertEqual("US", timezone_to_country_code(pytz.timezone("US/Pacific")))
+        self.assertEqual("RW", timezone_to_country_code(ZoneInfo("Africa/Kigali")))
+        self.assertEqual("US", timezone_to_country_code(ZoneInfo("America/Chicago")))
+        self.assertEqual("US", timezone_to_country_code(ZoneInfo("US/Pacific")))
 
         # GMT and UTC give empty
-        self.assertEqual("", timezone_to_country_code(pytz.timezone("GMT")))
-        self.assertEqual("", timezone_to_country_code(pytz.timezone("UTC")))
+        self.assertEqual("", timezone_to_country_code(ZoneInfo("GMT")))
+        self.assertEqual("", timezone_to_country_code(ZoneInfo("UTC")))
 
 
 class TemplateTagTest(TembaTest):
+    def _render(self, template, context=None):
+        context = context or {}
+        context = Context(context)
+        return Template("{% load temba %}" + template).render(context)
+
     def test_icon(self):
         campaign = Campaign.create(self.org, self.admin, "Test Campaign", self.create_group("Test group", []))
         flow = Flow.create(self.org, self.admin, "Test Flow")
-        trigger = Trigger.objects.create(
-            org=self.org, keyword="trigger", flow=flow, created_by=self.admin, modified_by=self.admin
+        trigger = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["trigger"], match_type=Trigger.MATCH_FIRST_WORD
         )
 
         self.assertEqual("icon-campaign", icon(campaign))
@@ -202,7 +232,7 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("", icon(None))
 
     def test_format_datetime(self):
-        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)):
             self.org.date_format = "D"
             self.org.save()
 
@@ -211,7 +241,7 @@ class TemplateTagTest(TembaTest):
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
             self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
             self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
@@ -221,7 +251,7 @@ class TemplateTagTest(TembaTest):
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
             self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
 
             # the org has month first configured
@@ -232,7 +262,7 @@ class TemplateTagTest(TembaTest):
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
             self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
             # the org has year first configured
@@ -243,11 +273,11 @@ class TemplateTagTest(TembaTest):
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
             self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
 
     def test_short_datetime(self):
-        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)):
             self.org.date_format = "D"
             self.org.save()
 
@@ -272,7 +302,7 @@ class TemplateTagTest(TembaTest):
             self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
 
             # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("20/7/12", short_datetime(context, jan_2))
 
             # the org has month first configured
@@ -293,7 +323,7 @@ class TemplateTagTest(TembaTest):
             self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
 
             # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("7/20/12", short_datetime(context, jan_2))
 
             # the org has year first configured
@@ -319,11 +349,9 @@ class TemplateTagTest(TembaTest):
             self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
 
             # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("2012/7/20", short_datetime(context, jan_2))
 
-
-class TemplateTagTestSimple(TestCase):
     def test_delta(self):
         from temba.utils.templatetags.temba import delta_filter
 
@@ -342,36 +370,65 @@ class TemplateTagTestSimple(TestCase):
         self.assertEqual("", delta_filter("Invalid"))
 
     def test_oxford(self):
-        def forloop(idx, total):
-            """
-            Creates a dict like that available inside a template tag
-            """
-            return dict(counter0=idx, counter=idx + 1, revcounter=total - idx, last=total == idx + 1)
-
-        # list of two
-        self.assertEqual(" and ", oxford(forloop(0, 2)))
-        self.assertEqual(".", oxford(forloop(1, 2), "."))
-
-        # list of three
-        self.assertEqual(", ", oxford(forloop(0, 3)))
-        self.assertEqual(", and ", oxford(forloop(1, 3)))
-        self.assertEqual(".", oxford(forloop(2, 3), "."))
-
-        # list of four
-        self.assertEqual(", ", oxford(forloop(0, 4)))
-        self.assertEqual(", ", oxford(forloop(1, 4)))
-        self.assertEqual(", and ", oxford(forloop(2, 4)))
-        self.assertEqual(".", oxford(forloop(3, 4), "."))
-
+        self.assertEqual(
+            "",
+            self._render(
+                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                {"words": []},
+            ),
+        )
+        self.assertEqual(
+            "one",
+            self._render(
+                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                {"words": ["one"]},
+            ),
+        )
+        self.assertEqual(
+            "one and two",
+            self._render(
+                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                {"words": ["one", "two"]},
+            ),
+        )
         with translation.override("es"):
-            self.assertEqual(", ", oxford(forloop(0, 3)))
-            self.assertEqual(" y ", oxford(forloop(0, 2)))
-            self.assertEqual(", y ", oxford(forloop(1, 3)))
-
+            self.assertEqual(
+                "one y two",
+                self._render(
+                    "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                    {"words": ["one", "two"]},
+                ),
+            )
         with translation.override("fr"):
-            self.assertEqual(", ", oxford(forloop(0, 3)))
-            self.assertEqual(" et ", oxford(forloop(0, 2)))
-            self.assertEqual(", et ", oxford(forloop(1, 3)))
+            self.assertEqual(
+                "one et two",
+                self._render(
+                    "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                    {"words": ["one", "two"]},
+                ),
+            )
+        self.assertEqual(
+            "one or two",
+            self._render(
+                '{% for word in words %}{{ word }}{{ forloop|oxford:"or" }}{% endfor %}',
+                {"words": ["one", "two"]},
+            ),
+        )
+        with translation.override("es"):
+            self.assertEqual(
+                "uno o dos",
+                self._render(
+                    '{% for word in words %}{{ word }}{{ forloop|oxford:_("or") }}{% endfor %}',
+                    {"words": ["uno", "dos"]},
+                ),
+            )
+        self.assertEqual(
+            "one, two, and three",
+            self._render(
+                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                {"words": ["one", "two", "three"]},
+            ),
+        )
 
     def test_to_json(self):
         from temba.utils.templatetags.temba import to_json
@@ -734,7 +791,7 @@ class JSONTest(TestCase):
         self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
         self.assertEqual(
             '{"dt": "2018-08-27T20:41:28.123Z"}',
-            json.dumps({"dt": datetime.datetime(2018, 8, 27, 20, 41, 28, 123000, tzinfo=pytz.UTC)}),
+            json.dumps({"dt": datetime.datetime(2018, 8, 27, 20, 41, 28, 123000, tzinfo=tzone.utc)}),
         )
 
 
@@ -953,4 +1010,4 @@ class TestUUIDs(TembaTest):
 
 class ComposeTest(TembaTest):
     def test_empty_compose(self):
-        self.assertEqual(compose_serialize(), {"text": "", "attachments": []})
+        self.assertEqual(compose_serialize(), {})

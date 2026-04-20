@@ -1,0 +1,118 @@
+{% extends "smartmin/form.html" %}
+{% load i18n compress temba %}
+
+{% block pre-form %}
+  {% blocktrans trimmed with name=branding.name %}
+    You can connect your Facebook Business account to {{ name }} in just a few simple steps.
+  {% endblocktrans %}
+  {% if claim_error %}
+    <temba-alert level="error" class="my-4">
+      {{ claim_error }}
+    </temba-alert>
+  {% endif %}
+{% endblock pre-form %}
+{% block form %}
+  <div class="mt-4 card">
+    <div id="fb-guide">
+      <ol class="steps">
+        <li>{% trans "Click on the button below to get started." %}</li>
+        <li>{% trans "Select the user you want to log in as." %}</li>
+        <li>{% trans "Select all the Facebook Business accounts you want to grant us permissions for." %}</li>
+        <li>{% trans "Approve the permissions, these are required for us to access the API on your behalf." %}</li>
+      </ol>
+    </div>
+    <div class="flex mt-4" id="fb-app-connect">
+      <div onclick="launchWhatsAppSignup()" class="button-primary">{% trans "Add Facebook Business" %}</div>
+    </div>
+    <form style="display:none;" method="post" action="{{ connect_url }}" id="claim-form">
+      {% csrf_token %}
+      <input type="text" name="user_access_token" id="user-access-token">
+    </form>
+  </div>
+{% endblock form %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    $(document).ready(function() {
+      var hash = window.location.hash.substring(1)
+      var result = hash.split('&').reduce(function(res, item) {
+        var parts = item.split('=');
+        res[parts[0]] = parts[1];
+        return res;
+      }, {});
+
+      var accessToken = result.long_lived_token || result.access_token;
+      if (accessToken) {
+        $("#user-access-token").val(accessToken);
+        $("#claim-form").submit();
+      }
+    });
+
+
+    window.fbAsyncInit = function() {
+      // JavaScript SDK configuration and setup
+      FB.init({
+        appId: '{{ facebook_app_id }}', // Meta App ID
+        cookie: true, // enable cookies
+        xfbml: true, // parse social plugins on this page
+        version: 'v18.0' //Graph API version
+      });
+    };
+    // Load the JavaScript SDK asynchronously
+    (function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s);
+      js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+
+    // Facebook Login with JavaScript SDK
+    function launchWhatsAppSignup() {
+      // Launch Facebook login
+
+      {% if facebook_login_whatsapp_config_id %}
+      FB.login(function(response) {
+        if (response.authResponse) {
+          const accessToken = response.authResponse.accessToken;
+          if (accessToken) {
+            $("#user-access-token").val(accessToken);
+            $("#claim-form").submit();
+          }
+          //Use this token to call the debug_token API and get the shared WABA's ID
+        } else {
+          console.log('User cancelled login or did not fully authorize, redirect to the dialog auth');
+          location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=token&override_default_response_type=true")
+        }
+      }, {
+        config_id: '{{ facebook_login_whatsapp_config_id }}',
+        response_type: 'token',
+        override_default_response_type: true
+      });
+      {% else %}
+      FB.login(function(response) {
+        if (response.authResponse) {
+          const accessToken = response.authResponse.accessToken;
+          if (accessToken) {
+            $("#user-access-token").val(accessToken);
+            $("#claim-form").submit();
+          }
+          //Use this token to call the debug_token API and get the shared WABA's ID
+        } else {
+          console.log('User cancelled login or did not fully authorize, redirect to the dialog auth');
+          location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
+        }
+      }, {
+        scope: 'business_management,whatsapp_business_management,whatsapp_business_messaging',
+        extras: {
+          feature: 'whatsapp_embedded_signup',
+          setup: {}
+        }
+      });
+      {% endif %}
+
+
+    }
+  </script>
+{% endblock extra-script %}

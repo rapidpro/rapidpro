@@ -8,8 +8,6 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q, Sum
 from django.db.models.functions import Lower
-from django.template import Engine
-from django.urls import re_path
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -24,126 +22,6 @@ from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableMode
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
-
-
-class TicketerType(metaclass=ABCMeta):
-    """
-    TicketerType is our abstract base type for ticketers.
-    """
-
-    # the verbose name for this ticketer type
-    name = None
-
-    # the short code for this ticketer type (< 16 chars, lowercase)
-    slug = None
-
-    # the blurb to show on the main connect page
-    connect_blurb = None
-
-    # the view that handles connection of a new service
-    connect_view = None
-
-    def is_available_to(self, user):
-        """
-        Determines whether this ticketer type is available to the given user
-        """
-        return True  # pragma: no cover
-
-    def get_connect_blurb(self):
-        """
-        Gets the blurb for use on the connect page
-        """
-        return Engine.get_default().from_string(str(self.connect_blurb))
-
-    def get_urls(self):
-        """
-        Returns all the URLs this ticketer exposes to Django, the URL should be relative.
-        """
-        return [self.get_connect_url()]
-
-    def get_connect_url(self):
-        """
-        Gets the URL/view configuration for this ticketer's connect page
-        """
-        return re_path(r"^connect", self.connect_view.as_view(ticketer_type=self), name="connect")
-
-
-class Ticketer(TembaModel, DependencyMixin):
-    """
-    A service that can open and close tickets
-    """
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticketers")
-    ticketer_type = models.CharField(max_length=16)
-    config = models.JSONField()
-
-    @classmethod
-    def create(cls, org, user, ticketer_type: str, name: str, config: dict):
-        return cls.objects.create(
-            uuid=uuid4(),
-            ticketer_type=ticketer_type,
-            name=name,
-            config=config,
-            org=org,
-            created_by=user,
-            modified_by=user,
-        )
-
-    @classmethod
-    def create_internal_ticketer(cls, org, brand: dict):
-        """
-        Every org gets a single internal ticketer
-        """
-
-        from .types.internal import InternalType
-
-        assert not org.ticketers.filter(ticketer_type=InternalType.slug).exists(), "org already has internal tickteter"
-
-        return org.ticketers.create(
-            uuid=uuid4(),
-            ticketer_type=InternalType.slug,
-            name=f"{brand['name']} Tickets",
-            is_system=True,
-            config={},
-            created_by=org.created_by,
-            modified_by=org.created_by,
-        )
-
-    @classmethod
-    def get_types(cls):
-        """
-        Returns the possible types available for ticketers
-        """
-        from .types import TYPES
-
-        return TYPES.values()
-
-    @property
-    def type(self):  # pragma: no cover
-        """
-        Returns the type instance
-        """
-        from .types import TYPES
-
-        return TYPES[self.ticketer_type]
-
-    def release(self, user):
-        """
-        Releases this, closing all associated tickets in the process
-        """
-
-        assert not (self.is_system and self.org.is_active), "can't release system ticketers"
-
-        super().release(user)
-
-        open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
-        if open_tickets.exists():
-            Ticket.bulk_close(self.org, user, open_tickets, force=True)
-
-        self.is_active = False
-        self.name = self._deleted_name()
-        self.modified_by = user
-        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
 
 class Topic(TembaModel, DependencyMixin):
@@ -211,18 +89,11 @@ class Ticket(models.Model):
 
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets", db_index=False)  # indexed below
-    ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets", db_index=False)
 
     # ticket content
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="tickets")
     body = models.TextField()
-
-    # the external id of the ticket
-    external_id = models.CharField(null=True, max_length=255)
-
-    # any configuration attributes for this ticket
-    config = models.JSONField(null=True)
 
     # the status of this ticket and who it's currently assigned to
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
@@ -248,28 +119,28 @@ class Ticket(models.Model):
 
     @classmethod
     def bulk_assign(cls, org, user: User, tickets: list, assignee: User):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         assignee_id = assignee.id if assignee else None
         return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id)
 
     @classmethod
     def bulk_add_note(cls, org, user: User, tickets: list, note: str):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         return mailroom.get_client().ticket_add_note(org.id, user.id, ticket_ids, note)
 
     @classmethod
     def bulk_change_topic(cls, org, user: User, tickets: list, topic: Topic):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         return mailroom.get_client().ticket_change_topic(org.id, user.id, ticket_ids, topic.id)
 
     @classmethod
     def bulk_close(cls, org, user, tickets, *, force: bool = False):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids, force=force)
 
     @classmethod
     def bulk_reopen(cls, org, user, tickets):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         return mailroom.get_client().ticket_reopen(org.id, user.id, ticket_ids)
 
     @classmethod
@@ -295,12 +166,6 @@ class Ticket(models.Model):
             ),
             # used by message handling to find open tickets for contact
             models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O")),
-            # used by ticket handlers in mailroom to find tickets from their external IDs
-            models.Index(
-                name="tickets_ticketer_external_id",
-                fields=["ticketer", "external_id"],
-                condition=Q(external_id__isnull=False),
-            ),
             # used by API tickets endpoint hence the ordering, and general fetching by org or contact
             models.Index(name="tickets_api_by_org", fields=["org", "-modified_on", "-id"]),
             models.Index(name="tickets_api_by_contact", fields=["contact", "-modified_on", "-id"]),
@@ -439,7 +304,7 @@ class TicketCount(SquashableModel):
     Counts of tickets by assignment/topic and status
     """
 
-    SQUASH_OVER = ("org_id", "scope", "status")
+    squash_over = ("org_id", "scope", "status")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
     scope = models.CharField(max_length=32)

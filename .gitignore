@@ -3,6 +3,7 @@
 .idea
 *~
 .envrc
+.devcontainer
 .direnv
 .commit
 .ruff_cache
@@ -18,7 +19,6 @@ celerybeat-schedule
 deploy
 fabfile.py
 node_modules
-rp-indexer
 screenshots
 sitestatic
 temba/settings.py
@@ -36,6 +36,7 @@ media/recordings
 media/test_orgs
 media/tmp
 media/attachments
+media/blog
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

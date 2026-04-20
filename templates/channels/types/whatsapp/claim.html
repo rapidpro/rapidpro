@@ -1,0 +1,82 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n %}
+
+{% block pre-form %}
+  {% blocktrans trimmed %}
+    You can connect your WhatsApp number by clicking on it below.
+  {% endblocktrans %}
+  {% if claim_error %}
+    <temba-alert level="error" class="my-4">
+      {{ claim_error }}
+    </temba-alert>
+  {% endif %}
+{% endblock pre-form %}
+{% block form %}
+  <div class="mt-4">
+    <form style="display:none;" method="post" action="{{ claim_url }}" id="claim-form">
+      {% csrf_token %}
+      <input type="text" name="number" id="number">
+      <input type="text" name="verified_name" id="verified_name">
+      <input type="text" name="phone_number_id" id="phone_number_id">
+      <input type="text" name="waba_id" id="waba_id">
+      <input type="text" name="business_id" id="business_id">
+      <input type="text" name="currency" id="currency">
+      <input type="text" name="message_template_namespace" id="message_template_namespace">
+    </form>
+  </div>
+  <div class="mt-4 card" id="fb-channel-options">
+    <p style="font-size:1rem;">{% trans "Select the number you want to add as a channel:" %}</p>
+    {% for phone_num in phone_numbers %}
+      <div data-number="{{ phone_num.display_phone_number }}"
+           data-verified_name="{{ phone_num.verified_name }}"
+           data-phone_number_id="{{ phone_num.phone_number_id }}"
+           data-waba_id="{{ phone_num.waba_id }}"
+           data-business_id="{{ phone_num.business_id }}"
+           data-currency="{{ phone_num.currency }}"
+           data-message_template_namespace="{{ phone_num.message_template_namespace }}"
+           class=" fb-page-channel-option lbl mt-3 mr-2 p-2 linked">{{ phone_num.display_phone_number }} ({{ phone_num.verified_name }})</div>
+    {% endfor %}
+  </div>
+  <div class="flex mt-4" id="fb-app-connect">
+    <div class="button-primary connect-facebook">{% trans "Connect other Facebook Business numbers" %}</div>
+  </div>
+{% endblock form %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    $(document).ready(function() {
+      {% if facebook_login_whatsapp_config_id %}
+      $(".connect-facebook").click(function(evt) {
+        $.ajax({
+          type: "GET",
+          url: "{{clear_session_token_url}}"
+        });
+        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=token&override_default_response_type=true")
+
+      });
+      {% else %}
+      $(".connect-facebook").click(function(evt) {
+        $.ajax({
+          type: "GET",
+          url: "{{clear_session_token_url}}"
+        });
+        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
+
+      });
+      {% endif %}
+
+
+      $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e) {
+        $("#number").val($(this).data("number"));
+        $("#verified_name").val($(this).data("verified_name"));
+        $("#phone_number_id").val($(this).data("phone_number_id"));
+        $("#business_id").val($(this).data("business_id"));
+        $("#waba_id").val($(this).data("waba_id"));
+        $("#currency").val($(this).data("currency"));
+        $("#message_template_namespace").val($(this).data("message_template_namespace"));
+        $("#claim-form").submit();
+      });
+
+    });
+  </script>
+{% endblock extra-script %}

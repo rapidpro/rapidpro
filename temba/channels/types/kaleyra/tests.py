@@ -2,7 +2,7 @@ from django.urls import reverse
 
 from temba.contacts.models import URN
 from temba.tests import TembaTest
-from temba.utils.text import random_string
+from temba.utils.text import generate_secret
 
 from ...models import Channel
 
@@ -18,8 +18,8 @@ class KaleyraViewTest(TembaTest):
         return {
             "country": "BR",
             "number": "31133087366",
-            "account_sid": random_string(10),
-            "api_key": random_string(10),
+            "account_sid": generate_secret(10),
+            "api_key": generate_secret(10),
         }
 
     def submit_form(self, data):

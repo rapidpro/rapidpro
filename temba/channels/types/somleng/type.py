@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.somleng.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import Channel, ChannelType, ConfigUI
 
 
 class SomlengType(ChannelType):
@@ -24,34 +24,45 @@ class SomlengType(ChannelType):
     """
 
     code = "TW"
+    name = "Somleng"
     category = ChannelType.Category.PHONE
 
-    name = "Somleng"
-    slug = "somleng"
-
     courier_url = r"^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     claim_view = ClaimView
     claim_blurb = _("Connect to a Somleng instance.")
 
-    configuration_blurb = _(
-        "To finish configuring your Somleng channel you'll need to add the following URL to your Somleng instance."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Somleng Host"),
-            url="{{ channel.config.send_url }}",
-            description=_("The endpoint which will receive Somleng requests for this channel."),
+    config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring this channel, you'll need to set the following callback URLs on your Somleng instance."
         ),
-        dict(
-            label="",
-            url="https://{{ channel.callback_domain }}{% url 'courier.tw' channel.uuid 'receive' %}",
-            description=_("Incoming messages for this channel will be sent to this endpoint."),
-        ),
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label="Incoming Messages",
+                help=_("New incoming messages should be sent to this endpoint."),
+                roles=(Channel.ROLE_RECEIVE,),
+            ),
+            ConfigUI.Endpoint(
+                courier="status",
+                label="Message Status Updates",
+                help=_("Message status updates should be sent to this endpoint."),
+                roles=(Channel.ROLE_SEND,),
+            ),
+            ConfigUI.Endpoint(
+                mailroom="incoming",
+                label="Incoming Calls",
+                help=_("New incoming calls should be sent to this endpoint."),
+                roles=(Channel.ROLE_ANSWER,),
+            ),
+            ConfigUI.Endpoint(
+                mailroom="status",
+                label="Call Status Updates",
+                help=_("Call status updates should be sent to this endpoint."),
+                roles=(Channel.ROLE_CALL, Channel.ROLE_ANSWER),
+            ),
+        ],
     )
 
     def get_error_ref_url(self, channel, code: str) -> str:

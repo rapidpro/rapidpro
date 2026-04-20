@@ -1,15 +1,12 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone as tzone
+from zoneinfo import ZoneInfo
 
-import pytz
-
-from django.urls import reverse
 from django.utils import timezone
 
 from temba import settings
 from temba.msgs.models import Broadcast, Media
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
+from temba.tests import TembaTest
 from temba.utils.compose import compose_deserialize_attachments
-from temba.utils.dates import datetime_to_str
 
 from .models import Schedule
 
@@ -20,20 +17,20 @@ class ScheduleTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", phone="123")
 
     def test_get_repeat_days_display(self):
-        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
+        sched = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
         self.assertEqual(sched.get_repeat_days_display(), ["Monday"])
 
-        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "TRFSU")
+        sched = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "TRFSU")
         self.assertEqual(sched.get_repeat_days_display(), ["Tuesday", "Thursday", "Friday", "Saturday", "Sunday"])
 
-        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "MTWRFSU")
+        sched = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "MTWRFSU")
         self.assertEqual(
             sched.get_repeat_days_display(),
             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
         )
 
     def test_schedules(self):
-        default_tz = pytz.timezone("Africa/Kigali")
+        default_tz = ZoneInfo("Africa/Kigali")
 
         tcs = [
             dict(
@@ -59,7 +56,7 @@ class ScheduleTest(TembaTest):
                 trigger_date=datetime(2019, 2, 10, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_MONTHLY,
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 2, 10, hour=10),
                 next=[
                     datetime(2019, 3, 10, hour=10),
@@ -80,7 +77,7 @@ class ScheduleTest(TembaTest):
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_WEEKLY,
                 repeat_days_of_week="S",
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 3, 2, hour=10),
                 next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 16, hour=10)],
                 display="each week on Saturday",
@@ -91,7 +88,7 @@ class ScheduleTest(TembaTest):
                 now=datetime(2019, 11, 1, hour=9),
                 repeat_period=Schedule.REPEAT_WEEKLY,
                 repeat_days_of_week="S",
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
                 next=[datetime(2019, 11, 9, hour=10), datetime(2019, 11, 16, hour=10)],
                 display="each week on Saturday",
@@ -101,7 +98,7 @@ class ScheduleTest(TembaTest):
                 trigger_date=datetime(2019, 3, 8, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_DAILY,
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 3, 8, hour=10),
                 next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 10, hour=10), datetime(2019, 3, 11, hour=10)],
                 display="each day at 10:00",
@@ -111,7 +108,7 @@ class ScheduleTest(TembaTest):
                 trigger_date=datetime(2019, 11, 2, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_DAILY,
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
                 next=[datetime(2019, 11, 3, hour=10), datetime(2019, 11, 4, hour=10), datetime(2019, 11, 5, hour=10)],
                 display="each day at 10:00",
@@ -174,20 +171,15 @@ class ScheduleTest(TembaTest):
             self.org.timezone = tz
 
             label = tc["label"]
-            trigger_date = tz.localize(tc["trigger_date"])
-            now = tz.localize(tc["now"])
+            trigger_date = tc["trigger_date"].replace(tzinfo=tz)
+            now = tc["now"].replace(tzinfo=tz)
 
-            sched = Schedule.create_schedule(
-                self.org,
-                self.admin,
-                trigger_date,
-                tc["repeat_period"],
-                repeat_days_of_week=tc.get("repeat_days_of_week"),
-                now=now,
+            sched = Schedule.create(
+                self.org, trigger_date, tc["repeat_period"], repeat_days_of_week=tc.get("repeat_days_of_week"), now=now
             )
 
             first = tc.get("first")
-            first = tz.localize(first) if first else None
+            first = first.replace(tzinfo=tz) if first else None
 
             self.assertEqual(tc["repeat_period"], sched.repeat_period, label)
             self.assertEqual(tc.get("repeat_days_of_week"), sched.repeat_days_of_week, label)
@@ -204,17 +196,15 @@ class ScheduleTest(TembaTest):
             next_fire = sched.next_fire
             for next in tc["next"]:
                 next_fire = sched.calculate_next_fire(next_fire)
-                expected_next = tz.localize(next) if next else None
+                expected_next = next.replace(tzinfo=tz) if next else None
                 self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
 
             self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
 
     def test_update_near_day_boundary(self):
-        self.org.timezone = pytz.timezone("US/Eastern")
+        self.org.timezone = ZoneInfo("US/Eastern")
         self.org.save()
         tz = self.org.timezone
-
-        self.login(self.admin)
 
         text = "A broadcast to Joe"
         media_attachments = []
@@ -227,7 +217,7 @@ class ScheduleTest(TembaTest):
         media_attachments.append({"content_type": media.content_type, "url": media.url})
         compose_deserialize_attachments(media_attachments)
 
-        sched = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        sched = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
 
         # our view asserts that our schedule is connected to a broadcast
         self.create_broadcast(
@@ -238,151 +228,23 @@ class ScheduleTest(TembaTest):
             schedule=sched,
         )
 
-        update_url = reverse("schedules.schedule_update", args=[sched.id])
-
         # way off into the future, but at 11pm NYT
         start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
-        start_date = tz.localize(start_date)
-        start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
+        start_date = start_date.replace(tzinfo=tz)
+        start_date = start_date.astimezone(tzone.utc)
 
-        self.client.post(
-            update_url,
-            {"start_datetime": datetime_to_str(start_date, "%Y-%m-%dT%H:%MZ", timezone.utc), "repeat_period": "D"},
-        )
-        sched = Schedule.objects.get(pk=sched.pk)
+        sched.update_schedule(start_date, Schedule.REPEAT_DAILY, "")
+        sched.refresh_from_db()
 
         # 11pm in NY should be 4am UTC the next day
         self.assertEqual("2050-01-04 04:00:00+00:00", str(sched.next_fire))
 
         start_date = datetime(2050, 1, 3, 23, 45, 0, 0)
-        start_date = tz.localize(start_date)
-        start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
+        start_date = start_date.replace(tzinfo=tz)
+        start_date = start_date.astimezone(tzone.utc)
 
-        post_data = dict()
-        post_data["repeat_period"] = "D"
-        post_data["start"] = "later"
-        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%dT%H:%MZ", timezone.utc),)
-        self.client.post(update_url, post_data)
-        sched = Schedule.objects.get(pk=sched.pk)
+        sched.update_schedule(start_date, Schedule.REPEAT_DAILY, "")
+        sched.refresh_from_db()
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
-
-
-class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_update(self):
-        # create a scheduled broadcast
-        schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
-        Broadcast.create(
-            self.org,
-            self.admin,
-            {"eng": "Hi"},
-            contacts=[self.create_contact("Jim", phone="1234")],
-            base_language="eng",
-            schedule=schedule,
-        )
-        update_url = reverse("schedules.schedule_update", args=[schedule.id])
-
-        self.assertUpdateFetch(
-            update_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["start_datetime", "repeat_period", "repeat_days_of_week"],
-        )
-
-        def datepicker_fmt(d: datetime):
-            return datetime_to_str(d, "%Y-%m-%dT%H:%MZ", timezone.utc)
-
-        today = timezone.now().replace(second=0, microsecond=0)
-        yesterday = today - timedelta(days=1)
-        tomorrow = today + timedelta(days=1)
-
-        # try to submit in past with no repeat
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(yesterday), "repeat_period": "O"},
-            form_errors={"start_datetime": "Must specify a start time that is in the future."},
-            object_unchanged=schedule,
-        )
-
-        # update to start in future with no repeat
-        self.assertUpdateSubmit(update_url, {"start_datetime": datepicker_fmt(tomorrow), "repeat_period": "O"})
-
-        schedule.refresh_from_db()
-        self.assertEqual("O", schedule.repeat_period)
-        self.assertEqual(tomorrow, schedule.next_fire)
-
-        # update to start now with daily repeat
-        self.assertUpdateSubmit(update_url, {"start_datetime": datepicker_fmt(today), "repeat_period": "D"})
-
-        schedule.refresh_from_db()
-        self.assertEqual("D", schedule.repeat_period)
-        self.assertEqual(tomorrow, schedule.next_fire)
-
-        # try to submit weekly without specifying days of week
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(today), "repeat_period": "W"},
-            form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
-            object_unchanged=schedule,
-        )
-
-        # try to submit weekly with an invalid day of the week (UI doesn't actually allow this)
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(today), "repeat_period": "W", "repeat_days_of_week": ["X"]},
-            form_errors={"repeat_days_of_week": "Select a valid choice. X is not one of the available choices."},
-            object_unchanged=schedule,
-        )
-
-        # update with valid days of the week
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(today), "repeat_period": "W", "repeat_days_of_week": ["M", "F"]},
-        )
-
-        schedule.refresh_from_db()
-        self.assertEqual("W", schedule.repeat_period)
-        self.assertEqual("MF", schedule.repeat_days_of_week)
-
-        # update to repeat monthly
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(today), "repeat_period": "M"},
-        )
-
-        schedule.refresh_from_db()
-        self.assertEqual("M", schedule.repeat_period)
-        self.assertIsNone(schedule.repeat_days_of_week)
-
-        # update with empty start date to signify unscheduling
-        self.assertUpdateSubmit(update_url, {"start_datetime": "", "repeat_period": "O"})
-
-        schedule.refresh_from_db()
-        self.assertEqual("O", schedule.repeat_period)
-        self.assertIsNone(schedule.next_fire)
-
-
-class FixDeletedSchedulesTest(MigrationTest):
-    app = "schedules"
-    migrate_from = "0018_squashed"
-    migrate_to = "0019_fix_deleted_schedules"
-
-    def setUpBeforeMigration(self, apps):
-        group = self.create_group("Testers")
-
-        self.schedule1 = Schedule.create_schedule(self.org, self.editor, timezone.now(), Schedule.REPEAT_MONTHLY)
-        self.create_broadcast(self.admin, {"eng": "Hi"}, groups=[group], schedule=self.schedule1)
-
-        self.schedule2 = Schedule.create_schedule(self.org, self.editor, timezone.now(), Schedule.REPEAT_MONTHLY)
-        bcast2 = self.create_broadcast(self.admin, {"eng": "Hi"}, groups=[group], schedule=self.schedule2)
-
-        bcast2.is_active = False
-        bcast2.save(update_fields=("is_active",))
-
-    def test_migration(self):
-        self.schedule1.refresh_from_db()
-        self.schedule2.refresh_from_db()
-
-        self.assertTrue(self.schedule1.is_active)
-        self.assertFalse(self.schedule2.is_active)

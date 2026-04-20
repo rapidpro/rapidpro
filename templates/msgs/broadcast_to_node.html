@@ -1,0 +1,35 @@
+{% extends "includes/modax.html" %}
+{% load smartmin i18n %}
+
+{% block fields %}
+  {% if blockers %}
+    {% for blocker in blockers %}<div class="mb-2">{{ blocker|safe }}</div>{% endfor %}
+  {% else %}
+    {% if form.omnibox %}
+      {% render_field 'omnibox' %}
+    {% endif %}
+    {% render_field 'text' %}
+    <div style="position:fixed;width:362px;margin-left:200px;margin-top:-10px" class="fixed-wrapper">
+      <temba-charcount>
+      </temba-charcount>
+    </div>
+    {% if recipient_count %}
+      {% blocktrans trimmed count recipient_count as recipients %}
+        <b>{{ recipients }}</b> recipient currently at this point in the flow
+      {% plural %}
+        <b>{{ recipients }}</b> recipients currently at this point in the flow
+      {% endblocktrans %}
+    {% endif %}
+  {% endif %}
+{% endblock fields %}
+{% block form-buttons %}
+  {% if not blockers %}<input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">{% endif %}
+{% endblock form-buttons %}
+{% block modal-extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    temba-completion {
+      --textarea-height: 110px;
+    }
+  </style>
+{% endblock modal-extra-style %}

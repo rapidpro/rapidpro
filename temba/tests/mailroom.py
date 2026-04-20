@@ -56,8 +56,8 @@ class Mocks:
         self.calls = defaultdict(list)
         self._parse_query = {}
         self._contact_search = {}
-        self._flow_preview_start = []
-        self._msg_preview_broadcast = []
+        self._flow_start_preview = []
+        self._msg_broadcast_preview = []
         self._errors = []
 
         self.queued_batch_tasks = []
@@ -83,17 +83,17 @@ class Mocks:
 
         self._contact_search[query] = mock
 
-    def flow_preview_start(self, query, total):
+    def flow_start_preview(self, query, total):
         def mock(org):
             return mailroom.StartPreview(query=query, total=total)
 
-        self._flow_preview_start.append(mock)
+        self._flow_start_preview.append(mock)
 
-    def msg_preview_broadcast(self, query, total):
+    def msg_broadcast_preview(self, query, total):
         def mock(org):
             return mailroom.BroadcastPreview(query=query, total=total)
 
-        self._msg_preview_broadcast.append(mock)
+        self._msg_broadcast_preview.append(mock)
 
     def error(self, msg: str, code: str = None, extra: dict = None):
         """
@@ -238,19 +238,19 @@ class TestClient(MailroomClient):
         return mock(org, offset, sort)
 
     @_client_method
-    def flow_preview_start(self, org_id: int, flow_id: int, include, exclude):
-        assert self.mocks._flow_preview_start, "missing flow_preview_start mock"
+    def flow_start_preview(self, org_id: int, flow_id: int, include, exclude):
+        assert self.mocks._flow_start_preview, "missing flow_start_preview mock"
 
-        mock = self.mocks._flow_preview_start.pop(0)
+        mock = self.mocks._flow_start_preview.pop(0)
         org = Org.objects.get(id=org_id)
 
         return mock(org)
 
     @_client_method
-    def msg_preview_broadcast(self, org_id: int, include, exclude):
-        assert self.mocks._msg_preview_broadcast, "missing msg_preview_broadcast mock"
+    def msg_broadcast_preview(self, org_id: int, include, exclude):
+        assert self.mocks._msg_broadcast_preview, "missing msg_broadcast_preview mock"
 
-        mock = self.mocks._msg_preview_broadcast.pop(0)
+        mock = self.mocks._msg_broadcast_preview.pop(0)
         org = Org.objects.get(id=org_id)
 
         return mock(org)
@@ -437,13 +437,11 @@ def apply_modifiers(org, user, contacts, modifiers: list):
                 update_groups_locally(contact, [g.uuid for g in mod.groups], add=add)
 
         elif mod.type == "ticket":
-            ticketer = org.ticketers.get(uuid=mod.ticketer.uuid, is_active=True)
             topic = org.topics.get(uuid=mod.topic.uuid, is_active=True)
             assignee = org.users.get(email=mod.assignee.email, is_active=True) if mod.assignee else None
             for contact in contacts:
                 contact.tickets.create(
                     org=org,
-                    ticketer=ticketer,
                     topic=topic,
                     status=Ticket.STATUS_OPEN,
                     body=mod.body,

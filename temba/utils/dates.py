@@ -1,7 +1,5 @@
 import calendar
-from datetime import date, datetime, time, timedelta
-
-import pytz
+from datetime import date, datetime, time, timedelta, timezone as tzone
 
 from django.utils import timezone
 
@@ -18,7 +16,7 @@ def datetime_to_str(date_obj, format, tz):
         return None
 
     if type(date_obj) == date:
-        date_obj = tz.localize(datetime.combine(date_obj, time(0, 0, 0)))
+        date_obj = datetime.combine(date_obj, time(0, 0, 0)).replace(tzinfo=tz)
 
     if isinstance(date_obj, datetime):
         date_obj = timezone.localtime(date_obj, tz)
@@ -39,7 +37,7 @@ def timestamp_to_datetime(ms):
     Converts a UTC microsecond timestamp to a datetime
     """
     dt = datetime.utcfromtimestamp(ms / 1_000_000)
-    return dt.replace(tzinfo=pytz.utc)
+    return dt.replace(tzinfo=tzone.utc)
 
 
 def date_range(start: date, stop: date):

@@ -1,7 +1,6 @@
 import logging
-from datetime import timedelta
+from datetime import timedelta, timezone as tzone
 
-import pytz
 from celery import shared_task
 
 from django.conf import settings
@@ -15,7 +14,8 @@ from temba.utils.crons import cron_task
 from temba.utils.models import delete_in_batches
 
 from .android import sync
-from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
+from .models import Channel, ChannelCount, ChannelLog, SyncEvent
+from .types.android import AndroidType
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +27,30 @@ def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no
 
 
 @cron_task()
-def check_channel_alerts():
-    """
-    Run every 30 minutes.  Checks if any channels who are active have not been seen in that
-    time.  Triggers alert in that case
-    """
-    Alert.check_alerts()
+def check_android_channels():
+    from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
+    from temba.notifications.models import Incident
+
+    last_half_hour = timezone.now() - timedelta(minutes=30)
+
+    ongoing = Incident.objects.filter(incident_type=ChannelDisconnectedIncidentType.slug, ended_on=None).select_related(
+        "channel"
+    )
+
+    for incident in ongoing:
+        # if we've seen the channel since this incident started went out, then end it
+        if incident.channel.last_seen > incident.started_on:
+            incident.end()
+
+    not_recently_seen = (
+        Channel.objects.filter(channel_type=AndroidType.code, is_active=True, last_seen__lt=last_half_hour)
+        .exclude(org=None)
+        .exclude(last_seen=None)
+        .select_related("org")
+    )
+
+    for channel in not_recently_seen:
+        ChannelDisconnectedIncidentType.get_or_create(channel)
 
 
 @cron_task()
@@ -47,12 +65,6 @@ def sync_old_seen_channels():
     )
     for channel in old_seen_channels:
         channel.trigger_sync()
-
-
-@shared_task
-def send_alert_task(alert_id, resolved):
-    alert = Alert.objects.get(pk=alert_id)
-    alert.send_email(resolved)
 
 
 @shared_task
@@ -86,7 +98,6 @@ def trim_sync_events():
             .values_list("id", flat=True)[1:]
         )
 
-        Alert.objects.filter(sync_event__in=event_ids).delete()
         SyncEvent.objects.filter(id__in=event_ids).delete()
         num_deleted += len(event_ids)
 
@@ -122,7 +133,7 @@ def track_org_channel_counts(now=None):
     more than one message received or sent in the previous day. This helps track engagement of orgs.
     """
     now = now or timezone.now()
-    yesterday = (now.astimezone(pytz.utc) - timedelta(days=1)).date()
+    yesterday = (now.astimezone(tzone.utc) - timedelta(days=1)).date()
 
     stats = [
         dict(key="temba.msg_incoming", count_type=ChannelCount.INCOMING_MSG_TYPE),

@@ -166,7 +166,7 @@ class TwilioTypeTest(TembaTest):
 
                 # claim it
                 response = self.client.post(claim_twilio, dict(country="US", phone_number="12062345678"))
-                self.assertFormError(response, "form", "phone_number", "Number is already connected to this workspace")
+                self.assertFormError(response, "form", None, "This channel is already connected in this workspace.")
 
                 # make sure the schemes do not overlap, having a WA channel with the same number
                 channel = Channel.objects.get(channel_type="T", org=self.org)
@@ -347,6 +347,14 @@ class TwilioTypeTest(TembaTest):
 
             response = self.client.post(update_url, post_data)
             self.assertFormError(response, "form", None, "Credentials don't appear to be valid.")
+
+        # staff users see extra log policy field
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "log_policy", "allow_international", "account_sid", "auth_token", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
 
     @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)

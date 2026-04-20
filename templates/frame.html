@@ -1,0 +1,254 @@
+<!DOCTYPE HTML>
+{% load humanize i18n smartmin sms compress %}
+
+{% block html-tag %}
+  <html lang="{{ LANGUAGE_CODE }}">
+  {% endblock html-tag %}
+  <head>
+    <title>
+      {% block head-title %}
+        {% if title %}
+          {{ title }}
+        {% else %}
+          {{ branding.name }}
+        {% endif %}
+      {% endblock head-title %}
+    </title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="{% block page-description %}{{ branding.name }} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock page-description %}">
+    <meta name="author" content="Nyaruka Ltd">
+    <meta http-equiv="X-UA-Compatible" content="IE=10">
+    <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+    {% compress js %}
+      <script src="{{ STATIC_URL }}jquery/dist/jquery.min.js"></script>
+      <script src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
+      <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+      <script src="{{ STATIC_URL }}highcharts/highstock.js?v=9.3.0"></script>
+      <script src="{{ STATIC_URL }}highcharts/modules/drilldown.js"></script>
+      <script src="{{ STATIC_URL }}qrious/dist/qrious.min.js"></script>
+      <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+    {% endcompress %}
+    {% if not debug and not testing %}<script src="{{ STATIC_URL }}lib/raven.min.js"></script>{% endif %}
+    {% compress js %}
+      <script src="{{ STATIC_URL }}js/utils.js"></script>
+    {% endcompress %}
+    <script type="text/javascript">
+      var static_url = "{{ STATIC_URL }}";
+      var org_id = {% if active_org %}{{ active_org.id }}{% else %}null{% endif %};
+      var tembaVersion = "{{ temba_version }}";
+      var params = "{{ url_params|safe }}";
+      var anon_org = asBool("{{ user_org.is_anon }}");
+      var menuSelection = "{{ temba_menu_selection }}";
+
+      function handleMenuReady() {
+        var selection = window.location.pathname.split("/").filter(function(path) {
+          return !!path
+        });
+        var menu = document.querySelector("temba-menu");
+        if (menu && menuSelection) {
+          menu.setFocusedItem(menuSelection);
+        }
+      }
+
+      // set our initial title
+      document.addEventListener("DOMContentLoaded", function(event) {
+        const titleText = document.querySelector("#title-text");
+        if (titleText) {
+          document.title = titleText.innerText;
+        }
+      });
+    </script>
+    {% block scripts %}
+      {% compress js %}
+        <script src="{{ STATIC_URL }}js/temba.js"></script>
+        <script src="{{ STATIC_URL }}js/frame.js"></script>
+        <script src="{{ STATIC_URL }}js/labels.js"></script>
+      {% endcompress %}
+    {% endblock scripts %}
+    {% for script in flow_editor_scripts %}<script type="text/javascript" src="{{script}}"></script>{% endfor %}
+    {% for style in flow_editor_styles %}<link rel="stylesheet" href="{{ style }}" type="text/css">{% endfor %}
+    {% if not COMPONENTS_DEV_MODE %}
+      {% include "components-head.html" %}
+    {% endif %}
+    {% block favico %}
+      <link type="image/ico" rel="shortcut icon" href="{{ STATIC_URL }}images/favicon.ico">
+    {% endblock favico %}
+    {% block styles %}
+      <link rel="stylesheet"
+            href="https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:200,300,400,500">
+      {% compress css %}
+        <link rel="stylesheet" href="{{ STATIC_URL }}less/style.less" type="text/less">
+        <link rel="stylesheet" href="{{ STATIC_URL }}css/tailwind.css" type="text/css">
+        <link rel="stylesheet" href="{{ STATIC_URL }}less/refresh.less" type="text/less">
+      {% endcompress %}
+      {% compress css %}
+        <link type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/temba-components.css">
+        <link type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/frame.css">
+      {% endcompress %}
+    {% endblock styles %}
+    {% include "includes/frame_top.html" %}
+  </head>
+  {% block body %}
+    <body class="bg-gradient" id="pageBody">
+      {% if COMPONENTS_DEV_MODE %}
+        <script type="module">
+          import '/out-tsc/temba-modules.js';
+        </script>
+      {% else %}
+        {% include "components-body.html" %}
+      {% endif %}
+      {% if user_org %}
+        <temba-store {% if org_perms.globals.global_list %}globals="/api/v2/globals.json"{% endif %}
+                     completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
+                     languages="/org/languages/"
+                     fields="/api/v2/fields.json"
+                     groups="/api/v2/groups.json"
+                     workspace="/api/v2/workspace.json"
+                     users="/api/v2/users.json">
+        </temba-store>
+      {% else %}
+        <temba-store>
+        </temba-store>
+      {% endif %}
+      <div class="flex flex-col h-full">
+        {% if messages %}
+          {% block messages %}
+            {% if messages %}
+              {% for msg in messages %}<div class="alert alert-{{ message.tags }}">{{ msg }}</div>{% endfor %}
+            {% endif %}
+          {% endblock messages %}
+        {% endif %}
+        {% block post-header %}
+        {% endblock post-header %}
+        <!-- Content -->
+        {% block page-container %}
+          <!-- {{temba_version}} -->
+          <temba-mask>
+          </temba-mask>
+          <temba-modax id="shared-modax">
+          </temba-modax>
+          <temba-dialog id="shared-dialog">
+          </temba-dialog>
+          <div class="ajax-scripts"></div>
+          <div class="flex-col">
+            <div style="height:100vh;overflow:hidden" class="flex widget-container">
+              {% if request.user.is_staff %}
+                {% if user_org and user_org not in user_orgs %}
+                  <div style="z-index:999999;
+                              right:0;
+                              bottom:0"
+                       class="servicing absolute bg-secondary my-2 mr-20 rounded shadow-xl">
+                    <a href="{% url 'orgs.org_service' %}"
+                       style="text-decoration:none"
+                       onclick="handlePosterizeClick(event)"
+                       class="relative">
+                      <div style="opacity:1;padding:0em 0.5em;" class="flex items-center text-white text-lg hover rounded">
+                        <div class="flex-grow"></div>
+                        <temba-icon style="color:#fff" name="service">
+                        </temba-icon>
+                        <div class="ml-2">{{ user_org.name }}</div>
+                        <div class="flex-grow"></div>
+                      </div>
+                    </a>
+                  </div>
+                {% endif %}
+              {% endif %}
+              <div class="folders">
+                <temba-menu style="height:100%"
+                            endpoint="{% url 'orgs.org_menu' %}"
+                            onchange="handleMenuChanged(event)"
+                            -temba-button-clicked="handleMenuClicked(event)"
+                            -temba-ready="handleMenuReady"
+                            class="{% if servicing %}{% endif %}"
+                            id="nav">
+                  {% block menu-header %}
+                  {% endblock menu-header %}
+                </temba-menu>
+              </div>
+              <div class="flex-grow spa-container flex flex-col initial-load">
+                <div class="spa-loader hide absolute">
+                  <div style="display:flex;z-index:100000;margin-top:0.1em;margin-left:1em" class="wrapper">
+                    <temba-loading size="16" units="6">
+                    </temba-loading>
+                  </div>
+                </div>
+                <div class="spa-content p-5 pb-5">
+                  {% block extra-style %}
+                  {% endblock extra-style %}
+                  {% block extra-script %}
+                  {% endblock extra-script %}
+                  {% block page-header %}
+                    <div class="mb-4">
+                      <div class="no-menu flex items-center">
+                        <div class="text-container text-2xl text-gray-700">
+                          <div class="flex flex-row">
+                            {% block title %}
+                              <div id="title-text">
+                                {% block title-text %}
+                                  {{ title }}
+                                {% endblock title-text %}
+                              </div>
+                            {% endblock title %}
+                          </div>
+                        </div>
+                        <div class="line flex-grow mr-2 ml-6">
+                          <div class="h-0 border border-gray-200"></div>
+                        </div>
+                        {% if has_content_menu %}
+                          {% include "spa_page_menu.html" %}
+                        {% endif %}
+                      </div>
+                      <div class="text-lg text-gray-600">
+                        {% block subtitle %}
+                        {% endblock subtitle %}
+                      </div>
+                    </div>
+                  {% endblock page-header %}
+                  {% block alert-messages %}
+                    {% if user_org.is_suspended %}
+                      {% include "org_suspended_include.html" %}
+                    {% endif %}
+                    {% if messages %}
+                      {% for msg in messages %}
+                        <temba-alert class="mb-3">
+                          {{ msg }}
+                        </temba-alert>
+                      {% endfor %}
+                    {% endif %}
+                  {% endblock alert-messages %}
+                  {% block content %}
+                  {% endblock content %}
+                </div>
+                {% block footer %}
+                  <div class="spa-footer text-center text-gray-500 py-6 bg-gray-200">
+                    <!--
+                  License requires that the copyright attribution remain, please do not modify.
+                -->
+                    Copyright © 2012-2023 TextIt. All rights reserved.
+                  </div>
+                {% endblock footer %}
+              </div>
+            </div>
+          </div>
+          <temba-lightbox>
+          </temba-lightbox>
+        {% endblock page-container %}
+      </div>
+      {% trans "Delete" as title %}
+      <temba-dialog header="{{ title|escapejs }}"
+                    primaryButtonName="{{ title|escapejs }}"
+                    destructive="true"
+                    class="hidden"
+                    id="general-delete-confirmation">
+        <div class="p-6 confirmation-body">{% trans "Are you sure you want to continue? This cannot be undone." %}</div>
+      </temba-dialog>
+      <!-- media associated with any form we are displaying -->
+      {% if form %}{{ form.media }}{% endif %}
+      <form id="posterizer" method="post">
+        {% csrf_token %}
+      </form>
+    </body>
+  {% endblock body %}
+</html>

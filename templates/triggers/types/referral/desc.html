@@ -1,0 +1,5 @@
+{% load i18n %}
+
+{% blocktrans trimmed with referrer=obj.referrer_id %}
+  A referral from <b>{{ referrer }}</b>
+{% endblocktrans %}

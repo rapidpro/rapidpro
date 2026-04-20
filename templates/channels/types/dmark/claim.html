@@ -1,0 +1,9 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n %}
+
+{% block pre-form %}
+  {% blocktrans trimmed with name=branding.name %}
+    You can connect your <a href="https://dmarkmobile.com/">DMark Mobile</a> number to {{ name }} using the fields below. You
+    will first need to create a DMark Mobile account and receive a username and password from them to use below.
+  {% endblocktrans %}
+{% endblock pre-form %}

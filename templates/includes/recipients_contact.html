@@ -1,0 +1,11 @@
+{% load contacts i18n %}
+
+{% if contact.is_active %}
+  {# djlint:off #}
+  <a href="{% url 'contacts.contact_read' contact.uuid %}" onclick="goto(event, this)"><temba-label icon="contact" clickable class="mr-1 mb-1">{{ contact|name_or_urn:user_org }}</temba-label></a>
+  {# djlint:on #}
+{% else %}
+  <temba-label icon="contact" clickable class="mr-1 mb-1">
+    <div class="line-through">{% trans "Deleted" %}</div>
+  </temba-label>
+{% endif %}
