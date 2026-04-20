@@ -1,50 +1,91 @@
 {% load sms i18n humanize %}
 
 {% with translation=broadcast.get_translation %}
-  <div class="broadcast flex flex-col card m-0 mb-6 rounded overflow-hidden p-0 flex-shrink-0">
-    <div class="broadcast-top-bar px-2 pt-2 pb-1 bg-gray-300 flex flex-row"
-         style="--color-overlay-light:#fff;
-                --color-background-hover:transparent">
+  <div style="--color-overlay-light:#fff;
+              --color-background-hover:#FaFaFa"
+       class="broadcast flex flex-col card m-0 mb-6 rounded overflow-hidden p-0 flex-shrink-0 {% if broadcast.schedule %}scheduled{% endif %}">
+    <div class="broadcast-top-bar px-2 pt-2 pb-1 bg-gray-300 flex flex-row">
       <div class="recipients flex-grow">{% include "includes/recipients.html" with groups=object.groups.all contacts=object.contacts.all %}</div>
-      <div class="flex-grow text-right mr-2 text-sm self-center text-gray-600 font-normal -mt-1">
+      <div class="flex-grow text-right mr-2 text-sm self-center text-gray-600 font-normal -mt-1 date-text flex items-end">
+        <div class="flex-grow"></div>
         {% if broadcast.schedule.next_fire %}
           {{ broadcast.schedule.next_fire|duration }}
         {% else %}
           {% blocktrans trimmed %}
-            Complete
+            Sent
           {% endblocktrans %}
+          <div style="margin-left:0.2rem">{{ broadcast.modified_on|duration }}</div>
         {% endif %}
       </div>
     </div>
     <div class="flex flex-row p-4">
       <div class="flex-grow">
-        <div class="text">{{ translation.text }}</div>
+        <div class="text">
+          {{ translation.text }}
+          <br />
+          {% for reply in translation.quick_replies %}
+            <temba-label class="mr-2 mt-2" backgroundcolor="#fafafa">
+              {{ reply }}
+            </temba-label>
+          {% endfor %}
+        </div>
       </div>
-      <div class="attachments flex-shrink ml-2 flex-wrap">
+      <div class="attachments  ml-2 flex-wrap">
         {% for attachment in translation.attachments %}
           {% attachment_button attachment True %}
         {% endfor %}
       </div>
     </div>
-    {% if broadcast.schedule.repeat_period != "O" %}
+    {% if not broadcast.schedule %}
       <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule text-center">
-        <div class="inline-block align-bottom text-gray-700">
-          {% if broadcast.schedule.repeat_period == 'M' %}
-            {% blocktrans trimmed with date=broadcast.schedule.repeat_day_of_month|ordinal %}
-              Repeats every <b>month</b> on the {{ date }}.
-            {% endblocktrans %}
-          {% elif broadcast.schedule.repeat_period == 'W' %}
+        <div class="inline-block align-bottom text-gray-700 flex">
+          {% if broadcast.status == "Q" %}
+            <temba-icon name="progress_spinner" spin class="mr-1">
+            </temba-icon>
+          {% endif %}
+          {% blocktrans count message_count=broadcast.get_message_count %}
+             {{message_count}} message
+          {% plural %}
+             {{message_count}} messages
+          {% endblocktrans %}
+        </div>
+      </div>
+    {% else %}
+      <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule align-bottom">
+        <div class="text-gray-700">
+          {% if broadcast.optin %}
             {% blocktrans trimmed %}
-              Repeats every <b>week</b> on
+              Sends with opt-in
             {% endblocktrans %}
-            {% for day in broadcast.schedule.get_repeat_days_display %}<b>{{ day }}</b>{{ forloop|oxford }}{% endfor %}
-            {% blocktrans trimmed %}
-              at around the same time.
-            {% endblocktrans %}
-          {% elif broadcast.schedule.repeat_period == 'D' %}
-            Repeats <b>daily</b> at around the same time.
+            {{ broadcast.optin.name }}.
+          {% endif %}
+          {% if broadcast.schedule and broadcast.schedule.repeat_period != "O" %}
+            {% if broadcast.schedule.repeat_period == 'M' %}
+              {% blocktrans trimmed with date=broadcast.schedule.repeat_day_of_month|ordinal %}
+                Repeats every <b>month</b> on the {{ date }}.
+              {% endblocktrans %}
+            {% elif broadcast.schedule.repeat_period == 'W' %}
+              {% blocktrans trimmed %}
+                Repeats every <b>week</b> on
+              {% endblocktrans %}
+              {% for day in broadcast.schedule.get_repeat_days_display %}<b>{{ day }}</b>{{ forloop|oxford }}{% endfor %}
+              {% blocktrans trimmed %}
+                at around the same time.
+              {% endblocktrans %}
+            {% elif broadcast.schedule.repeat_period == 'D' %}
+              Repeats <b>daily</b> at around the same time.
+            {% endif %}
           {% endif %}
         </div>
+        {% if broadcast.schedule %}
+          {% if org_perms.msgs.broadcast_update %}
+            <div class="flex-grow"></div>
+            <temba-icon name="edit" clickable onClick="editBroadcast({{ broadcast.id }})">
+            </temba-icon>
+            <temba-icon name="delete" clickable onClick="deleteBroadcast({{ broadcast.id }})" class="ml-2">
+            </temba-icon>
+          {% endif %}
+        {% endif %}
       </div>
     {% endif %}
   </div>

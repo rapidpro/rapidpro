@@ -194,6 +194,7 @@ class Broadcast(models.Model):
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
     base_language = models.CharField(max_length=3)  # ISO-639-3
+    optin = models.ForeignKey("msgs.OptIn", null=True, on_delete=models.PROTECT)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
@@ -211,9 +212,8 @@ class Broadcast(models.Model):
         cls,
         org,
         user,
-        text: dict[str, str] = None,
+        translations: dict[str, dict] = None,
         *,
-        attachments: dict[str, list] = None,
         base_language: str = None,
         groups=None,
         contacts=None,
@@ -221,27 +221,13 @@ class Broadcast(models.Model):
         contact_ids: list[int] = None,
         **kwargs,
     ):
-        # if base language is not provided
-        if not base_language:
-            base_language = (text and next(iter(text))) or (attachments and next(iter(attachments)))
-
-        assert not text or base_language in text, "no translation for base language"
-        assert not attachments or base_language in attachments, "no translation for base language"
-
-        assert text or attachments, "can't create broadcast without text or attachments"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
-        # merge text and attachments into single dict of translations
-        translations = {}
-        if text:
-            translations = {lang: {"text": t} for lang, t in text.items()}
-        if attachments:
-            for lang, atts in attachments.items():
-                if lang not in translations:
-                    translations[lang] = {}
+        # if base language is not provided
+        if not base_language:
+            base_language = next(iter(translations))
 
-                # TODO update broadcast sending to allow media objects to stay as UUIDs for longer
-                translations[lang]["attachments"] = [str(m) for m in atts]
+        assert base_language in translations, "no translation for base language"
 
         broadcast = cls.objects.create(
             org=org,
@@ -296,7 +282,7 @@ class Broadcast(models.Model):
         """
 
         def trans(d):
-            return {"text": "", "attachments": []} | d  # ensure we always have text+attachments
+            return {"text": "", "attachments": [], "quick_replies": []} | d  # ensure we always have text+attachments
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
             if contact.language in self.translations:
@@ -310,14 +296,15 @@ class Broadcast(models.Model):
     def delete(self, user, *, soft: bool):
         if soft:
             assert self.schedule, "can only soft delete scheduled broadcasts"
+            schedule = self.schedule
 
-            self.schedule.is_active = False
-            self.schedule.save(update_fields=("is_active",))
-
+            self.schedule = None
             self.modified_by = user
             self.modified_on = timezone.now()
             self.is_active = False
-            self.save(update_fields=("modified_by", "modified_on", "is_active"))
+            self.save(update_fields=("schedule", "modified_by", "modified_on", "is_active"))
+
+            schedule.delete()
         else:
             for child in self.children.all():
                 child.delete(user, soft=False)
@@ -479,14 +466,10 @@ class Msg(models.Model):
     DIRECTION_OUT = "O"
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
-    TYPE_INBOX = "I"  # no longer used
-    TYPE_FLOW = "F"  # no longer used
     TYPE_TEXT = "T"
+    TYPE_OPTIN = "O"
     TYPE_VOICE = "V"
-    TYPE_CHOICES = (
-        (TYPE_TEXT, "Text Message"),
-        (TYPE_VOICE, "Voice Message"),
-    )
+    TYPE_CHOICES = ((TYPE_TEXT, "Text"), (TYPE_OPTIN, "Opt-In Request"), (TYPE_VOICE, "Interactive Voice Response"))
 
     FAILED_SUSPENDED = "S"
     FAILED_CONTACT = "C"
@@ -535,6 +518,7 @@ class Msg(models.Model):
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=Attachment.MAX_LEN), null=True)
     quick_replies = ArrayField(models.CharField(max_length=64), null=True)
+    optin = models.ForeignKey("msgs.OptIn", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
 
     created_on = models.DateTimeField(db_index=True)
@@ -727,21 +711,19 @@ class Msg(models.Model):
             models.Index(
                 name="msgs_inbox",
                 fields=["org", "-created_on", "-id"],
-                condition=Q(direction="I", visibility="V", status="H", flow__isnull=True, msg_type__in=("I", "F", "T")),
+                condition=Q(direction="I", visibility="V", status="H", flow__isnull=True, msg_type="T"),
             ),
             # used for Flows view and API folder
             models.Index(
                 name="msgs_flows",
                 fields=["org", "-created_on", "-id"],
-                condition=Q(
-                    direction="I", visibility="V", status="H", flow__isnull=False, msg_type__in=("I", "F", "T")
-                ),
+                condition=Q(direction="I", visibility="V", status="H", flow__isnull=False, msg_type="T"),
             ),
             # used for Archived view and API folder
             models.Index(
                 name="msgs_archived",
                 fields=["org", "-created_on", "-id"],
-                condition=Q(direction="I", visibility="A", status="H", msg_type__in=("I", "F", "T")),
+                condition=Q(direction="I", visibility="A", status="H", msg_type="T"),
             ),
             # used for Outbox and Failed views and API folders
             models.Index(
@@ -839,7 +821,7 @@ class SystemLabel:
                 visibility=Msg.VISIBILITY_VISIBLE,
                 status=Msg.STATUS_HANDLED,
                 flow__isnull=True,
-                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
+                msg_type=Msg.TYPE_TEXT,
             )
         elif label_type == cls.TYPE_FLOWS:
             qs = Msg.objects.filter(
@@ -847,14 +829,14 @@ class SystemLabel:
                 visibility=Msg.VISIBILITY_VISIBLE,
                 status=Msg.STATUS_HANDLED,
                 flow__isnull=False,
-                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
+                msg_type=Msg.TYPE_TEXT,
             )
         elif label_type == cls.TYPE_ARCHIVED:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_IN,
                 visibility=Msg.VISIBILITY_ARCHIVED,
                 status=Msg.STATUS_HANDLED,
-                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
+                msg_type=Msg.TYPE_TEXT,
             )
         elif label_type == cls.TYPE_OUTBOX:
             qs = Msg.objects.filter(
@@ -932,7 +914,7 @@ class SystemLabelCount(SquashableModel):
         return {lb: counts_by_type.get(lb, 0) for lb, n in SystemLabel.TYPE_CHOICES}
 
     class Meta:
-        index_together = ("org", "label_type")
+        indexes = [models.Index(fields=("org", "label_type", "is_squashed"))]
 
 
 class Label(TembaModel, DependencyMixin):
@@ -946,10 +928,6 @@ class Label(TembaModel, DependencyMixin):
     org_limit_key = Org.LIMIT_LABELS
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
-
-    # TODO drop
-    label_type = models.CharField(max_length=1, null=True)
-    folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
     def create(cls, org, user, name: str):
@@ -1056,6 +1034,28 @@ class LabelCount(SquashableModel):
         )
         counts_by_label_id = {c[0]: c[1] for c in counts}
         return {lb: counts_by_label_id.get(lb.id, 0) for lb in labels}
+
+
+class OptIn(TembaModel):
+    """
+    Contact optin for a particular messaging topic.
+    """
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="optins")
+
+    @classmethod
+    def create(cls, org, user, name: str):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid optin name"
+        assert not org.optins.filter(name__iexact=name).exists()
+
+        return org.optins.create(name=name, created_by=user, modified_by=user)
+
+    @classmethod
+    def create_from_import_def(cls, org, user, definition: dict):
+        return cls.create(org, user, definition["name"])
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_optin_names")]
 
 
 class MsgIterator:

@@ -1,9 +1,7 @@
 {% load i18n %}
 
-{% blocktrans with org=org.name brand=branding.name %}
+{% blocktrans trimmed with org=org.name brand=branding.name %}
 You've been invited to join {{ org }} on {{ brand }}
 {% endblocktrans %}
 
-{% trans "Click this link to join" %}
-{{ org.name }}
-      {{ branding.link }}/org/join/{{invitation.secret}}/
+{% trans "Click this link to join" %}: https://{{ branding.domain }}/org/join/{{ invitation.secret }}/

@@ -1,0 +1,20 @@
+{% extends "orgs/login/login_base.html" %}
+{% load i18n %}
+
+{% block login-content %}
+  <div class="page-title mb-6">{% trans "Choose Workspace" %}</div>
+  <div class="w-64">
+    {% if not orgs %}
+      <div class="my-6">{% trans "Your login is not associated with any workspace. Please contact your administrator to receive an invitation to a workspace." %}</div>
+    {% endif %}
+    <div class="flex flex-col">
+      {% for org in orgs %}
+        <div class="item">
+          <a href="?organization={{ org.id }}"
+             onclick="handlePosterizeClick(event)"
+             class="button-light m-2 posterize">{{ org.name }}</a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock login-content %}

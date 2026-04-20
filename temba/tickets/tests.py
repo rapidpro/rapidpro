@@ -1,7 +1,6 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tzone
 from unittest.mock import patch
 
-import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -10,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -21,27 +20,20 @@ from .models import (
     TicketCount,
     TicketDailyCount,
     TicketDailyTiming,
-    Ticketer,
     TicketEvent,
     Topic,
     export_ticket_stats,
 )
 from .tasks import squash_ticket_counts
-from .types import reload_ticketer_types
-from .types.internal import InternalType
-from .types.mailgun import MailgunType
-from .types.zendesk import ZendeskType
 
 
 class TicketTest(TembaTest):
     def test_model(self):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
         topic = Topic.create(self.org, self.admin, "Sales")
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
         ticket = Ticket.objects.create(
             org=self.org,
-            ticketer=ticketer,
             contact=contact,
             topic=self.org.default_ticket_topic,
             body="Where are my cookies?",
@@ -97,20 +89,18 @@ class TicketTest(TembaTest):
         general = self.org.default_ticket_topic
         cats = Topic.create(self.org, self.admin, "Cats")
 
-        ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "bob@acme.com", {})
         contact1 = self.create_contact("Bob", urns=["twitter:bobby"])
         contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
 
         org2_general = self.org2.default_ticket_topic
-        org2_ticketer = Ticketer.create(self.org2, self.admin2, MailgunType.slug, "jim@acme.com", {})
         org2_contact = self.create_contact("Bob", urns=["twitter:bobby"], org=self.org2)
 
-        t1 = self.create_ticket(ticketer, contact1, "Test 1", topic=general)
-        t2 = self.create_ticket(ticketer, contact2, "Test 2", topic=general)
-        t3 = self.create_ticket(ticketer, contact1, "Test 3", topic=general)
-        t4 = self.create_ticket(ticketer, contact2, "Test 4", topic=cats)
-        t5 = self.create_ticket(ticketer, contact1, "Test 5", topic=cats)
-        t6 = self.create_ticket(org2_ticketer, org2_contact, "Test 6", topic=org2_general)
+        t1 = self.create_ticket(contact1, "Test 1", topic=general)
+        t2 = self.create_ticket(contact2, "Test 2", topic=general)
+        t3 = self.create_ticket(contact1, "Test 3", topic=general)
+        t4 = self.create_ticket(contact2, "Test 4", topic=cats)
+        t5 = self.create_ticket(contact1, "Test 5", topic=cats)
+        t6 = self.create_ticket(org2_contact, "Test 6", topic=org2_general)
 
         def assert_counts(
             org, *, assignee_open: dict, assignee_closed: dict, topic_open: dict, topic_closed: dict, contacts: dict
@@ -289,18 +279,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
-        self.mailgun = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-        self.zendesk = Ticketer.create(self.org, self.user, ZendeskType.slug, "Zendesk (acme)", {})
-        self.internal = Ticketer.create(self.org, self.user, InternalType.slug, "Internal", {})
-        self.other_org_internal = Ticketer.create(self.org2, self.admin2, InternalType.slug, "Internal", {})
         self.contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
     def test_list(self):
         list_url = reverse("tickets.ticket_list")
-        ticket = self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
+        ticket = self.create_ticket(self.contact, "Test 1", assignee=self.admin)
 
         # just a placeholder view for frontend components
-        self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[])
 
         # can hit this page with a uuid
         # TODO: work out reverse for deep link
@@ -311,7 +297,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
         self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
         response = self.assertListFetch(
-            deep_link, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[]
+            deep_link, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[]
         )
 
         # our ticket exists on the first page, so it'll get flagged to be focused
@@ -356,11 +342,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(deep_link, self.admin, [])
 
     def test_update(self):
-        ticket = self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
+        ticket = self.create_ticket(self.contact, "Test 1", assignee=self.admin)
 
         update_url = reverse("tickets.ticket_update", args=[ticket.uuid])
 
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["topic", "body"])
+        self.assertUpdateFetch(
+            update_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["topic", "body"]
+        )
 
         user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
 
@@ -374,13 +362,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")
 
-        self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
-        self.create_ticket(self.internal, self.contact, "Test 2", assignee=self.admin)
-        self.create_ticket(self.internal, self.contact, "Test 3", assignee=None)
-        self.create_ticket(self.internal, self.contact, "Test 4", closed_on=timezone.now())
+        self.create_ticket(self.contact, "Test 1", assignee=self.admin)
+        self.create_ticket(self.contact, "Test 2", assignee=self.admin)
+        self.create_ticket(self.contact, "Test 3", assignee=None)
+        self.create_ticket(self.contact, "Test 4", closed_on=timezone.now())
 
-        self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
-        self.assertMenu(menu_url, 5, ["My Tickets", "Unassigned", "All", "General"], allow_viewers=False)
+        self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
+        self.assertMenu(menu_url, 5, ["My Tickets", "Unassigned", "All", "General"], allow_viewers=True)
 
     @mock_mailroom
     def test_folder(self, mr_mocks):
@@ -419,10 +407,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         assert_tickets(response, [])
 
         # contact 1 has two open tickets
-        c1_t1 = self.create_ticket(self.mailgun, contact1, "Question 1")
+        c1_t1 = self.create_ticket(contact1, "Question 1")
         # assign it
         c1_t1.assign(self.admin, assignee=self.admin)
-        c1_t2 = self.create_ticket(self.mailgun, contact1, "Question 2")
+        c1_t2 = self.create_ticket(contact1, "Question 2")
 
         # give contact1 and old style broadcast message that doesn't have created_by set
         self.create_incoming_msg(contact1, "I have an issue")
@@ -431,15 +419,15 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         c1_msg1.save(update_fields=("created_by",))
 
         # contact 2 has an open ticket and a closed ticket
-        c2_t1 = self.create_ticket(self.mailgun, contact2, "Question 3")
-        c2_t2 = self.create_ticket(self.mailgun, contact2, "Question 4", closed_on=timezone.now())
+        c2_t1 = self.create_ticket(contact2, "Question 3")
+        c2_t2 = self.create_ticket(contact2, "Question 4", closed_on=timezone.now())
 
         self.create_incoming_msg(contact2, "Anyone there?")
         self.create_incoming_msg(contact2, "Hello?")
 
         # contact 3 has two closed tickets
-        c3_t1 = self.create_ticket(self.mailgun, contact3, "Question 5", closed_on=timezone.now())
-        c3_t2 = self.create_ticket(self.mailgun, contact3, "Question 6", closed_on=timezone.now())
+        c3_t1 = self.create_ticket(contact3, "Question 5", closed_on=timezone.now())
+        c3_t2 = self.create_ticket(contact3, "Question 6", closed_on=timezone.now())
 
         self.create_outgoing_msg(contact3, "Yes", created_by=self.agent)
 
@@ -585,7 +573,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_note(self, mr_mocks):
-        ticket = self.create_ticket(self.mailgun, self.contact, "Ticket 1")
+        ticket = self.create_ticket(self.contact, "Ticket 1")
 
         update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
 
@@ -659,7 +647,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             # anon org doesn't see URN value column
             export = self._request_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
             self.assertExcelSheet(
@@ -691,10 +679,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         age = self.create_field("age", "Age", value_type=ContactField.TYPE_NUMBER)
 
         # messages can't be older than org
-        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=pytz.UTC)
+        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=tzone.utc)
         self.org.save(update_fields=("created_on",))
 
-        ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
         topic = Topic.create(self.org, self.admin, "AFC Richmond")
         assignee = self.admin
         today = timezone.now().astimezone(self.org.timezone).date()
@@ -720,7 +707,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create an open ticket for nate, opened 30 days ago
         ticket1 = self.create_ticket(
-            ticketer,
             nate,
             body="Y'ello",
             topic=topic,
@@ -729,12 +715,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         # create an open ticket for jamie, opened 25 days ago
         ticket2 = self.create_ticket(
-            ticketer, jamie, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now() - timedelta(days=25)
+            jamie, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now() - timedelta(days=25)
         )
 
         # create a closed ticket for roy, opened yesterday
         ticket3 = self.create_ticket(
-            ticketer,
             roy,
             body="Hello",
             topic=topic,
@@ -744,7 +729,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         # create a closed ticket for sam, opened today
         ticket4 = self.create_ticket(
-            ticketer,
             sam,
             body="Yo",
             topic=topic,
@@ -753,11 +737,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             closed_on=timezone.now(),
         )
 
-        # create a ticketer and ticket on another org for rebecca
-        zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        self.create_ticket(
-            zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff"
-        )
+        # create a ticket on another org for rebecca
+        self.create_ticket(self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff")
 
         # try to submit without specifying dates (UI doesn't actually allow this)
         response = self.client.post(export_url, {})
@@ -917,7 +898,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             with self.mockReadOnly(assert_models={Ticket, ContactURN}):
                 export = self._request_export(start_date=today - timedelta(days=90), end_date=today)
             self.assertExcelSheet(
@@ -1018,102 +999,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{task.uuid}.xlsx"
         workbook = load_workbook(filename=filename)
         return workbook.worksheets
-
-
-class TicketerTest(TembaTest):
-    @patch("temba.mailroom.client.MailroomClient.ticket_close")
-    def test_release(self, mock_ticket_close):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-
-        contact = self.create_contact("Bob", urns=["twitter:bobby"])
-
-        ticket = self.create_ticket(ticketer, contact, "Where are my cookies?")
-
-        # release it
-        ticketer.release(self.user)
-        ticketer.refresh_from_db()
-        self.assertFalse(ticketer.is_active)
-        self.assertEqual(self.user, ticketer.modified_by)
-
-        # will have asked mailroom to close the ticket
-        mock_ticket_close.assert_called_once_with(self.org.id, self.user.id, [ticket.id], force=True)
-
-        # reactivate
-        ticketer.is_active = True
-        ticketer.save()
-
-        # add a dependency and try again
-        flow = self.create_flow("Deps")
-        flow.ticketer_dependencies.add(ticketer)
-
-        self.assertFalse(flow.has_issues)
-
-        ticketer.release(self.editor)
-        ticketer.refresh_from_db()
-
-        self.assertFalse(ticketer.is_active)
-        self.assertEqual(self.editor, ticketer.modified_by)
-        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
-
-        flow.refresh_from_db()
-        self.assertTrue(flow.has_issues)
-
-
-class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_connect(self):
-        connect_url = reverse("tickets.ticketer_connect")
-
-        with override_settings(TICKETER_TYPES=[]):
-            reload_ticketer_types()
-
-            response = self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False, allow_agents=False)
-
-            self.assertEqual([], response.context["ticketer_types"])
-            self.assertContains(response, "No ticketing services are available.")
-
-        with override_settings(TICKETER_TYPES=["temba.tickets.types.mailgun.MailgunType"], MAILGUN_API_KEY="123"):
-            reload_ticketer_types()
-
-            response = self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False, allow_agents=False)
-
-            self.assertNotContains(response, "No ticketing services are available.")
-            self.assertContains(response, reverse("tickets.types.mailgun.connect"))
-
-        # put them all back...
-        reload_ticketer_types()
-
-    @patch("temba.mailroom.client.MailroomClient.ticket_close")
-    def test_delete(self, mock_ticket_close):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-
-        delete_url = reverse("tickets.ticketer_delete", args=[ticketer.uuid])
-
-        # fetch delete modal
-        response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "You are about to delete")
-
-        # submit to delete it
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
-        self.assertEqual("/org/workspace/", response["Temba-Success"])
-
-        # reactivate
-        ticketer.is_active = True
-        ticketer.save()
-
-        # add a dependency and try again
-        flow = self.create_flow("Color Flow")
-        flow.ticketer_dependencies.add(ticketer)
-        self.assertFalse(flow.has_issues)
-
-        response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "is used by the following items but can still be deleted:")
-        self.assertContains(response, "Color Flow")
-
-        self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
-
-        flow.refresh_from_db()
-        self.assertTrue(flow.has_issues)
-        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
 
 
 class TopicTest(TembaTest):

@@ -229,17 +229,17 @@
                 data-object-id="{{ object.id }}"
                 href="{% url 'contacts.contact_read' object.uuid %}"
                 class="contact select-row object-row">
-              {% if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send %}
+              {% if org_perms.contacts.contact_update or org_perms.msgs.broadcast_create %}
                 <td onclick="checkInner(event);" class="contact checkbox object-row-checkbox">
                   <temba-checkbox onclick="handleRowSelection(this)">
                   </temba-checkbox>
                 </td>
               {% endif %}
               <td>
-                <div class="whitespace-nowrap">{{ object|name:user_org }}</div>
+                <div class="whitespace-nowrap">{{ object.name|default:"--" }}</div>
               </td>
               <td class="w-full">
-                <div class="whitespace-nowrap">{{ object|urn:user_org }}</div>
+                <div class="whitespace-nowrap">{{ object|urn_or_anon:user_org }}</div>
               </td>
               {% for field in contact_fields %}
                 {% if field.show_in_table %}
@@ -353,14 +353,17 @@
 
     function handleSendMessageClicked() {
       // when we click send, include any clicked messages in our modax request
-      var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
-      var sendModal = document.querySelector("#send-message-modal");
+      var sendEndpoint = "{% url 'msgs.broadcast_create' %}";
+      var sendModal = document.querySelector("#shared-modax");
+      sendModal.header = '{{_("New Broadcast")|escapejs}}';
       var ids = getCheckedUuids();
       if (ids.length > 0) {
         sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
       } else {
         sendModal.setAttribute("endpoint", sendEndpoint);
       }
+
+      sendModal.open = true;
     }
 
     // keeps track if we are on a link or not

@@ -23,7 +23,8 @@
   <style type="text/css">
     .spa-content {
       margin-bottom: 0;
-      padding-bottom: 0;
+      padding-bottom: 0px !important;
+
     }
 
     .more .submenu {
@@ -41,6 +42,11 @@
       z-index: 0;
       border: 0px solid #e7e7e7;
       margin-top: 0px;
+      margin-left: -1.2em;
+      margin-right: -1.2em;
+      margin-bottom: 0em;
+      border-radius: 0px;
+
     }
 
     .simulator {
@@ -103,9 +109,7 @@
       right: 4em !important;
     }
 
-    .pop_wrapper.pop_invisible {
-      margin-right: 1.3em;
-    }
+    .pop_wrapper.pop_invisible {}
 
     .flow_node {
       box-shadow: 0px 0px 4px 2px rgba(0, 0, 0, .05);
@@ -137,9 +141,9 @@
     }
 
     function handleActivityClicked(nodeUUID, count) {
-      var endpoint = '{% url "msgs.broadcast_send" %}';
+      var endpoint = '{% url "msgs.broadcast_to_node" %}';
       var modal = document.querySelector("#send-message-modal");
-      modal.endpoint = endpoint + "?step_node=" + nodeUUID + "&count=" + count;
+      modal.endpoint = endpoint + "?node=" + nodeUUID + "&count=" + count;
       modal.open = true;
     }
 
@@ -172,7 +176,7 @@
       onChangeLanguage: handleChangeLanguage,
       mutable: JSON.parse("{{mutable|js_bool}}"),
       filters: JSON.parse("{{feature_filters|escapejs}}"),
-      brand: '{{brand.name|escapejs}}',
+      brand: '{{branding.name|escapejs}}',
 
       help: {
         legacy_extra: 'https://help.nyaruka.com/',
@@ -184,9 +188,9 @@
         groups: api + 'groups.json',
         fields: api + 'fields.json',
         labels: api + 'labels.json',
+        optins: api + 'optins.json',
         channels: api + 'channels.json',
         classifiers: api + 'classifiers.json',
-        ticketers: api + 'ticketers.json',
         resthooks: api + 'resthooks.json',
         templates: api + 'templates.json',
         flows: api + 'flows.json?archived=false',

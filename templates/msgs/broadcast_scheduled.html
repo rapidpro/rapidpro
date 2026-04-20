@@ -1,0 +1,41 @@
+{% extends "msgs/message_box.html" %}
+{% load smartmin sms temba compress i18n humanize %}
+
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function editBroadcast(id) {
+      showModax("{{_('Edit Broadcast')|escapejs}}", "/broadcast/update/" + id + "/");
+    }
+
+    function deleteBroadcast(id) {
+      showModax("{{_('Delete Broadcast')|escapejs}}", "/broadcast/scheduled_delete/" + id + "/");
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .thumb {
+      width: 100px;
+      height: auto;
+    }
+  </style>
+{% endblock extra-style %}
+{% block action-buttons %}
+{% endblock action-buttons %}
+{% block content %}
+  {% blocktrans trimmed %}
+    Broadcasts can target large groups of contacts and scheduled to be sent whenever you like. Broadcasts can also repeat at an interval of your choice.
+  {% endblocktrans %}
+  {% for object in object_list %}
+    {% if forloop.first %}
+      <div class="mt-4 mb-4 shadow rounded-lg bg-white">{% include "includes/short_pagination.html" %}</div>
+    {% endif %}
+    {% include "msgs/broadcast.html" with broadcast=object %}
+  {% empty %}
+    {% blocktrans trimmed %}
+      <div class="mt-4">Create your first scheduled broadcast to get started.</div>
+    {% endblocktrans %}
+  {% endfor %}
+{% endblock content %}

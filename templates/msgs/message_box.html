@@ -1,0 +1,190 @@
+{% extends "smartmin/list.html" %}
+{% load smartmin sms temba compress contacts i18n humanize channels %}
+
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    temba-button {
+      display: block;
+    }
+  </style>
+{% endblock extra-style %}
+{% block content %}
+  <temba-modax header="{% trans "Create Label" %}"
+               endpoint="{% url 'msgs.label_create' %}"
+               -temba-loaded="handleCreateLabelModalLoaded"
+               -temba-submitted="handleCreateLabelModalSubmitted"
+               id="create-label-modal">
+  </temba-modax>
+  <div class="flex">
+    <div class="flex-grow self-end items-end">
+      <div class="flex flex-col">
+        <form method="get" id="search-form">
+          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+          </temba-textinput>
+          <input type="submit" value="Submit" class="hidden">
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow overflow-y-auto shadow rounded-b-lg">
+    {% if has_messages %}
+      <table class="{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_create %}selectable{% endif %} list object-list lined scrolled">
+        <tbody>
+          {% for object in object_list %}
+            <tr data-object-id="{{ object.id }}"
+                data-sender-id="{{ object.contact.id }}"
+                data-sender-uuid="{{ object.contact.uuid }}"
+                onclick="handleRowClicked(event)"
+                href="{% url 'contacts.contact_read' object.contact.uuid %}"
+                class="sms object-row"
+                id="id-row-{{ object.id }}">
+              {% if actions %}
+                {% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_create %}
+                  <td onclick="checkInner(event);" class="checkbox sms object-row-check">
+                    <temba-checkbox onclick="handleRowSelection(this)">
+                    </temba-checkbox>
+                  </td>
+                {% endif %}
+              {% endif %}
+              <td class="whitespace-nowrap">{{ object.contact|name_or_urn:user_org|truncatechars:20 }}</td>
+              <td class="w-full">
+                <div class="flex flex-wrap flex-end items-center justify-end">
+                  {% if object.msg_type == "O" %}
+                    <div class="flex-grow optin flex">
+                      <temba-icon name="optin_requested" class="mr-2">
+                      </temba-icon>
+                      <div class="flex-grow">
+                        {% blocktrans trimmed with optin=object.optin.name %}
+                          Opt-in request for {{ optin }}
+                        {% endblocktrans %}
+                      </div>
+                    </div>
+                  {% else %}
+                    <div class="flex-grow inline">{% get_value object 'text' %}</div>
+                  {% endif %}
+                  <div class="labels flex items-center flex-wrap">
+                    {% if 'label' in actions %}
+                      {% for label in object.labels.all %}
+                        <a href="{% url 'msgs.msg_filter' label.uuid %}" onclick="goto(event, this)">
+                          <temba-label data-id="{{ label.id }}" icon="label" clickable class="mx-1 my-1">
+                            {{ label.name }}
+                          </temba-label>
+                        </a>
+                      {% endfor %}
+                    {% endif %}
+                    {% if object.flow %}
+                      <a href="{% url 'flows.flow_editor' object.flow.uuid %}" onclick="goto(event, this)">
+                        <temba-label icon="flow" primary clickable class="mx-1 my-1">
+                          {{ object.flow.name }}
+                        </temba-label>
+                      </a>
+                    {% endif %}
+                  </div>
+                </div>
+                {% if object.attachments %}
+                  <div style="margin-top: 5px" class="value-attachments">
+                    {% for attachment in object.attachments %}
+                      {% attachment_button attachment %}
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </td>
+              <td>
+                <div class="flex w-full items-center justify-end pr-4">
+                  <div class="time whitespace-nowrap">
+                    {% block message_time %}
+                      <temba-date value="{{ object.created_on.isoformat }}" display="timedate">
+                      </temba-date>
+                    {% endblock message_time %}
+                  </div>
+                  {% channel_log_link object %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          {% if not object_list %}
+            <tr class="empty_list">
+              <td colspan="99">{% trans "No messages" %}</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    {% else %}
+      {% include "msgs/empty_include.html" %}
+    {% endif %}
+  </div>
+  {% if org_perms.msgs.msg_delete %}
+    <temba-dialog header="{{ _("Delete Selected Messages") |escapejs }}"
+                  primaryButtonName="{{ _("Delete") |escapejs }}"
+                  destructive="true"
+                  class="hide"
+                  id="delete-confirmation">
+      <div class="p-6">{% trans "Are you sure you want to delete the selected messages? This cannot be undone." %}</div>
+    </temba-dialog>
+  {% endif %}
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function handleRowClicked(event) {
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+
+      var row = event.target.closest("tr");
+      var uuid = row.getAttribute("data-sender-uuid");
+
+      goto(event, row);
+    }
+
+    {% if org_perms.msgs.msg_update %}
+
+    function onDeleteClicked() {
+      var deleteConfirmation = document.querySelector("#delete-confirmation");
+      deleteConfirmation.classList.remove("hide");
+      deleteConfirmation.open = true;
+
+      deleteConfirmation.addEventListener("temba-button-clicked", function(event) {
+        if (!event.detail.button.secondary) {
+          runActionOnObjectRows("delete", wireTableListeners);
+        }
+        deleteConfirmation.open = false;
+      });
+    }
+
+    function handleCreateLabelModalLoaded(event) {
+      window.lastChecked = getCheckedIds();
+      var body = event.detail.body;
+      body.querySelector("#id_messages").value = window.lastChecked.join();
+    }
+
+    function handleCreateLabelModalSubmitted(event) {
+      refresh(function() {
+        recheckIds();
+      }, true);
+      if (refreshMenu) {
+        refreshMenu();
+      }
+    }
+
+    function handleSendMessageClicked() {
+      var sendEndpoint = "{% url 'msgs.broadcast_create' %}";
+      var sendModal = document.querySelector("#shared_modax");
+      var msgIds = getCheckedIds();
+      if (msgIds.length > 0) {
+        sendModal.setAttribute("endpoint", sendEndpoint + '?m=' + msgIds);
+      } else {
+        sendModal.setAttribute("endpoint", sendEndpoint);
+      }
+
+      sendModal.open = true;
+    }
+    {% endif %}
+
+    function handleAddLabelClicked() {
+      document.getElementById("create-label-modal").open = true;
+    }
+  </script>
+{% endblock extra-script %}

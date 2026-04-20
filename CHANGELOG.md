@@ -1,3 +1,605 @@
+v9.0.0 (2024-01-05)
+-------------------------
+ * Test against mailroom v9
+ * Replace dummy migrations with real squashed migrations
+
+v8.3.123 (2024-01-05)
+-------------------------
+ * Add empty versions of squashed migrations
+
+v8.3.122 (2024-01-04)
+-------------------------
+ * Update to latest editor
+
+v8.3.121 (2024-01-04)
+-------------------------
+ * Update to latest floweditor with open ticket changes
+
+v8.3.120 (2024-01-03)
+-------------------------
+ * Allow ticket body to be optional
+
+v8.3.119 (2024-01-03)
+-------------------------
+ * Drop ticketer model
+
+v8.3.118 (2024-01-03)
+-------------------------
+ * Remove view of http logs by ticketer
+ * Drop Ticket.ticketer and HTTPLog.ticketer
+
+v8.3.117 (2024-01-03)
+-------------------------
+ * Remove ticketer types
+
+v8.3.116 (2024-01-03)
+-------------------------
+ * Fix editor routing edge case
+ * Remove ticketers API endpoint
+
+v8.3.115 (2024-01-02)
+-------------------------
+ * Update to latest flow editor
+ * Drop index on ticket.external_id
+
+v8.3.114 (2024-01-02)
+-------------------------
+ * Stop exposing ticket ticketer on endpoints
+
+v8.3.113 (2024-01-02)
+-------------------------
+ * Update temba-components
+ * Finish cleaning up API v2 tests to use APITestMixin
+
+v8.3.112 (2023-12-14)
+-------------------------
+ * ContactChat with less padding
+
+v8.3.111 (2023-12-14)
+-------------------------
+ * Introduce footer
+
+v8.3.110 (2023-12-13)
+-------------------------
+ * Add index to help fetching scheduled event fires and another to find template translations by channel+external id
+
+v8.3.109 (2023-12-13)
+-------------------------
+ * Move last indexews from SQL file into Django models and drop unused
+
+v8.3.108 (2023-12-12)
+-------------------------
+ * Move all remaining flowrun and flowsession indexes onto their models
+
+v8.3.107 (2023-12-12)
+-------------------------
+ * Fix channel log display when missing URN
+ * Queued message treatment, flow editor fix
+ * Update poetry deps
+ * Move more indexes onto models and remove unnecessary one
+
+v8.3.106 (2023-12-11)
+-------------------------
+ * Cleanup indexes for FlowStartCount, SystemLabelCount and ContactGroupCount
+ * Use datetime timezone aliased as tzone
+ * Update django timezone field to 6.1.0
+
+v8.3.105 (2023-12-07)
+-------------------------
+ * Email changes should reset email status to unverified
+
+v8.3.104 (2023-12-07)
+-------------------------
+ * Remove duplication between channel read and chart views
+ * Cleanup indexes in channels app
+ * Remove unhelpful index on eventfire and move other into Django model
+
+v8.3.103 (2023-12-05)
+-------------------------
+ * Data migration to fix bad last seen on values
+ * Add support for user to start the email verification and send themselves the verification link
+
+v8.3.102 (2023-11-30)
+-------------------------
+ * Testing auto-versioning again
+
+v8.3.99 (2023-11-29)
+-------------------------
+ * Fix syncing OTP utility templates
+ * Drop unused TemplateTranslate.language and country fields
+
+v8.3.98 (2023-11-29)
+-------------------------
+ * Fix mailroom DB templates components structure
+ * Bump cryptography from 41.0.4 to 41.0.6
+ * Stop writing TemplateTranslation.language and country and remove unsupported language as a possibility
+
+v8.3.97 (2023-11-28)
+-------------------------
+ * Stop reading from TemplateTranslation.language and country
+ * Undocument the templates API endpoint and add locale field to translations
+ * Fix syncing OTP utility templates
+
+v8.3.96 (2023-11-27)
+-------------------------
+ * Migration to backfill TemplateTranslation.locale and external_locale
+
+v8.3.95 (2023-11-27)
+-------------------------
+ * Add TemplateTranslation.locale and .external_locale to replace language and country
+ * Support saving components and params to message templates
+
+v8.3.94 (2023-11-23)
+-------------------------
+ * Update temba-components
+
+v8.3.93 (2023-11-23)
+-------------------------
+ * Fix IVR simulation
+
+v8.3.92 (2023-11-22)
+-------------------------
+ * Tweak appearance of API explorer
+
+v8.3.91 (2023-11-21)
+-------------------------
+ * Cleanup API docs
+
+v8.3.90 (2023-11-17)
+-------------------------
+ * Add pillow dependency
+
+v8.3.89 (2023-11-15)
+-------------------------
+ * Don't allow oeverwriting of flows with a different type during imports
+ * Enforce unique addresses for more channel types
+
+v8.3.88 (2023-11-14)
+-------------------------
+ * Expose org.input_collation on languages formax
+ * Remove blog redirect pattern and sitemap
+ * Add unique_address to channel type and use that to validate channel is unique before claiming it
+
+v8.3.87 (2023-11-13)
+-------------------------
+ * Data migration to delete schedules attached to deleted triggers
+ * Simulator should use workspace collation setting
+ * Don't include email only notifications in unseen count for UI
+
+v8.3.86 (2023-11-13)
+-------------------------
+ * Update mailroom endpoint names
+
+v8.3.85 (2023-11-10)
+-------------------------
+ * Data migration to pause schedules of existing archived triggers
+
+v8.3.84 (2023-11-09)
+-------------------------
+ * Allow schedules to be paused when triggers are archived
+
+v8.3.83 (2023-11-09)
+-------------------------
+ * Fix login redirection to next param
+ * Drop no longer used fields on Schedule and Label
+ * Overrride mailroom URL in mailroom_db command
+ * Add view to verify email
+
+v8.3.82 (2023-11-08)
+-------------------------
+ * Ensure that schedules are actually deleted when a broadcast or trigger is soft deleted
+ * Fix trigger list keyword search
+ * Make Notifications.medium non-null and use to filter notifications on API endpoint
+ * Make deprecated fields o schedule nullable
+ * Remove unused ScheduleCRUDL
+
+v8.3.81 (2023-11-07)
+-------------------------
+ * Add data migration to backfill Notification.medium
+ * Add data migration to actually delete inactive schedules
+
+v8.3.80 (2023-11-07)
+-------------------------
+ * Fix constraint on Trigger to allow deleting of schedules
+ * Add medium field Notification to let us model notifications which should be email only
+
+v8.3.79 (2023-11-07)
+-------------------------
+ * Add data migration to delete ended and orphaned schedules
+ * Remove no longer used flow_type field on queued flow starts
+
+v8.3.78 (2023-11-02)
+-------------------------
+ * Update scheduled broadcast to send now
+
+v8.3.77 (2023-11-01)
+-------------------------
+ * Move optins inside compose widget
+
+v8.3.76 (2023-11-01)
+-------------------------
+ * Fix org start view when org isn't set
+ * Add data migration to remove scheduled triggers without a schedule and constraint to prevent new ones
+ * Fix not showing non-field errors on wizard forms
+
+v8.3.75 (2023-10-31)
+-------------------------
+ * Remove register "trigger" type
+ * Add user settings fields for email verification
+ * Update trigger type icons
+ * Allow staff to add users
+ * Add send broadcast and start flow bulk actions to contact group page
+
+v8.3.74 (2023-10-30)
+-------------------------
+ * Update temba-components with attachment rendering
+
+v8.3.73 (2023-10-30)
+-------------------------
+ * Add quick replies to broadcasts
+
+v8.3.72 (2023-10-27)
+-------------------------
+ * Make sure the missing external ID we make for D360 channels is truncated to 64 characters
+ * Un-gate optins
+ * Add support for Facebook login for business configurations
+ * Move API token formax to Account section
+
+v8.3.71 (2023-10-26)
+-------------------------
+ * Consistent brand references in templates
+
+v8.3.70 (2023-10-26)
+-------------------------
+ * Merge pull request #4930 from nyaruka/use-org-brand-domain
+ * Remove brand link
+ * Replace all brand link with brand domain use
+
+v8.3.69 (2023-10-26)
+-------------------------
+ * Use org brand domain instead of link
+ * Update to use Facebook API v18.0
+
+v8.3.67 (2023-10-26)
+-------------------------
+ * Update revisions url
+
+v8.3.66 (2023-10-25)
+-------------------------
+ * Simplify brands
+
+v8.3.65 (2023-10-25)
+-------------------------
+ * Fix and cleanup view for accepting invitations
+
+v8.3.64 (2023-10-25)
+-------------------------
+ * Fix start views for agent users
+ * Allow agent users to access account settings page
+ * Move two factor views out of main menu and into the account view
+
+v8.3.63 (2023-10-23)
+-------------------------
+ * Fix SendBroadcast action to work with localized compose
+
+v8.3.62 (2023-10-23)
+-------------------------
+ * Make Trigger.priority non-null and use for ordering
+
+v8.3.61 (2023-10-23)
+-------------------------
+ * Add data migration to backfill Trigger.priority
+
+v8.3.60 (2023-10-23)
+-------------------------
+ * Add Trigger.priority and start writing
+
+v8.3.59 (2023-10-20)
+-------------------------
+ * Fix maxlength for campaign events and focus on compose
+
+v8.3.58 (2023-10-19)
+-------------------------
+ * Allow triggers to wrap
+
+v8.3.57 (2023-10-19)
+-------------------------
+ * Update oxford template filter to allow different conjunctions
+ * Move all trigger type templates into their own folders
+ * Add data migration to merge compatible keyword triggers
+
+v8.3.56 (2023-10-18)
+-------------------------
+ * Improve display of triggers on list pages
+ * Support multiple keywords per trigger in UI
+ * Fix WA legacy config page
+
+v8.3.55 (2023-10-17)
+-------------------------
+ * Show urns properly for urn change events
+ * Use localized validation errors for import validation
+ * Support multi-keyword triggers in exports and imports
+
+v8.3.54 (2023-10-17)
+-------------------------
+ * Drop Trigger.keyword
+
+v8.3.53 (2023-10-17)
+-------------------------
+ * Fix fetching of keywords across triggers when editing a flow
+
+v8.3.52 (2023-10-17)
+-------------------------
+ * Stop writing Trigger.keyword
+
+v8.3.51 (2023-10-17)
+-------------------------
+ * Only read from Trigger.keywords
+
+v8.3.50 (2023-10-16)
+-------------------------
+ * Make ticketer nullable on ticket
+ * Convert tickets API endpoints to use CRUDL perms
+ * Make sure we show the issue icon on the flow list page
+
+v8.3.49 (2023-10-13)
+-------------------------
+ * Add data migration to populate keywords on trigger
+ * Add localization to create broadcast wizard
+
+v8.3.47 (2023-10-12)
+-------------------------
+ * Add Trigger.keywords and start writing
+ * Switch contacts API endpoints to use CRUDL perms
+ * Cleanup BroadcastCRUDL.Send which is now only for sending to a flow node
+ * Remove unused LabelCRUDL.List view
+ * Convert messages, media and label API endpoints to use CRUDL perms
+
+v8.3.46 (2023-10-11)
+-------------------------
+ * Remove no longer needed deprecated options on definitions endpoint
+ * Replace orgs.org_api permission
+ * Drop no longer used fields on FlowRevision
+
+v8.3.45 (2023-10-10)
+-------------------------
+ * Show exclusion groups on trigger list pages
+ * Fix updating keyword triggers for flows
+ * Make sure we display trigger channel if set
+ * Limit access to API explorer to editors and admins
+ * Convert resthook API endpoints to use CRUDL based permissions
+
+v8.3.44 (2023-10-06)
+-------------------------
+ * Allow request optin if optins exist
+ * Fix blurb for opt-out trigger
+ * Remove last usages of FlowLabel.parent and FlowRevision.modifiy_by
+ * Switch optins, topics, ticketers and templates API endpoints to use CRUDL perms
+ * Replace brand specific flow users with a single system user
+
+v8.3.43 (2023-10-05)
+-------------------------
+ * Update editor and components
+
+v8.3.42 (2023-10-05)
+-------------------------
+ * Make channel on trigger forms clearable
+ * Prepare unused fields on FlowRevision for removal and change all models in flows app to use orgs.User
+ * Allow beta testers to access optin features
+ * Switch flows, flow_starts and runs API endpoints to use CRUDL permissions
+ * Add optional channel field to call triggers types that are based on channel activity
+
+v8.3.41 (2023-10-04)
+-------------------------
+ * Add optin as field to channelevents
+ * Allow perms to be made API specific so that we can limit agent access to the UI
+
+v8.3.40 (2023-10-03)
+-------------------------
+ * Remove globals from agent store when missing permission
+ * Remove arst
+
+v8.3.39 (2023-10-03)
+-------------------------
+ * Fix compose clear on send
+ * Use more CRUDL perms with API endpoints
+
+v8.3.38 (2023-10-03)
+-------------------------
+ * Remove completion from contact chat
+ * Do not recreate the events when the campaign is archived
+
+v8.3.37 (2023-10-02)
+-------------------------
+ * Abstract functionality for triggers based on channel actvity into base classes
+ * API endpoint should default to CRUDL based permissions if permission not specified
+ * Update to use Facebook API v17
+
+v8.3.36 (2023-09-29)
+-------------------------
+ * Remove minutes label from channel chart
+ * Add workspace breakdown for dashboard
+
+v8.3.35 (2023-09-28)
+-------------------------
+ * Update opt-in styling
+ * Fix generation of history events from messages with optins
+
+v8.3.34 (2023-09-28)
+-------------------------
+ * Fix migration conflict
+
+v8.3.33 (2023-09-28)
+-------------------------
+ * Fix rendering of optin triggers
+ * Completely remove channel alerts
+
+v8.3.32 (2023-09-27)
+-------------------------
+ * Fix previous accidental merge to main to add optin import support
+ * Cleanup views accessing request org
+ * Add optin as option to broadcast create wizard
+
+v8.3.30 (2023-09-27)
+-------------------------
+ * Allow the target_urls of incident notifications to differ by type
+ * Use proper secret generation for recovery tokens and re-org code
+ * Fix task discover for legacy whatsapp channel type
+ * Implement channel disconnected alert as incident
+
+v8.3.29 (2023-09-26)
+-------------------------
+ * Update editor to include opt-ins
+
+v8.3.28 (2023-09-26)
+-------------------------
+ * Fix Contact Importss
+ * Rename old legacy channel types
+ * Add title to incident list page and tweak styling
+ * Implement email notifications for incidents
+ * Fix ticket squashable count models
+
+v8.3.27 (2023-09-25)
+-------------------------
+ * Tweak mailroom_db to create an FBA channel instead of a TWT channel
+ * Remove ticketers as a feature and the views for connecting external ticketers
+ * Re-add optin as distinct message type
+ * Add undocumented API endpoint for opt-ins
+
+v8.3.26 (2023-09-22)
+-------------------------
+ * Bump cryptography from 41.0.3 to 41.0.4
+ * Add optin field to Broadcast
+
+v8.3.25 (2023-09-21)
+-------------------------
+ * Fix trigger ordering
+
+v8.3.24 (2023-09-21)
+-------------------------
+ * Add opt-in and opt-out trigger types (staff only for now)
+ * Group keyword triggers and catch all triggers under a Messages folder
+ * Move broadcasts and scheduled to their own pages
+
+v8.3.23 (2023-09-21)
+-------------------------
+ * Replace Msg.type=optin with optin reference on msg
+ * Group trigger types into folders
+ * Make sure staff can update the log policy on all channel types
+
+v8.3.22 (2023-09-19)
+-------------------------
+ * Make ticketers API endpoint unpublicized
+ * Add 'Send Now' to broadcast creation
+
+v8.3.21 (2023-09-18)
+-------------------------
+ * Add basic OptIn model
+ * Use env variable for dev mode host
+
+v8.3.20 (2023-09-12)
+-------------------------
+ * Update editor for localized attachment fix
+
+v8.3.19 (2023-09-12)
+-------------------------
+ * Add new data migration to fix IVR call counts
+ * Drop Channel.parent, ContactURN.auth and Org.input_cleaners
+ * Remove support for delegate channels
+
+v8.3.18 (2023-09-07)
+-------------------------
+ * Add data migration to populate ContactURN.auth_tokens
+
+v8.3.17 (2023-09-06)
+-------------------------
+ * Add ContactURN.auth_tokens to replace .auth
+
+v8.3.16 (2023-09-06)
+-------------------------
+ * Tweak documentation for flow_starts endpoint
+ * Allow agents to update tickets topics
+
+v8.3.15 (2023-09-06)
+-------------------------
+ * Add hover-darker button option
+ * Update icons
+
+v8.3.14 (2023-08-31)
+-------------------------
+ * Limit to load the recent 100 sessions
+ * Disallow GET request for media upload view
+
+v8.3.13 (2023-08-28)
+-------------------------
+ * Tweaks to the channel config blurbs for consistency
+ * Fetching messages by label should include arched messages
+ * Use secrets module instead of random for random_string
+ * Little bit of cleanup in channel types like removing unused fields
+
+v8.3.12 (2023-08-23)
+-------------------------
+ * Add ChannelType.config_ui to replace configuration_urls, configuration_blurb etc
+ * Show Somleng config URLs based on channel role
+ * Add Org.input_collation
+ * Remove Blackmnyna, Chikka, Junebug, Twitter legacy, old Zenvia channel types
+
+v8.3.11 (2023-08-17)
+-------------------------
+ * Convert final haml templates in root directory
+
+v8.3.10 (2023-08-17)
+-------------------------
+ * Add Org.input_cleaners
+ * Always show name / anon id for anon orgs in contact lists
+ * Don't let mailroom handle tasks during tests
+ * Fix title on welcome page
+
+v8.3.9 (2023-08-16)
+-------------------------
+ * Fix onSpload fire when initial page doesn't call it
+
+v8.3.8 (2023-08-16)
+-------------------------
+ * Use $ instead of onSpload
+
+v8.3.7 (2023-08-16)
+-------------------------
+ * Fix Javascript on claim number view
+ * Switch test_db to assume a docker container
+
+v8.3.6 (2023-08-15)
+-------------------------
+ * Convert haml templates in includes folder and utils app
+ * Cleanup page titles in settings section
+
+v8.3.5 (2023-08-14)
+-------------------------
+ * Convert haml templates in public and orgs apps
+
+v8.3.4 (2023-08-14)
+-------------------------
+ * Convert templates in assets, channels, msgs, request_logs and schedules apps as well as overridden smartmin templates
+
+v8.3.3 (2023-08-10)
+-------------------------
+ * Simplify message indexes and system label queries
+
+v8.3.2 (2023-08-10)
+-------------------------
+ * Add data migration to convert old I/F msg types
+
+v8.3.1 (2023-08-09)
+-------------------------
+ * Merge pull request #4779 from nyaruka/less_haml
+ * Some tweaks to templates based on linter
+ * Convert all haml templates in channel types
+
+v8.3.0 (2023-08-09)
+-------------------------
+ * Drop no longer used Org.brand field
+ * Add messagebird channel type
+
 v8.2.0 (2023-08-07)
 -------------------------
  * Update stable versions

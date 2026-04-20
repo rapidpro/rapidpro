@@ -1,6 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timezone as tzone
 
-import pytz
 import regex
 
 from temba.tests.dates import FULL_ISO8601_REGEX
@@ -65,7 +64,7 @@ class Datetime(MatcherMixin, datetime):
     """
 
     def __new__(cls):
-        return datetime.__new__(cls, 2019, 10, 30, 13, 39, 30, 123456, pytz.UTC)
+        return datetime.__new__(cls, 2019, 10, 30, 13, 39, 30, 123456, tzone.utc)
 
     def __eq__(self, other):
         return isinstance(other, datetime)

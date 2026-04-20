@@ -136,14 +136,13 @@ class DocumentationRenderer(BrowsableAPIRenderer):
     instead have a separate API explorer page. This render then just displays the endpoint docs.
     """
 
+    template = "api/docs.html"
+
     def get_context(self, data, accepted_media_type, renderer_context):
         view = renderer_context["view"]
         request = renderer_context["request"]
         response = renderer_context["response"]
         renderer = self.get_default_renderer(view)
-
-        org = request.org
-        user = request.user
 
         return {
             "content": self.get_content(renderer, data, accepted_media_type, renderer_context),
@@ -152,21 +151,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
             "response": response,
             "description": view.get_view_description(html=True),
             "name": self.get_name(view),
-            "breadcrumblist": self.get_breadcrumbs(request),
-            "api_token": user.get_api_token(org) if (org and user) else None,
         }
-
-    def render(self, data, accepted_media_type=None, renderer_context=None):
-        """
-        Usually one customizes the browsable view by overriding the rest_framework/api.html template but we have two
-        versions of the API to support with two different templates.
-        """
-        if not renderer_context:  # pragma: needs cover
-            raise ValueError("Can't render without context")
-
-        self.template = "api/v2/api_root.html"
-
-        return super().render(data, accepted_media_type, renderer_context)
 
 
 class CreatedOnCursorPagination(CursorPagination):

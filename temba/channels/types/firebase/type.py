@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -12,11 +12,13 @@ class FirebaseCloudMessagingType(ChannelType):
     """
 
     code = "FCM"
+    name = "Firebase Cloud Messaging"
     category = ChannelType.Category.API
 
-    courier_url = r"^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$"
+    unique_addresses = True
 
-    name = "Firebase Cloud Messaging"
+    courier_url = r"^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$"
+    schemes = [URN.FCM_SCHEME]
 
     claim_blurb = _(
         "Add a %(link)s channel to send and receive messages. Your users will need an App to send and receive messages."
@@ -25,30 +27,26 @@ class FirebaseCloudMessagingType(ChannelType):
     }
     claim_view = ClaimView
 
-    schemes = [URN.FCM_SCHEME]
-    max_length = 10000
-    free_sending = True
-    quick_reply_text_size = 36
-
-    configuration_blurb = _(
-        "To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the "
-        "parameters below."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Contact Register"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'register' %}",
-            description=_(
-                "To register contacts, POST to the following URL with the parameters urn, "
-                "fcm_token and optionally name."
-            ),
+    config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring this channel, you'll have to POST to the following URLs with the "
+            "parameters below."
         ),
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'receive' %}",
-            description=_(
-                "To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="register",
+                label=_("Contact Register"),
+                help=_(
+                    "To register contacts, POST to the following URL with the parameters urn, "
+                    "fcm_token and optionally name."
+                ),
             ),
-        ),
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_(
+                    "To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."
+                ),
+            ),
+        ],
     )

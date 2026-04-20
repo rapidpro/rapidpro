@@ -1,0 +1,109 @@
+{% extends "smartmin/base.html" %}
+{% load smartmin %}
+
+{% block top-form %}
+  {% if view.search_fields and object_list %}
+    {% block search-form %}
+      <form>
+        <input type="text"
+               placeholder="Search"
+               name="search"
+               value="{{ search }}"
+               class="input-medium search-query">
+      </form>
+    {% endblock search-form %}
+  {% endif %}
+{% endblock top-form %}
+{% block content %}
+  {% block table-controls %}
+    <div class="row">
+      <div class="table-buttons">
+        {% block table-buttons %}
+          {% if view.add_button %}<a href="./create/" class="btn btn-primary pull-right">Add</a>{% endif %}
+        {% endblock table-buttons %}
+      </div>
+    </div>
+  {% endblock table-controls %}
+  {% block pjax %}
+    <div id="pjax">
+      {% block pre-table %}
+      {% endblock pre-table %}
+      {% block paginator %}
+        <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+      {% endblock paginator %}
+      {% block table %}
+        <table class="list lined">
+          <thead>
+            <tr>
+              {% for field in fields %}
+                <th class="header-{{ field }} {% if view|field_orderable:field %}header {% if field == order %}{% if order_asc %}headerSortUp{% else %}headerSortDown{% endif %}{% endif %}{% endif %}"
+                    id="header-{{ field }}">{% get_label field %}</th>
+              {% endfor %}
+            </tr>
+            <tbody>
+              {% for obj in object_list %}
+                <tr class="{% cycle "row2" "row1" %} {% if not obj.is_active and obj|is_smartobject %}inactive{% endif %}">
+                  {% for field in fields %}
+                    <td class="value-{{ field }} {% get_class field obj %}{% if field in link_fields %} clickable{% endif %}">
+                      {% if field in link_fields %}
+                        <div class="linked"
+                             onclick="goto(event, this)"
+                             {% if pjax %}data-pjax='{{ pjax }}'{% endif %}
+                             href="{% get_field_link field obj %}">{% get_value obj field %}</div>
+                      {% else %}
+                        {% get_value obj field %}
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% empty %}
+                <tr class="empty_list">
+                  {% for field in fields %}<td></td>{% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </thead>
+        </table>
+      {% endblock table %}
+      {% block extra-rows %}
+      {% endblock extra-rows %}
+    </div>
+  {% endblock pjax %}
+  {% block post-table %}
+  {% endblock post-table %}
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    {% if current_label.id %}
+    current_label_id = {{current_label.id}};
+    {% else %}
+    current_label_id = 0;
+    {% endif %}
+  </script>
+  <script>
+    $(document).ready(function() {
+      $("th.header").click(function(evt) {
+        // build up our ordering
+        var field = evt.target.id.substr(evt.target.id.indexOf("-") + 1)
+
+        {% if order_asc %}
+        if (field == "{{order}}") {
+          field = "-" + field;
+        }
+        {% endif %}
+
+        document.location = "{{url_params|urlencode}}_order=" + field;
+      });
+    });
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .page-content {
+      align-self: auto;
+      max-width: 100%;
+    }
+  </style>
+{% endblock extra-style %}

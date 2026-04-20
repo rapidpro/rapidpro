@@ -63,7 +63,10 @@
     }
 
     .spa-content {
-      padding: 0;
+      padding-left: 0;
+      padding-right: 0;
+      padding-top: 0;
+      padding-bottom: 0em;
     }
 
     #folder-title {
@@ -523,7 +526,7 @@
               {% endblocktrans %}
             </h2>
             <div class="mt-6">
-              {% blocktrans with name=brand.name trimmed %}
+              {% blocktrans with name=branding.name trimmed %}
                 {{ name }} Tickets makes it easy to chat directly with your contacts.
               {% endblocktrans %}
             </div>

@@ -1,9 +1,0 @@
-{% extends "email_base.html" %}
-{% load i18n %}
-
-{% block alert-settings %}
-<div style="font-size: 12px; line-height: 125%; font-family: Arial; color: #707070; text-align: center;" align="center">
-   <a href="{{ branding.link }}/channels/channel/update/{{ channel.id }}/"
-      style="color: #336699; font-weight: normal; text-decoration: underline;">{% trans "Change Alert Settings" %}</a>
-</div>
-{% endblock alert-settings %}

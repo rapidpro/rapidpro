@@ -19,11 +19,15 @@ class TwitterType(ChannelType):
     """
 
     code = "TWT"
+    name = "Twitter"
     category = ChannelType.Category.SOCIAL_MEDIA
+    beta_only = True
 
     courier_url = r"^twt/(?P<uuid>[a-z0-9\-]+)/receive$"
-
-    name = "Twitter"
+    schemes = [URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME]
+    async_activation = False
+    redact_response_keys = ("urn",)
+    redact_request_keys = ("sender_id", "name", "screen_name", "profile_image_url", "profile_image_url_https")
 
     claim_blurb = _(
         "Send and receive messages on Twitter using their %(link)s API. You will have to apply for Twitter API access "
@@ -33,16 +37,6 @@ class TwitterType(ChannelType):
     }
     claim_view = ClaimView
     update_form = UpdateForm
-
-    schemes = [URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME]
-    show_config_page = False
-    free_sending = True
-    async_activation = False
-
-    redact_response_keys = ("urn",)
-    redact_request_keys = ("sender_id", "name", "screen_name", "profile_image_url", "profile_image_url_https")
-
-    beta_only = True
 
     def activate(self, channel):
         config = channel.config

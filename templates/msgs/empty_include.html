@@ -1,0 +1,20 @@
+{% load i18n %}
+
+<div class="flex flex-col p-12">
+  <div class="page-title">{% trans "Your Message Hub" %}</div>
+  <div class="mt-2">
+    {% blocktrans trimmed with name=branding.name %}
+      This message pane lets you keep track of everything coming in and out of {{ name }}.  As you send and receive messages, they will be listed here.
+    {% endblocktrans %}
+  </div>
+  <div class="mt-2">
+    {% blocktrans trimmed with name=branding.name %}
+      Just like your email, {{ name }} lets you view, label and archive messages as you receive them.  {{ name }} uses labels to classify responses, so you can view and manage those messages here.  You can also create your own labels to keep track of topical messages as you receive them.
+    {% endblocktrans %}
+  </div>
+  <div class="mt-2">
+    {% blocktrans trimmed with name=branding.name %}
+      {{ name }} also keeps track of calls that are received on your channel so you can return any calls which may have been made to it.
+    {% endblocktrans %}
+  </div>
+</div>

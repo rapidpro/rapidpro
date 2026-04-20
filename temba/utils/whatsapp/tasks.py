@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+from collections import defaultdict
 
 import requests
 from celery import shared_task
@@ -13,11 +14,17 @@ from temba.contacts.models import URN, Contact, ContactURN
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
+from temba.utils.languages import alpha2_to_alpha3
 
 from . import update_api_version
-from .constants import LANGUAGE_MAPPING, STATUS_MAPPING
 
 logger = logging.getLogger(__name__)
+
+STATUS_MAPPING = dict(
+    PENDING=TemplateTranslation.STATUS_PENDING,
+    APPROVED=TemplateTranslation.STATUS_APPROVED,
+    REJECTED=TemplateTranslation.STATUS_REJECTED,
+)
 
 
 @shared_task
@@ -89,6 +96,30 @@ def _calculate_variable_count(content):
     return count
 
 
+def _extract_template_params(components):
+    params = defaultdict(list)
+
+    for component in components:
+        component_type = component["type"].lower()
+
+        if component_type == "header":
+            if component.get("format", "text").upper() == "TEXT":
+                for match in VARIABLE_RE.findall(component.get("text", "")):
+                    params[component_type].append({"type": "text"})
+            else:
+                params[component_type].append({"type": component["format"].lower()})
+        if component_type == "body":
+            for match in VARIABLE_RE.findall(component.get("text", "")):
+                params[component_type].append({"type": "text"})
+        if component_type == "buttons":
+            buttons = component["buttons"]
+            for idx, button in enumerate(buttons):
+                if button["type"].lower() == "url":
+                    for match in VARIABLE_RE.findall(button.get("url", "")):
+                        params[f"button.{idx}"].append({"type": "text"})
+    return params
+
+
 def update_local_templates(channel, templates_data):
     channel_namespace = channel.config.get("fb_namespace", "")
     # run through all our templates making sure they are present in our DB
@@ -103,10 +134,13 @@ def update_local_templates(channel, templates_data):
 
         status = STATUS_MAPPING[template_status]
 
+        components = template["components"]
+
+        params = _extract_template_params(components)
         content_parts = []
 
         all_supported = True
-        for component in template["components"]:
+        for component in components:
             if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
                 continue
 
@@ -118,36 +152,43 @@ def update_local_templates(channel, templates_data):
 
             content_parts.append(component["text"])
 
-        if not content_parts or not all_supported:
-            continue
-
         content = "\n\n".join(content_parts)
         variable_count = _calculate_variable_count(content)
 
-        language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
-
-        # its a (non fatal) error if we see a language we don't know
-        if language is None:
-            status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
-            language = template["language"]
+        if not content_parts or not all_supported:
+            status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
 
         missing_external_id = f"{template['language']}/{template['name']}"
         translation = TemplateTranslation.get_or_create(
-            channel=channel,
-            name=template["name"],
-            language=language,
-            country=country,
+            channel,
+            template["name"],
+            locale=parse_whatsapp_language(template["language"]),
             content=content,
             variable_count=variable_count,
             status=status,
-            external_id=template.get("id", missing_external_id),
+            external_locale=template["language"],
+            external_id=template.get("id", missing_external_id[:64]),
             namespace=template.get("namespace", channel_namespace),
+            components=components,
+            params=params,
         )
 
         seen.append(translation)
 
     # trim any translations we didn't see
     TemplateTranslation.trim(channel, seen)
+
+
+def parse_whatsapp_language(lang) -> str:
+    """
+    Converts a WhatsApp language code which can be alpha2 ('en') or alpha2_country ('en_US') or alpha3 ('fil')
+    to our locale format ('eng' or 'eng-US').
+    """
+    language, country = lang.split("_") if "_" in lang else [lang, None]
+    if len(language) == 2:
+        language = alpha2_to_alpha3(language)
+
+    return f"{language}-{country}" if country else language
 
 
 @shared_task

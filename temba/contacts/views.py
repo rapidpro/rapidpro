@@ -44,7 +44,7 @@ from temba.orgs.views import (
     OrgObjPermsMixin,
     OrgPermsMixin,
 )
-from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.tickets.models import Ticket, Topic
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import (
@@ -871,7 +871,12 @@ class ContactCRUDL(SmartCRUDL):
         menu_path = "/contact/active"
 
         def get_bulk_actions(self):
-            return ("block", "archive", "send", "start-flow") if self.has_org_perm("contacts.contact_update") else ()
+            actions = ("block", "archive") if self.has_org_perm("contacts.contact_update") else ()
+            if self.has_org_perm("msgs.broadcast_create"):
+                actions += ("send",)
+            if self.has_org_perm("flows.flow_start"):
+                actions += ("start-flow",)
+            return actions
 
         def build_content_menu(self, menu):
             search = self.request.GET.get("search")
@@ -882,7 +887,7 @@ class ContactCRUDL(SmartCRUDL):
 
             if has_contactgroup_create_perm and valid_search_condition:
                 try:
-                    parsed = parse_query(self.org, search)
+                    parsed = parse_query(self.request.org, search)
                     if parsed.metadata.allow_as_group:
                         menu.add_modax(
                             _("Create Smart Group"),
@@ -990,7 +995,14 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
         def get_bulk_actions(self):
-            return ("block", "archive") if self.group.is_smart else ("block", "unlabel")
+            actions = ()
+            if self.has_org_perm("contacts.contact_update"):
+                actions += ("block", "archive") if self.group.is_smart else ("block", "unlabel")
+            if self.has_org_perm("msgs.broadcast_create"):
+                actions += ("send",)
+            if self.has_org_perm("flows.flow_start"):
+                actions += ("start-flow",)
+            return actions
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1133,11 +1145,12 @@ class ContactCRUDL(SmartCRUDL):
         """
 
         class Form(forms.Form):
-            ticketer = forms.ModelChoiceField(
-                queryset=Ticketer.objects.none(), label=_("Ticket Service"), required=True
-            )
             topic = forms.ModelChoiceField(queryset=Topic.objects.none(), label=_("Topic"), required=True)
-            body = forms.CharField(label=_("Body"), widget=forms.Textarea, required=True)
+            body = forms.CharField(
+                label=_("Body"),
+                widget=InputWidget(attrs={"textarea": True, "placeholder": _("Optional")}),
+                required=False,
+            )
             assignee = forms.ModelChoiceField(
                 queryset=User.objects.none(),
                 label=_("Assignee"),
@@ -1149,7 +1162,6 @@ class ContactCRUDL(SmartCRUDL):
             def __init__(self, instance, org, **kwargs):
                 super().__init__(**kwargs)
 
-                self.fields["ticketer"].queryset = org.ticketers.filter(is_active=True).order_by("id")
                 self.fields["topic"].queryset = org.topics.filter(is_active=True).order_by("name")
                 self.fields["assignee"].queryset = Ticket.get_allowed_assignees(org).order_by("email")
 
@@ -1162,16 +1174,11 @@ class ContactCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-        def derive_exclude(self):
-            # don't show ticketer select if they don't have external ticketers
-            return ["ticketer"] if self.request.org.ticketers.filter(is_active=True).count() == 1 else []
-
         def save(self, obj):
             self.ticket = obj.open_ticket(
                 self.request.user,
-                self.form.cleaned_data.get("ticketer") or self.request.org.ticketers.filter(is_active=True).first(),
                 self.form.cleaned_data["topic"],
-                self.form.cleaned_data["body"],
+                self.form.cleaned_data.get("body"),
                 assignee=self.form.cleaned_data.get("assignee"),
             )
 
@@ -1416,7 +1423,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context_data = super().get_context_data(**kwargs)
-            org_count, org_limit = ContactField.get_org_limit_progress(self.org)
+            org_count, org_limit = ContactField.get_org_limit_progress(self.request.org)
             context_data["total_count"] = org_count
             context_data["total_limit"] = org_limit
             return context_data
@@ -1481,6 +1488,7 @@ class ContactFieldCRUDL(SmartCRUDL):
     class List(ContentMenuMixin, SpaMixin, OrgPermsMixin, SmartListView):
         menu_path = "/contact/fields"
         title = _("Fields")
+        default_order = "name"
 
         def build_content_menu(self, menu):
             menu.add_modax(

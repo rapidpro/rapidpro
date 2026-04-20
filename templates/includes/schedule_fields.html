@@ -1,0 +1,5 @@
+{% load smartmin %}
+
+{% render_field 'start_datetime' %}
+{% render_field 'repeat_period' %}
+<div class="{% if form.repeat_period.value == "W" %}{% else %}hidden{% endif %} repeat-days-container">{% render_field 'repeat_days_of_week' %}</div>

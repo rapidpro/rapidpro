@@ -1,0 +1,28 @@
+{% extends "smartmin/read.html" %}
+{% load i18n %}
+
+{% block content %}
+  {% include "formax.html" %}
+  <div class="flex flex-row bg-gray-200 border border-gray-400 rounded-lg cursor-pointer items-center"
+       onclick="goto(event, this)"
+       href="{% if two_factor_enabled %}{% url 'orgs.user_two_factor_disable' %}{% else %}{% url 'orgs.user_two_factor_enable' %}{% endif %}">
+    <div class="m-8 text-4xl text-gray-600 items-center">
+      <temba-icon name="two_factor_{% if two_factor_enabled %}enabled{% else %}disabled{% endif %}">
+      </temba-icon>
+    </div>
+    <div class="flex-grow p-6">
+      <div class="flex items-center">
+        {% if two_factor_enabled %}
+          <div class="flex-grow mr-4">
+            {% trans "Two factor authentication is currently <b>enabled</b>." %}
+          </div>
+          <div onclick="goto(event)" href="{% url "orgs.user_two_factor_tokens" %}" class="button-light">{% trans "Backup Tokens" %}</div>
+        {% else %}
+          <div class="flex-grow mr-4">
+            {% trans "Two factor authentication is currently <b>not enabled</b>." %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock content %}

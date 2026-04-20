@@ -1,7 +1,7 @@
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import ChannelType, ConfigUI
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
@@ -58,11 +58,13 @@ class VonageType(ChannelType):
     CONFIG_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
     code = "NX"
+    name = "Vonage"
     category = ChannelType.Category.PHONE
 
-    courier_url = r"^nx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
+    unique_addresses = True
 
-    name = "Vonage"
+    courier_url = r"^nx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
+    schemes = [URN.TEL_SCHEME]
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="https://www.vonage.com/">Vonage</a>'
@@ -70,33 +72,28 @@ class VonageType(ChannelType):
     claim_view = ClaimView
     update_form = UpdateForm
 
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
-    max_tps = 1
-
-    configuration_blurb = _(
-        "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
-        "number, but if not you can set them from your Vonage dashboard."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Callback URL for Inbound Messages"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.nx' channel.uuid 'receive' %}",
-            description=_("The callback URL is called by Vonage when you receive new incoming messages."),
+    config_ui = ConfigUI(
+        blurb=_(
+            "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
+            "number, but if not you can set them from your Vonage dashboard."
         ),
-        dict(
-            label=_("Callback URL for Delivery Receipt"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.nx' channel.uuid 'status' %}",
-            description=_(
-                "The delivery URL is called by Vonage when a message is successfully delivered to a recipient."
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Callback URL for Inbound Messages"),
+                help=_("The callback URL is called by Vonage when you receive new incoming messages."),
             ),
-        ),
-        dict(
-            label=_("Callback URL for Incoming Call"),
-            url="https://{{ channel.callback_domain }}{% url 'mailroom.ivr_handler' channel.uuid 'incoming' %}",
-            description=_("The callback URL is called by Vonage when you receive an incoming call."),
-        ),
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("Callback URL for Delivery Receipt"),
+                help=_("The delivery URL is called by Vonage when a message is successfully delivered to a recipient."),
+            ),
+            ConfigUI.Endpoint(
+                mailroom="incoming",
+                label=_("Callback URL for Incoming Call"),
+                help=_("The callback URL is called by Vonage when you receive an incoming call."),
+            ),
+        ],
     )
 
     def is_recommended_to(self, org, user):

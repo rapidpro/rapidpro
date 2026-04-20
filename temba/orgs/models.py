@@ -14,6 +14,7 @@ import pyotp
 import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
+from smartmin.users.models import FailedLogin, RecoveryToken
 from timezone_field import TimeZoneField
 
 from django.conf import settings
@@ -22,6 +23,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.db import models, transaction
 from django.db.models import Prefetch
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
@@ -35,7 +37,7 @@ from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONField, delete_in_batches
-from temba.utils.text import generate_token, random_string
+from temba.utils.text import generate_secret, generate_token
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
 
@@ -131,6 +133,8 @@ class User(AuthUser):
     related model.
     """
 
+    SYSTEM_USER_USERNAME = "system"
+
     @classmethod
     def create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
         obj = cls.objects.create_user(
@@ -163,6 +167,13 @@ class User(AuthUser):
             orgs = orgs.filter(orgmembership__user=user, orgmembership__role_code__in=[r.code for r in roles])
 
         return orgs
+
+    @classmethod
+    def get_system_user(cls):
+        user = cls.objects.filter(username=cls.SYSTEM_USER_USERNAME).first()
+        if not user:
+            user = cls.objects.create_user(cls.SYSTEM_USER_USERNAME, first_name="System", last_name="Update")
+        return user
 
     @property
     def name(self) -> str:
@@ -264,9 +275,31 @@ class User(AuthUser):
         return UserSettings.objects.get_or_create(user=self)[0]
 
     def get_api_token(self, org) -> str:
-        from temba.api.models import get_or_create_api_token
+        from temba.api.models import APIToken
 
-        return get_or_create_api_token(org, self)
+        try:
+            token = APIToken.get_or_create(org, self)
+            return token.key
+        except ValueError:
+            return None
+
+    def recover_password(self, branding: dict):
+        """
+        Generates a recovery token for this user and sends them an email with a recovery link using that token.
+        """
+
+        token = generate_secret(32)
+        RecoveryToken.objects.create(token=token, user=self)
+        FailedLogin.objects.filter(username__iexact=self.username).delete()
+
+        self.send_recovery_email(token, branding)
+
+    def send_recovery_email(self, token: str, branding: dict):
+        subject = _("Password Recovery Request")
+        template = "orgs/email/user_forget"
+        context = {"user": self, "path": reverse("users.user_recover", args=[token])}
+
+        send_template_email(self.email, subject, template, context, branding)
 
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
@@ -304,6 +337,16 @@ class UserSettings(models.Model):
     Custom fields for users
     """
 
+    STATUS_UNVERIFIED = "U"
+    STATUS_VERIFIED = "V"
+    STATUS_FAILING = "F"
+
+    STATUS_CHOICES = (
+        (STATUS_UNVERIFIED, _("Unverified")),
+        (STATUS_VERIFIED, _("Verified")),
+        (STATUS_FAILING, _("Failing")),
+    )
+
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="usersettings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
@@ -312,20 +355,23 @@ class UserSettings(models.Model):
     last_auth_on = models.DateTimeField(null=True)
     external_id = models.CharField(max_length=128, null=True)
     verification_token = models.CharField(max_length=64, null=True)
+    email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
+    email_verification_secret = models.CharField(max_length=64, null=True, db_index=True)
 
 
 class OrgRole(Enum):
-    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators")
-    EDITOR = ("E", _("Editor"), _("Editors"), "Editors")
-    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers")
-    AGENT = ("T", _("Agent"), _("Agents"), "Agents")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors")
+    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators", "msgs.msg_inbox")
+    EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "msgs.msg_inbox")
+    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "msgs.msg_inbox")
+    AGENT = ("T", _("Agent"), _("Agents"), "Agents", "tickets.ticket_list")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "orgs.org_surveyor")
 
-    def __init__(self, code: str, display: str, display_plural: str, group_name: str):
+    def __init__(self, code: str, display: str, display_plural: str, group_name: str, start_view: str):
         self.code = code
         self.display = display
         self.display_plural = display_plural
         self.group_name = group_name
+        self.start_view = start_view
 
     @classmethod
     def from_code(cls, code: str):
@@ -353,11 +399,21 @@ class OrgRole(Enum):
         perms = self.group.permissions.select_related("content_type")
         return {f"{p.content_type.app_label}.{p.codename}" for p in perms}
 
+    @cached_property
+    def api_permissions(self) -> set:
+        return set(settings.API_PERMISSIONS.get(self.group_name, ()))
+
     def has_perm(self, permission: str) -> bool:
         """
         Returns whether this role has the given permission
         """
         return permission in self.permissions
+
+    def has_api_perm(self, permission: str) -> bool:
+        """
+        Returns whether this role has the given permission in the context of an API request.
+        """
+        return self.has_perm(permission) or permission in self.api_permissions
 
 
 class Org(SmartModel):
@@ -378,18 +434,25 @@ class Org(SmartModel):
         (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"),
         (DATE_FORMAT_YEAR_FIRST, "YYYY-MM-DD"),
     )
-
     DATE_FORMATS_PYTHON = {
         DATE_FORMAT_DAY_FIRST: "%d-%m-%Y",
         DATE_FORMAT_MONTH_FIRST: "%m-%d-%Y",
         DATE_FORMAT_YEAR_FIRST: "%Y-%m-%d",
     }
-
     DATE_FORMATS_ENGINE = {
         DATE_FORMAT_DAY_FIRST: "DD-MM-YYYY",
         DATE_FORMAT_MONTH_FIRST: "MM-DD-YYYY",
         DATE_FORMAT_YEAR_FIRST: "YYYY-MM-DD",
     }
+
+    COLLATION_DEFAULT = "default"
+    COLLATION_CONFUSABLES = "confusables"
+    COLLATION_ARABIC_VARIANTS = "arabic_variants"
+    COLLATION_CHOICES = (
+        (COLLATION_DEFAULT, _("Case insensitive (e.g. A = a)")),
+        (COLLATION_CONFUSABLES, _("Visually similiar characters (e.g. 𝓐 = A = a = ⍺)")),
+        (COLLATION_ARABIC_VARIANTS, _("Arabic, Farsi and Pashto equivalents (e.g. ي = ی = ۍ)")),
+    )
 
     CONFIG_VERIFIED = "verified"
     CONFIG_SMTP_SERVER = "smtp_server"
@@ -434,7 +497,6 @@ class Org(SmartModel):
     uuid = models.UUIDField(unique=True, default=uuid4)
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     parent = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, null=True, related_name="children")
-    brand = models.CharField(max_length=128, default="rapidpro", verbose_name=_("Brand"))
     users = models.ManyToManyField(User, through="OrgMembership", related_name="orgs")
 
     language = models.CharField(
@@ -457,6 +519,7 @@ class Org(SmartModel):
     )
     country = models.ForeignKey("locations.AdminBoundary", null=True, on_delete=models.PROTECT)
     flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
+    input_collation = models.CharField(max_length=32, choices=COLLATION_CHOICES, default=COLLATION_DEFAULT)
 
     config = models.JSONField(default=dict)
     slug = models.SlugField(
@@ -724,14 +787,13 @@ class Org(SmartModel):
 
         for trigger_def in import_def.get("triggers", []):
             trigger_type = trigger_def.get("trigger_type", "")
-            channel_uuid = trigger_def.get("channel")
 
             # TODO need better way to report import results back to users
-            # ignore scheduled triggers and new conversation triggers without channels
-            if trigger_type == "S" or (trigger_type == "N" and not channel_uuid):
+            # ignore scheduled triggers
+            if trigger_type == "S":
                 continue
 
-            Trigger.validate_import_def(trigger_def)
+            Trigger.clean_import_def(trigger_def)
             cleaned_triggers.append(trigger_def)
 
         import_def["triggers"] = cleaned_triggers
@@ -786,15 +848,6 @@ class Org(SmartModel):
             "groups": [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
         }
 
-    def can_add_sender(self):  # pragma: needs cover
-        """
-        If an org's telephone send channel is an Android device, let them add a bulk sender
-        """
-        from temba.contacts.models import URN
-
-        send_channel = self.get_send_channel(URN.TEL_SCHEME)
-        return send_channel and send_channel.is_android()
-
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
@@ -802,19 +855,13 @@ class Org(SmartModel):
         """
         Gets a channel for this org which supports the given role and scheme
         """
-        from temba.channels.models import Channel
 
         channels = self.channels.filter(is_active=True, role__contains=role).order_by("-id")
 
         if scheme is not None:
             channels = channels.filter(schemes__contains=[scheme])
 
-        channel = channels.first()
-
-        if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
-            return channel.get_delegate(role)
-        else:
-            return channel
+        return channels.first()
 
     def get_send_channel(self, scheme=None):
         from temba.channels.models import Channel
@@ -906,11 +953,6 @@ class Org(SmartModel):
         if self.config:
             return bool(self.config.get(Org.CONFIG_SMTP_SERVER))
         return False
-
-    def has_airtime_transfers(self):
-        from temba.airtime.models import AirtimeTransfer
-
-        return AirtimeTransfer.objects.filter(org=self).exists()
 
     @property
     def default_country_code(self) -> str:
@@ -1191,17 +1233,16 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.tickets.models import Ticketer, Topic
+        from temba.tickets.models import Topic
 
         with transaction.atomic():
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
-            Ticketer.create_internal_ticketer(self, self.branding)
             Topic.create_default_topic(self)
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
-            self.create_sample_flows(self.branding.get("link", ""))
+            self.create_sample_flows(f"https://{self.get_brand_domain()}")
 
     def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
         """
@@ -1268,6 +1309,7 @@ class Org(SmartModel):
         delete_in_batches(self.exportmessagestasks.all())
         delete_in_batches(self.exportflowresultstasks.all())
         delete_in_batches(self.exportticketstasks.all())
+        delete_in_batches(self.flow_labels.all())
 
         for imp in self.contact_imports.all():
             imp.delete()
@@ -1292,10 +1334,6 @@ class Org(SmartModel):
         for flow in self.flows.all():
             flow.release(user, interrupt_sessions=False)
             counts["runs"] += flow.delete_runs()
-
-        # delete our flow labels (deleting a label deletes its children)
-        for flow_label in self.flow_labels.filter(parent=None):
-            flow_label.delete()
 
         # delete contact-related data
         delete_in_batches(self.http_logs.all())
@@ -1334,10 +1372,6 @@ class Org(SmartModel):
         for classifier in self.classifiers.all():
             classifier.release(user)
             classifier.delete()
-
-        for ticketer in self.ticketers.all():
-            ticketer.release(user)
-            ticketer.delete()
 
         for flow in self.flows.all():
             flow.delete()
@@ -1385,6 +1419,7 @@ class Org(SmartModel):
             "allowed_languages": self.flow_languages,
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
+            "input_collation": self.input_collation,
         }
 
     def __repr__(self):
@@ -1441,7 +1476,7 @@ class OrgImport(SmartModel):
         self.save(update_fields=("status",))
         try:
             org = self.org
-            link = org.get_brand()["link"]
+            link = f"https://{org.get_brand_domain()}"
             data = json.loads(force_str(self.file.read()))
             org.import_app(data, self.created_by, link)
         except Exception as e:
@@ -1484,12 +1519,7 @@ class Invitation(SmartModel):
 
     def save(self, *args, **kwargs):
         if not self.secret:
-            secret = random_string(64)
-
-            while Invitation.objects.filter(secret=secret):  # pragma: needs cover
-                secret = random_string(64)
-
-            self.secret = secret
+            self.secret = generate_secret(64)
 
         return super().save(*args, **kwargs)
 
@@ -1518,6 +1548,11 @@ class Invitation(SmartModel):
         context["subject"] = subject
 
         send_template_email(to_email, subject, template, context, self.org.branding)
+
+    def release(self):
+        self.is_active = False
+        self.modified_on = timezone.now()
+        self.save(update_fields=("is_active", "modified_on"))
 
 
 class BackupToken(models.Model):

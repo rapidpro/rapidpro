@@ -1,0 +1,15 @@
+{% extends "smartmin/update.html" %}
+{% load i18n %}
+
+{% block summary %}
+  {% if primary_lang %}
+    {% blocktrans trimmed with lang=primary_lang %}
+      The default flow language is <b>{{ lang }}</b>.
+    {% endblocktrans %}
+    {% if other_langs %}
+      {% trans "Translations are provided in" %}
+      {% for lang in other_langs %}<b>{{ lang }}</b>{{ forloop|oxford }}{% endfor %}
+      .
+    {% endif %}
+  {% endif %}
+{% endblock summary %}

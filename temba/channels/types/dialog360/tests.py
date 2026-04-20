@@ -16,23 +16,25 @@ from .type import Dialog360Type
 
 
 class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
-    @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
-    def test_claim(self, mock_health):
-        mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}')
+    def test_claim(self):
         Channel.objects.all().delete()
 
         url = reverse("channels.types.dialog360.claim")
         self.login(self.admin)
 
-        # make sure  360dialog is NOT on the claim page
+        # make sure 360dialog Cloud is on the claim page
         response = self.client.get(reverse("channels.channel_claim"), follow=True)
-        self.assertNotContains(response, url)
+        self.assertContains(response, url)
+
+        # should see the general channel claim page
+        response = self.client.get(reverse("channels.channel_claim"))
+        self.assertContains(response, url)
 
         response = self.client.get(url)
         self.assertEqual(200, response.status_code)
         post_data = response.context["form"].initial
 
-        post_data["number"] = "1234"
+        post_data["address"] = "1234"
         post_data["country"] = "RW"
         post_data["api_key"] = "123456789"
 
@@ -41,11 +43,11 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         self.assertFormError(response, "form", None, ["Please enter a valid phone number"])
 
         # valid number
-        post_data["number"] = "0788123123"
+        post_data["address"] = "0788123123"
 
         # then success
         with patch("socket.gethostbyname", return_value="123.123.123.123"), patch("requests.post") as mock_post:
-            mock_post.side_effect = [MockResponse(200, '{ "url": "https://waba.360dialog.io" }')]
+            mock_post.side_effect = [MockResponse(200, '{ "url": "https://waba-v2.360dialog.io" }')]
 
             response = self.client.post(url, post_data)
             self.assertEqual(302, response.status_code)
@@ -53,22 +55,22 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual("123456789", channel.config[Channel.CONFIG_AUTH_TOKEN])
-        self.assertEqual("https://waba.360dialog.io", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertEqual("https://waba-v2.360dialog.io", channel.config[Channel.CONFIG_BASE_URL])
 
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RW", channel.country)
-        self.assertEqual("D3", channel.channel_type)
+        self.assertEqual("D3C", channel.channel_type)
         self.assertEqual(45, channel.tps)
 
         # test activating the channel
         with patch("requests.post") as mock_post:
-            mock_post.side_effect = [MockResponse(200, '{ "url": "https://waba.360dialog.io" }')]
+            mock_post.side_effect = [MockResponse(200, '{ "url": "https://waba-v2.360dialog.io" }')]
 
             Dialog360Type().activate(channel)
             self.assertEqual(
                 mock_post.call_args_list[0][1]["json"]["url"],
                 "https://%s%s"
-                % (channel.org.get_brand_domain(), reverse("courier.d3", args=[channel.uuid, "receive"])),
+                % (channel.org.get_brand_domain(), reverse("courier.d3c", args=[channel.uuid, "receive"])),
             )
 
         with patch("requests.post") as mock_post:
@@ -88,12 +90,12 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
         channel = self.create_channel(
-            "D3",
+            "D3C",
             "360Dialog channel",
             address="1234",
             country="BR",
             config={
-                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://waba-v2.360dialog.io",
                 Channel.CONFIG_AUTH_TOKEN: "123456789",
             },
         )
@@ -121,27 +123,26 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(["foo", "bar"], templates_data)
 
         mock_get.assert_called_with(
-            "https://example.com/whatsapp/v1/configs/templates",
+            "https://waba-v2.360dialog.io/v1/configs/templates",
             headers={
                 "D360-API-KEY": channel.config[Channel.CONFIG_AUTH_TOKEN],
                 "Content-Type": "application/json",
             },
         )
 
-    @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
     @patch("temba.utils.whatsapp.tasks.update_local_templates")
     @patch("temba.channels.types.dialog360.Dialog360Type.get_api_templates")
-    def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock, mock_health):
+    def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
         channel = self.create_channel(
-            "D3",
+            "D3C",
             "360Dialog channel",
             address="1234",
             country="BR",
             config={
-                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://waba-v2.360dialog.io",
                 Channel.CONFIG_AUTH_TOKEN: "123456789",
             },
         )
@@ -150,8 +151,6 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         mock_get_api_templates.side_effect = [([], False), Exception("foo"), ([{"name": "hello"}], True)]
 
         update_local_templates_mock.return_value = None
-
-        mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}')
 
         # should skip if locked
         r = get_redis_connection()
@@ -183,12 +182,12 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
 
     def test_message_templates_and_logs_views(self):
         channel = self.create_channel(
-            "D3",
+            "D3C",
             "360Dialog channel",
             address="1234",
             country="BR",
             config={
-                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_BASE_URL: "https://waba-v2.360dialog.io",
                 Channel.CONFIG_AUTH_TOKEN: "123456789",
             },
         )
@@ -196,13 +195,21 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         TemplateTranslation.get_or_create(
             channel,
             "hello",
-            "eng",
-            "US",
-            "Hello {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "1234",
-            "foo_namespace",
+            locale="eng-US",
+            content="Hello {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="1234",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[
+                {
+                    "type": "BODY",
+                    "text": "Hello {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            params={"body": [{"type": "text"}]},
         )
 
         sync_url = reverse("channels.types.dialog360.sync_logs", args=[channel.uuid])
@@ -225,27 +232,3 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
 
         response = self.client.get(sync_url)
         self.assertEqual(404, response.status_code)
-
-    def test_check_health(self):
-        channel = self.create_channel(
-            "D3",
-            "360Dialog channel",
-            address="1234",
-            country="BR",
-            config={
-                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
-                Channel.CONFIG_AUTH_TOKEN: "123456789",
-            },
-        )
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = [
-                MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}'),
-                MockResponse(401, '{"meta": {"api_status": "stable", "version": "2.35.4"}}'),
-            ]
-            channel.type.check_health(channel)
-            mock_get.assert_called_with(
-                "https://example.com/whatsapp/v1/health",
-                headers={"D360-API-KEY": "123456789", "Content-Type": "application/json"},
-            )
-            with self.assertRaises(Exception):
-                channel.type.check_health(channel)

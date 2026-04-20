@@ -1,0 +1,17 @@
+{% extends "smartmin/form.html" %}
+{% load i18n %}
+
+{% block title %}
+{% endblock title %}
+{% block summary %}
+  <div class="flex items-center">
+    <div class="text flex-grow mr-4">
+      {% blocktrans trimmed with org=object.name %}
+        Your workspace is <b>{{ org }}</b>
+      {% endblocktrans %}
+      {% blocktrans trimmed with timezone=object.timezone %}
+        which is in the <b>{{ timezone }}</b> timezone.
+      {% endblocktrans %}
+    </div>
+  </div>
+{% endblock summary %}

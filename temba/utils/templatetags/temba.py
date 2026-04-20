@@ -1,8 +1,7 @@
 import json
-from datetime import timedelta
+from datetime import timedelta, timezone as tzone
 
 import iso8601
-import pytz
 
 from django.template.defaultfilters import register
 from django.urls import reverse
@@ -35,7 +34,7 @@ OBJECT_URLS = {
     Campaign: lambda o: reverse("campaigns.campaign_read", args=[o.uuid]),
     CampaignEvent: lambda o: reverse("campaigns.campaign_read", args=[o.uuid]),
     ContactGroup: lambda o: reverse("contacts.contact_filter", args=[o.uuid]),
-    Trigger: lambda o: reverse("triggers.trigger_type", args=[o.type.slug]),
+    Trigger: lambda o: reverse("triggers.trigger_list"),
 }
 
 
@@ -45,21 +44,22 @@ def object_class_name(obj):
 
 
 @register.filter
-def oxford(forloop, punctuation=""):
+def oxford(forloop, conjunction=_("and")):
     """
-    Filter that looks at the current step in a forloop and adds commas or and
+    Filter for use in a forloop to join items using oxford commas and a conjunction.
     """
     # there are only two items
     if forloop["counter"] == 1 and forloop["revcounter"] == 2:
-        return f' {_("and")} '
+        return f" {conjunction} "
 
     # we are the last in a list of 3 or more
     if forloop["revcounter"] == 2:
-        return f', {_("and")} '
+        return f", {conjunction} "
 
     if not forloop["last"]:
         return ", "
-    return punctuation
+
+    return ""
 
 
 @register.filter
@@ -169,10 +169,10 @@ def day(date):
 @register.simple_tag(takes_context=True)
 def short_datetime(context, dtime):
     if dtime.tzinfo is None:
-        dtime = dtime.replace(tzinfo=pytz.utc)
+        dtime = dtime.replace(tzinfo=tzone.utc)
 
     org_format = "D"
-    tz = pytz.UTC
+    tz = tzone.utc
     org = context["user_org"]
     if org:
         org_format = org.date_format
@@ -210,9 +210,9 @@ def short_datetime(context, dtime):
 @register.simple_tag(takes_context=True)
 def format_datetime(context, dt, seconds: bool = False):
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=pytz.utc)
+        dt = dt.replace(tzinfo=tzone.utc)
 
-    tz = pytz.UTC
+    tz = tzone.utc
     org = context.get("user_org")
     if org:
         tz = org.timezone

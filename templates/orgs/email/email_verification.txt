@@ -1,0 +1,7 @@
+{% load i18n %}
+
+{% blocktrans trimmed with brand=branding.name %}
+Please verify your email for {{ brand }}
+{% endblocktrans %}
+
+{% trans "Click this link to verify the login account email" %}: https://{{ branding.domain }}/user/verify_email/{{ secret }}/

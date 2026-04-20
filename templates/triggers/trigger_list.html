@@ -50,60 +50,45 @@
               onclick="updateTrigger(event, {{ obj.id }})"
               class="trigger object-row">
             {% if org_perms.triggers.trigger_update %}
-              <td onclick="checkInner(event);" class="trigger checkbox object-row-checkbox">
+              <td onclick="checkInner(event);" class="trigger checkbox object-row-checkbox" width="32px">
                 <temba-checkbox onclick="handleRowSelection(this)">
                 </temba-checkbox>
               </td>
             {% endif %}
-            <td class="w-full">
-              {% if obj.trigger_type == 'K' %}
-                {% trans "The keyword" %}
-                <b>
-                  {{ obj.keyword }}
-                </b>
-              {% elif obj.trigger_type == 'M' %}
-                {% trans "A missed call" %}
-              {% elif obj.trigger_type == 'C' %}
-                {% trans "An uncaught message" %}
-              {% elif obj.trigger_type == 'V' %}
-                {% trans "An inbound call" %}
-              {% elif obj.trigger_type == 'N' %}
-                {% trans "A new conversation" %}
-                {% if obj.channel %}
-                  {% trans "on" %}
-                  <b>
-                    <a href="{% url "channels.channel_read" obj.channel.uuid %}">{{ obj.channel }}</a>
-                  </b>
+            <td>
+              <div>
+                <div style="max-width:80%" class="flex flex-grow items-center">
+                  <div class="flex items-center mr-2">
+                    <temba-icon name="trigger_{{ obj.type.slug }}" class="text-gray-600">
+                    </temba-icon>
+                  </div>
+                  <div class="flex-grow">
+                    {% with "triggers/types/"|add:obj.type.slug|add:"/desc.html" as type_template %}
+                      {% include type_template with trigger=obj %}
+                    {% endwith %}
+                  </div>
+                </div>
+                {% if obj.channel or obj.contacts.all or obj.groups.all or obj.exclude_groups.all %}
+                  <div class="text-sm mt-2">
+                    {% if obj.channel %}
+                      {# djlint:off #}
+                      <a href="{% url 'channels.channel_read' obj.channel.uuid %}" onclick="goto(event, this)"><temba-label icon="{{ obj.channel.type.get_icon }}" clickable class="mr-1 mb-1">{{ obj.channel }}</temba-label></a>
+                      {# djlint:on #}
+                    {% endif %}
+                    {% include "includes/recipients.html" with contacts=obj.contacts.all groups=obj.groups.all exclude_groups=obj.exclude_groups.all groups_as_filters=True %}
+                  </div>
                 {% endif %}
-              {% elif obj.trigger_type == 'R' %}
-                {% trans "The referrer id" %}
-                <b>
-                  {{ obj.referrer_id }}
-                </b>
-                {% if obj.channel %}
-                  {% trans "on the channel" %}
-                  <div onclick="goto(event)"
-                       href="{% url "channels.channel_read" obj.channel.uuid %}"
-                       class="linked inline">{{ obj.channel }}</div>
-                {% endif %}
-              {% elif obj.trigger_type == 'T' %}
-                {% trans "A closed ticket" %}
-              {% endif %}
-              {% if obj.schedule %}
-                {% trans "Start" %}
-              {% else %}
-                {% trans "starts" %}
-              {% endif %}
-              <div onclick="goto(event)" href="{% url "flows.flow_editor" obj.flow.uuid %}" class="linked inline">{{ obj.flow }}</div>
-              {% if obj.schedule %}
-                {% if obj.schedule.next_fire and not obj.is_archived %}
-                  {{ obj.schedule.get_display }}
-                {% else %}
-                  {% trans "is not scheduled" %}
-                {% endif %}
-              {% endif %}
+              </div>
             </td>
-            <td onclick="handleRowSelection(this)" width="250px">{% include "includes/recipients.html" with groups=obj.groups.all contacts=obj.contacts.all %}</td>
+            <td>
+              <div class="text-right">
+                <a href="{% url 'flows.flow_editor' obj.flow.uuid %}" onclick="goto(event, this)">
+                  <temba-label icon="flow" primary clickable class="mx-1 my-1">
+                    {{ obj.flow.name }}
+                  </temba-label>
+                </a>
+              </div>
+            </td>
           </tr>
         {% empty %}
           <tr class="empty_list">

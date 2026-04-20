@@ -1,0 +1,15 @@
+{% extends "smartmin/update.html" %}
+{% load i18n %}
+
+{% block pre-form %}
+  <div class="mb-2">
+    {% blocktrans trimmed %}
+      To disable two-factor authentication for your login, enter your current password.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-form %}
+{% block form-buttons %}
+  <div class="form-actions">
+    <input type="submit" value="{{ submit_button_name }}" class="button-primary">
+  </div>
+{% endblock form-buttons %}

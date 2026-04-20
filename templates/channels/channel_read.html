@@ -1,0 +1,308 @@
+{% extends "smartmin/read.html" %}
+{% load smartmin temba compress humanize channels i18n tz %}
+
+{% block title %}
+  <temba-urn scheme="{{ channel.schemes|first }}" class="mr-2">
+  </temba-urn>
+  <div class="flex items-start flex-col">
+    <div class="name" id="title-text">
+      {% if object.parent %}
+        {{ object.parent.name }}
+      {% else %}
+        {{ object.name|default:object.get_address_display }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock title %}
+{% block subtitle %}
+  {% if object.get_channel_type_display != object.name %}
+    <div class="flex mt-2">
+      <div class="flex flex-col">
+        <div class="channel_type">
+          {% if object.parent %}{{ object.name }}{% endif %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  {% if object.name %}<div class="text-gray-500 text-xl">{{ object.get_address_display }}</div>{% endif %}
+  {% if object.get_country_display %}<div class="text-gray-500 text-base">{{ object.get_country_display }}</div>{% endif %}
+  <div class="mb-4 text-base">
+    {% if delayed_sync_event or unsent_msgs_count %}
+      <div class="flex items-center text-error">
+        <div class="mr-1">
+          <div class="icon-warning text-error text-lg mt-1"></div>
+        </div>
+        <div class="message">
+          {% if delayed_sync_event %}
+            <div class="inline-block ml-2">
+              {% if last_sync %}
+                {% trans "Last synced" %}
+                {% blocktrans trimmed with last_sync.created_on|timesince as last_sync %}
+                  {{ last_sync }} ago
+                {% endblocktrans %}
+              {% else %}
+                {% trans "Not synced yet" %}
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if unsent_msgs_count %}
+            <div onclick="goto(event)"
+                 href="{% url 'msgs.msg_failed' %}"
+                 class="text-error text-base inline-block ml-2">
+              {{ unsent_msgs_count|intcomma }}
+              {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
+                unsent message
+              {% plural %}
+                unsent messages
+              {% endblocktrans %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      {% if object.is_android %}
+        {% if last_sync %}
+          {% trans "Last synced" %}
+          {% blocktrans trimmed with last_sync.created_on|timesince as last_sync %}
+            {{ last_sync }} ago
+          {% endblocktrans %}
+        {% else %}
+          {% trans "Not synced yet" %}
+        {% endif %}
+      {% else %}
+        {% trans "Activated" %}
+        {{ object.created_on }}
+      {% endif %}
+    {% endif %}
+  </div>
+{% endblock subtitle %}
+{% block top-form %}
+{% endblock top-form %}
+{% block read-buttons %}
+{% endblock read-buttons %}
+{% block pre-fields %}
+{% endblock pre-fields %}
+{% block fields %}
+{% endblock fields %}
+{% block content %}
+  {% block charts-zone %}
+    {% if object.is_android %}
+      {% if last_sync %}
+        <div class="sync-summary mb-4">
+          <div class="flex text-gray-600">
+            <div class="i-status w-12 py-1 px-2">
+              {% if last_sync.network_type == "WIFI" %}
+                <div style="font-size: 16px" class="icon-connection -mt-1"></div>
+              {% else %}
+                <div style="font-size: 16px" class="icon-radio"></div>
+              {% endif %}
+            </div>
+            <div class="t-status">
+              {% trans "ON" %}
+              {{ last_sync.network_type }}
+            </div>
+          </div>
+          <div class="flex text-gray-600">
+            <div class="i-status w-12 px-3">
+              {% if last_sync.power_level < 20 %}
+                <div class="mini-status icon-battery-empty"></div>
+              {% elif last_sync.power_level >= 20 and last_sync.power_level <= 80 %}
+                <div class="mini-status icon-battery-half"></div>
+              {% else %}
+                <div class="mini-status icon-battery-full rotate"></div>
+              {% endif %}
+            </div>
+            <div class="t-status">{{ last_sync.power_level }}%</div>
+            <div class="plugged px-2">
+              {% if last_sync.power_status == 'UNK' %}
+                {% trans "UNKNOWN" %}
+              {% endif %}
+              {% if last_sync.power_status == 'DIS' %}
+                {% trans "DISCHARGING" %}
+              {% endif %}
+              {% if last_sync.power_status == 'CHA' %}
+                {% trans "CHARGING" %}
+              {% endif %}
+              {% if last_sync.power_status == 'FUL' %}
+                {% trans "FULLY CHARGED" %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+    <div class="card pt-8 flex-shrink-0">
+      <div id="channel-chart"></div>
+    </div>
+    {% if ivr_count %}
+      <div class="minutes-disclaimer">
+        {% blocktrans trimmed %}
+          In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
+        {% endblocktrans %}
+      </div>
+    {% endif %}
+    <table class="list lined">
+      <thead>
+        <tr>
+          <th>{% trans "Month" %}</th>
+          <th>{% trans "Incoming Text Messages" %}</th>
+          <th>{% trans "Outgoing Text Messages" %}</th>
+          {% if ivr_count %}
+            <th>{% trans "Incoming IVR Messages" %}</th>
+            <th>{% trans "Outgoing IVR Messages" %}</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for month_data in message_stats_table %}
+          <tr>
+            <td>{{ month_data.month_start|utc|date:"F Y" }}</td>
+            <td>{{ month_data.incoming_messages_count|intcomma }}</td>
+            <td>{{ month_data.outgoing_messages_count|intcomma }}</td>
+            {% if ivr_count %}
+              <td>{{ month_data.incoming_ivr_count|intcomma }}</td>
+              <td>{{ month_data.outgoing_ivr_count|intcomma }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endblock charts-zone %}
+  {% if object.is_android %}
+    <table class="list lined mt-4">
+      <thead>
+        <tr>
+          <th>{% trans "Synced on" %}</th>
+          <th class="align-center">{% trans "Incoming" %}</th>
+          <th class="align-center">{% trans "Outgoing" %}</th>
+          <th class="align-center">{% trans "Pending" %}</th>
+          <th class="align-center">{% trans "Retry" %}</th>
+          <th class="align-center">{% trans "Battery" %}</th>
+          <th class="align-center">{% trans "Network" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sync_event in latest_sync_events %}
+          <tr>
+            <td>{{ sync_event.created_on }}</td>
+            <td class="align-center">{{ sync_event.incoming_command_count }}</td>
+            <td class="align-center">{{ sync_event.outgoing_command_count }}</td>
+            <td class="align-center">{{ sync_event.pending_message_count }}</td>
+            <td class="align-center">{{ sync_event.retry_message_count }}</td>
+            <td class="align-center">
+              {% if sync_event.power_status == 'CHA' %}
+                <div class="glyph icon-battery-charging"></div>
+              {% else %}
+                {% if sync_event.power_level < 20 %}
+                  <div class="glyph icon-battery-empty"></div>
+                {% elif sync_event.power_level >= 20 and sync_event.power_level <= 80 %}
+                  <div class="glyph icon-battery-half"></div>
+                {% else %}
+                  <div class="glyph icon-battery-full"></div>
+                {% endif %}
+              {% endif %}
+              &nbsp;{{ sync_event.power_level }}%
+            </td>
+            <td class="align-center">
+              {% if sync_event.network_type == 'WIFI' %}
+                <div class="glyph icon-connection"></div>
+              {% else %}
+                <div class="glyph icon-radio"></div>
+              {% endif %}
+              {% if sync_event.network_type == 'NONE' or sync_event.network_type == 'UNKNOWN' %}
+                {% trans "&nbsp;&nbsp;OTHER" %}
+              {% else %}
+                &nbsp;&nbsp;{{ sync_event.network_type }}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    var chartUrl = "{% url 'channels.channel_chart' channel.uuid %}";
+    var chart;
+    onSpload(function() {
+
+      var store = document.querySelector('temba-store');
+      store.getUrl(chartUrl, {
+        force: true
+      }).then(function(response) {
+        var chartData = response.json;
+        if (chartData.start_date) {
+          window.setTimeout(function() {
+            chart = new Highcharts.Chart({
+              credits: {
+                enabled: false
+              },
+              colors: ['#80b9fb',
+                '#2980b9',
+                '#CD76F0',
+                '#8e44ad',
+                '#633077'
+              ],
+              chart: {
+                renderTo: 'channel-chart',
+                zoomType: 'x',
+                type: 'column'
+              },
+              title: {
+                text: null
+              },
+              xAxis: {
+                type: 'datetime',
+                min: chartData.start_date,
+                max: chartData.end_date,
+                dateTimeLabelFormats: {
+                  millisecond: '%H:%M:%S.%L',
+                  second: '%H:%M:%S',
+                  minute: '%H:%M',
+                  hour: '%H:%M',
+                  day: '%b %e',
+                  week: '%e. %b',
+                  month: '%b \'%y',
+                  year: '%Y'
+                },
+
+              },
+              yAxis: [{
+                title: {
+                  text: ''
+                },
+                opposite: false,
+                min: 0,
+                allowDecimals: false,
+              }, {
+                title: {
+                  text: '{{ _("Messages")|escapejs }}'
+                },
+                opposite: true,
+                min: 0,
+                allowDecimals: false,
+              }],
+              plotOptions: {
+                series: {
+                  pointPadding: .1,
+                  groupPadding: .1,
+                  stacking: 'normal'
+                }
+              },
+              tooltip: {
+                formatter: function() {
+                  return '<b>' + this.series.name + '</b>: ' + this.y + '<br />' +
+                    Highcharts.dateFormat('%b %e, %Y', this.x);
+                }
+              },
+              series: chartData.series
+            });
+
+          }, 500);
+        }
+      });
+    });
+  </script>
+{% endblock extra-script %}

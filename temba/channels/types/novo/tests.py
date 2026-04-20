@@ -1,4 +1,4 @@
-import pytz
+from zoneinfo import ZoneInfo
 
 from django.urls import reverse
 
@@ -19,7 +19,7 @@ class NovoTypeTest(TembaTest):
         self.assertNotContains(response, url)
 
         # but if we are in the proper time zone
-        self.org.timezone = pytz.timezone("America/Port_of_Spain")
+        self.org.timezone = ZoneInfo("America/Port_of_Spain")
         self.org.save()
 
         response = self.client.get(reverse("channels.channel_claim"))

@@ -1,10 +1,10 @@
 import logging
 import numbers
 from collections import OrderedDict
+from datetime import timezone as tzone
 
 import iso8601
 import pycountry
-import pytz
 import regex
 from rest_framework import serializers
 
@@ -21,10 +21,10 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import Broadcast, Label, Media, Msg
+from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
 from temba.orgs.models import Org, OrgRole
-from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.templates.models import Template
+from temba.tickets.models import Ticket, Topic
 from temba.utils import json, on_transaction_commit
 from temba.utils.fields import NameValidator
 
@@ -179,7 +179,7 @@ class BroadcastReadSerializer(ReadSerializer):
     attachments = serializers.SerializerMethodField()
     base_language = fields.LanguageField()
     status = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_text(self, obj):
         return {lang: trans.get("text") for lang, trans in obj.translations.items()}
@@ -233,13 +233,29 @@ class BroadcastWriteSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
+        base_language = self.validated_data.get("base_language")
+
+        text = self.validated_data.get("text")
+        attachments = self.validated_data.get("attachments", {})
+
+        # merge text and attachments into single dict of translations
+        translations = {}
+        if text:
+            translations = {lang: {"text": t} for lang, t in text.items()}
+
+        if attachments:
+            for lang, atts in attachments.items():
+                if lang not in translations:
+                    translations[lang] = {}
+
+                # TODO update broadcast sending to allow media objects to stay as UUIDs for longer
+                translations[lang]["attachments"] = [str(m) for m in atts]
 
         broadcast = Broadcast.create(
             self.context["org"],
             self.context["user"],
-            text=self.validated_data.get("text"),
-            attachments=self.validated_data.get("attachments", {}),
-            base_language=self.validated_data.get("base_language"),
+            translations=translations,
+            base_language=base_language,
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
@@ -257,8 +273,8 @@ class ChannelEventReadSerializer(ReadSerializer):
     contact = fields.ContactField()
     channel = fields.ChannelField()
     extra = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    occurred_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    occurred_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_type(self, obj):
         return self.TYPES.get(obj.event_type)
@@ -274,7 +290,7 @@ class ChannelEventReadSerializer(ReadSerializer):
 class CampaignReadSerializer(ReadSerializer):
     archived = serializers.ReadOnlyField(source="is_archived")
     group = fields.ContactGroupField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     class Meta:
         model = Campaign
@@ -321,7 +337,7 @@ class CampaignEventReadSerializer(ReadSerializer):
     flow = serializers.SerializerMethodField()
     relative_to = fields.ContactFieldField()
     unit = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_flow(self, obj):
         if obj.event_type == CampaignEvent.TYPE_FLOW:
@@ -450,8 +466,8 @@ class CampaignEventWriteSerializer(WriteSerializer):
 class ChannelReadSerializer(ReadSerializer):
     country = serializers.SerializerMethodField()
     device = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    last_seen = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    last_seen = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_country(self, obj):
         return str(obj.country) if obj.country else None
@@ -476,7 +492,7 @@ class ChannelReadSerializer(ReadSerializer):
 class ClassifierReadSerializer(ReadSerializer):
     type = serializers.SerializerMethodField()
     intents = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_type(self, obj):
         return obj.classifier_type
@@ -504,9 +520,9 @@ class ContactReadSerializer(ReadSerializer):
     urns = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     fields = serializers.SerializerMethodField("get_contact_fields")
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    last_seen_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    last_seen_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     blocked = serializers.SerializerMethodField()  # deprecated
     stopped = serializers.SerializerMethodField()  # deprecated
@@ -639,7 +655,7 @@ class ContactWriteSerializer(WriteSerializer):
 
     def validate(self, data):
         if self.instance and not self.instance.is_active:
-            raise serializers.ValidationError("Inactive contacts can't be modified.")
+            raise serializers.ValidationError("Deleted contacts can't be modified.")
 
         # we allow creation of contacts by URN used for lookup
         if not data.get("urns") and "urns__identity" in self.context["lookup_values"] and not self.instance:
@@ -941,8 +957,8 @@ class FlowReadSerializer(ReadSerializer):
     runs = serializers.SerializerMethodField()
     results = serializers.SerializerMethodField()
     parent_refs = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_type(self, obj):
         return self.FLOW_TYPES.get(obj.flow_type)
@@ -990,9 +1006,9 @@ class FlowRunReadSerializer(ReadSerializer):
     path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()
     exit_type = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    exited_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    exited_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_start(self, obj):
         return {"uuid": str(obj.start.uuid)} if obj.start else None
@@ -1055,8 +1071,8 @@ class FlowStartReadSerializer(ReadSerializer):
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
     params = serializers.JSONField(required=False)
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     # deprecated
     extra = serializers.JSONField(required=False, source="params")
@@ -1143,7 +1159,7 @@ class FlowStartWriteSerializer(WriteSerializer):
 
 
 class GlobalReadSerializer(ReadSerializer):
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     class Meta:
         model = Global
@@ -1242,6 +1258,7 @@ class MediaWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
+    TYPES = {Msg.TYPE_TEXT: "text", Msg.TYPE_OPTIN: "optin", Msg.TYPE_VOICE: "voice"}
     STATUSES = {
         Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
         Msg.STATUS_HANDLED: "handled",
@@ -1271,9 +1288,9 @@ class MsgReadSerializer(ReadSerializer):
     labels = serializers.SerializerMethodField()
     flow = fields.FlowField()
     media = serializers.SerializerMethodField()  # deprecated
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    sent_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    sent_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_broadcast(self, obj):
         return obj.broadcast_id
@@ -1282,7 +1299,7 @@ class MsgReadSerializer(ReadSerializer):
         return "in" if obj.direction == Msg.DIRECTION_IN else "out"
 
     def get_type(self, obj):
-        return "voice" if obj.msg_type == Msg.TYPE_VOICE else "text"
+        return self.TYPES.get(obj.msg_type)
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
@@ -1460,10 +1477,33 @@ class MsgBulkActionSerializer(WriteSerializer):
         return BulkActionFailure(missing_message_ids) if missing_message_ids else None
 
 
+class OptInReadSerializer(ReadSerializer):
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+
+    class Meta:
+        model = Topic
+        fields = ("uuid", "name", "created_on")
+
+
+class OptInWriteSerializer(WriteSerializer):
+    name = serializers.CharField(
+        required=True,
+        max_length=OptIn.MAX_NAME_LEN,
+        validators=[
+            NameValidator(OptIn.MAX_NAME_LEN),
+            UniqueForOrgValidator(queryset=OptIn.objects.filter(is_active=True), ignore_case=True),
+        ],
+    )
+
+    def save(self):
+        name = self.validated_data["name"]
+        return OptIn.create(self.context["org"], self.context["user"], name)
+
+
 class ResthookReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_resthook(self, obj):
         return obj.slug
@@ -1475,7 +1515,7 @@ class ResthookReadSerializer(ReadSerializer):
 
 class ResthookSubscriberReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_resthook(self, obj):
         return obj.resthook.slug
@@ -1516,7 +1556,7 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
 class WebHookEventReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
     data = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_resthook(self, obj):
         return obj.resthook.slug
@@ -1531,19 +1571,16 @@ class WebHookEventReadSerializer(ReadSerializer):
 
 class TemplateReadSerializer(ReadSerializer):
     translations = serializers.SerializerMethodField()
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_translations(self, obj):
         translations = []
-        for translation in (
-            TemplateTranslation.objects.filter(template=obj, is_active=True)
-            .order_by("language")
-            .select_related("channel")
-        ):
+        for translation in obj.translations.all():
             translations.append(
                 {
-                    "language": translation.language,
+                    "language": translation.locale[:3],
+                    "locale": translation.locale,
                     "content": translation.content,
                     "namespace": translation.namespace,
                     "variable_count": translation.variable_count,
@@ -1559,31 +1596,18 @@ class TemplateReadSerializer(ReadSerializer):
         fields = ("uuid", "name", "translations", "created_on", "modified_on")
 
 
-class TicketerReadSerializer(ReadSerializer):
-    type = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-
-    def get_type(self, obj):
-        return obj.ticketer_type
-
-    class Meta:
-        model = Ticketer
-        fields = ("uuid", "name", "type", "created_on")
-
-
 class TicketReadSerializer(ReadSerializer):
     STATUSES = {Ticket.STATUS_OPEN: "open", Ticket.STATUS_CLOSED: "closed"}
 
-    ticketer = fields.TicketerField()
     contact = fields.ContactField()
     status = serializers.SerializerMethodField()
     topic = fields.TopicField()
     assignee = fields.UserField()
-    opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    opened_on = serializers.DateTimeField(default_timezone=tzone.utc)
     opened_by = fields.UserField()
     opened_in = fields.FlowField()
-    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-    closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    closed_on = serializers.DateTimeField(default_timezone=tzone.utc)
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
@@ -1592,7 +1616,6 @@ class TicketReadSerializer(ReadSerializer):
         model = Ticket
         fields = (
             "uuid",
-            "ticketer",
             "contact",
             "status",
             "topic",
@@ -1654,7 +1677,7 @@ class TicketBulkActionSerializer(WriteSerializer):
 
 
 class TopicReadSerializer(ReadSerializer):
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
     counts = serializers.SerializerMethodField()
     system = serializers.SerializerMethodField()
 
@@ -1700,7 +1723,7 @@ class UserReadSerializer(ReadSerializer):
     }
 
     role = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=pytz.UTC, source="date_joined")
+    created_on = serializers.DateTimeField(default_timezone=tzone.utc, source="date_joined")
 
     def get_role(self, obj):
         role = self.context["user_roles"][obj]

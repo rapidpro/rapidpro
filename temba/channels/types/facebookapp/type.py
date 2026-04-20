@@ -16,16 +16,15 @@ class FacebookAppType(ChannelType):
     A Facebook channel
     """
 
-    extra_links = [dict(label=_("Reconnect Facebook Page"), view_name="channels.types.facebookapp.refresh_token")]
-
     code = "FBA"
+    name = "Facebook"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^fba/receive"
-
-    name = "Facebook"
-
-    show_config_page = False
+    schemes = [URN.FACEBOOK_SCHEME]
+    redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
 
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will "
@@ -34,11 +33,7 @@ class FacebookAppType(ChannelType):
     ) % {"link": '<a target="_blank" href="http://facebook.com">Facebook</a>'}
     claim_view = ClaimView
 
-    schemes = [URN.FACEBOOK_SCHEME]
-    max_length = 2000
-    free_sending = True
-
-    redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
+    menu_items = [dict(label=_("Reconnect Facebook Page"), view_name="channels.types.facebookapp.refresh_token")]
 
     def get_urls(self):
         return [
@@ -51,7 +46,7 @@ class FacebookAppType(ChannelType):
     def deactivate(self, channel):
         config = channel.config
         requests.delete(
-            f"https://graph.facebook.com/v12.0/{channel.address}/subscribed_apps",
+            f"https://graph.facebook.com/v18.0/{channel.address}/subscribed_apps",
             params={"access_token": config[Channel.CONFIG_AUTH_TOKEN]},
         )
 
@@ -59,7 +54,7 @@ class FacebookAppType(ChannelType):
         # if this is new conversation trigger, register for the FB callback
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             # register for get_started events
-            url = "https://graph.facebook.com/v12.0/me/messenger_profile"
+            url = "https://graph.facebook.com/v18.0/me/messenger_profile"
             body = {"get_started": {"payload": "get_started"}}
             access_token = trigger.channel.config[Channel.CONFIG_AUTH_TOKEN]
 
@@ -74,7 +69,7 @@ class FacebookAppType(ChannelType):
         # for any new conversation triggers, clear out the call to action payload
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             # register for get_started events
-            url = "https://graph.facebook.com/v12.0/me/messenger_profile"
+            url = "https://graph.facebook.com/v18.0/me/messenger_profile"
             body = {"fields": ["get_started"]}
             access_token = trigger.channel.config[Channel.CONFIG_AUTH_TOKEN]
 

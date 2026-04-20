@@ -143,5 +143,30 @@ class SomlengTypeTest(TembaTest):
         response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))
         self.assertContains(response, reverse("courier.tw", args=[channel.uuid, "receive"]))
 
+    def test_config(self):
+        channel = self.create_channel("TW", "Somleng", "1234", role="SR")
+        config_url = reverse("channels.channel_configuration", args=[channel.uuid])
+        courier_receive_url = f"https://app.rapidpro.io/c/tw/{channel.uuid}/receive"
+        courier_status_url = f"https://app.rapidpro.io/c/tw/{channel.uuid}/status"
+        mailroom_incoming_url = f"https://app.rapidpro.io/mr/ivr/c/{channel.uuid}/incoming"
+        mailroom_status_url = f"https://app.rapidpro.io/mr/ivr/c/{channel.uuid}/status"
+
+        self.login(self.admin)
+
+        response = self.client.get(config_url)
+        self.assertContains(response, courier_receive_url)
+        self.assertContains(response, courier_status_url)
+        self.assertNotContains(response, mailroom_incoming_url)
+        self.assertNotContains(response, mailroom_status_url)
+
+        channel.role = "CA"
+        channel.save(update_fields=("role",))
+
+        response = self.client.get(config_url)
+        self.assertNotContains(response, courier_receive_url)
+        self.assertNotContains(response, courier_status_url)
+        self.assertContains(response, mailroom_incoming_url)
+        self.assertContains(response, mailroom_status_url)
+
     def test_get_error_ref_url(self):
         self.assertEqual("https://www.twilio.com/docs/api/errors/30006", SomlengType().get_error_ref_url(None, "30006"))

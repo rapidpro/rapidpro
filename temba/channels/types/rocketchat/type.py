@@ -18,17 +18,13 @@ class RocketChatType(ChannelType):
     CONFIG_SECRET = "secret"
 
     code = "RC"
-    slug = "rocketchat"
+    name = "Rocket.Chat"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^rc/(?P<uuid>[a-z0-9\-]+)/receive$"
-
-    name = "Rocket.Chat"
-
-    show_config_page = False
+    schemes = [URN.ROCKETCHAT_SCHEME]
 
     claim_blurb = _("Add a %(link)s bot to send and receive messages to Rocket.Chat users.") % {
         "link": '<a target="_blank" href="https://rocket.chat/">Rocket.Chat</a>'
     }
     claim_view = ClaimView
-    schemes = [URN.ROCKETCHAT_SCHEME]

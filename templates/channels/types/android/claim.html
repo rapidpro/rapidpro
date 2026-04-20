@@ -1,0 +1,186 @@
+{% extends "smartmin/create.html" %}
+{% load i18n temba smartmin %}
+
+{% block title-text %}
+  {% trans "Connect your Android phone" %}
+{% endblock title-text %}
+{% block content %}
+  <div class="flex flex-row">
+    <div class="form">
+      <div class="card w-96">
+        <form method="post" action="{% url 'channels.types.android.claim' %}">
+          {% csrf_token %}
+          {% render_field 'claim_code' %}
+          {% render_field 'phone_number' %}
+          <input type="submit" value="{% trans "Add Android Channel" %}" class="mt-4 button-primary">
+          <errors></errors>
+        </form>
+      </div>
+    </div>
+    <div class="p-12">
+      {% blocktrans trimmed with branding.name as brand %}
+        {{ brand }} can use your Android phone to send and receive messages on your behalf.
+      {% endblocktrans %}
+      <div class="mt-4">
+        {% blocktrans trimmed with branding.name as brand %}
+          Due to restrictions Android has on applications that send SMS messages, we cannot distribute
+          the {{ brand }} application through the Play Store. You will need to download the application manually
+          and install it using the steps below.
+        {% endblocktrans %}
+      </div>
+    </div>
+  </div>
+  <div class="mt-4 card">
+    {% if relayer_app %}
+      <div class="release-header">
+        {% trans "Version" %} {{ relayer_app.version }} {% trans "was released on" %}
+        {% format_datetime relayer_app.created_on %}
+      </div>
+      {% if relayer_app.description %}<div class="release-description">{{ relayer_app.markdown_description }}</div>{% endif %}
+    {% endif %}
+    <table>
+      <tr>
+        <td>
+          <div class="py-4 px-8 w-96">
+            <img src="{{ STATIC_URL }}images/claim0.png" class="step-image">
+          </div>
+        </td>
+        <td>
+          <div class="py-4 px-8">
+            <div class="subtitle">{% trans "Download App" %}</div>
+            <div class="mt-2">
+              {% blocktrans trimmed %}
+                On your Android device, open your browser and download the app by entering the URL:
+              {% endblocktrans %}
+              <div class="code inline-block">https://{{ branding.domain }}{% url "public.public_android" %}</div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="py-4 px-8">
+            <img src="{{ STATIC_URL }}images/claim1.png" class="step-image">
+          </div>
+        </td>
+        <td>
+          <div class="py-4 px-8">
+            <div class="subtitle">
+              {% blocktrans trimmed with branding.name as brand %}
+                Launch the {{ brand }} installer
+              {% endblocktrans %}
+            </div>
+            <div class="mt-2">
+              {% blocktrans trimmed %}
+                Open the notifications shade by dragging from the top and select the downloaded file.
+              {% endblocktrans %}
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="py-4 px-8">
+            <img src="{{ STATIC_URL }}images/claim2.png" class="step-image">
+          </div>
+        </td>
+        <td>
+          <div class="py-4 px-8">
+            <div class="subtitle">{% trans "Tap Settings" %}</div>
+            <div class="mt-2">
+              {% blocktrans trimmed %}
+                You will be taken to a screen with "allow from this source" toggle
+              {% endblocktrans %}
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="py-4 px-8">
+            <img src="{{ STATIC_URL }}images/claim3.png" class="step-image">
+          </div>
+        </td>
+        <td>
+          <div class="py-4 px-8">
+            <div class="subtitle">{% trans "Toggle allow from this source" %}</div>
+            <div class="mt-2">
+              {% blocktrans trimmed %}
+                Make sure "allow from this source" toggle is in the On position.
+              {% endblocktrans %}
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="py-4 px-8">
+            <img src="{{ STATIC_URL }}images/claim4.png" class="step-image">
+          </div>
+        </td>
+        <td>
+          <div class="py-4 px-8">
+            <div class="subtitle">{% trans "Go Back" %}</div>
+            <div class="mt-2">{% trans "Click Install" %}</div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="py-4 px-8">
+            <img src="{{ STATIC_URL }}images/claim5.png" class="step-image">
+          </div>
+        </td>
+        <td>
+          <div class="py-4 px-8">
+            <div class="subtitle">
+              {% blocktrans trimmed with branding.name as brand %}
+                Open {{ brand }}
+              {% endblocktrans %}
+            </div>
+            <div class="mt-2">
+              {% blocktrans trimmed with branding.name as brand %}
+                Once {{ brand }} has been installed, open the app drawer and tap on the {{ brand }} icon to start the app.
+              {% endblocktrans %}
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="py-4 px-8">
+            <img src="{{ STATIC_URL }}images/claim6.png" class="step-image">
+          </div>
+        </td>
+        <td>
+          <div class="py-4 px-8">
+            <div class="subtitle">{% trans "Enter Claim Code" %}</div>
+            <div class="mt-2">
+              {% blocktrans trimmed with branding.name as brand %}
+                When you first open {{ brand }}, the app will register your device with Google and our servers.  Once that is
+                complete, it will display a claim code.  Enter that claim code in the form to the left and click
+                "Add Phone" to connect your device.
+              {% endblocktrans %}
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+{% endblock content %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .release-header {
+      font-weight: bold;
+    }
+
+    .release-description {
+      color: #666;
+    }
+
+    .release-description ul li {
+      list-style-type: circle;
+    }
+  </style>
+{% endblock extra-style %}

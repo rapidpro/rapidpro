@@ -1,0 +1,75 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n compress temba %}
+
+{% block pre-form %}
+  <p id="fb-status">
+    {% if error_connect %}
+      {% trans "Error with token, you need to reconnect the Instagram Business Account by clicking the button below" %}
+    {% else %}
+      {% trans "Everything looks good. No need to reconnect" %}
+    {% endif %}
+  </p>
+{% endblock pre-form %}
+{% block form %}
+  <div class="mt-4 card">
+    <div style="display:none;" class="mb-4" id="fb-channel-error">
+      <p>{% trans "Error reconnecting Instagram Business Account. Please retry" %}</p>
+    </div>
+    <div class="flex" id="fb-app-connect">
+      <div class="button-primary connect-facebook">{% trans "Reconnect Instagram Business Account" %}</div>
+    </div>
+    <form style="display:none;" method="post" action="{{ refresh_url }}" id="refresh-token-form">
+      {% csrf_token %}
+      <input type="text" name="fb_user_id" id="fb-user-id">
+      <input type="text" name="user_access_token" id="user-access-token">
+    </form>
+  </div>
+{% endblock form %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId: '{{ facebook_app_id }}',
+        xfbml: true,
+        version: 'v18.0'
+      });
+    };
+  </script>
+  <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+  <script type="text/javascript">
+    $(document).ready(function() {
+      $(".connect-facebook").click(function(evt) {
+        {% if facebook_login_instagram_config_id %}
+        FB.login(function(response) {
+          if (response.status === 'connected') {
+            $("#fb-user-id").val(response.authResponse.userID);
+            $("#user-access-token").val(response.authResponse.accessToken);
+            $("#refresh-token-form").submit();
+          } else {
+            $("#fb-status").hide();
+            $("#fb-channel-error").show();
+          }
+
+        }, {
+          config_id: '{{ facebook_login_instagram_config_id }}'
+        });
+        {% else %}
+        FB.login(function(response) {
+          if (response.status === 'connected') {
+            $("#fb-user-id").val(response.authResponse.userID);
+            $("#user-access-token").val(response.authResponse.accessToken);
+            $("#refresh-token-form").submit();
+          } else {
+            $("#fb-status").hide();
+            $("#fb-channel-error").show();
+          }
+
+        }, {
+          scope: 'instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_show_list'
+        });
+        {% endif %}
+      })
+    });
+  </script>
+{% endblock extra-script %}

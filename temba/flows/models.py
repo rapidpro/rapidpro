@@ -1,17 +1,14 @@
 import logging
 from array import array
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone as tzone
 
 import iso8601
-import pytz
 from django_redis import get_redis_connection
 from packaging.version import Version
-from smartmin.models import SmartModel
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
@@ -27,10 +24,10 @@ from temba.classifiers.models import Classifier
 from temba.contacts import search
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Label
-from temba.orgs.models import DependencyMixin, Org
+from temba.msgs.models import Label, OptIn
+from temba.orgs.models import DependencyMixin, Org, User
 from temba.templates.models import Template
-from temba.tickets.models import Ticketer, Topic
+from temba.tickets.models import Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
@@ -183,8 +180,8 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
     group_dependencies = models.ManyToManyField(ContactGroup, related_name="dependent_flows")
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
+    optin_dependencies = models.ManyToManyField(OptIn, related_name="dependent_flows")
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
-    ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
     topic_dependencies = models.ManyToManyField(Topic, related_name="dependent_flows")
     user_dependencies = models.ManyToManyField(User, related_name="dependent_flows")
 
@@ -249,65 +246,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         return Flow.GOFLOW_TYPES.get(self.flow_type, "")
 
     @classmethod
-    def create_join_group(cls, org, user, group, response=None, start_flow=None):
-        """
-        Creates a special 'join group' flow
-        """
-        base_language = org.flow_languages[0]
-
-        name = Flow.get_unique_name(org, "Join %s" % group.name)
-        flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = "13.0.0"
-        flow.save(update_fields=("version_number",))
-
-        node_uuid = str(uuid4())
-        definition = {
-            "uuid": flow.uuid,
-            "name": flow.name,
-            "spec_version": flow.version_number,
-            "language": base_language,
-            "type": "messaging",
-            "localization": {},
-            "nodes": [
-                {
-                    "uuid": node_uuid,
-                    "actions": [
-                        {
-                            "type": "add_contact_groups",
-                            "uuid": str(uuid4()),
-                            "groups": [{"uuid": group.uuid, "name": group.name}],
-                        },
-                        {
-                            "type": "set_contact_name",
-                            "uuid": str(uuid4()),
-                            "name": "@(title(remove_first_word(input)))",
-                        },
-                    ],
-                    "exits": [{"uuid": str(uuid4())}],
-                }
-            ],
-            "_ui": {
-                "nodes": {node_uuid: {"type": "execute_actions", "position": {"left": 100, "top": 0}}},
-                "stickies": {},
-            },
-        }
-
-        if response:
-            definition["nodes"][0]["actions"].append({"type": "send_msg", "uuid": str(uuid4()), "text": response})
-
-        if start_flow:
-            definition["nodes"][0]["actions"].append(
-                {
-                    "type": "enter_flow",
-                    "uuid": str(uuid4()),
-                    "flow": {"uuid": start_flow.uuid, "name": start_flow.name},
-                }
-            )
-
-        flow.save_revision(user, definition)
-        return flow
-
-    @classmethod
     def import_flows(cls, org, user, export_json, dependency_mapping, same_site=False):
         """
         Import flows from our flow export file
@@ -335,9 +273,9 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             if same_site:
                 flow = org.flows.filter(is_active=True, uuid=flow_uuid).first()
 
-            # if it's not of our world, let's try by name
+            # if it's not of our world, let's try by name and type
             if not flow:
-                flow = org.flows.filter(is_active=True, name__iexact=flow_name).first()
+                flow = org.flows.filter(is_active=True, name__iexact=flow_name, flow_type=flow_type).first()
 
             if flow:
                 flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
@@ -573,6 +511,11 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             label, _ = Label.import_def(self.org, user, ref)
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
+        # ensure any opt-in dependencies exist
+        for ref in deps_of_type("optin"):
+            optin, _ = OptIn.import_def(self.org, user, ref)
+            dependency_mapping[ref["uuid"]] = str(optin.uuid)
+
         # ensure any topic dependencies exist
         for ref in deps_of_type("topic"):
             topic, _ = Topic.import_def(self.org, user, ref)
@@ -585,7 +528,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             "classifier": self.org.classifiers.filter(is_active=True),
             "flow": self.org.flows.filter(is_active=True),
             "template": self.org.templates.all(),
-            "ticketer": self.org.ticketers.filter(is_active=True),
         }
         for dep_type, org_objs in dep_types.items():
             for ref in deps_of_type(dep_type):
@@ -687,7 +629,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for member, score in r.zrange(key, start=0, end=-1, desc=True, withscores=True):
             rand, contact_id, operand = member.decode().split("|", maxsplit=2)
             contact_ids.add(int(contact_id))
-            raw.append((int(contact_id), operand, datetime.utcfromtimestamp(score).replace(tzinfo=pytz.UTC)))
+            raw.append((int(contact_id), operand, datetime.utcfromtimestamp(score).replace(tzinfo=tzone.utc)))
 
         # lookup all the referenced contacts
         contacts_by_id = {c.id: c for c in self.org.contacts.filter(id__in=contact_ids, is_active=True)}
@@ -837,7 +779,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         if user is None:
             is_system_rev = True
-            user = get_flow_user(self.org)
+            user = User.get_system_user()
         else:
             is_system_rev = False
 
@@ -868,7 +810,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             revision = self.revisions.create(
                 definition=definition,
                 created_by=user,
-                modified_by=user,
                 spec_version=Flow.CURRENT_SPEC_VERSION,
                 revision=revision,
             )
@@ -932,9 +873,9 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
             "group": ContactGroup.get_groups(self.org).filter(uuid__in=identifiers["group"]),
             "label": Label.get_active_for_org(self.org).filter(uuid__in=identifiers["label"]),
+            "optin": OptIn.get_active_for_org(self.org).filter(uuid__in=identifiers["optin"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
-            "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
-            "topic": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["topic"]),
+            "topic": self.org.topics.filter(is_active=True, uuid__in=identifiers["topic"]),
             "user": self.org.users.filter(is_active=True, email__in=identifiers["user"]),
         }
 
@@ -981,7 +922,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.group_dependencies.clear()
         self.label_dependencies.clear()
         self.template_dependencies.clear()
-        self.ticketer_dependencies.clear()
         self.topic_dependencies.clear()
         self.user_dependencies.clear()
 
@@ -1121,6 +1061,16 @@ class FlowSession(models.Model):
 
     class Meta:
         indexes = [
+            # for finding the waiting session for a contact
+            models.Index(name="flowsessions_contact_waiting", fields=("contact_id",), condition=Q(status="W")),
+            # for finding wait timeouts to be resumed
+            models.Index(
+                name="flowsessions_timed_out",
+                fields=("timeout_on",),
+                condition=Q(timeout_on__isnull=False, status="W"),
+            ),
+            # for trimming ended sessions
+            models.Index(name="flowsessions_ended", fields=("ended_on",), condition=Q(ended_on__isnull=False)),
             models.Index(
                 name="flows_session_message_expires",
                 fields=("wait_expires_on",),
@@ -1285,12 +1235,25 @@ class FlowRun(models.Model):
 
     class Meta:
         indexes = [
+            # for API endpoint access
+            models.Index(name="flowruns_api_by_flow", fields=("flow", "-modified_on", "-id")),
+            models.Index(
+                name="flowruns_api_responded_by_flow",
+                fields=("flow", "-modified_on", "-id"),
+                condition=Q(responded=True),
+            ),
+            models.Index(name="flowruns_api_by_org", fields=("org", "-modified_on", "-id")),
+            models.Index(
+                name="flowruns_api_responded_by_org", fields=("org", "-modified_on", "-id"), condition=Q(responded=True)
+            ),
+            # for finding and messaging all contacts at a given node
             models.Index(
                 name="flows_flowrun_contacts_at_node",
                 fields=("org", "current_node_uuid"),
                 condition=Q(status__in=("A", "W")),
                 include=("contact",),
             ),
+            # for indexing contacts with their flow history
             models.Index(name="flows_flowrun_contact_inc_flow", fields=("contact",), include=("flow",)),
         ]
         constraints = [
@@ -1317,22 +1280,19 @@ class FlowExit:
         self.run = run
 
 
-class FlowRevision(SmartModel):
+class FlowRevision(models.Model):
     """
-    JSON definitions for previous flow revisions
+    Each version of a flow's definition.
     """
 
     LAST_TRIM_KEY = "temba:last_flow_revision_trim"
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
-
-    definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
-
-    spec_version = models.CharField(
-        default=Flow.FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
-    )
-
-    revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
+    definition = JSONAsTextField(default=dict)
+    spec_version = models.CharField(default=Flow.FINAL_LEGACY_VERSION, max_length=8)
+    revision = models.IntegerField()
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="revisions")
+    created_on = models.DateTimeField(default=timezone.now)
 
     @classmethod
     def trim(cls, since):
@@ -1450,14 +1410,13 @@ class FlowRevision(SmartModel):
         return definition
 
     def as_json(self):
-        name = self.created_by.get_full_name()
-        return dict(
-            user=dict(email=self.created_by.email, name=name),
-            created_on=json.encode_datetime(self.created_on, micros=True),
-            id=self.pk,
-            version=self.spec_version,
-            revision=self.revision,
-        )
+        return {
+            "id": self.id,
+            "user": self.created_by.as_engine_ref(),
+            "created_on": self.created_on.isoformat(),
+            "version": self.spec_version,
+            "revision": self.revision,
+        }
 
     def release(self):
         self.delete()
@@ -1513,6 +1472,15 @@ class FlowCategoryCount(SquashableModel):
     def __str__(self):
         return "%s: %s" % (self.category_name, self.count)
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=("flow", "node_uuid", "result_key", "result_name", "category_name"),
+                condition=Q(is_squashed=False),
+                name="flowcategorycounts_unsquashed",
+            ),
+        ]
+
 
 class FlowPathCount(SquashableModel):
     """
@@ -1557,7 +1525,13 @@ class FlowPathCount(SquashableModel):
         return {"%s:%s" % (t[0], t[1]): t[2] for t in totals}
 
     class Meta:
-        index_together = ["flow", "from_uuid", "to_uuid", "period"]
+        indexes = [
+            models.Index(
+                fields=("flow", "from_uuid", "to_uuid", "period"),
+                condition=Q(is_squashed=False),
+                name="flowpathcounts_unsquashed",
+            ),
+        ]
 
 
 class FlowNodeCount(SquashableModel):
@@ -1593,6 +1567,13 @@ class FlowNodeCount(SquashableModel):
     def get_totals(cls, flow):
         totals = list(cls.objects.filter(flow=flow).values_list("node_uuid").annotate(replies=Sum("count")))
         return {str(t[0]): t[1] for t in totals if t[1]}
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=("flow", "node_uuid"), condition=Q(is_squashed=False), name="flownodecounts_unsquashed"
+            ),
+        ]
 
 
 class FlowRunStatusCount(SquashableModel):
@@ -2079,6 +2060,9 @@ class FlowStartCount(SquashableModel):
         for start in starts:
             start.run_count = counts_by_start.get(start.id, 0)
 
+    class Meta:
+        indexes = [models.Index(fields=("start",), condition=Q(is_squashed=False), name="flowstartcounts_unsquashed")]
+
 
 class FlowLabel(TembaModel):
     """
@@ -2086,9 +2070,6 @@ class FlowLabel(TembaModel):
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_labels")
-
-    # TODO drop
-    parent = models.ForeignKey("FlowLabel", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
     def create(cls, org, user, name: str):
@@ -2129,34 +2110,3 @@ class FlowLabel(TembaModel):
 
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_flowlabel_names")]
-
-
-__flow_users = None
-
-
-def clear_flow_users():
-    global __flow_users
-    __flow_users = None
-
-
-def get_flow_user(org):
-    global __flow_users
-    if not __flow_users:
-        __flow_users = {}
-
-    username = "%s_flow" % org.branding["slug"]
-    flow_user = __flow_users.get(username)
-
-    # not cached, let's look it up
-    if not flow_user:
-        email = org.branding["support_email"]
-        flow_user = User.objects.filter(username=username).first()
-        if flow_user:  # pragma: needs cover
-            __flow_users[username] = flow_user
-        else:
-            # doesn't exist for this brand, create it
-            flow_user = User.objects.create_user(username, email, first_name="System Update")
-            flow_user.groups.add(Group.objects.get(name="Service Users"))
-            __flow_users[username] = flow_user
-
-    return flow_user

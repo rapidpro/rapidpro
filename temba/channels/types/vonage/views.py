@@ -261,6 +261,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
             return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
+        def clean(self):
+            self.cleaned_data["address"] = self.cleaned_data["phone_number"]
+            return super().clean()
+
     form_class = Form
 
     def pre_process(self, *args, **kwargs):

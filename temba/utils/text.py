@@ -1,6 +1,6 @@
 import base64
 import io
-import random
+import secrets
 import sys
 from os import urandom
 
@@ -107,12 +107,13 @@ def unsnakify(value):
     return " ".join([word.capitalize() for word in value.split("_")])
 
 
-def random_string(length):
+def generate_secret(length: int) -> str:
     """
-    Generates a random alphanumeric string
+    Generates a random alphanumeric string. The digits 0 and 1 aren't used, nor the letters I or O to avoid visual
+    confusion. Thus there are are 32 possible characters. 26 such chars have a similar collision probability to UUIDs.
     """
-    letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
-    return "".join([random.choice(letters) for _ in range(length)])
+
+    return "".join([secrets.choice("23456789ABCDEFGHJKLMNPQRSTUVWXYZ") for _ in range(length)])
 
 
 def generate_token():

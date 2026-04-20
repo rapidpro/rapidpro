@@ -32,7 +32,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         android1 = Channel.objects.get()
         self.assertIsNone(android1.org)
         self.assertIsNone(android1.address)
-        self.assertIsNone(android1.alert_email)
         self.assertEqual(android1.country, "RW")
         self.assertEqual(android1.device, "Nexus")
         self.assertEqual(android1.config["FCM_ID"], "FCM111")
@@ -128,7 +127,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         secret = android1.secret
         self.assertEqual(android1.org, self.org)
         self.assertEqual(android1.address, "+250788123123")  # normalized
-        self.assertEqual(android1.alert_email, self.admin.email)  # the logged-in user
         self.assertEqual(android1.config["FCM_ID"], "FCM111")
         self.assertEqual(android1.uuid, "uuid")
         self.assertFalse(android1.claim_code)
@@ -141,7 +139,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         android1.refresh_from_db()
         self.assertEqual(android1.org, self.org)
         self.assertEqual(android1.address, "+250788123123")
-        self.assertEqual(android1.alert_email, self.admin.email)
         self.assertEqual(android1.config["FCM_ID"], "FCM111")
         self.assertEqual(android1.uuid, "uuid")
         self.assertEqual(android1.is_active, True)
@@ -163,7 +160,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         android1.refresh_from_db()
         self.assertEqual(android1.org, self.org)
         self.assertEqual(android1.address, "+250788123123")
-        self.assertEqual(android1.alert_email, self.admin.email)
         self.assertEqual(android1.config["FCM_ID"], "FCM222")
         self.assertEqual(android1.uuid, "uuid")
         self.assertEqual(android1.is_active, True)
@@ -177,7 +173,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         android1.refresh_from_db()
         self.assertEqual(android1.org, self.org)
         self.assertEqual(android1.address, "+250788123124")
-        self.assertEqual(android1.alert_email, self.admin.email)
         self.assertEqual(android1.config["FCM_ID"], "FCM222")
         self.assertEqual(android1.uuid, "uuid")
         self.assertEqual(android1.is_active, True)
@@ -212,7 +207,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         default_sender = self.org.get_send_channel(URN.TEL_SCHEME)
         self.assertEqual(default_sender, android2)
         self.assertEqual(default_sender, self.org.get_receive_channel(URN.TEL_SCHEME))
-        self.assertFalse(default_sender.is_delegate_sender())
 
         # re-register device with country as US
         reg_data = dict(
@@ -305,6 +299,4 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
         response = self.client.get(update_url)
-        self.assertEqual(
-            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys())
-        )
+        self.assertEqual(["name", "allow_international", "loc"], list(response.context["form"].fields.keys()))

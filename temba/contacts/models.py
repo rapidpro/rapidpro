@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tzone
 from decimal import Decimal
 from itertools import chain
 from pathlib import Path
@@ -9,7 +9,6 @@ from typing import Any
 import iso8601
 import phonenumbers
 import pyexcel
-import pytz
 import regex
 import xlrd
 from django_redis import get_redis_connection
@@ -778,7 +777,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(status=Msg.STATUS_PENDING)
             .order_by("-created_on", "-id")
-            .select_related("channel", "contact_urn", "broadcast")[:limit]
+            .select_related("channel", "contact_urn", "broadcast", "optin")[:limit]
         )
 
         # get all runs start started or ended in this period
@@ -797,7 +796,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
             .order_by("-created_on")
-            .select_related("channel")[:limit]
+            .select_related("channel", "optin")[:limit]
         )
 
         campaign_events = (
@@ -816,7 +815,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         ticket_events = (
             self.ticket_events.filter(created_on__gte=after, created_on__lt=before)
-            .select_related("ticket__ticketer", "ticket__topic", "assignee", "created_by")
+            .select_related("ticket__topic", "assignee", "created_by")
             .order_by("-created_on")
         )
 
@@ -857,9 +856,11 @@ class Contact(LegacyUUIDMixin, SmartModel):
         """
         Extracts events from this contacts sessions that overlap with the given time window
         """
+
+        # limit to 100 sessions at a time to prevent melting when a contact has a lot of sessions
         sessions = self.sessions.filter(
             Q(created_on__gte=after, created_on__lt=before) | Q(ended_on__gte=after, ended_on__lt=before)
-        )
+        ).order_by("-created_on")[:100]
         events = []
         for session in sessions:
             for run in session.output_json.get("runs", []):
@@ -1062,14 +1063,13 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
 
-    def open_ticket(self, user, ticketer, topic, body: str, assignee=None):
+    def open_ticket(self, user, topic, body: str, assignee=None):
         """
         Opens a new ticket for this contact.
         """
         mod = modifiers.Ticket(
-            ticketer=modifiers.TicketerRef(uuid=str(ticketer.uuid), name=ticketer.name),
             topic=modifiers.TopicRef(uuid=str(topic.uuid), name=topic.name),
-            body=body,
+            body=body or "",
             assignee=modifiers.UserRef(email=assignee.email, name=assignee.name) if assignee else None,
         )
         self.modify(user, [mod], refresh=False)
@@ -1323,8 +1323,15 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
     class Meta:
         indexes = [
-            # used for getting the oldest modified_on per org in mailroom
+            # for API endpoint access
+            models.Index(name="contacts_by_org", fields=("org", "-modified_on", "-id"), condition=Q(is_active=True)),
+            models.Index(
+                name="contacts_by_org_deleted", fields=("org", "-modified_on", "-id"), condition=Q(is_active=False)
+            ),
+            # for getting the last modified_on during smart group population
             models.Index(name="contacts_contact_org_modified", fields=["org", "-modified_on"]),
+            # for indexing modified contacts
+            models.Index(name="contacts_modified", fields=("modified_on",)),
         ]
 
 
@@ -1341,6 +1348,7 @@ class ContactURN(models.Model):
         URN.INSTAGRAM_SCHEME,
     }
     SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
+    SCHEMES_SUPPORTING_OPTINS = {URN.FACEBOOK_SCHEME}  # schemes that support opt-in/opt-out triggers
 
     # mailroom sets priorites like 1000, 999, ...
     PRIORITY_HIGHEST = 1000
@@ -1364,18 +1372,18 @@ class ContactURN(models.Model):
     # the channel affinity of this URN
     channel = models.ForeignKey(Channel, related_name="urns", on_delete=models.PROTECT, null=True)
 
-    # optional authentication information stored on this URN
-    auth = models.TextField(null=True)
+    # auth tokens - usage is channel specific, e.g. every FCM URN has its own token, FB channels have per opt-in tokens
+    auth_tokens = models.JSONField(null=True)
 
     @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None, priority=PRIORITY_HIGHEST):
+    def get_or_create(cls, org, contact, urn_as_string, channel=None, priority=PRIORITY_HIGHEST):
         urn = cls.lookup(org, urn_as_string)
 
         # not found? create it
         if not urn:
             try:
                 with transaction.atomic():
-                    urn = cls.create(org, contact, urn_as_string, channel=channel, priority=priority, auth=auth)
+                    urn = cls.create(org, contact, urn_as_string, channel=channel, priority=priority)
             except IntegrityError:
                 urn = cls.lookup(org, urn_as_string)
 
@@ -1391,7 +1399,6 @@ class ContactURN(models.Model):
             contact=contact,
             priority=priority,
             channel=channel,
-            auth=auth,
             scheme=scheme,
             path=path,
             identity=urn_as_string,
@@ -1833,6 +1840,11 @@ class ContactGroupCount(SquashableModel):
 
         # insert updated count, returning it
         return ContactGroupCount.objects.create(group=group, count=count)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=("group",), condition=Q(is_squashed=False), name="contactgroupcounts_unsquashed")
+        ]
 
 
 class ExportContactsTask(BaseExport):
@@ -2442,7 +2454,7 @@ class ContactImport(SmartModel):
         if isinstance(value, datetime):
             # make naive datetime timezone-aware
             if not value.tzinfo and tz:
-                value = tz.localize(value) if tz else pytz.utc.localize(value)
+                value = value.replace(tzinfo=tz) if tz else value.replace(tzinfo=tzone.utc)
 
             return value.isoformat()
         elif isinstance(value, date):

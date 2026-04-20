@@ -50,17 +50,6 @@ def sizeof_fmt(num, suffix="b"):
     return "%.1f %s%s" % (num, "Y", suffix)
 
 
-def splitting_getlist(request, name, default=None):
-    """
-    Used for backward compatibility in the API where some list params can be provided as comma separated values
-    """
-    vals = request.query_params.getlist(name, default)
-    if vals and len(vals) == 1:
-        return vals[0].split(",")
-    else:
-        return vals
-
-
 def chunk_list(iterable, size):
     """
     Splits a very large list into evenly sized chunks.
@@ -82,6 +71,34 @@ def on_transaction_commit(func):
         func()
     else:  # pragma: no cover
         transaction.on_commit(func)
+
+
+def get_nested_key(nested_dict, key, default=""):
+    keys = key.split(".")
+    value = nested_dict
+    while keys:
+        key = keys.pop(0)
+        value = value.get(key, default)
+        if not isinstance(value, dict):
+            break
+    return value
+
+
+def set_nested_key(nested_dict, key, value):
+    keys = key.split(".")
+    level = nested_dict
+    while keys:
+        key = keys.pop(0)
+        if not keys:
+            level[key] = value
+        next_level = level.get(key)
+
+        # create our next level if it doesn't exist
+        if not next_level:
+            next_level = {}
+            level[key] = next_level
+
+        level = next_level
 
 
 _anon_user = None

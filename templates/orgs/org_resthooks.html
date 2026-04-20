@@ -1,0 +1,97 @@
+{% extends "smartmin/form.html" %}
+{% load smartmin i18n %}
+
+{% block pre-form %}
+  <div class="mb-4">
+    {% blocktrans trimmed %}
+      You can create flow events which external services can subscribe to. For example, Zapier can subscribe
+      to flow events you create and trigger any number of Zapier integrations when they occur in your flows.
+    {% endblocktrans %}
+  </div>
+  {% if branding.guided_zaps|length > 0 %}
+    <script type="module"
+            src="https://zapier.com/partner/embed/app-directory/wrapper.js?id=zapier-app-directory&app=textit&theme=light&hide=salesforce-legacy%2Czendesk&zapstyle=row&introcopy=hide"></script>
+  {% endif %}
+{% endblock pre-form %}
+{% block fields %}
+  {% if current_resthooks %}
+    <table class="list light lined">
+      <thead>
+        <tr>
+          <th class="header-label">Flow Event</th>
+          <th class="remove">Remove</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if current_resthooks %}
+          {% for resthook in current_resthooks %}
+            <tr>
+              <td>{{ resthook.resthook.slug }}</td>
+              <td class="resthook-check remove">{{ form|field:resthook.field }}</td>
+            </tr>
+          {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  {% endif %}
+  <div class="my-4">{% render_field 'new_slug' %}</div>
+{% endblock fields %}
+{% block post-form %}
+  {{ block.super }}
+  <div class="mt-8">
+    <div id="zapier-app-directory"></div>
+  </div>
+{% endblock post-form %}
+{% block extra-style %}
+  <style type="text/css">
+    th.header-label {
+      width: 100%;
+    }
+
+    th.remove {
+      text-align: right !important;
+    }
+
+    #table-resthooks {
+      margin: 10px 0px 10px 0px;
+    }
+
+    td.resthook-check.checked .glyph.level-checkbox:before {
+      content: "\e05a";
+    }
+
+    table.list tr td temba-checkbox {
+      --icon-color: #333;
+      width: inherit;
+      height: inherit;
+      margin-right: 0px;
+    }
+
+    .zap-services {
+      display: inline-block !important;
+      width: auto !important;
+      float: left !important;
+      margin-top: 15px !important;
+    }
+
+    .zap-description {
+      float: left !important;
+      display: inline-block !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      width: 500px !important;
+      margin-top: 20px !important;
+    }
+
+    .zap-cta {
+      display: inline-block !important;
+      width: auto !important;
+      float: right !important;
+      margin-top: 10px !important;
+    }
+
+    .zap {
+      padding: .25em 1em !important;
+    }
+  </style>
+{% endblock extra-style %}

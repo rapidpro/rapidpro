@@ -1,0 +1,155 @@
+{% extends "smartmin/form.html" %}
+{% load compress temba i18n %}
+
+{% block title-text %}
+  {% trans "Connect a Phone Number" %}
+{% endblock title-text %}
+{% block content %}
+  {% block claim-numbers-description %}
+    {% blocktrans trimmed %}
+      Once you connect a number you will immediately be able to send and receive messages. Contacts who send messages
+      to your number will be charged according to their plan.
+    {% endblocktrans %}
+  {% endblock claim-numbers-description %}
+  {% block account-warning %}
+  {% endblock account-warning %}
+  {% block numbers-search-form %}
+    <div class="card mt-6">
+      <form id="search-form">
+        <div class="flex items-end">
+          <div class="country w-64 mr-3">
+            {% block country-select %}
+              <temba-select name="country" label="{{ _("Country") |escapejs }}" id="country">
+                {% for country in search_countries %}
+                  <temba-option name="{{ country.label }}" value="{{ country.key }}">
+                  </temba-option>
+                {% endfor %}
+              </temba-select>
+            {% endblock country-select %}
+          </div>
+          <div class="pattern w-32 mr-3">
+            {% block search-pattern %}
+              <temba-textinput type="text" maxlength="3" name="pattern" label="{{ _("Pattern") |escapejs }}" id="pattern">
+              </temba-textinput>
+            {% endblock search-pattern %}
+          </div>
+          <input type="submit" value="{% trans "Search" %}" class="button-primary">
+        </div>
+      </form>
+      <div class="twilio-numbers-title"></div>
+      <div style="display:none;" class="my-6" id="throbber">
+        <temba-loading>
+        </temba-loading>
+      </div>
+      <div class="my-6" id="results"></div>
+    </div>
+  {% endblock numbers-search-form %}
+  {% if form.errors %}
+    {% if form.errors.upgrade %}
+      <script type="text/javascript">
+        document.location.href = '{% url 'orgs.org_upgrade_plan' %}?from=twilio'
+      </script>
+    {% else %}
+      <temba-alert level="error" class="my-4">
+        {{ form.errors.phone_number }}
+      </temba-alert>
+    {% endif %}
+  {% endif %}
+  <temba-alert level="warning" style="display:none;margin-top:10px;" id="claim-message">
+    {% if error %}{{ error }}{% endif %}
+  </temba-alert>
+  {% if account_numbers %}
+    <div class="card mt-3 mb-3" id="account-numbers">
+      <div class="title">{% trans "Existing Numbers" %}</div>
+      <div class="mb-3">{% trans "Select a number you already own to connect it to your account." %}</div>
+      {% for number in account_numbers %}
+        {% if number.country in supported_country_iso_codes or number.number|length <= 6 %}
+          <div data-number="{{ number.number }}"
+               data-country="{{ number.country }}"
+               class="phone-number lbl mt-3 mr-2 linked">
+            {{ number.number }}
+            (<span class="country">{{ number.country }}</span>)
+          </div>
+        {% else %}
+          <div data-number="{{ number.number }}"
+               data-country="{{ number.country }}"
+               class="unsupported-number lbl mt-3 mr-2">
+            {{ number.number }}
+            {% trans "(Unsupported)" %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+  <form style="display:none;" method="post" action="{{ claim_url }}" id="claim-form">
+    {% csrf_token %}
+    <input type="text" name="country" id="claim-country">
+    <input type="text" name="phone_number" id="phone-number">
+  </form>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function searchNumbers(e) {
+      var pattern = document.querySelector('#pattern').value;
+      var country = document.querySelector("#country").values[0].value;
+
+      $("#claim-message").hide();
+      $("#results").empty();
+      $("#throbber").show();
+
+      $.ajax({
+        type: "POST",
+        url: "{{ search_url }}",
+        data: {
+          pattern: pattern,
+          country: country
+        },
+        dataType: "json",
+        success: function(data, status, xhr) {
+          $("#throbber").hide();
+          if (data.length > 0) {
+            $("#claim-country").val(country);
+            for (var i = 0; i < data.length; i++) {
+              $("#results").append("<div class='lbl phone-number mt-3 mr-2 linked' data-number='" + data[i] + "'>" + data[i] + "</div>");
+            }
+            $("#results").show();
+          } else if ('error' in data) {
+            $("#claim-message").text(data['error']);
+            $("#claim-message").show();
+          } else {
+            $("#claim-message").text("{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}");
+            $("#claim-message").show();
+          }
+        },
+        failure: function(req) {
+          $("#throbber").hide();
+          $("#claim-message").show();
+        }
+      });
+
+      e.preventDefault();
+      return false;
+    }
+
+    onSpload(function() {
+      // the user has clicked a number from search results
+      $("#results").on('click', ".phone-number", function(e) {
+        var country = document.querySelector("#country").values[0].value;
+
+        $("#phone-number").val($(this).data("number"));
+        $("#claim-country").val(country);
+        $("#claim-form").submit();
+      });
+
+      // the user has clicked an existing number in their account
+      $("#account-numbers").on('click', ".phone-number", function(e) {
+        $("#phone-number").val($(this).data("number"));
+        $("#claim-country").val($(this).data("country"));
+        $("#claim-form").submit();
+      });
+
+      $("#search-form").on('submit', searchNumbers);
+    });
+  </script>
+{% endblock extra-script %}

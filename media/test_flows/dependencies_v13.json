@@ -484,6 +484,14 @@
               ],
               "type": "start_session",
               "uuid": "d70d853f-23be-4531-bec0-89012cd1991e"
+            },
+            {
+              "optin": {
+                "uuid": "ec03a6da-861d-4ee1-9ec2-71dd0e9c9b70",
+                "name": "Cat Facts"
+              },
+              "type": "request_optin",
+              "uuid": "a71f6917-f291-4b85-8b2d-68198bbb52db"
             }
           ],
           "exits": [
@@ -653,10 +661,6 @@
             {
               "uuid": "78f73b5c-b842-4b7c-ac74-54a2b1e31b79",
               "type": "open_ticket",
-              "ticketer": {
-                "uuid": "6ceb51cd-1d19-4f28-a9c3-2e244a9e2959",
-                "name": "Zendesk"
-              },
               "topic": {"uuid": "4d7a8306-acab-41e8-957b-cba523e60fa5", "name": "Support"},
               "body": "@results",
               "result_name": "Result"

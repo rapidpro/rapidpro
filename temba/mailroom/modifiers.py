@@ -15,12 +15,6 @@ class GroupRef:
 
 
 @dataclass(frozen=True)
-class TicketerRef:
-    uuid: str
-    name: str
-
-
-@dataclass(frozen=True)
 class TopicRef:
     uuid: str
     name: str
@@ -77,7 +71,6 @@ class Groups(Modifier):
 @dataclass(frozen=True)
 class Ticket(Modifier):
     type: str = field(default="ticket", init=False)
-    ticketer: TicketerRef
     topic: TopicRef
     body: str
     assignee: Optional[UserRef]

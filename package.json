@@ -9,12 +9,12 @@
     ]
   },
   "dependencies": {
-    "@nyaruka/flow-editor": "1.22.2",
-    "@nyaruka/temba-components": "0.58.1",
+    "@nyaruka/flow-editor": "1.26.3",
+    "@nyaruka/temba-components": "0.66.1",
     "codemirror": "5.18.2",
     "colorette": "1.2.2",
     "fa-icons": "0.2.0",
-    "highcharts": "5.0.6",
+    "highcharts": "9.3.0",
     "intercooler": "1.2.3",
     "is-core-module": "2.4.0",
     "jquery": "2.1.0",
@@ -27,7 +27,7 @@
     "sortablejs": "1.8.4"
   },
   "scripts": {
-    "tw-build": "postcss static/scss/tailwind.scss -o static/css/tailwind.css",
+    "tw-build": "yarn postcss static/scss/tailwind.scss -o static/css/tailwind.css",
     "tw-watch": "watch 'yarn run tw-build' ./static/scss"
   },
   "devDependencies": {

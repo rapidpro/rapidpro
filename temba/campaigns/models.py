@@ -1,6 +1,7 @@
 from smartmin.models import SmartModel
 
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _, ngettext
 
@@ -29,9 +30,6 @@ class Campaign(TembaModel):
         self.modified_by = user
         self.modified_on = timezone.now()
         self.save(update_fields=("is_archived", "modified_by", "modified_on"))
-
-        # recreate events so existing event fires will be ignored
-        self.recreate_events()
 
     def recreate_events(self):
         """
@@ -558,3 +556,12 @@ class EventFire(models.Model):
 
     class Meta:
         ordering = ("scheduled",)
+        indexes = [
+            models.Index(name="eventfires_unfired", fields=("scheduled",), condition=Q(fired=None)),
+        ]
+        constraints = [
+            # used to prevent adding duplicate fires for the same event and contact
+            models.UniqueConstraint(
+                name="eventfires_unfired_unique", fields=("event_id", "contact_id"), condition=Q(fired=None)
+            )
+        ]

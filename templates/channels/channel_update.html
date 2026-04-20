@@ -1,0 +1,9 @@
+{% extends "smartmin/update.html" %}
+{% load i18n %}
+
+{% block form-buttons %}
+  <div class="form-actions">
+    <input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">
+    <a onclick="javascript:history.go(-1)" class="btn">{% trans "Cancel" %}</a>
+  </div>
+{% endblock form-buttons %}

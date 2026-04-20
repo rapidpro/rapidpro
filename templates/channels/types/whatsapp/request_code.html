@@ -1,0 +1,33 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n %}
+
+{% block pre-form %}
+  {% if not verified_status %}
+    <p id="fb-status">
+      {% blocktrans trimmed %}
+        Before clicking the button below, make sure you have access to the phone where you can read the verification code send by SMS message
+      {% endblocktrans %}
+    </p>
+  {% else %}
+    <div id="fb-guide">
+      <ul class="steps">
+        <li>{% trans "To reset the Verification Code, check the guide below and make sure to Turn off two-step verification" %}</li>
+        <li>
+          <a target="_blank"
+             href="https://developers.facebook.com/docs/whatsapp/phone-numbers#resetting-verification-code-in-whatsapp-manager">{% trans "Resetting Verification Code in WhatsApp Manager" %}</a>
+        </li>
+      </ul>
+    </div>
+  {% endif %}
+{% endblock pre-form %}
+{% block form %}
+  {% if verified_status %}
+    <div class="card">
+      <temba-alert level="info" class="my-4 p-4">
+        {% trans "Number already verified" %}
+      </temba-alert>
+    </div>
+  {% else %}
+    {{ block.super }}
+  {% endif %}
+{% endblock form %}

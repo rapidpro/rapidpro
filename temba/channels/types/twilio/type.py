@@ -20,22 +20,13 @@ class TwilioType(ChannelType):
     SESSION_AUTH_TOKEN = "TWILIO_AUTH_TOKEN"
 
     code = "T"
+    name = "Twilio"
     category = ChannelType.Category.PHONE
-    show_config_page = False
+
+    unique_addresses = True
 
     courier_url = r"^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
-    name = "Twilio"
-
-    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a target="_blank" href="https://www.twilio.com/">Twilio</a>'
-    }
-    claim_view = ClaimView
-    update_form = UpdateForm
-
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
-
     redact_request_keys = (
         "FromCity",
         "FromState",
@@ -48,16 +39,19 @@ class TwilioType(ChannelType):
         "CalledZip",
     )
 
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a target="_blank" href="https://www.twilio.com/">Twilio</a>'
+    }
+    claim_view = ClaimView
+    update_form = UpdateForm
+
     def is_recommended_to(self, org, user):
         return timezone_to_country_code(org.timezone) in SUPPORTED_COUNTRIES
 
     def deactivate(self, channel):
         config = channel.config
         client = TwilioClient(config[Channel.CONFIG_ACCOUNT_SID], config[Channel.CONFIG_AUTH_TOKEN])
-        number_update_args = dict()
-
-        if not channel.is_delegate_sender():
-            number_update_args["sms_application_sid"] = ""
+        number_update_args = {"sms_application_sid": ""}
 
         if channel.supports_ivr():
             number_update_args["voice_application_sid"] = ""

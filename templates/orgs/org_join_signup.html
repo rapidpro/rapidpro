@@ -1,0 +1,39 @@
+{% extends "smartmin/update.html" %}
+{% load smartmin i18n %}
+
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .content-card {
+      max-width: 600px !important;
+    }
+
+    .form-actions .button-light {
+      display: none;
+    }
+  </style>
+{% endblock extra-style %}
+{% block pre-form %}
+  <div class="mb-8">
+    {% blocktrans trimmed with org=invitation.org %}
+      Create a new login to join the <b>{{ org }}</b> workspace.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-form %}
+{% block fields %}
+  <div class="control-group">
+    <temba-textinput type="text"
+                     name="username"
+                     maxlength="150"
+                     label="{% trans "Email Address" %}"
+                     value="{{ invitation.email }}"
+                     disabled
+                     id="id_username">
+    </temba-textinput>
+  </div>
+  {% render_field 'password' %}
+  <div class="flex">
+    <div class="w-1/2 mr-3">{% render_field 'first_name' %}</div>
+    <div class="flex-grow">{% render_field 'last_name' %}</div>
+  </div>
+{% endblock fields %}

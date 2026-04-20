@@ -1,0 +1,8 @@
+{% extends "notifications/email/base.txt" %}
+{% load i18n %}
+
+{% block notification-body %}
+{% blocktrans trimmed with url="https://"|add:branding.domain|add:target_url %}
+Your Android channel ({{ url }}) appears to be disconnected and hasn't been seen for some time.
+{% endblocktrans %}
+{% endblock notification-body %}

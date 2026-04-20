@@ -81,7 +81,7 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"name": "Viber", "alert_email": None, "welcome_message": ""},
+            form_fields={"name": "Viber", "welcome_message": ""},
         )
 
         self.assertUpdateSubmit(
@@ -96,15 +96,19 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={
-                "name": "Updated",
-                "alert_email": None,
-                "welcome_message": "Welcome, please subscribe for more",
-            },
+            form_fields={"name": "Updated", "welcome_message": "Welcome, please subscribe for more"},
         )
 
         # read page has link to update page
-        self.assertContentMenu(read_url, self.admin, ["Settings", "Logs", "Edit", "Delete"])
+        self.assertContentMenu(read_url, self.admin, ["Configuration", "Logs", "Edit", "Delete"])
+
+        # staff users see extra log policy field
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "log_policy", "welcome_message", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
 
     def test_get_error_ref_url(self):
         self.assertEqual(

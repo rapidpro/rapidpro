@@ -1,0 +1,81 @@
+{% extends "channels/channel_read.html" %}
+{% load smartmin temba compress humanize channels %}
+{% load i18n tz %}
+
+{% block fields %}
+{% endblock fields %}
+{% block subtitle %}
+  {{ object.get_channel_type_display }}
+  {% trans "Templates are synced from your account every 15 minutes." %}
+{% endblock subtitle %}
+{% block content %}
+  <div class="card p-0 overflow-y-scroll" id="templates">
+    {% for translation in translations %}
+      {% ifchanged translation.template.name %}
+        <div class="block template-name">
+          <div width="100%" class="truncate block p-4">{{ translation.template.name }}</div>
+        </div>
+      {% endifchanged %}
+      <div max-width="100%" class="flex translation">
+        <div width="70%" class="flex p-4 content">{{ translation.content }}</div>
+        <div class="flex-1 p-4 locale">{{ translation.locale }}</div>
+        <div class="tr-{{ translation.get_status_display }} flex p-4 status">{{ translation.get_status_display }}</div>
+      </div>
+    {% empty %}
+      <tr class="empty">
+        <td>{% trans "No synced templates at this time." %}</td>
+      </tr>
+    {% endfor %}
+  </div>
+{% endblock content %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .page-content {
+      max-width: 100%;
+    }
+
+    #templates {
+      width: 100%;
+    }
+
+    .template-name div {
+      font-weight: bold;
+      border-bottom: 1px solid #e6e6e6;
+    }
+
+    .translation div {
+      border-bottom: 1px solid #e6e6e6;
+    }
+
+    .translation .locale {
+      font-family: monospace;
+      color: #666;
+    }
+
+    .translation .status {
+      font-family: monospace;
+    }
+
+    .content {
+      font-style: italic;
+      width: 70%;
+    }
+
+    .tr-pending {
+      color: #faa732;
+    }
+
+    .tr-rejected {
+      color: #b81900;
+    }
+
+    .tr-approved {
+      color: #4ca20b;
+    }
+
+    .empty div {
+      font-style: italic;
+    }
+  </style>
+{% endblock extra-style %}

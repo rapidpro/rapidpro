@@ -1,10 +1,10 @@
 import itertools
 from enum import Enum
 
-from rest_framework import generics, status, views
+from rest_framework import generics, status
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartFormView, SmartTemplateView
@@ -24,11 +24,12 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, SystemLabel
+from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from temba.orgs.models import OrgMembership, OrgRole, User
+from temba.orgs.views import OrgPermsMixin
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
-from temba.utils import splitting_getlist, str_to_bool
+from temba.tickets.models import Ticket, TicketCount, Topic
+from temba.utils import str_to_bool
 from temba.utils.uuid import is_uuid
 
 from ..models import APIPermission, APIToken, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
@@ -38,6 +39,7 @@ from ..support import (
     APITokenAuthentication,
     CreatedOnCursorPagination,
     DateJoinedCursorPagination,
+    DocumentationRenderer,
     InvalidQueryError,
     ModifiedOnCursorPagination,
     OrgUserRateThrottle,
@@ -76,12 +78,13 @@ from .serializers import (
     MsgBulkActionSerializer,
     MsgReadSerializer,
     MsgWriteSerializer,
+    OptInReadSerializer,
+    OptInWriteSerializer,
     ResthookReadSerializer,
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
     TicketBulkActionSerializer,
-    TicketerReadSerializer,
     TicketReadSerializer,
     TopicReadSerializer,
     TopicWriteSerializer,
@@ -91,7 +94,132 @@ from .serializers import (
 )
 
 
-class RootView(views.APIView):
+class ExplorerView(OrgPermsMixin, SmartTemplateView):
+    """
+    Explorer view which lets users experiment with endpoints against their own data
+    """
+
+    permission = "api.apitoken_explorer"
+    template_name = "api/v2/explorer.html"
+    title = _("API Explorer")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        org = self.request.org
+        user = self.request.user
+
+        context["api_token"] = user.get_api_token(org)
+        context["endpoints"] = [
+            ArchivesEndpoint.get_read_explorer(),
+            BoundariesEndpoint.get_read_explorer(),
+            BroadcastsEndpoint.get_read_explorer(),
+            BroadcastsEndpoint.get_write_explorer(),
+            CampaignsEndpoint.get_read_explorer(),
+            CampaignsEndpoint.get_write_explorer(),
+            CampaignEventsEndpoint.get_read_explorer(),
+            CampaignEventsEndpoint.get_write_explorer(),
+            CampaignEventsEndpoint.get_delete_explorer(),
+            ChannelsEndpoint.get_read_explorer(),
+            ChannelEventsEndpoint.get_read_explorer(),
+            ClassifiersEndpoint.get_read_explorer(),
+            ContactsEndpoint.get_read_explorer(),
+            ContactsEndpoint.get_write_explorer(),
+            ContactsEndpoint.get_delete_explorer(),
+            ContactActionsEndpoint.get_write_explorer(),
+            FieldsEndpoint.get_read_explorer(),
+            FieldsEndpoint.get_write_explorer(),
+            FlowsEndpoint.get_read_explorer(),
+            FlowStartsEndpoint.get_read_explorer(),
+            FlowStartsEndpoint.get_write_explorer(),
+            GlobalsEndpoint.get_read_explorer(),
+            GlobalsEndpoint.get_write_explorer(),
+            GroupsEndpoint.get_read_explorer(),
+            GroupsEndpoint.get_write_explorer(),
+            GroupsEndpoint.get_delete_explorer(),
+            LabelsEndpoint.get_read_explorer(),
+            LabelsEndpoint.get_write_explorer(),
+            LabelsEndpoint.get_delete_explorer(),
+            MessagesEndpoint.get_read_explorer(),
+            MessageActionsEndpoint.get_write_explorer(),
+            ResthooksEndpoint.get_read_explorer(),
+            ResthookEventsEndpoint.get_read_explorer(),
+            ResthookSubscribersEndpoint.get_read_explorer(),
+            ResthookSubscribersEndpoint.get_write_explorer(),
+            ResthookSubscribersEndpoint.get_delete_explorer(),
+            RunsEndpoint.get_read_explorer(),
+            TicketsEndpoint.get_read_explorer(),
+            TicketActionsEndpoint.get_write_explorer(),
+            TopicsEndpoint.get_read_explorer(),
+            TopicsEndpoint.get_write_explorer(),
+            UsersEndpoint.get_read_explorer(),
+            WorkspaceEndpoint.get_read_explorer(),
+        ]
+        return context
+
+
+class AuthenticateView(SmartFormView):
+    """
+    Provides a login form view for app users to generate and access their API tokens
+    """
+
+    class LoginForm(forms.Form):
+        ROLE_CHOICES = (("A", _("Administrator")), ("E", _("Editor")), ("S", _("Surveyor")))
+
+        username = forms.CharField()
+        password = forms.CharField(widget=forms.PasswordInput)
+        role = forms.ChoiceField(choices=ROLE_CHOICES)
+
+    title = "API Authentication"
+    form_class = LoginForm
+
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def form_valid(self, form, *args, **kwargs):
+        username = form.cleaned_data.get("username")
+        password = form.cleaned_data.get("password")
+        role_code = form.cleaned_data.get("role")
+
+        user = authenticate(username=username, password=password)
+        if user and user.is_active:
+            login(self.request, user)
+
+            role = OrgRole.from_code(role_code)
+            tokens = []
+
+            if role:
+                valid_orgs = APIToken.get_orgs_for_role(self.request, role)
+                for org in valid_orgs:
+                    token = APIToken.get_or_create(org, user, role=role)
+                    serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility
+                    tokens.append({"org": serialized, "token": token.key})
+            else:  # pragma: needs cover
+                return HttpResponse(status=404)
+
+            return JsonResponse({"tokens": tokens})
+        else:
+            return HttpResponse(status=403)
+
+
+class DocumentationRenderer(DocumentationRenderer):
+    template = "api/v2/docs.html"
+
+
+class BaseEndpoint(BaseAPIView):
+    """
+    Base class of all our API V2 endpoints
+    """
+
+    authentication_classes = (APISessionAuthentication, APITokenAuthentication, APIBasicAuthentication)
+    permission_classes = (SSLPermission, APIPermission)
+    renderer_classes = (DocumentationRenderer, JSONRenderer)
+    throttle_classes = (OrgUserRateThrottle,)
+    throttle_scope = "v2"
+
+
+class RootView(BaseEndpoint):
     """
     We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
@@ -106,7 +234,6 @@ class RootView(views.APIView):
      * [/api/v2/classifiers](/api/v2/classifiers) - to list classifiers
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
      * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
-     * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list, create or update contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
      * [/api/v2/flows](/api/v2/flows) - to list flows
@@ -120,8 +247,6 @@ class RootView(views.APIView):
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
-     * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
-     * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
      * [/api/v2/tickets](/api/v2/tickets) - to list tickets
      * [/api/v2/ticket_actions](/api/v2/ticket_actions) - to perform bulk ticket actions
      * [/api/v2/topics](/api/v2/topics) - to list and create topics
@@ -188,8 +313,8 @@ class RootView(views.APIView):
 
     ## Authentication
 
-    You must authenticate all calls by including an `Authorization` header with your API token. If you are logged in,
-    your token will be visible at the top of this page. The Authorization header should look like:
+    You must authenticate all calls by including an `Authorization` header with your API token. The Authorization header
+    should look like:
 
         Authorization: Token YOUR_API_TOKEN
 
@@ -201,8 +326,10 @@ class RootView(views.APIView):
     Python users of the API.
     """
 
-    authentication_classes = (APISessionAuthentication, APITokenAuthentication)
-    permission_classes = (SSLPermission, IsAuthenticated)
+    permission_classes = (SSLPermission,)
+
+    def get_view_name(self):
+        return self.request.branding["name"] + " API v2"
 
     def get(self, request, *args, **kwargs):
         return Response(
@@ -217,7 +344,6 @@ class RootView(views.APIView):
                 "classifiers": reverse("api.v2.classifiers", request=request),
                 "contacts": reverse("api.v2.contacts", request=request),
                 "contact_actions": reverse("api.v2.contact_actions", request=request),
-                "definitions": reverse("api.v2.definitions", request=request),
                 "fields": reverse("api.v2.fields", request=request),
                 "flow_starts": reverse("api.v2.flow_starts", request=request),
                 "flows": reverse("api.v2.flows", request=request),
@@ -232,7 +358,6 @@ class RootView(views.APIView):
                 "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
-                "ticketers": reverse("api.v2.ticketers", request=request),
                 "tickets": reverse("api.v2.tickets", request=request),
                 "ticket_actions": reverse("api.v2.ticket_actions", request=request),
                 "topics": reverse("api.v2.topics", request=request),
@@ -240,128 +365,6 @@ class RootView(views.APIView):
                 "workspace": reverse("api.v2.workspace", request=request),
             }
         )
-
-
-class ExplorerView(SmartTemplateView):
-    """
-    Explorer view which lets users experiment with endpoints against their own data
-    """
-
-    template_name = "api/v2/api_explorer.html"
-    title = _("API Explorer")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        org = self.request.org
-        user = self.request.user
-
-        context["api_token"] = user.get_api_token(org) if (org and user) else None
-        context["endpoints"] = [
-            ArchivesEndpoint.get_read_explorer(),
-            BoundariesEndpoint.get_read_explorer(),
-            BroadcastsEndpoint.get_read_explorer(),
-            BroadcastsEndpoint.get_write_explorer(),
-            CampaignsEndpoint.get_read_explorer(),
-            CampaignsEndpoint.get_write_explorer(),
-            CampaignEventsEndpoint.get_read_explorer(),
-            CampaignEventsEndpoint.get_write_explorer(),
-            CampaignEventsEndpoint.get_delete_explorer(),
-            ChannelsEndpoint.get_read_explorer(),
-            ChannelEventsEndpoint.get_read_explorer(),
-            ClassifiersEndpoint.get_read_explorer(),
-            ContactsEndpoint.get_read_explorer(),
-            ContactsEndpoint.get_write_explorer(),
-            ContactsEndpoint.get_delete_explorer(),
-            ContactActionsEndpoint.get_write_explorer(),
-            DefinitionsEndpoint.get_read_explorer(),
-            FieldsEndpoint.get_read_explorer(),
-            FieldsEndpoint.get_write_explorer(),
-            FlowsEndpoint.get_read_explorer(),
-            FlowStartsEndpoint.get_read_explorer(),
-            FlowStartsEndpoint.get_write_explorer(),
-            GlobalsEndpoint.get_read_explorer(),
-            GlobalsEndpoint.get_write_explorer(),
-            GroupsEndpoint.get_read_explorer(),
-            GroupsEndpoint.get_write_explorer(),
-            GroupsEndpoint.get_delete_explorer(),
-            LabelsEndpoint.get_read_explorer(),
-            LabelsEndpoint.get_write_explorer(),
-            LabelsEndpoint.get_delete_explorer(),
-            MessagesEndpoint.get_read_explorer(),
-            MessageActionsEndpoint.get_write_explorer(),
-            ResthooksEndpoint.get_read_explorer(),
-            ResthookEventsEndpoint.get_read_explorer(),
-            ResthookSubscribersEndpoint.get_read_explorer(),
-            ResthookSubscribersEndpoint.get_write_explorer(),
-            ResthookSubscribersEndpoint.get_delete_explorer(),
-            RunsEndpoint.get_read_explorer(),
-            TemplatesEndpoint.get_read_explorer(),
-            TicketersEndpoint.get_read_explorer(),
-            TicketsEndpoint.get_read_explorer(),
-            TicketActionsEndpoint.get_write_explorer(),
-            TopicsEndpoint.get_read_explorer(),
-            TopicsEndpoint.get_write_explorer(),
-            UsersEndpoint.get_read_explorer(),
-            WorkspaceEndpoint.get_read_explorer(),
-        ]
-        return context
-
-
-class AuthenticateView(SmartFormView):
-    """
-    Provides a login form view for app users to generate and access their API tokens
-    """
-
-    class LoginForm(forms.Form):
-        ROLE_CHOICES = (("A", _("Administrator")), ("E", _("Editor")), ("S", _("Surveyor")))
-
-        username = forms.CharField()
-        password = forms.CharField(widget=forms.PasswordInput)
-        role = forms.ChoiceField(choices=ROLE_CHOICES)
-
-    title = "API Authentication"
-    form_class = LoginForm
-
-    @csrf_exempt
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def form_valid(self, form, *args, **kwargs):
-        username = form.cleaned_data.get("username")
-        password = form.cleaned_data.get("password")
-        role_code = form.cleaned_data.get("role")
-
-        user = authenticate(username=username, password=password)
-        if user and user.is_active:
-            login(self.request, user)
-
-            role = OrgRole.from_code(role_code)
-            tokens = []
-
-            if role:
-                valid_orgs = APIToken.get_orgs_for_role(self.request, role)
-                for org in valid_orgs:
-                    token = APIToken.get_or_create(org, user, role=role)
-                    serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility
-                    tokens.append({"org": serialized, "token": token.key})
-            else:  # pragma: needs cover
-                return HttpResponse(status=404)
-
-            return JsonResponse({"tokens": tokens})
-        else:
-            return HttpResponse(status=403)
-
-
-class BaseEndpoint(BaseAPIView):
-    """
-    Base class of all our API V2 endpoints
-    """
-
-    authentication_classes = (APISessionAuthentication, APITokenAuthentication, APIBasicAuthentication)
-    permission_classes = (SSLPermission, APIPermission)
-    throttle_classes = (OrgUserRateThrottle,)
-    throttle_scope = "v2"
 
 
 # ============================================================
@@ -410,7 +413,6 @@ class ArchivesEndpoint(ListAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "archives.archive_api"
     model = Archive
     serializer_class = ArchiveReadSerializer
 
@@ -509,7 +511,6 @@ class BoundariesEndpoint(ListAPIMixin, BaseEndpoint):
     class Pagination(CursorPagination):
         ordering = ("osm_id",)
 
-    permission = "locations.adminboundary_api"
     model = AdminBoundary
     serializer_class = AdminBoundaryReadSerializer
     pagination_class = Pagination
@@ -619,7 +620,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "msgs.broadcast_api"
     model = Broadcast
     serializer_class = BroadcastReadSerializer
     write_serializer_class = BroadcastWriteSerializer
@@ -753,7 +753,6 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "campaigns.campaign_api"
     model = Campaign
     serializer_class = CampaignReadSerializer
     write_serializer_class = CampaignWriteSerializer
@@ -913,7 +912,6 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEn
 
     """
 
-    permission = "campaigns.campaignevent_api"
     model = CampaignEvent
     serializer_class = CampaignEventReadSerializer
     write_serializer_class = CampaignEventWriteSerializer
@@ -1071,7 +1069,6 @@ class ChannelsEndpoint(ListAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "channels.channel_api"
     model = Channel
     serializer_class = ChannelReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -1149,7 +1146,6 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "channels.channelevent_api"
     model = ChannelEvent
     serializer_class = ChannelEventReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -1242,7 +1238,6 @@ class ClassifiersEndpoint(ListAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "classifiers.classifier_api"
     model = Classifier
     serializer_class = ClassifierReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -1417,7 +1412,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
     You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
 
-    permission = "contacts.contact_api"
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
@@ -1574,7 +1568,6 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
         * _interrupt_ - Interrupt and end any of the contacts' active flow runs
-        * _archive_messages_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
     * **group** - the UUID or name of a contact group (string, optional)
@@ -1591,7 +1584,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    permission = "contacts.contact_api"
+    permission = "contacts.contact_update"
     serializer_class = ContactBulkActionSerializer
 
     @classmethod
@@ -1666,7 +1659,7 @@ class DefinitionsEndpoint(BaseEndpoint):
         }
     """
 
-    permission = "orgs.org_api"
+    permission = "orgs.org_export"
 
     class Depends(Enum):
         none = 0
@@ -1676,15 +1669,10 @@ class DefinitionsEndpoint(BaseEndpoint):
     def get(self, request, *args, **kwargs):
         org = request.org
         params = request.query_params
-
-        if "flow_uuid" in params or "campaign_uuid" in params:  # deprecated
-            flow_uuids = splitting_getlist(self.request, "flow_uuid")
-            campaign_uuids = splitting_getlist(self.request, "campaign_uuid")
-        else:
-            flow_uuids = params.getlist("flow")
-            campaign_uuids = params.getlist("campaign")
-
+        flow_uuids = params.getlist("flow")
+        campaign_uuids = params.getlist("campaign")
         include = params.get("dependencies", "all")
+
         if include not in DefinitionsEndpoint.Depends.__members__:
             raise InvalidQueryError(
                 "dependencies must be one of %s" % ", ".join(DefinitionsEndpoint.Depends.__members__)
@@ -1713,31 +1701,13 @@ class DefinitionsEndpoint(BaseEndpoint):
             include_fields_and_groups = True
 
         export = org.export_definitions(
-            self.request.branding["link"],
+            f"https://{org.get_brand_domain()}",
             components,
             include_fields=include_fields_and_groups,
             include_groups=include_fields_and_groups,
         )
 
         return Response(export, status=status.HTTP_200_OK)
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            "method": "GET",
-            "title": "Export Definitions",
-            "url": reverse("api.v2.definitions"),
-            "slug": "definition-list",
-            "params": [
-                {"name": "flow", "required": False, "help": "One or more flow UUIDs to include"},
-                {"name": "campaign", "required": False, "help": "One or more campaign UUIDs to include"},
-                {
-                    "name": "dependencies",
-                    "required": False,
-                    "help": "Whether to include dependencies of the requested items. ex: false",
-                },
-            ],
-        }
 
 
 class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
@@ -1815,7 +1785,6 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "contacts.contactfield_api"
     model = ContactField
     serializer_class = ContactFieldReadSerializer
     write_serializer_class = ContactFieldWriteSerializer
@@ -1928,7 +1897,6 @@ class FlowsEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "flows.flow_api"
     model = Flow
     serializer_class = FlowReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -2064,7 +2032,6 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "globals.global_api"
     model = Global
     serializer_class = GlobalReadSerializer
     write_serializer_class = GlobalWriteSerializer
@@ -2217,7 +2184,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     You will receive either a 204 response if a group was deleted, or a 404 response if no matching group was found.
     """
 
-    permission = "contacts.contactgroup_api"
     model = ContactGroup
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
@@ -2376,7 +2342,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
 
-    permission = "msgs.label_api"
     model = Label
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
@@ -2463,7 +2428,6 @@ class MediaEndpoint(WriteAPIMixin, BaseEndpoint):
     """
 
     parser_classes = (MultiPartParser, FormParser)
-    permission = "msgs.media_api"
     model = Media
     serializer_class = MediaReadSerializer
     write_serializer_class = MediaWriteSerializer
@@ -2584,7 +2548,6 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             folder = request.query_params.get("folder", "").lower()
             return self.ordering.get(folder, CreatedOnCursorPagination.ordering)
 
-    permission = "msgs.msg_api"
     model = Msg
     serializer_class = MsgReadSerializer
     write_serializer_class = MsgWriteSerializer
@@ -2640,7 +2603,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             if contact:
                 queryset = queryset.filter(contact=contact)
             else:
-                queryset = queryset.filter(pk=-1)
+                queryset = queryset.none()
 
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
@@ -2651,16 +2614,16 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
             label = Label.get_active_for_org(org).filter(label_filter).first()
             if label:
-                queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
+                queryset = queryset.filter(labels=label)
             else:
-                queryset = queryset.filter(pk=-1)
+                queryset = queryset.none()
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
             Prefetch("contact_urn", queryset=ContactURN.objects.only("scheme", "path", "display")),
             Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
-            Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("pk")),
+            Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("id")),
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
         )
 
@@ -2748,7 +2711,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "msgs.msg_api"
+    permission = "msgs.msg_update"
     serializer_class = MsgBulkActionSerializer
 
     @classmethod
@@ -2765,6 +2728,69 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
                 {"name": "action", "required": True, "help": "One of the following strings: " + ", ".join(actions)},
                 {"name": "label", "required": False, "help": "The UUID or name of a message label"},
             ],
+        }
+
+
+class OptInsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
+    """
+    This endpoint allows you to list the opt-ins in your workspace and create new ones.
+
+    ## Listing Opt-Ins
+
+    A **GET** returns the opt-ins for your organization, most recent first.
+
+     * **uuid** - the UUID of the opt-in (string).
+     * **name** - the name of the opt-in (string).
+     * **created_on** - when this opt-in was created (datetime).
+
+    Example:
+
+        GET /api/v2/optins.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "name": "Jokes",
+                "created_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+
+    ## Adding a New Opt-In
+
+    By making a `POST` request with a unique name you can create a new opt-in.
+
+     * **name** - the name of the opt-in to create (string)
+
+    Example:
+
+        POST /api/v2/optins.json
+        {
+            "name": "Weather Updates"
+        }
+    """
+
+    model = OptIn
+    serializer_class = OptInReadSerializer
+    write_serializer_class = OptInWriteSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    @classmethod
+    def get_read_explorer(cls):  # pragma: no cover
+        return {"method": "GET", "title": "List Opt-Ins", "url": reverse("api.v2.optins"), "slug": "optin-list"}
+
+    @classmethod
+    def get_write_explorer(cls):  # pragma: no cover
+        return {
+            "method": "POST",
+            "title": "Add New Opt-Ins",
+            "url": reverse("api.v2.optins"),
+            "slug": "optin-write",
+            "fields": [{"name": "name", "required": True, "help": "The name of the opt-in"}],
         }
 
 
@@ -2799,7 +2825,6 @@ class ResthooksEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "api.resthook_api"
     model = Resthook
     serializer_class = ResthookReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -2893,7 +2918,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
 
     """
 
-    permission = "api.resthooksubscriber_api"
     model = ResthookSubscriber
     serializer_class = ResthookSubscriberReadSerializer
     write_serializer_class = ResthookSubscriberWriteSerializer
@@ -3031,7 +3055,6 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "api.webhookevent_api"
     model = WebHookEvent
     serializer_class = WebHookEventReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -3126,7 +3149,6 @@ class RunsEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "flows.flow_api"
     model = FlowRun
     serializer_class = FlowRunReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -3285,7 +3307,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
      * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
      * **exclude_active** - whether to exclude contacts currently in other flow (optional, defaults to false)
-     * **params** - a dictionary of extra parameters to pass to the flow start (accessible via @trigger.params in your flow)
+     * **params** - extra parameters to pass to the flow start (object, accessible via `@trigger.params` in the flow)
 
     Example:
 
@@ -3320,7 +3342,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "flows.flowstart_api"
     model = FlowStart
     serializer_class = FlowStartReadSerializer
     write_serializer_class = FlowStartWriteSerializer
@@ -3342,6 +3363,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
+            Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
             Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
             Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
@@ -3389,7 +3411,11 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                     required=False,
                     help="Whether to restart any participants already in the flow",
                 ),
-                dict(name="extra", required=False, help="Any extra parameters to pass to the flow start"),
+                dict(
+                    name="params",
+                    required=False,
+                    help=_("Extra parameters that will be accessible in the flow"),
+                ),
             ],
             example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'),
         )
@@ -3397,61 +3423,9 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
 class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
     """
-    This endpoint allows you to fetch the WhatsApp templates that have been synced. Each template contains a
-    dictionary of the languages it has been translated to along with the content of the template for that
-    language and the status of that translation.
-
-    ## Listing Templates
-
-    A `GET` request returns the templates for your organization.
-
-    Each template has the following attributes:
-
-     * **name** - the name of the template
-     * **translations** - a dictionary of the translations of the template with the key being an ISO639-3 code
-
-     Each translation contains the following attributes:
-
-     * **language** - the ISO639-3 code for the language of this translation
-     * **content** - the content of the translation
-     * **variable_count** - the count of variables in this template
-     * **status** - the status of this translation, either `approved`, `pending`, `rejected` or `unsupported_language`
-
-    Example:
-
-        GET /api/v2/templates.json
-
-    Response is the list of templates for your organization:
-
-        {
-            "next": "http://example.com/api/v2/templates.json?cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
-            "previous": null,
-            "results": [
-            {
-                "name": "welcome_message",
-                "uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
-                "translations": [
-                    {
-                        "language": "eng",
-                        "content": "Hi {{1}}, your appointment is coming up on {{2}}",
-                        "variable_count": 2,
-                        "status": "active",
-                    },
-                    {
-                        "language": "fra",
-                        "content": "Bonjour {{1}}, votre rendez-vous est à venir {{2}}",
-                        "variable_count": 2,
-                        "status": "pending",
-                    }
-                ],
-                "created_on": "2013-08-19T19:11:21.082Z",
-                "modified_on": "2013-08-19T19:11:21.082Z"
-            },
-            ...
-        }
+    Undocumented endpoint to fetch WhatsApp templates with their translations.
     """
 
-    permission = "templates.template_api"
     model = Template
     serializer_class = TemplateReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -3459,100 +3433,13 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
     def filter_queryset(self, queryset):
         org = self.request.org
         queryset = org.templates.exclude(translations=None).prefetch_related(
-            Prefetch("translations", TemplateTranslation.objects.filter(is_active=True))
+            Prefetch("translations", TemplateTranslation.objects.filter(is_active=True).order_by("locale")),
+            Prefetch("translations__channel", Channel.objects.only("uuid", "name")),
         )
         return self.filter_before_after(queryset, "modified_on")
 
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            "method": "GET",
-            "title": "List Templates",
-            "url": reverse("api.v2.templates"),
-            "slug": "templates-list",
-            "params": [],
-            "example": {},
-        }
 
-
-class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
-    """
-    This endpoint allows you to list the active ticketing services on your account.
-
-    ## Listing Ticketers
-
-    A **GET** returns the ticketers for your organization, most recent first.
-
-     * **uuid** - the UUID of the ticketer, filterable as `uuid`.
-     * **name** - the name of the ticketer.
-     * **type** - the type of the ticketer, e.g. 'mailgun' or 'zendesk'.
-     * **created_on** - when this ticketer was created.
-
-    Example:
-
-        GET /api/v2/ticketers.json
-
-    Response:
-
-        {
-            "next": null,
-            "previous": null,
-            "results": [
-            {
-                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
-                "name": "Email (bob@acme.com)",
-                "type": "mailgun",
-                "created_on": "2013-02-27T09:06:15.456"
-            },
-            ...
-    """
-
-    permission = "tickets.ticketer_api"
-    model = Ticketer
-    serializer_class = TicketerReadSerializer
-    pagination_class = CreatedOnCursorPagination
-
-    def filter_queryset(self, queryset):
-        params = self.request.query_params
-        org = self.request.org
-
-        queryset = queryset.filter(org=org, is_active=True)
-
-        # filter by uuid (optional)
-        uuid = params.get("uuid")
-        if uuid:
-            queryset = queryset.filter(uuid=uuid)
-
-        return self.filter_before_after(queryset, "created_on")
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            "method": "GET",
-            "title": "List Ticketers",
-            "url": reverse("api.v2.ticketers"),
-            "slug": "ticketer-list",
-            "params": [
-                {
-                    "name": "uuid",
-                    "required": False,
-                    "help": "A ticketer UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
-                },
-                {
-                    "name": "before",
-                    "required": False,
-                    "help": "Only return ticketers created before this date, ex: 2015-01-28T18:00:00.000",
-                },
-                {
-                    "name": "after",
-                    "required": False,
-                    "help": "Only return ticketers created after this date, ex: 2015-01-28T18:00:00.000",
-                },
-            ],
-        }
-
-
-class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
+class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the tickets opened on your account.
 
@@ -3561,7 +3448,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     A **GET** returns the tickets for your organization, most recent first.
 
      * **uuid** - the UUID of the ticket, filterable as `uuid`.
-     * **ticketer** - the UUID and name of the ticketer (object).
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **status** - the status of the ticket, e.g. 'open' or 'closed'.
      * **topic** - the topic of the ticket (object).
@@ -3585,7 +3471,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             "results": [
             {
                 "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
-                "ticketer": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Email (bob@acme.com)"},
                 "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
                 "status": "open",
                 "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
@@ -3600,7 +3485,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             ...
     """
 
-    permission = "tickets.ticket_api"
     model = Ticket
     serializer_class = TicketReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -3625,7 +3509,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             queryset = queryset.filter(uuid=uuid)
 
         queryset = queryset.prefetch_related(
-            Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
             Prefetch("topic", queryset=Topic.objects.only("uuid", "name")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
             Prefetch("assignee", queryset=User.objects.only("email", "first_name", "last_name")),
@@ -3681,7 +3564,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    permission = "tickets.ticket_api"
+    permission = "tickets.ticket_update"
     serializer_class = TicketBulkActionSerializer
 
     @classmethod
@@ -3707,7 +3590,7 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
     ## Listing Topics
 
-    A **GET** returns the tickets for your organization, most recent first.
+    A **GET** returns the topics for your organization, most recent first.
 
      * **uuid** - the UUID of the topic (string).
      * **name** - the name of the topic (string).
@@ -3733,9 +3616,21 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                 "created_on": "2013-02-27T09:06:15.456"
             },
             ...
+
+    ## Adding o New Topic
+
+    By making a `POST` request with a unique name you can create a new topic.
+
+     * **name** - the name of the topic to create (string)
+
+    Example:
+
+        POST /api/v2/topics.json
+        {
+            "name": "Complaints"
+        }
     """
 
-    permission = "tickets.topic_api"
     model = Topic
     serializer_class = TopicReadSerializer
     write_serializer_class = TopicWriteSerializer
@@ -3798,7 +3693,6 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
             ...
     """
 
-    permission = "orgs.org_api"
     model = User
     serializer_class = UserReadSerializer
     pagination_class = DateJoinedCursorPagination
@@ -3863,7 +3757,7 @@ class WorkspaceEndpoint(BaseEndpoint):
         }
     """
 
-    permission = "orgs.org_api"
+    permission = "orgs.org_read"
 
     def get(self, request, *args, **kwargs):
         serializer = WorkspaceReadSerializer(request.org)

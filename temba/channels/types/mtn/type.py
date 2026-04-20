@@ -19,23 +19,17 @@ class MtnType(ChannelType):
 
     code = "MTN"
     category = ChannelType.Category.PHONE
-
+    name = "MTN Developer Portal"
     beta_only = True
 
     courier_url = r"^mtn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
-
-    name = "MTN Developer Portal"
+    schemes = [URN.TEL_SCHEME]
+    async_activation = False
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a href="https://developers.mtn.com/">MTN Developer Portal</a>'
     }
-
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
-    show_config_page = False
-    async_activation = False
 
     def get_token(self, channel):
         base_url = channel.config.get("api_host", "https://api.mtn.com")

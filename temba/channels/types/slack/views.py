@@ -39,8 +39,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
             return value
 
-        def clean_bot_token(self):
-            value = self.cleaned_data["bot_token"]
+        def clean(self):
+            value = self.cleaned_data.get("bot_token")
 
             try:
                 client = slack_sdk.WebClient(token=value)
@@ -48,16 +48,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             except slack_sdk.errors.SlackApiError:
                 raise ValidationError(_("Your bot user token is invalid, please check and try again"))
 
-            existing = Channel.objects.filter(
-                is_active=True, channel_type=self.channel_type.code, address=appAuthTest["bot_id"]
-            ).first()
-
-            if existing:
-                if existing.org_id == self.request.org.id:
-                    raise ValidationError(_("A slack channel for this bot already exists in this workspace."))
-                raise ValidationError(_("A slack channel for this bot already exists in another workspace."))
-
-            return value
+            self.cleaned_data["address"] = appAuthTest["bot_id"]
+            return super().clean()
 
     def form_valid(self, form):
         from .type import SlackType
@@ -79,7 +71,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org=self.org,
+            org=self.request.org,
             user=self.request.user,
             country=None,
             channel_type=self.channel_type,

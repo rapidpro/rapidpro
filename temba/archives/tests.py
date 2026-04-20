@@ -2,10 +2,8 @@ import base64
 import gzip
 import hashlib
 import io
-from datetime import date, datetime
+from datetime import date, datetime, timezone as tzone
 from unittest.mock import call, patch
-
-import pytz
 
 from django.urls import reverse
 from django.utils import timezone
@@ -130,19 +128,19 @@ class ArchiveTest(TembaTest):
 
         assert_records(Archive.iter_all_records(self.org, Archive.TYPE_MSG), [1, 2, 3, 4, 5, 6])
         assert_records(
-            Archive.iter_all_records(self.org, Archive.TYPE_MSG, after=datetime(2020, 7, 30, 12, 0, 0, 0, pytz.UTC)),
+            Archive.iter_all_records(self.org, Archive.TYPE_MSG, after=datetime(2020, 7, 30, 12, 0, 0, 0, tzone.utc)),
             [2, 3, 4, 5, 6],
         )
         assert_records(
-            Archive.iter_all_records(self.org, Archive.TYPE_MSG, before=datetime(2020, 8, 2, 12, 0, 0, 0, pytz.UTC)),
+            Archive.iter_all_records(self.org, Archive.TYPE_MSG, before=datetime(2020, 8, 2, 12, 0, 0, 0, tzone.utc)),
             [1, 2, 3, 4, 5],
         )
         assert_records(
             Archive.iter_all_records(
                 self.org,
                 Archive.TYPE_MSG,
-                after=datetime(2020, 7, 30, 12, 0, 0, 0, pytz.UTC),
-                before=datetime(2020, 8, 2, 12, 0, 0, 0, pytz.UTC),
+                after=datetime(2020, 7, 30, 12, 0, 0, 0, tzone.utc),
+                before=datetime(2020, 8, 2, 12, 0, 0, 0, tzone.utc),
             ),
             [2, 3, 4, 5],
         )
@@ -150,8 +148,8 @@ class ArchiveTest(TembaTest):
             Archive.iter_all_records(
                 self.org,
                 Archive.TYPE_MSG,
-                after=datetime(2020, 7, 30, 12, 0, 0, 0, pytz.UTC),
-                before=datetime(2020, 8, 2, 12, 0, 0, 0, pytz.UTC),
+                after=datetime(2020, 7, 30, 12, 0, 0, 0, tzone.utc),
+                before=datetime(2020, 8, 2, 12, 0, 0, 0, tzone.utc),
                 where={"contact__name": "Bob"},
             ),
             [4, 5],

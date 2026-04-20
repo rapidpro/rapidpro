@@ -1,0 +1,66 @@
+{% load public %}
+
+<temba-content-menu endpoint="{{ request.path }}?{{ request.GET.urlencode }}"
+                    query="{{ has_search_query }}"
+                    -temba-selection="handleContentMenuSelected(event)"
+                    id="default-content-menu">
+</temba-content-menu>
+<script type="text/javascript">
+  function handleContentMenuSelected(event) {
+    // handles when items are clicked in the top right hamburger menu
+    var item = event.detail.item;
+    var click = event.detail.event;
+
+    if (item.type === 'link') {
+      if (click) {
+        click.preventDefault();
+        click.stopPropagation();
+        if (click.metaKey && item.url) {
+          window.open(item.url, '_blank');
+          return;
+        }
+      }
+
+      fetchURL(item.url);
+    } else if (item.type === 'modax') {
+      var modaxOptions = {
+        disabled: item.disabled,
+        onSubmit: item.on_submit,
+        onRedirect: item.on_redirect,
+        id: item.modal_id
+      }
+      showModax(item.title, item.url, modaxOptions);
+    } else if (item.type === 'url_post') {
+      var store = document.querySelector('temba-store');
+      const queryStart = item.url.indexOf('?');
+      const urlParams = new URLSearchParams(item.url.substring(queryStart));
+
+      let url = item.url;
+      payload = {}
+      if (queryStart > -1) {
+        url = item.url.substring(0, queryStart);
+        for (key of urlParams.keys()) {
+          payload[key] = urlParams.get(key);
+        }
+      }
+
+      store.postForm(url, payload).then(function(response) {
+        if (response.redirected) {
+          fetchURL(response.url);
+        } else {
+          reloadContent();
+        }
+      });
+    }
+
+    // items need to be refreshed in the top left sidebar menu
+    refreshMenu();
+  }
+
+  function refreshMenu() {
+    var menu = document.querySelector("temba-menu");
+    if (menu) {
+      menu.refresh();
+    }
+  }
+</script>

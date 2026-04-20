@@ -16,7 +16,7 @@ from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticketer, TicketEvent
+from temba.tickets.models import TicketEvent
 from temba.utils import json
 
 from . import BroadcastPreview, Exclusions, Inclusions, StartPreview, modifiers, queue_interrupt
@@ -77,11 +77,11 @@ class MailroomClientTest(TembaTest):
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual({"flow": flow_def, "language": "spa"}, json.loads(call[1]["data"]))
 
-    def test_flow_preview_start(self):
+    def test_flow_start_preview(self):
         with patch("requests.post") as mock_post:
             mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
             mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
-            preview = get_client().flow_preview_start(
+            preview = get_client().flow_start_preview(
                 self.org.id,
                 flow_id=12,
                 include=Inclusions(
@@ -95,7 +95,7 @@ class MailroomClientTest(TembaTest):
 
         call = mock_post.call_args
 
-        self.assertEqual(("http://localhost:8090/mr/flow/preview_start",), call[0])
+        self.assertEqual(("http://localhost:8090/mr/flow/start_preview",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual(
             {
@@ -112,16 +112,15 @@ class MailroomClientTest(TembaTest):
                     "started_previously": False,
                     "not_seen_since_days": 30,
                 },
-                "sample_size": 3,
             },
             json.loads(call[1]["data"]),
         )
 
-    def test_msg_preview_broadcast(self):
+    def test_msg_broadcast_preview(self):
         with patch("requests.post") as mock_post:
             mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
             mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
-            preview = get_client().msg_preview_broadcast(
+            preview = get_client().msg_broadcast_preview(
                 self.org.id,
                 include=Inclusions(
                     group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
@@ -134,7 +133,7 @@ class MailroomClientTest(TembaTest):
 
         call = mock_post.call_args
 
-        self.assertEqual(("http://localhost:8090/mr/msg/preview_broadcast",), call[0])
+        self.assertEqual(("http://localhost:8090/mr/msg/broadcast_preview",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual(
             {
@@ -150,7 +149,42 @@ class MailroomClientTest(TembaTest):
                     "started_previously": False,
                     "not_seen_since_days": 30,
                 },
-                "sample_size": 3,
+            },
+            json.loads(call[1]["data"]),
+        )
+
+    def test_msg_broadcast(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"id": 123}))
+            resp = get_client().msg_broadcast(
+                self.org.id,
+                self.admin.id,
+                {"eng": {"text": "Hello"}},
+                "eng",
+                [12, 23],
+                [123, 234],
+                ["tel:1234"],
+                "age > 20",
+                567,
+            )
+
+            self.assertEqual({"id": 123}, resp)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/msg/broadcast",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "translations": {"eng": {"text": "Hello"}},
+                "base_language": "eng",
+                "group_ids": [12, 23],
+                "contact_ids": [123, 234],
+                "urns": ["tel:1234"],
+                "query": "age > 20",
+                "optin_id": 567,
             },
             json.loads(call[1]["data"]),
         )
@@ -511,17 +545,6 @@ class MailroomClientTest(TembaTest):
 
 
 class MailroomQueueTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-        r = get_redis_connection()
-        r.execute_command("select", 10)
-        r.execute_command("flushdb")
-
-    def tearDown(self):
-        super().tearDown()
-        r = get_redis_connection()
-        r.execute_command("select", 10)
-
     @mock_mailroom(queue=False)
     def test_queue_msg_handling(self, mr_mocks):
         with override_settings(TESTING=False):
@@ -554,7 +577,6 @@ class MailroomQueueTest(TembaTest):
 
     @mock_mailroom(queue=False)
     def test_queue_mo_miss_event(self, mr_mocks):
-        get_redis_connection("default").flushall()
         event = sync.create_event(self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now())
 
         r = get_redis_connection()
@@ -595,7 +617,7 @@ class MailroomQueueTest(TembaTest):
         bcast = Broadcast.create(
             self.org,
             self.admin,
-            {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
+            {"eng": {"text": "Welcome to mailroom!"}, "spa": {"text": "¡Bienvenidx a mailroom!"}},
             groups=[bobs],
             contacts=[jim],
             urns=["tel:+12065556666"],
@@ -617,6 +639,7 @@ class MailroomQueueTest(TembaTest):
                     },
                     "template_state": "unevaluated",
                     "base_language": "eng",
+                    "optin_id": None,
                     "urns": ["tel:+12065556666"],
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
@@ -656,7 +679,6 @@ class MailroomQueueTest(TembaTest):
                     "org_id": self.org.id,
                     "created_by_id": self.admin.id,
                     "flow_id": flow.id,
-                    "flow_type": "M",
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
                     "urns": ["tel:+1234567890", "twitter:bobby"],
@@ -908,12 +930,6 @@ class EventTest(TembaTest):
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     "quick_replies": ["yes", "no"],
-                    "created_by": {
-                        "id": self.agent.id,
-                        "email": "agent@nyaruka.com",
-                        "first_name": "Agnes",
-                        "last_name": "",
-                    },
                 },
                 "created_by": {
                     "id": self.agent.id,
@@ -921,6 +937,7 @@ class EventTest(TembaTest):
                     "first_name": "Agnes",
                     "last_name": "",
                 },
+                "optin": None,
                 "status": "E",
                 "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out.id}/",
             },
@@ -941,9 +958,9 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-                    "created_by": None,
                 },
                 "created_by": None,
+                "optin": None,
                 "status": "F",
                 "failed_reason": "D",
                 "failed_reason_display": "No suitable channel found",
@@ -964,7 +981,6 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-                    "created_by": None,
                 },
                 "created_by": None,
                 "status": "S",
@@ -973,7 +989,7 @@ class EventTest(TembaTest):
             Event.from_msg(self.org, self.admin, ivr_out),
         )
 
-        bcast = self.create_broadcast(self.admin, "Hi there", contacts=[contact1, contact2])
+        bcast = self.create_broadcast(self.admin, {"und": {"text": "Hi there"}}, contacts=[contact1, contact2])
         msg_out2 = bcast.msgs.filter(contact=contact1).get()
 
         self.assertEqual(
@@ -995,11 +1011,108 @@ class EventTest(TembaTest):
                     "first_name": "Andy",
                     "last_name": "",
                 },
+                "optin": None,
                 "status": "S",
                 "recipient_count": 2,
                 "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out2.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out2),
+        )
+
+        # create a broadcast that was sent with an opt-in
+        optin = self.create_optin("Polls")
+        bcast2 = self.create_broadcast(
+            self.admin, {"und": {"text": "Hi there"}}, contacts=[contact1, contact2], optin=optin
+        )
+        msg_out3 = bcast2.msgs.filter(contact=contact1).get()
+
+        self.assertEqual(
+            {
+                "type": "broadcast_created",
+                "created_on": matchers.ISODate(),
+                "translations": {"und": {"text": "Hi there"}},
+                "base_language": "und",
+                "msg": {
+                    "uuid": str(msg_out3.uuid),
+                    "id": msg_out3.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hi there",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "created_by": {
+                    "id": self.admin.id,
+                    "email": "admin@nyaruka.com",
+                    "first_name": "Andy",
+                    "last_name": "",
+                },
+                "optin": {"uuid": str(optin.uuid), "name": "Polls"},
+                "status": "S",
+                "recipient_count": 2,
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out3.id}/",
+            },
+            Event.from_msg(self.org, self.admin, msg_out3),
+        )
+
+        # create a message that was an opt-in request
+        msg_out4 = self.create_optin_request(contact1, self.channel, optin)
+        self.assertEqual(
+            {
+                "type": "optin_requested",
+                "created_on": matchers.ISODate(),
+                "optin": {"uuid": str(optin.uuid), "name": "Polls"},
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "urn": "tel:+250979111111",
+                "created_by": None,
+                "status": "S",
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out4.id}/",
+            },
+            Event.from_msg(self.org, self.admin, msg_out4),
+        )
+
+    def test_from_channel_event(self):
+        self.create_contact("Jim", phone="+250979111111")
+
+        event1 = self.create_channel_event(
+            self.channel, "tel:+250979111111", ChannelEvent.TYPE_CALL_IN, extra={"duration": 5}
+        )
+
+        self.assertEqual(
+            {
+                "type": "channel_event",
+                "created_on": matchers.ISODate(),
+                "event": {
+                    "type": "mo_call",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "duration": 5,
+                },
+                "channel_event_type": "mo_call",  # deprecated
+                "duration": 5,  # deprecated
+            },
+            Event.from_channel_event(self.org, self.admin, event1),
+        )
+
+        optin = self.create_optin("Polls")
+        event2 = self.create_channel_event(
+            self.channel,
+            "tel:+250979111111",
+            ChannelEvent.TYPE_OPTIN,
+            optin=optin,
+            extra={"title": "Polls", "payload": str(optin.id)},
+        )
+
+        self.assertEqual(
+            {
+                "type": "channel_event",
+                "created_on": matchers.ISODate(),
+                "event": {
+                    "type": "optin",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "optin": {"uuid": str(optin.uuid), "name": "Polls"},
+                },
+                "channel_event_type": "optin",  # deprecated
+                "duration": None,  # deprecated
+            },
+            Event.from_channel_event(self.org, self.admin, event2),
         )
 
     def test_from_flow_run(self):
@@ -1069,9 +1182,8 @@ class EventTest(TembaTest):
         )
 
     def test_from_ticket_event(self):
-        ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
         contact = self.create_contact("Jim", phone="0979111111")
-        ticket = self.create_ticket(ticketer, contact, "Where my shoes?")
+        ticket = self.create_ticket(contact, "Where my shoes?")
 
         # event with a user
         event1 = TicketEvent.objects.create(
@@ -1096,7 +1208,6 @@ class EventTest(TembaTest):
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Where my shoes?",
-                    "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
                 "created_on": matchers.ISODate(),
                 "created_by": {
@@ -1127,7 +1238,6 @@ class EventTest(TembaTest):
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Where my shoes?",
-                    "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
                 "created_on": matchers.ISODate(),
                 "created_by": None,

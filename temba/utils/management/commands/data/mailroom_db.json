@@ -122,12 +122,15 @@
         },
         {
           "uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
-          "name": "Twitter",
-          "channel_type": "TWT",
-          "address": "ureport",
-          "scheme": "twitter",
+          "name": "Facebook",
+          "channel_type": "FBA",
+          "address": "12345",
+          "scheme": "facebook",
           "role": "SR",
-          "config": {}
+          "config": {
+            "page_name": "Cat Facts",
+            "auth_token": "sesame"
+          }
         }
       ],
       "globals": [
@@ -342,23 +345,71 @@
           "translations": [
             {
               "channel_uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
-              "country": "US",
-              "language": "eng",
+              "locale": "eng-US",
               "content": "Hi {{1}}, are you still experiencing problems with {{2}}?",
               "variable_count": 2,
               "namespace": "2d40b45c_25cd_4965_9019_f05d0124c5fa",
               "status": "A",
-              "external_id": "eng1"
+              "external_id": "eng1",
+              "external_locale": "en_US",
+              "components": [
+                {
+                  "type": "BODY",
+                  "text": "Hi {{1}}, are you still experiencing problems with {{2}}?",
+                  "example": {
+                    "body_text": [
+                      [
+                        "Bob",
+                        "Product_A"
+                      ]
+                    ]
+                  }
+                }
+              ],
+              "params": {
+                "body": [
+                  {
+                    "type": "text"
+                  },
+                  {
+                    "type": "text"
+                  }
+                ]
+              }
             },
             {
               "channel_uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
-              "country": null,
-              "language": "fra",
+              "locale": "fra",
               "content": "Bonjour {{1}}, a tu des problems avec {{2}}?",
               "variable_count": 2,
               "namespace": "ea9cd1b3_b018_4ffe_bb0e_7cb898e527ae",
               "status": "P",
-              "external_id": "fra1"
+              "external_id": "fra1",
+              "external_locale": "fr",
+              "components": [
+                {
+                  "type": "BODY",
+                  "text": "Bonjour {{1}}, a tu des problems avec {{2}}?",
+                  "example": {
+                    "body_text": [
+                      [
+                        "Bob",
+                        "Produit_A"
+                      ]
+                    ]
+                  }
+                }
+              ],
+              "params": {
+                "body": [
+                  {
+                    "type": "text"
+                  },
+                  {
+                    "type": "text"
+                  }
+                ]
+              }
             }
           ]
         },
@@ -368,52 +419,22 @@
           "translations": [
             {
               "channel_uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
-              "country": null,
-              "language": "fra",
+              "locale": "fra",
               "content": "Salut!",
               "variable_count": 0,
               "namespace": "",
               "status": "A",
-              "external_id": "fra2"
+              "external_id": "fra2",
+              "external_locale": "fr",
+              "components": [
+                {
+                  "type": "BODY",
+                  "text": "Salut!"
+                }
+              ],
+              "params": {}
             }
           ]
-        }
-      ],
-      "ticketers": [
-        {
-          "uuid": "f9c9447f-a291-4f3c-8c79-c089bbd4e713",
-          "name": "Mailgun (IT Support)",
-          "ticketer_type": "mailgun",
-          "config": {
-            "domain": "tickets.rapidpro.io",
-            "api_key": "sesame",
-            "to_address": "bob@acme.com",
-            "brand_name": "RapidPro",
-            "url_base": "https://app.rapidpro.io"
-          }
-        },
-        {
-          "uuid": "4ee6d4f3-f92b-439b-9718-8da90c05490b",
-          "name": "Zendesk (Nyaruka)",
-          "ticketer_type": "zendesk",
-          "config": {
-            "subdomain": "nyaruka",
-            "oauth_token": "754845822",
-            "secret": "sesame",
-            "push_id": "1234-abcd",
-            "push_token": "523562"
-          }
-        },
-        {
-          "uuid": "6c50665f-b4ff-4e37-9625-bc464fe6a999",
-          "name": "Rocket.Chat",
-          "ticketer_type": "rocketchat",
-          "config": {
-            "base_url": "https://temba.rocket.chat/apps/public/1234",
-            "secret": "123456789",
-            "admin_auth_token": "1234",
-            "admin_user_id": "ADMIN346"
-          }
         }
       ],
       "topics": [
@@ -506,7 +527,6 @@
       ],
       "campaigns": [],
       "templates": [],
-      "ticketers": [],
       "topics": [],
       "teams": []
     }

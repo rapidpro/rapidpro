@@ -83,6 +83,7 @@ class SpaMixin(View):
         # the base page should prep the flow editor
         if not self.is_content_only():
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
+            dev_host = getattr(settings, "EDITOR_DEV_HOST", "localhost")
             prefix = "/dev" if dev_mode else settings.STATIC_URL
 
             # get our list of assets to incude
@@ -90,7 +91,7 @@ class SpaMixin(View):
             styles = []
 
             if dev_mode:  # pragma: no cover
-                response = requests.get("http://localhost:3000/asset-manifest.json")
+                response = requests.get(f"http://{dev_host}:3000/asset-manifest.json")
                 data = response.json()
             else:
                 with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:

@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -12,11 +12,13 @@ class LineType(ChannelType):
     """
 
     code = "LN"
+    name = "LINE"
     category = ChannelType.Category.SOCIAL_MEDIA
 
-    courier_url = r"^ln/(?P<uuid>[a-z0-9\-]+)/receive$"
+    unique_addresses = True
 
-    name = "LINE"
+    courier_url = r"^ln/(?P<uuid>[a-z0-9\-]+)/receive$"
+    schemes = [URN.LINE_SCHEME]
 
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages to LINE users for free. Your users will need an Android, "
@@ -24,11 +26,7 @@ class LineType(ChannelType):
     ) % {"link": '<a target="_blank" href="https://line.me">LINE</a>'}
     claim_view = ClaimView
 
-    schemes = [URN.LINE_SCHEME]
-    max_length = 1600
-    free_sending = True
-
-    show_public_addresses = True
+    config_ui = ConfigUI(show_public_ips=True)
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return "https://developers.line.biz/en/reference/messaging-api/#error-responses"

@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class BurstSMSType(ChannelType):
@@ -13,6 +13,9 @@ class BurstSMSType(ChannelType):
 
     code = "BS"
     name = "BurstSMS"
+    category = ChannelType.Category.PHONE
+
+    schemes = [URN.TEL_SCHEME]
     available_timezones = [
         "Australia/Perth",
         "Australia/Eucla",
@@ -30,9 +33,6 @@ class BurstSMSType(ChannelType):
         "Pacific/Auckland",
     ]
     recommended_timezones = available_timezones
-    category = ChannelType.Category.PHONE
-    schemes = [URN.TEL_SCHEME]
-    max_length = 613
 
     claim_view = AuthenticatedExternalClaimView
     claim_view_kwargs = {
@@ -47,34 +47,33 @@ class BurstSMSType(ChannelType):
         "link": '<a target="_blank" href="https://www.burstsms.com.au/">BurstSMS</a>'
     }
 
-    configuration_blurb = _(
-        "To finish connecting your channel, you need to set your callback URLs below for your number."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/receive",
-            description=_(
-                "This URL should be called by BurstSMS when new messages are received."
-                "You must set this for your number under the 'Inbound Settings' options."
-                "Select 'Yes' to the 'Forward to URL' option and enter this URL."
+    config_ui = ConfigUI(
+        blurb=_("To finish configuring this channel, you need to set your callback URLs below for your number."),
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_(
+                    "This URL should be called by BurstSMS when new messages are received."
+                    "You must set this for your number under the 'Inbound Settings' options."
+                    "Select 'Yes' to the 'Forward to URL' option and enter this URL."
+                ),
             ),
-        ),
-        dict(
-            label=_("DLR callback URL"),
-            url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/status",
-            description=_(
-                "This URL should be called by BurstSMS when the status of an outgoing message is updated."
-                "You can set it on your settings page."
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("Delivery URL"),
+                help=_(
+                    "This URL should be called by BurstSMS when the status of an outgoing message is updated."
+                    "You can set it on your settings page."
+                ),
             ),
-        ),
-        dict(
-            label=_("Reply callback URL"),
-            url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/receive",
-            description=_(
-                "This URL should be called by BurstSMS when messages are replied to."
-                "You can set it on your settings page."
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Reply URL"),
+                help=_(
+                    "This URL should be called by BurstSMS when messages are replied to."
+                    "You can set it on your settings page."
+                ),
             ),
-        ),
+        ],
     )

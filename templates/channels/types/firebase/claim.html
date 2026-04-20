@@ -1,0 +1,11 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n compress temba %}
+
+{% block pre-form %}
+  {% blocktrans trimmed with name=branding.name %}
+    You can to connect using a <a href="https://firebase.google.com/docs/cloud-messaging/">Firebase Cloud Messaging App</a> to your {{ name }} workspace to automate sending notifications.
+  {% endblocktrans %}
+  {% blocktrans trimmed %}
+    You will need to create a new App on Firebase Console and get its key. To do so:
+  {% endblocktrans %}
+{% endblock pre-form %}

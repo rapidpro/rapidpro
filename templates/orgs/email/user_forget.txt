@@ -9,7 +9,7 @@
 Clicking on the following link will allow you to reset the password for the account {{ email }}:
 {% endblocktrans %}
 
-{{ branding.link }}{{ path }}
+https://{{ branding.domain }}{{ path }}
 
 {% trans "If you did not request this, don't worry, this email has only been sent to you and your account remains secure." %}
 

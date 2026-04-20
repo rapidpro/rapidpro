@@ -1,0 +1,38 @@
+{% extends "smartmin/base.html" %}
+{% load smartmin i18n %}
+
+{% block content %}
+  <script type="text/javascript">
+    function handleRegenerate() {
+      document.querySelector("form").submit();
+    }
+  </script>
+  <div class="title">{% trans "Backup Tokens" %}</div>
+  <div class="mb-2">
+    {% blocktrans trimmed %}
+      Below are your backup tokens which you can use if
+      you lose access to the device with which you setup two-factor authentication. Each token can only be used once and
+      tokens which have already been used are showed with a line through them. You should record these tokens in a
+      secure place.
+    {% endblocktrans %}
+  </div>
+  <div class="mb-4 p-4 card">
+    <div class="font-mono text-center">
+      {% for token in backup_tokens %}
+        <div class="{% if token.is_used %}line-through{% endif %} inline-block px-2">{{ token.token }}</div>
+        {% if forloop.counter == 5 %}<br>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <div class="my-3">
+    {% blocktrans trimmed %}
+      You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this.
+    {% endblocktrans %}
+    <div class="mt-3">
+      <form action="{% url 'orgs.user_two_factor_tokens' %}" method="post">
+        {% csrf_token %}
+        <input type="submit" value="{{ _("Regenerate Tokens") |escapejs }}" class="button-primary">
+      </form>
+    </div>
+  </div>
+{% endblock content %}

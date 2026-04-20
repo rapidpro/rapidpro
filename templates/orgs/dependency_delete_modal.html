@@ -1,0 +1,31 @@
+{% extends 'includes/modax.html' %}
+{% load i18n smartmin %}
+
+{% block fields %}
+  {% if hard_dependents %}
+    <span class="font-normal">{{ object.name }}</span>
+    {% trans "can't be deleted as it is still used by the following items:" %}
+    <div class="dependents mt-4">
+      {% for type_qs in hard_dependents.values %}
+        {% include "includes/dependents.html" with dependents=type_qs %}
+      {% endfor %}
+    </div>
+  {% elif soft_dependents %}
+    <span class="font-normal">{{ object.name }}</span>
+    {% trans "is used by the following items but can still be deleted:" %}
+    <div class="dependents mt-4">
+      {% for type_key, type_qs in soft_dependents.items %}
+        {% include "includes/dependents.html" with dependents=type_qs warning=type_warnings|get:type_key %}
+      {% endfor %}
+    </div>
+  {% else %}
+    {% trans "You are about to delete" %}
+    <span class="font-normal">{{ object.name }}.</span>
+  {% endif %}
+  {% if not hard_dependents %}
+    <div class="mt-4">{% trans "There is no way to undo this. Are you sure?" %}</div>
+  {% endif %}
+{% endblock fields %}
+{% block form-buttons %}
+  {% if not hard_dependents %}<input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">{% endif %}
+{% endblock form-buttons %}

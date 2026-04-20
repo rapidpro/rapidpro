@@ -159,8 +159,8 @@ class BaseDateRangeExport(BaseExport):
         """
         tz = self.org.timezone
         return (
-            max(tz.localize(datetime.combine(self.start_date, datetime.min.time())), self.org.created_on),
-            tz.localize(datetime.combine(self.end_date, datetime.max.time())),
+            max(datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=tz), self.org.created_on),
+            datetime.combine(self.end_date, datetime.max.time()).replace(tzinfo=tz),
         )
 
     class Meta:

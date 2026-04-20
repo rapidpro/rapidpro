@@ -4,10 +4,10 @@ from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
-import pytz
-import redis
-from smartmin.tests import SmartminTest, SmartminTestMixin
+from django_redis import get_redis_connection
+from smartmin.tests import SmartminTest
 
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -15,16 +15,16 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase, override_settings
+from django.test import override_settings
 from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
-from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
+from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Msg, OptIn
 from temba.orgs.models import Org, OrgRole, User
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
@@ -38,15 +38,16 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-class TembaTestMixin:
+class TembaTest(SmartminTest):
+    """
+    Base class for our unit tests
+    """
+
     databases = ("default", "readonly")
     default_password = "Qwerty123"
 
-    def setUpOrgs(self):
-        # make sure we start off without any service users
-        Group.objects.get(name="Service Users").user_set.clear()
-
-        self.clear_cache()
+    def setUp(self):
+        super().setUp()
 
         self.create_anonymous_user()
 
@@ -65,10 +66,10 @@ class TembaTestMixin:
 
         self.org = Org.objects.create(
             name="Nyaruka",
-            timezone=pytz.timezone("Africa/Kigali"),
+            timezone=ZoneInfo("Africa/Kigali"),
             flow_languages=["eng", "kin"],
-            created_by=self.user,
-            modified_by=self.user,
+            created_by=self.admin,
+            modified_by=self.admin,
         )
         self.org.initialize()
         self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
@@ -81,7 +82,7 @@ class TembaTestMixin:
         self.admin2 = self.create_user("administrator@trileet.com")
         self.org2 = Org.objects.create(
             name="Trileet Inc.",
-            timezone=pytz.timezone("US/Pacific"),
+            timezone=ZoneInfo("US/Pacific"),
             flow_languages=["eng"],
             created_by=self.admin2,
             modified_by=self.admin2,
@@ -108,7 +109,13 @@ class TembaTestMixin:
 
         utils._anon_user = None
 
-        clear_flow_users()
+        # OrgRole.group and OrgRole.permissions are cached properties so get those cached before test starts to avoid
+        # query count differences when a test is first to request it and when it's not.
+        for role in OrgRole:
+            role.group  # noqa
+            role.permissions  # noqa
+
+        self.maxDiff = None
 
     def setUpLocations(self):
         """
@@ -132,16 +139,10 @@ class TembaTestMixin:
         self.org.country = self.country
         self.org.save(update_fields=("country",))
 
-    def make_beta(self, user):
-        user.groups.add(Group.objects.get(name="Beta"))
+    def tearDown(self):
+        super().tearDown()
 
-    def clear_cache(self):
-        """
-        Clears the redis cache. Out of paranoia we don't even use the configured cache settings but instead hardcode
-        to the local test instance.
-        """
-
-        r = redis.StrictRedis(host="localhost", port=6379, db=10)
+        r = get_redis_connection()
         r.flushdb()
 
     def clear_storage(self):
@@ -364,6 +365,23 @@ class TembaTestMixin:
             logs=logs,
         )
 
+    def create_optin_request(self, contact, channel, optin, flow=None, logs=None) -> Msg:
+        return self._create_msg(
+            contact,
+            "",
+            Msg.DIRECTION_OUT,
+            channel=channel,
+            msg_type=Msg.TYPE_OPTIN,
+            attachments=[],
+            quick_replies=[],
+            status=Msg.STATUS_SENT,
+            sent_on=timezone.now(),
+            created_on=None,
+            optin=optin,
+            flow=flow,
+            logs=logs,
+        )
+
     def _create_msg(
         self,
         contact,
@@ -385,6 +403,7 @@ class TembaTestMixin:
         flow=None,
         ticket=None,
         broadcast=None,
+        optin=None,
         locale=None,
         metadata=None,
         next_attempt=None,
@@ -427,6 +446,7 @@ class TembaTestMixin:
             created_by=created_by,
             sent_on=sent_on,
             broadcast=broadcast,
+            optin=optin,
             flow=flow,
             ticket=ticket,
             metadata=metadata,
@@ -435,12 +455,26 @@ class TembaTestMixin:
             log_uuids=[l.uuid for l in logs or []],
         )
 
+    def create_translations(self, text="", attachments=[], lang="und", optin=None):
+        translations = {
+            lang: {
+                "text": text,
+                "attachments": attachments,
+                "quick_replies": [],
+            }
+        }
+
+        if optin:
+            translations[lang]["optin"] = {"uuid": str(optin.uuid), "name": optin.name} if optin else None
+        return translations
+
     def create_broadcast(
         self,
         user,
-        text: str | dict,
+        translations: dict[str, list] | str,
         contacts=(),
         groups=(),
+        optin=None,
         status=Broadcast.STATUS_SENT,
         msg_status=Msg.STATUS_SENT,
         parent=None,
@@ -448,12 +482,16 @@ class TembaTestMixin:
         created_on=None,
         org=None,
     ):
+        if isinstance(translations, str):
+            translations = self.create_translations(translations)
+
         bcast = Broadcast.create(
             org or self.org,
             user,
-            {"und": text} if isinstance(text, str) else text,
+            translations=translations,
             contacts=contacts,
             groups=groups,
+            optin=optin,
             parent=parent,
             schedule=schedule,
             created_on=created_on or timezone.now(),
@@ -466,14 +504,16 @@ class TembaTestMixin:
 
         if not schedule:
             for contact in contacts:
+                translation = bcast.get_translation(contact)
                 self._create_msg(
                     contact,
-                    text,
+                    translation["text"],
                     Msg.DIRECTION_OUT,
                     channel=None,
                     msg_type=Msg.TYPE_TEXT,
                     attachments=(),
                     quick_replies=(),
+                    optin=optin,
                     status=msg_status,
                     created_on=timezone.now(),
                     created_by=user,
@@ -634,7 +674,6 @@ class TembaTestMixin:
         country=None,
         secret=None,
         config=None,
-        parent=None,
         org=None,
     ) -> Channel:
         channel_type = Channel.get_type_from_code(channel_type)
@@ -647,14 +686,13 @@ class TembaTestMixin:
             address=address,
             config=config or {},
             role=role or Channel.DEFAULT_ROLE,
-            parent=parent,
             secret=secret,
             schemes=schemes or channel_type.schemes,
             created_by=self.admin,
             modified_by=self.admin,
         )
 
-    def create_channel_event(self, channel, urn, event_type, occurred_on=None, extra=None):
+    def create_channel_event(self, channel, urn, event_type, occurred_on=None, optin=None, extra=None):
         urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
         if urn_obj:
             contact = urn_obj.contact
@@ -669,12 +707,12 @@ class TembaTestMixin:
             contact_urn=urn_obj,
             occurred_on=occurred_on or timezone.now(),
             event_type=event_type,
+            optin=optin,
             extra=extra,
         )
 
     def create_ticket(
         self,
-        ticketer,
         contact,
         body: str,
         topic=None,
@@ -689,10 +727,9 @@ class TembaTestMixin:
             opened_on = timezone.now()
 
         ticket = Ticket.objects.create(
-            org=ticketer.org,
-            ticketer=ticketer,
+            org=contact.org,
             contact=contact,
-            topic=topic or ticketer.org.default_ticket_topic,
+            topic=topic or contact.org.default_ticket_topic,
             body=body,
             status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
             assignee=assignee,
@@ -721,6 +758,9 @@ class TembaTestMixin:
             )
 
         return ticket
+
+    def create_optin(self, name: str, org=None):
+        return OptIn.create(org or self.org, self.admin, name)
 
     def set_contact_field(self, contact, key, value):
         update_field_locally(self.admin, contact, key, value)
@@ -793,40 +833,22 @@ class TembaTestMixin:
         self.assertEqual(redirect, response.get("Temba-Success"))
         self.assertEqual(redirect, response.get("REDIRECT"))
 
-
-class TembaTest(TembaTestMixin, SmartminTest):
-    """
-    Base class for tests where each test executes in a DB transaction
-    """
-
-    def setUp(self):
-        self.setUpOrgs()
-
-        # OrgRole.group and OrgRole.permissions are cached properties so get those cached before test starts to avoid
-        # query count differences when a test is first to request it and when it's not.
-        for role in OrgRole:
-            role.group  # noqa
-            role.permissions  # noqa
-
-        self.maxDiff = None
-
-    def tearDown(self):
-        clear_flow_users()
-
-    def mockReadOnly(self, assert_models: set = None):
-        return MockReadOnly(self, assert_models=assert_models)
-
     def upload(self, path: str, content_type="text/plain", name=None):
         with open(path, "rb") as f:
             return SimpleUploadedFile(name or path, content=f.read(), content_type=content_type)
 
+    def make_beta(self, user):
+        user.groups.add(Group.objects.get(name="Beta"))
 
-class TembaNonAtomicTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
-    """
-    Base class for tests that can't be wrapped in DB transactions
-    """
+    def anonymous(self, org: Org):
+        """
+        Makes the given org temporarily anonymous
+        """
 
-    pass
+        return AnonymousOrg(org)
+
+    def mockReadOnly(self, assert_models: set = None):
+        return MockReadOnly(self, assert_models=assert_models)
 
 
 class AnonymousOrg:

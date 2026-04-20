@@ -1,6 +1,5 @@
 from datetime import timedelta
-
-import pytz
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -12,7 +11,7 @@ from temba.contacts.models import ContactField
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Campaign, CampaignEvent, EventFire
@@ -184,9 +183,7 @@ class CampaignTest(TembaTest):
             flow_type="V",
         )
 
-        FlowRevision.objects.create(
-            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
-        )
+        FlowRevision.objects.create(flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin)
 
         event4 = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=2, unit="W", flow=flow, delivery_hour="5"
@@ -1021,7 +1018,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
-            name="Temba New", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
+            name="Temba New", timezone=ZoneInfo("Africa/Kigali"), created_by=self.user, modified_by=self.user
         )
 
         self.assertRaises(
@@ -1080,7 +1077,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
-            name="Temba New", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
+            name="Temba New", timezone=ZoneInfo("Africa/Kigali"), created_by=self.user, modified_by=self.user
         )
 
         with self.assertRaises(AssertionError):
@@ -1735,49 +1732,3 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # our single message flow should be released and take its dependencies with it
         self.assertEqual(event.flow.field_dependencies.count(), 0)
-
-
-class BaseToUndMigrationTest(MigrationTest):
-    app = "campaigns"
-    migrate_from = "0052_squashed"
-    migrate_to = "0053_base_to_und"
-
-    def setUpBeforeMigration(self, apps):
-        joined = self.create_field("joined", "Joined", value_type=ContactField.TYPE_DATETIME)
-        group = self.create_group("Testers", contacts=[])
-        campaign = Campaign.create(self.org, self.user, "Reminders", group)
-        flow = self.create_flow("Test")
-
-        self.flow_event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, joined, offset=1, unit="W", flow=flow
-        )
-        self.msg_event1 = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            campaign,
-            joined,
-            offset=1,
-            unit="W",
-            message={"eng": "Hello", "spa": "Hola"},
-            base_language="eng",
-        )
-        self.msg_event2 = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            campaign,
-            joined,
-            offset=1,
-            unit="W",
-            message={"base": "Hello", "spa": "Hola"},
-            base_language="base",
-        )
-
-    def test_migration(self):
-        self.flow_event.refresh_from_db()
-        self.assertEqual(None, self.flow_event.message)  # unchanged
-
-        self.msg_event1.refresh_from_db()
-        self.assertEqual({"eng": "Hello", "spa": "Hola"}, self.msg_event1.message)  # unchanged
-
-        self.msg_event2.refresh_from_db()
-        self.assertEqual({"und": "Hello", "spa": "Hola"}, self.msg_event2.message)

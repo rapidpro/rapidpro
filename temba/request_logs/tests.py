@@ -9,8 +9,6 @@ from django.utils import timezone
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
 from temba.tests import CRUDLTestMixin, TembaTest
-from temba.tickets.models import Ticketer
-from temba.tickets.types.mailgun import MailgunType
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import HTTPLog
@@ -154,43 +152,6 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(reverse("request_logs.httplog_classifier", args=[c2.uuid]), self.admin)
         self.assertEqual(404, response.status_code)
 
-    def test_ticketer(self):
-        t1 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob@acme.com)", {})
-        t2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Old Email", {})
-        t2.is_active = False
-        t2.save()
-
-        # create some logs
-        l1 = HTTPLog.objects.create(
-            ticketer=t1,
-            url="http://org1.bar/zap",
-            request="GET /zap\nHost: org1.bar\n\n",
-            response=" OK 200",
-            is_error=False,
-            log_type=HTTPLog.TICKETER_CALLED,
-            request_time=10,
-            org=self.org,
-        )
-
-        list_url = reverse("request_logs.httplog_ticketer", args=[t1.uuid])
-        log_url = reverse("request_logs.httplog_read", args=[l1.id])
-
-        response = self.assertListFetch(
-            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1]
-        )
-        self.assertContains(response, "Ticketing Service Called")
-        self.assertContains(response, log_url)
-
-        # view the individual log item
-        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=False, context_object=l1)
-        self.assertContains(response, "200")
-        self.assertContains(response, "org1.bar")
-        self.assertNotContains(response, "org2.bar")
-
-        # can't list logs for deleted ticketer
-        response = self.requestView(reverse("request_logs.httplog_ticketer", args=[t2.uuid]), self.admin)
-        self.assertEqual(404, response.status_code)
-
     def test_http_log(self):
         channel = self.create_channel("WAC", "WhatsApp: 1234", "1234")
         exception = RequestException(
@@ -198,7 +159,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
             request=Mock(
                 Request,
                 method="GET",
-                url="https://graph.facebook.com/v14.0/1234/message_templates?access_token=MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN",
+                url="https://graph.facebook.com/v18.0/1234/message_templates?access_token=MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN",
                 body=b"{}",
                 headers={},
             ),
@@ -212,14 +173,14 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(log_url)
         self.assertContains(response, "200")
         self.assertContains(response, "Connection Error")
-        self.assertContains(response, "/v14.0/1234/message_templates")
+        self.assertContains(response, "/v18.0/1234/message_templates")
 
         log2 = HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, exception, start, channel=channel)
         log2_url = reverse("request_logs.httplog_read", args=[log2.id])
         response = self.client.get(log2_url)
         self.assertContains(response, "200")
         self.assertContains(response, "Connection Error")
-        self.assertContains(response, "/v14.0/1234/message_templates?access_token=********")
+        self.assertContains(response, "/v18.0/1234/message_templates?access_token=********")
 
         # and can't be from other org
         self.login(self.admin2)

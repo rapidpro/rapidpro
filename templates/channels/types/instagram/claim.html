@@ -1,0 +1,118 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n compress temba %}
+
+{% block pre-form %}
+  {% blocktrans trimmed with name=branding.name %}
+    You can connect your Instagram business account to {{ name }} in just a few simple steps.
+  {% endblocktrans %}
+  {% if claim_error %}
+    <temba-alert level="error" class="my-4">
+      {{ claim_error }}
+    </temba-alert>
+  {% endif %}
+{% endblock pre-form %}
+{% block form %}
+  <div class="mt-4 card">
+    <div id="fb-guide">
+      <ol class="steps">
+        <li>
+          {% trans "The Facebook page must be linked to your instagram business account, so check how to link them" %}
+          <a href="https://help.instagram.com/570895513091465">here</a>
+          first.
+        </li>
+        <li>{% trans "Click on the button below to get started." %}</li>
+        <li>{% trans "Select the user you want to log in as." %}</li>
+        <li>{% trans "Select all the pages you want to grant us permissions for." %}</li>
+        <li>{% trans "Approve the permissions, these are required for us to send and receive messages on your behalf." %}</li>
+        <li>{% trans "Finally, select the page you want to add as a channel." %}</li>
+      </ol>
+    </div>
+    <div class="flex mt-4" id="fb-app-connect">
+      <div class="button-primary connect-facebook">{% trans "Add Instagram Business Account" %}</div>
+    </div>
+    <form style="display:none;" method="post" action="{{ claim_url }}" id="claim-form">
+      {% csrf_token %}
+      <input type="text" name="user_access_token" id="user-access-token">
+      <input type="text" name="page_id" id="page-id">
+      <input type="text" name="page_name" id="page-name">
+    </form>
+  </div>
+  <div style="display:none;" class="mt-4 card" id="fb-channel-options">
+    <p style="font-size:1rem;">{% trans "Select the page you want to add as a channel:" %}</p>
+  </div>
+{% endblock form %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    #fb-channel-options {
+      margin-top: 2rem;
+    }
+
+    #fb-channel-options .fb-page-channel-option {
+      display: inline-block;
+      border: 3px solid #eee;
+      cursor: pointer;
+      text-align: center;
+      font-size: 1rem;
+    }
+
+    #fb-channel-options .fb-page-channel-option:hover {
+      background-color: #eee;
+    }
+  </style>
+{% endblock extra-style %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    $(document).ready(function() {
+      {% if facebook_login_instagram_config_id %}
+      $(".connect-facebook").click(function(evt) {
+        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&config_id={{ facebook_login_instagram_config_id }}&response_type=token&override_default_response_type=true")
+      });
+      {% else %}
+      $(".connect-facebook").click(function(evt) {
+        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_show_list&response_type=token")
+      });
+      {% endif %}
+
+      var hash = window.location.hash.substring(1)
+      var result = hash.split('&').reduce(function(res, item) {
+        var parts = item.split('=');
+        res[parts[0]] = parts[1];
+        return res;
+      }, {});
+
+      var accessToken = result.long_lived_token || result.access_token;
+      if (accessToken) {
+        getFBPages(accessToken);
+      }
+
+      $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e) {
+        $("#user-access-token").val($(this).data("fb-access-token"));
+        $("#page-id").val($(this).data("fb-id"));
+        $("#page-name").val($(this).data("fb-name"));
+        $("#claim-form").submit();
+      });
+    });
+
+    function getFBPages(token) {
+      $.ajax({
+        type: "GET",
+        url: "https://graph.facebook.com/me/accounts?access_token=" + token + "&limit=200",
+        dataType: "json",
+        success: function(response, status, xhr) {
+          data = response.data;
+          if (data.length > 0) {
+            for (var i = 0; i < data.length; i++) {
+              $("#fb-channel-options").append("<div class='fb-page-channel-option lbl mt-3 mr-2 p-2 linked' data-fb-id='" + data[i].id + "' data-fb-name='" + data[i].name + "' data-fb-access-token='" + data[i].access_token + "'>" + data[i].name + " </div>");
+            }
+          }
+          $("#fb-channel-options").show();
+          $("#fb-app-connect").hide();
+
+        },
+        failure: function(req) {}
+      });
+    }
+  </script>
+{% endblock extra-script %}

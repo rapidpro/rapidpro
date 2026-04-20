@@ -11,7 +11,7 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        number = forms.CharField(help_text=_("Your enterprise WhatsApp number"))
+        address = forms.CharField(help_text=_("Your enterprise WhatsApp number"), label=_("Number"))
         country = forms.ChoiceField(
             choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
         )
@@ -23,19 +23,18 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         def clean(self):
             # first check that our phone number looks sane
             country = self.cleaned_data["country"]
-            normalized = URN.normalize_number(self.cleaned_data["number"], country)
+            normalized = URN.normalize_number(self.cleaned_data["address"], country)
             if not URN.validate(URN.from_parts(URN.TEL_SCHEME, normalized), country):
                 raise forms.ValidationError(_("Please enter a valid phone number"))
-            self.cleaned_data["number"] = normalized
-
-            return self.cleaned_data
+            self.cleaned_data["address"] = normalized
+            return super().clean()
 
     form_class = Form
 
     def form_valid(self, form):
         data = form.cleaned_data
         config = {
-            Channel.CONFIG_BASE_URL: "https://waba.360dialog.io",
+            Channel.CONFIG_BASE_URL: "https://waba-v2.360dialog.io",
             Channel.CONFIG_AUTH_TOKEN: data["api_key"],
         }
 
@@ -44,8 +43,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.request.user,
             data["country"],
             self.channel_type,
-            name="WhatsApp: %s" % data["number"],
-            address=data["number"],
+            name="WhatsApp: %s" % data["address"],
+            address=data["address"],
             config=config,
             tps=45,
         )

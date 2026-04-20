@@ -1,0 +1,14 @@
+{% extends "channels/channel_claim_form.html" %}
+{% load i18n compress temba %}
+
+{% block pre-form %}
+  {% blocktrans trimmed with name=branding.name %}
+    You can connect a <a href="https://jiochat.com">JioChat Channel</a> to your {{ name }} workspace
+    to automate sending and receiving JioChat messages.
+  {% endblocktrans %}
+  <div class="mt-2">
+    {% blocktrans trimmed %}
+      To start copy the App ID and App Secret from the Developer Center into the form below and click Submit.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-form %}

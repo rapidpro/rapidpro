@@ -2,8 +2,7 @@ from unittest.mock import patch
 
 from django.urls import reverse
 
-from temba.tests import MockResponse, TembaTest
-from temba.utils import json
+from temba.tests import TembaTest
 
 from ...models import Channel
 
@@ -34,11 +33,8 @@ class FirebaseCloudMessagingTypeTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, url)
 
-        mock_get.return_value = MockResponse(
-            200, json.dumps({"title": "FCM Channel", "key": "abcde12345", "send_notification": "True"})
-        )
         response = self.client.post(
-            url, {"title": "FCM Channel", "key": "abcde12345", "send_notification": "True"}, follow=True
+            url, {"title": "FCM Channel", "address": "abcde12345", "send_notification": "True"}, follow=True
         )
 
         channel = Channel.objects.get(address="abcde12345")
