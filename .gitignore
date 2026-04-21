@@ -1,6 +1,5 @@
 # General
 .DS_Store
-.idea
 *~
 .envrc
 .devcontainer
@@ -9,9 +8,7 @@
 .ruff_cache
 .vscode/
 .venv
-*.sublime*
-manage.sh
-
+venv
 .coverage
 coverage.xml
 celerybeat-schedule.db
@@ -22,9 +19,19 @@ node_modules
 screenshots
 sitestatic
 temba/settings.py
+manage.sh
+rp.sh
+
+# AI
+.claude/
+CLAUDE.md
+CODEX.md
+AGENTS.md
+start.sh
 
 # Exclude media folder except files used for import testing
 media/apks
+media/avatars
 media/contacts
 media/csv_imports
 media/contact_imports
@@ -37,6 +44,7 @@ media/test_orgs
 media/tmp
 media/attachments
 media/blog
+media/emails
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
