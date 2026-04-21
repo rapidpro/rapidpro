@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       python-version: "3.10.x"
-      node-version: "12"
+      node-version: "20"
       mailroom-version: "9.0.0"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
 
@@ -85,7 +85,7 @@ jobs:
           poetry run coverage html
 
       - name: Save coverage report as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: htmlcov/
@@ -93,10 +93,3 @@ jobs:
       - name: Mailroom log
         if: failure()
         run: cat mailroom.log
-
-      - name: Upload coverage
-        if: success()
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
