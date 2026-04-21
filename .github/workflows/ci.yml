@@ -93,10 +93,3 @@ jobs:
       - name: Mailroom log
         if: failure()
         run: cat mailroom.log
-
-      - name: Upload coverage
-        if: success()
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
