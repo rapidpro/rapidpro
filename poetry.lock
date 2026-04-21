@@ -749,14 +749,14 @@ test = ["djangorestframework", "graphene-django", "pytest", "pytest-cov", "pytes
 
 [[package]]
 name = "django-formtools"
-version = "2.4.1"
+version = "2.5.1"
 description = "A set of high-level abstractions for Django forms"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "django-formtools-2.4.1.tar.gz", hash = "sha256:21f8d5dac737f1e636fa8a0a10969c1c32f525a6dfa27c29592827ba70d9643a"},
-    {file = "django_formtools-2.4.1-py3-none-any.whl", hash = "sha256:49ea8a64ddef4728a558bf5f8f622c0f4053b979edcf193bf00dd80432ab2f12"},
+    {file = "django-formtools-2.5.1.tar.gz", hash = "sha256:47cb34552c6efca088863d693284d04fc36eaaf350eb21e1a1d935e0df523c93"},
+    {file = "django_formtools-2.5.1-py3-none-any.whl", hash = "sha256:bce9b64eda52cc1eef6961cc649cf75aacd1a707c2fff08d6c3efcbc8e7e761a"},
 ]
 
 [package.dependencies]
@@ -2530,4 +2530,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "01e284cb64ed77620c9a2fc2469ab8356ede8a37b1d1cf44422bb31ea6e0a690"
+content-hash = "de1938c8bc24c72e12444fe797b4022988150ea797574fbab8b8915eacd688ba"
