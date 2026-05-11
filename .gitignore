@@ -51,3 +51,4 @@ media/emails
 __pycache__/
 *.py[cod]
 *.so
+
